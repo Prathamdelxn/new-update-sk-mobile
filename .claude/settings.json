@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"c:\\\\2026\\\\v2\\\\sky-lite\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(tee app/project/[id]/plans.jsx)",
+      "Bash(grep -v \"//\")",
+      "Bash(git show *)",
+      "Bash(mkdir -p \"c:/2026/v2/sky-lite-api/src/app/api/superadmin/subscriptions/[orgId]\")",
+      "Bash(mkdir -p \"c:/2026/v2/sky-lite-api/src/app/api/superadmin/plan-requests/[requestId]\")",
+      "Bash(tee src/app/api/superadmin/subscriptions/route.js)",
+      "Bash(tee \"src/app/api/superadmin/subscriptions/[orgId]/route.js\")",
+      "Bash(tee src/app/api/superadmin/plan-requests/route.js)",
+      "Bash(tee \"src/app/api/superadmin/plan-requests/[requestId]/route.js\")",
+      "Bash(mkdir -p \"c:/2026/v2/sky-lite-api/src/app/api/organization/subscription\")",
+      "Bash(mkdir -p \"c:/2026/v2/sky-lite-api/src/app/api/organization/plan-request\")",
+      "Bash(tee src/app/api/organization/subscription/route.js)",
+      "Bash(tee src/app/api/organization/plan-request/route.js)",
+      "Bash(tee src/lib/middleware.js)",
+      "Bash(tee src/lib/superadminMiddleware.js)",
+      "Bash(grep -n 'currency\\\\|$or\\\\|user\\\\.projects\\\\|projectType\\\\|members.*userDoc' src/app/api/projects/route.js)",
+      "Bash(grep -r \"fetch.*\\\\${API_BASE_URL}\" app/ --include=\"*.jsx\" -o)"
+    ]
+  }
+}
