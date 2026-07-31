@@ -128,8 +128,8 @@ export default function RegisterScreen() {
                     paddingHorizontal: 12,
                     borderRadius: 12,
                     borderWidth: 1,
-                    borderColor: industryType === 'interior' ? '#9333EA' : '#E2E8F0',
-                    backgroundColor: industryType === 'interior' ? '#F3E8FF' : '#F8FAFC',
+                    borderColor: industryType === 'interior' ? '#2563EB' : '#E2E8F0',
+                    backgroundColor: industryType === 'interior' ? '#DBEAFE' : '#F8FAFC',
                     alignItems: 'center',
                   }}
                 >

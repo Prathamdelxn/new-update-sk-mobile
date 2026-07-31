@@ -4,7 +4,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import AdaptiveGlass from './components/AdaptiveGlass';
 import LocationMapViewer from './components/LocationMapViewer';
 
 import { useState, useEffect } from 'react';
@@ -50,7 +49,7 @@ export default function CreateProjectScreen() {
   const [targetDate, setTargetDate] = useState(null);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
-  const [projectType, setProjectType] = useState('Construction');
+  const [projectType, setProjectType] = useState(user?.organization?.industryType === 'interior' ? 'Interior' : 'Construction');
   const [siteLat, setSiteLat] = useState('');
   const [siteLng, setSiteLng] = useState('');
   const [attendanceRadius, setAttendanceRadius] = useState('100');
@@ -405,11 +404,6 @@ export default function CreateProjectScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : null}
     >
       <View style={styles.outerContainer}>
-        <LinearGradient
-          colors={['#F8FAFF', '#F0F9FF']}
-          style={StyleSheet.absoluteFill}
-        />
-
         <SafeAreaView style={styles.container} edges={['top']}>
           {/* Header */}
           <View style={styles.header}>
@@ -418,7 +412,7 @@ export default function CreateProjectScreen() {
               onPress={() => router.back()}
               activeOpacity={0.7}
             >
-              <Ionicons name="chevron-back" size={24} color="#0F172A" />
+              <Ionicons name="chevron-back" size={22} color="#0F172A" />
             </TouchableOpacity>
 
             <View style={styles.headerTitleContainer}>
@@ -440,7 +434,7 @@ export default function CreateProjectScreen() {
             ) : (
               <>
                 {/* Selection Info (Single Container) */}
-                <AdaptiveGlass intensity={15} tint="light" style={[styles.infoCard, { flexDirection: 'column', alignItems: 'stretch', padding: 0, marginBottom: 12, gap: 0 }]}>
+                <View style={[styles.infoCard, { flexDirection: 'column', alignItems: 'stretch', padding: 0, marginBottom: 12, gap: 0 }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}>
                     <View style={[styles.infoIconBox, { backgroundColor: '#EFF6FF', width: 48, height: 48, borderRadius: 14 }]}>
                       <MaterialIcons
@@ -472,10 +466,10 @@ export default function CreateProjectScreen() {
                       </Text>
                     </View>
                   </View>
-                </AdaptiveGlass>
+                </View>
 
                 {/* --- 1. Basic Details Card --- */}
-                <AdaptiveGlass intensity={15} tint="light" style={styles.bentoCard}>
+                <View style={styles.bentoCard}>
                   <Text style={styles.bentoSectionTitle}>{t('basicDetails', 'Basic Details')}</Text>
 
                   <View style={styles.inputGroup}>
@@ -497,33 +491,10 @@ export default function CreateProjectScreen() {
                     )}
                   </View>
 
-                  {params.isEditing !== 'true' && (
-                    <View style={[styles.inputGroup, { marginTop: 16 }]}>
-                      <Text style={styles.inputLabel}>{t('projectType')}</Text>
-                      <View style={styles.typeToggleRow}>
-                        <TouchableOpacity
-                          style={[styles.typeToggleBtn, projectType === 'Construction' && styles.typeToggleBtnActive]}
-                          onPress={() => setProjectType('Construction')}
-                          activeOpacity={0.7}
-                        >
-                          <MaterialIcons name="construction" size={18} color={projectType === 'Construction' ? '#FFFFFF' : '#64748B'} />
-                          <Text style={[styles.typeToggleText, projectType === 'Construction' && styles.typeToggleTextActive]}>{t('construction')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.typeToggleBtn, projectType === 'Interior' && styles.typeToggleBtnInterior]}
-                          onPress={() => setProjectType('Interior')}
-                          activeOpacity={0.7}
-                        >
-                          <MaterialIcons name="weekend" size={18} color={projectType === 'Interior' ? '#FFFFFF' : '#64748B'} />
-                          <Text style={[styles.typeToggleText, projectType === 'Interior' && styles.typeToggleTextActive]}>{t('interior')}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
-                </AdaptiveGlass>
+                </View>
 
                 {/* --- 2. Location & Specs Card --- */}
-                <AdaptiveGlass intensity={15} tint="light" style={styles.bentoCard}>
+                <View style={styles.bentoCard}>
                   <Text style={styles.bentoSectionTitle}>{t('locationAndSpecs', 'Location & Specs')}</Text>
 
                   <View style={styles.inputGroup}>
@@ -646,10 +617,10 @@ export default function CreateProjectScreen() {
                       onChangeText={setAttendanceRadius}
                     />
                   </View>
-                </AdaptiveGlass>
+                </View>
 
                 {/* --- 3. Financials & Timeline Card --- */}
-                <AdaptiveGlass intensity={15} tint="light" style={styles.bentoCard}>
+                <View style={styles.bentoCard}>
                   <Text style={styles.bentoSectionTitle}>{t('financialsTimeline', 'Financials & Timeline')}</Text>
 
                   <View style={styles.inputGroup}>
@@ -737,10 +708,10 @@ export default function CreateProjectScreen() {
                     </View>
                     <Text style={styles.checkboxLabel}>{t('needSiteSurveyLabel')}</Text>
                   </TouchableOpacity>
-                </AdaptiveGlass>
+                </View>
 
                 {/* --- 4. Technical Drawings Card --- */}
-                <AdaptiveGlass intensity={15} tint="light" style={styles.bentoCard}>
+                <View style={styles.bentoCard}>
                   <View style={styles.sectionHeader}>
                     <Text style={styles.bentoSectionTitle}>Technical Drawings</Text>
                     <TouchableOpacity
@@ -762,7 +733,7 @@ export default function CreateProjectScreen() {
 
                   <View style={styles.docList}>
                     {drawings.map((doc, index) => (
-                      <AdaptiveGlass key={index} intensity={10} tint="light" style={styles.docItem}>
+                      <View key={index} style={styles.docItem}>
                         <View style={styles.docIconBox}>
                           <MaterialIcons
                             name={doc.mimeType?.includes('image') ? "image" : "picture-as-pdf"}
@@ -780,16 +751,16 @@ export default function CreateProjectScreen() {
                         <TouchableOpacity onPress={() => removeDrawing(index)} style={styles.docActionBtn}>
                           <MaterialIcons name="delete" size={20} color="#EF4444" />
                         </TouchableOpacity>
-                      </AdaptiveGlass>
+                      </View>
                     ))}
                     {drawings.length === 0 && !isUploadingDrawing && (
                       <Text style={styles.emptyDocText}>No drawings attached</Text>
                     )}
                   </View>
-                </AdaptiveGlass>
+                </View>
 
                 {/* --- 5. Documents & Media Card --- */}
-                <AdaptiveGlass intensity={15} tint="light" style={styles.bentoCard}>
+                <View style={styles.bentoCard}>
                   <View style={styles.sectionHeader}>
                     <Text style={styles.bentoSectionTitle} >{t('projectDocuments')}</Text>
                     <TouchableOpacity
@@ -811,7 +782,7 @@ export default function CreateProjectScreen() {
 
                   <View style={styles.docList}>
                     {documents.map((doc, index) => (
-                      <AdaptiveGlass key={index} intensity={10} tint="light" style={styles.docItem}>
+                      <View key={index} style={styles.docItem}>
                         <View style={styles.docIconBox}>
                           <MaterialIcons
                             name={doc.mimeType?.includes('image') ? "image" : "description"}
@@ -829,13 +800,13 @@ export default function CreateProjectScreen() {
                         <TouchableOpacity onPress={() => removeDocument(index)} style={styles.docActionBtn}>
                           <MaterialIcons name="delete" size={20} color="#EF4444" />
                         </TouchableOpacity>
-                      </AdaptiveGlass>
+                      </View>
                     ))}
                     {documents.length === 0 && !isUploading && (
                       <Text style={styles.emptyDocText}>{t('noDocumentsAttached')}</Text>
                     )}
                   </View>
-                </AdaptiveGlass>
+                </View>
               </>
             )}
           </ScrollView>
@@ -1001,33 +972,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 20,
+    paddingBottom: 16,
+    backgroundColor: '#DBEAFE',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+    marginBottom: 16,
   },
   backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 13,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0F2FE',
+    borderColor: '#BFDBFE',
   },
   headerTitleContainer: {
     flex: 1,
-    marginLeft: 16,
+    marginLeft: 14,
   },
   headerPreTitle: {
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: '#1D4ED8',
+    marginBottom: 1,
   },
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Inter-Black',
     color: '#0F172A',
+    letterSpacing: -0.5,
   },
   content: {
     flex: 1,
@@ -1037,18 +1012,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E0F2FE',
-    marginBottom: 32,
+    borderColor: '#DBEAFE',
+    marginBottom: 20,
   },
   bentoCard: {
-    padding: 20,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    padding: 18,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E0F2FE',
+    borderColor: '#DBEAFE',
     marginBottom: 12,
   },
   bentoSectionTitle: {
@@ -1152,12 +1127,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#475569',
   },
-  typeToggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  typeToggleBtn: { flex: 1, minWidth: 130, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' },
-  typeToggleBtnActive: { backgroundColor: '#3B82F6', borderColor: '#2563EB' },
-  typeToggleBtnInterior: { backgroundColor: '#7C3AED', borderColor: '#6D28D9' },
-  typeToggleText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#64748B' },
-  typeToggleTextActive: { color: '#FFFFFF' },
   inputLabel: {
     fontSize: 13,
     fontFamily: 'Inter-Bold',
@@ -1490,37 +1459,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
-  },
-  typeToggleRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  typeToggleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  typeToggleBtnActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#2563EB',
-  },
-  typeToggleBtnInterior: {
-    backgroundColor: '#8B5CF6',
-    borderColor: '#7C3AED',
-  },
-  typeToggleText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Bold',
-    color: '#64748B',
-  },
-  typeToggleTextActive: {
-    color: '#FFFFFF',
   },
 });

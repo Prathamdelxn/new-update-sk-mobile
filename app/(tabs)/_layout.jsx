@@ -1,7 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
 
 export default function TabLayout() {
+  const { user } = useAuth();
+  const isInterior = user?.organization?.industryType === 'interior';
+
   return (
     <Tabs
       screenOptions={{
@@ -38,8 +42,29 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="crm/index"
+        options={{
+          href: isInterior ? undefined : null,
+          title: 'CRM',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="project/index"
         options={{
+          href: isInterior ? null : undefined,
+          title: 'Project',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="i-project/index"
+        options={{
+          href: isInterior ? undefined : null,
           title: 'Project',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} />
@@ -49,6 +74,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="template/index"
         options={{
+          href: isInterior ? null : undefined,
+          title: 'Template',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'layers' : 'layers-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="i-template/index"
+        options={{
+          href: isInterior ? undefined : null,
           title: 'Template',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'layers' : 'layers-outline'} size={22} color={color} />
@@ -62,6 +98,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="setting/index"
         options={{
+          href: isInterior ? null : undefined,
+          title: 'Setting',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'options' : 'options-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="i-setting/index"
+        options={{
+          href: isInterior ? undefined : null,
           title: 'Setting',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'options' : 'options-outline'} size={22} color={color} />

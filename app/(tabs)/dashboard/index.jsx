@@ -7,7 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
-import { BarChart, PieChart } from 'react-native-gifted-charts';
+import { BarChart, PieChart, LineChart } from 'react-native-gifted-charts';
 import { useAuth } from '../../context/AuthContext';
 import HeaderNotification from '../../components/HeaderNotification';
 
@@ -34,6 +34,22 @@ const RISK_META = {
   Monitored:{ color: '#2563EB', bg: '#DBEAFE' },
   Resolved: { color: '#16A34A', bg: '#F0FDF4' },
 };
+
+const INTERIOR_REVENUE_DATA = [
+  { value: 45, label: 'Feb' },
+  { value: 62, label: 'Mar' },
+  { value: 88, label: 'Apr' },
+  { value: 110, label: 'May' },
+  { value: 145, label: 'Jun' },
+  { value: 195, label: 'Jul' },
+];
+
+const INTERIOR_CATEGORY_DATA = [
+  { value: 42, color: '#2563EB', label: 'Residential Villa' },
+  { value: 28, color: '#4F46E5', label: 'Penthouse Apartment' },
+  { value: 20, color: '#0284C7', label: 'Commercial Office' },
+  { value: 10, color: '#059669', label: 'Hospitality & Retail' },
+];
 
 function getTimeOfDay() {
   const h = new Date().getHours();
@@ -123,53 +139,141 @@ export default function DashboardScreen() {
   const isInterior = user?.organization?.industryType === 'interior';
 
   if (isInterior) {
+    const activeProjects = ps.total || recent.length;
+
     return (
       <View style={s.outerContainer}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F3E8FF" translucent={false} />
+        <StatusBar barStyle="dark-content" backgroundColor="#DBEAFE" translucent={false} />
         <View style={s.bgBase} />
         <SafeAreaView style={s.container} edges={['bottom']}>
-          <View style={[s.header, { paddingTop: insets.top + 12 }]}>
+          <View style={[s.header, { paddingTop: insets.top + 12, backgroundColor: '#DBEAFE', borderBottomColor: '#DBEAFE' }]}>
             <View>
-              <Text style={s.headerGreeting}>Good {getTimeOfDay()}, {user?.name?.split(' ')[0] || 'there'}</Text>
+              <Text style={[s.headerGreeting, { color: '#1D4ED8' }]}>Good {getTimeOfDay()}, {user?.name?.split(' ')[0] || 'there'}</Text>
               <Text style={s.pageTitle}>Interior Workspace</Text>
             </View>
             <HeaderNotification />
           </View>
-          <ScrollView contentContainerStyle={{ padding: 20 }}>
-            <View style={{ backgroundColor: '#F3E8FF', borderRadius: 20, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: '#E9D5FF' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <Ionicons name="sparkles" size={18} color="#7E22CE" />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#7E22CE', textTransform: 'uppercase' }}>Interior Design & Fit-outs</Text>
-              </View>
-              <Text style={{ fontSize: 22, fontWeight: '800', color: '#0F172A', marginBottom: 6 }}>
-                Hello, {user?.name?.split(' ')[0] || 'User'}! 👋
-              </Text>
-              <Text style={{ fontSize: 13, color: '#475569', lineHeight: 20 }}>
-                Welcome to your Interior Design Workspace. Specialized tools for room moodboards, FF&E procurement, finish selection approvals, and client presentations will be available in future updates.
-              </Text>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+            {/* Stats */}
+            <SectionLabel title="Summary" />
+            <View style={s.interiorStatsGrid}>
+              <InteriorStatCard icon="folder-outline" iconBg="#F0F9FF" iconColor="#0284C7" label="Active Fit-outs" value={activeProjects} sub="ongoing" />
+              <InteriorStatCard icon="trending-up-outline" iconBg="#F0FDF4" iconColor="#16A34A" label="Monthly Revenue" value="$195,000" sub="+18%" subColor="#16A34A" />
+              <InteriorStatCard icon="cube-outline" iconBg="#EEF2FF" iconColor="#4F46E5" label="FF&E Orders" value="14" sub="items" />
+              <InteriorStatCard icon="document-text-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Pending Sign-offs" value="2" sub="action req." subColor="#D97706" />
             </View>
 
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 12 }}>Upcoming Features</Text>
-
-            {[
-              { title: 'FF&E Procurement', desc: 'Track furniture, lighting & fixture orders.', icon: 'cube-outline' },
-              { title: 'Room & Zone Boards', desc: 'Organize design themes by room.', icon: 'home-outline' },
-              { title: 'Finish Approvals', desc: 'Manage client material & color sign-offs.', icon: 'color-palette-outline' },
-              { title: '3D & Layout Viewer', desc: 'Share floor plans & renderings.', icon: 'document-text-outline' },
-            ].map((card, idx) => (
-              <View key={idx} style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#F1F5F9', flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#FAF5FF', justifyContent: 'center', alignItems: 'center' }}>
-                  <Ionicons name={card.icon} size={22} color="#9333EA" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A' }}>{card.title}</Text>
-                  <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>{card.desc}</Text>
-                </View>
-                <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#B45309' }}>COMING SOON</Text>
-                </View>
+            {/* Revenue & Project Trend */}
+            <SectionLabel title="Revenue & Project Trend" />
+            <View style={s.card}>
+              <View style={s.chartHeaderRow}>
+                <Text style={s.chartHeaderTitle}>Monthly Revenue ($)</Text>
+                <Text style={s.chartHeaderTag}>Last 6 Months</Text>
               </View>
-            ))}
+              <LineChart
+                data={INTERIOR_REVENUE_DATA}
+                areaChart
+                curved
+                height={140}
+                spacing={44}
+                initialSpacing={10}
+                color="#2563EB"
+                thickness={2.5}
+                startFillColor="#2563EB"
+                startOpacity={0.25}
+                endFillColor="#2563EB"
+                endOpacity={0.02}
+                hideRules
+                hideDataPoints
+                xAxisColor="#E2E8F0"
+                yAxisThickness={0}
+                yAxisTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                xAxisLabelTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                noOfSections={3}
+                yAxisLabelSuffix="k"
+                isAnimated
+                animationDuration={600}
+              />
+            </View>
+
+            {/* Project Type Distribution */}
+            <SectionLabel title="Project Type Distribution" />
+            <View style={[s.card, s.chartRow]}>
+              <PieChart
+                donut
+                data={INTERIOR_CATEGORY_DATA}
+                radius={64}
+                innerRadius={44}
+                centerLabelComponent={() => (
+                  <View style={{ alignItems: 'center' }}>
+                    <Text style={s.donutNum}>{INTERIOR_CATEGORY_DATA.length}</Text>
+                    <Text style={s.donutLbl}>types</Text>
+                  </View>
+                )}
+                isAnimated
+                animationDuration={600}
+              />
+              <View style={s.legendBlock}>
+                {INTERIOR_CATEGORY_DATA.map((c) => (
+                  <LegendItem key={c.label} color={c.color} label={c.label} value={`${c.value}%`} />
+                ))}
+              </View>
+            </View>
+
+            {/* Recent Fit-out Projects */}
+            <SectionLabel title="Recent Fit-out Projects" />
+            {recent.length > 0 ? (
+              <View style={s.listCard}>
+                {recent.map((p, i) => (
+                  <AlertRow
+                    key={i}
+                    last={i === recent.length - 1}
+                    icon="folder-outline"
+                    iconColor="#2563EB"
+                    iconBg="#EFF6FF"
+                    title={p.name}
+                    subtitle={p.clientName || 'Interior Fit-out'}
+                    badge={p.status || 'Ongoing'}
+                    badgeColor="#2563EB"
+                  />
+                ))}
+              </View>
+            ) : (
+              <View style={s.card}>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' }}>
+                  No fit-out projects yet.
+                </Text>
+              </View>
+            )}
+
+            {/* Workspace Modules */}
+            <SectionLabel title="Workspace Modules" />
+            <View style={s.listCard}>
+              {[
+                { label: 'Interior Projects', desc: 'Active fit-outs & timelines', icon: 'grid-outline', color: '#0284C7', bg: '#F0F9FF', route: '/(tabs)/i-project' },
+                { label: 'Client CRM', desc: 'Leads & consultation schedules', icon: 'people-outline', color: '#4F46E5', bg: '#EEF2FF', route: '/(tabs)/crm' },
+                { label: 'User Management', desc: 'Studio team & roles', icon: 'person-add-outline', color: '#16A34A', bg: '#F0FDF4', route: '/user-management' },
+                { label: 'Workspace Settings', desc: 'Company preferences & currency', icon: 'settings-outline', color: '#64748B', bg: '#F8FAFC', route: '/(tabs)/i-setting' },
+              ].map((mod, i, arr) => (
+                <TouchableOpacity
+                  key={mod.label}
+                  style={[s.alertRow, i === arr.length - 1 && { borderBottomWidth: 0 }]}
+                  onPress={() => router.push(mod.route)}
+                >
+                  <View style={[s.alertIconBox, { backgroundColor: mod.bg }]}>
+                    <Ionicons name={mod.icon} size={16} color={mod.color} />
+                  </View>
+                  <View style={s.alertBody}>
+                    <Text style={s.alertTitle}>{mod.label}</Text>
+                    <Text style={s.alertSub}>{mod.desc}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={{ height: 100 }} />
           </ScrollView>
         </SafeAreaView>
       </View>
@@ -440,6 +544,23 @@ function SectionLabel({ title }) {
   );
 }
 
+function InteriorStatCard({ icon, iconBg, iconColor, label, value, sub, subColor }) {
+  return (
+    <View style={s.interiorStatCard}>
+      <View style={s.interiorStatTopRow}>
+        <Text style={s.interiorStatLabel}>{label}</Text>
+        <View style={[s.interiorStatIconBox, { backgroundColor: iconBg }]}>
+          <Ionicons name={icon} size={14} color={iconColor} />
+        </View>
+      </View>
+      <Text style={s.interiorStatValue}>
+        {value}{' '}
+        {!!sub && <Text style={[s.interiorStatSub, subColor && { color: subColor, fontFamily: 'Inter-Bold' }]}>{sub}</Text>}
+      </Text>
+    </View>
+  );
+}
+
 function StatTile({ icon, iconBg, iconColor, label, value }) {
   return (
     <View style={s.statTile}>
@@ -557,6 +678,18 @@ const s = StyleSheet.create({
     transform: [{ scale: 0.78 }],
   },
 
+  // Interior stat cards
+  interiorStatsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  interiorStatCard: {
+    width: '47%', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
+    borderWidth: 1, borderColor: '#DBEAFE',
+  },
+  interiorStatTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  interiorStatIconBox: { width: 28, height: 28, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
+  interiorStatLabel: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#94A3B8', flex: 1, marginRight: 6 },
+  interiorStatValue: { fontSize: 17, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 8 },
+  interiorStatSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+
   // Section label — matches settings screen exactly
   sectionLabel: {
     fontSize: 13, fontFamily: 'Inter-Bold', color: '#64748B',
@@ -588,6 +721,9 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#E0F2FE',
   },
   chartRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  chartHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  chartHeaderTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#475569' },
+  chartHeaderTag: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F8FAFC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
 
   // Progress
   progressTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
