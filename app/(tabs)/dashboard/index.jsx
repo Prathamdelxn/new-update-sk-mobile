@@ -10,6 +10,7 @@ import { TouchableOpacity } from 'react-native';
 import { BarChart, PieChart, LineChart } from 'react-native-gifted-charts';
 import { useAuth } from '../../context/AuthContext';
 import HeaderNotification from '../../components/HeaderNotification';
+import interiorApiClient from '../../services/interiorApiClient';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -35,22 +36,6 @@ const RISK_META = {
   Resolved: { color: '#16A34A', bg: '#F0FDF4' },
 };
 
-const INTERIOR_REVENUE_DATA = [
-  { value: 45, label: 'Feb' },
-  { value: 62, label: 'Mar' },
-  { value: 88, label: 'Apr' },
-  { value: 110, label: 'May' },
-  { value: 145, label: 'Jun' },
-  { value: 195, label: 'Jul' },
-];
-
-const INTERIOR_CATEGORY_DATA = [
-  { value: 42, color: '#2563EB', label: 'Residential Villa' },
-  { value: 28, color: '#4F46E5', label: 'Penthouse Apartment' },
-  { value: 20, color: '#0284C7', label: 'Commercial Office' },
-  { value: 10, color: '#059669', label: 'Hospitality & Retail' },
-];
-
 function getTimeOfDay() {
   const h = new Date().getHours();
   if (h < 12) return 'morning';
@@ -66,9 +51,46 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [attendanceActive, setAttendanceActive] = useState(false);
+  const [interiorData, setInteriorData] = useState(null);
+  const [seeding, setSeeding] = useState(false);
   const isAdmin = user?.role?.name === 'Admin' || user?.role === 'Admin';
+  const isInteriorUser = user?.organization?.industryType === 'interior';
+
+  const fetchInteriorDashboard = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      const res = await interiorApiClient.get('/dashboard');
+      setInteriorData(res?.success && res?.data ? res.data : null);
+    } catch (e) {
+      console.error('Interior dashboard fetch error', e);
+      setInteriorData(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  const handleSeedInteriorData = useCallback(async () => {
+    try {
+      setSeeding(true);
+      const res = await interiorApiClient.post('/dashboard/seed');
+      if (res?.success) await fetchInteriorDashboard();
+    } catch (e) {
+      console.error('Interior seed error', e);
+    } finally {
+      setSeeding(false);
+    }
+  }, [fetchInteriorDashboard]);
 
   const fetchDashboard = useCallback(async (isRefresh = false) => {
+    // Interior sessions carry an interior-os JWT, not a construction one —
+    // calling the construction API with it 401s and triggers the global
+    // auto-logout interceptor, bouncing the user back to login.
+    if (isInteriorUser) {
+      return fetchInteriorDashboard(isRefresh);
+    }
+
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     try {
@@ -76,7 +98,7 @@ export default function DashboardScreen() {
         fetch(`${API_BASE_URL}/dashboard`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE_URL}/attendance/today`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
-      
+
       if (resDash.ok) setData(await resDash.json());
       if (resAtt.ok) {
         const attData = await resAtt.json();
@@ -88,7 +110,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token]);
+  }, [token, isInteriorUser, fetchInteriorDashboard]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
@@ -139,7 +161,17 @@ export default function DashboardScreen() {
   const isInterior = user?.organization?.industryType === 'interior';
 
   if (isInterior) {
-    const activeProjects = ps.total || recent.length;
+    const kpis = interiorData?.kpis || {
+      activeProjects: 0, delayedProjects: 0, openSnags: 0, openRFIs: 0, criticalRisks: 0, procurementPending: 0,
+    };
+    const isEmpty = !interiorData || kpis.activeProjects === 0;
+    const progressTrend = interiorData?.progressTrend || [];
+    const projectHealth = interiorData?.projectHealth || [];
+    const topProjects = interiorData?.topProjects || [];
+    const recentActivities = interiorData?.recentActivities || [];
+
+    const revenueLineData = progressTrend.map((p) => ({ value: p.actual, label: p.month }));
+    const healthDonutData = projectHealth.map((h) => ({ value: h.value, color: h.color, label: h.name }));
 
     return (
       <View style={s.outerContainer}>
@@ -148,103 +180,160 @@ export default function DashboardScreen() {
         <SafeAreaView style={s.container} edges={['bottom']}>
           <View style={[s.header, { paddingTop: insets.top + 12, backgroundColor: '#DBEAFE', borderBottomColor: '#DBEAFE' }]}>
             <View>
-              <Text style={[s.headerGreeting, { color: '#1D4ED8' }]}>Good {getTimeOfDay()}, {user?.name?.split(' ')[0] || 'there'}</Text>
+              <Text style={[s.headerGreeting, { color: '#1D4ED8' }]}>Good {getTimeOfDay()}, {user?.firstName || user?.name?.split(' ')[0] || 'there'}</Text>
               <Text style={s.pageTitle}>Interior Workspace</Text>
             </View>
             <HeaderNotification />
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-            {/* Stats */}
-            <SectionLabel title="Summary" />
-            <View style={s.interiorStatsGrid}>
-              <InteriorStatCard icon="folder-outline" iconBg="#F0F9FF" iconColor="#0284C7" label="Active Fit-outs" value={activeProjects} sub="ongoing" />
-              <InteriorStatCard icon="trending-up-outline" iconBg="#F0FDF4" iconColor="#16A34A" label="Monthly Revenue" value="$195,000" sub="+18%" subColor="#16A34A" />
-              <InteriorStatCard icon="cube-outline" iconBg="#EEF2FF" iconColor="#4F46E5" label="FF&E Orders" value="14" sub="items" />
-              <InteriorStatCard icon="document-text-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Pending Sign-offs" value="2" sub="action req." subColor="#D97706" />
-            </View>
-
-            {/* Revenue & Project Trend */}
-            <SectionLabel title="Revenue & Project Trend" />
-            <View style={s.card}>
-              <View style={s.chartHeaderRow}>
-                <Text style={s.chartHeaderTitle}>Monthly Revenue ($)</Text>
-                <Text style={s.chartHeaderTag}>Last 6 Months</Text>
-              </View>
-              <LineChart
-                data={INTERIOR_REVENUE_DATA}
-                areaChart
-                curved
-                height={140}
-                spacing={44}
-                initialSpacing={10}
-                color="#2563EB"
-                thickness={2.5}
-                startFillColor="#2563EB"
-                startOpacity={0.25}
-                endFillColor="#2563EB"
-                endOpacity={0.02}
-                hideRules
-                hideDataPoints
-                xAxisColor="#E2E8F0"
-                yAxisThickness={0}
-                yAxisTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
-                xAxisLabelTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
-                noOfSections={3}
-                yAxisLabelSuffix="k"
-                isAnimated
-                animationDuration={600}
-              />
-            </View>
-
-            {/* Project Type Distribution */}
-            <SectionLabel title="Project Type Distribution" />
-            <View style={[s.card, s.chartRow]}>
-              <PieChart
-                donut
-                data={INTERIOR_CATEGORY_DATA}
-                radius={64}
-                innerRadius={44}
-                centerLabelComponent={() => (
-                  <View style={{ alignItems: 'center' }}>
-                    <Text style={s.donutNum}>{INTERIOR_CATEGORY_DATA.length}</Text>
-                    <Text style={s.donutLbl}>types</Text>
-                  </View>
-                )}
-                isAnimated
-                animationDuration={600}
-              />
-              <View style={s.legendBlock}>
-                {INTERIOR_CATEGORY_DATA.map((c) => (
-                  <LegendItem key={c.label} color={c.color} label={c.label} value={`${c.value}%`} />
-                ))}
-              </View>
-            </View>
-
-            {/* Recent Fit-out Projects */}
-            <SectionLabel title="Recent Fit-out Projects" />
-            {recent.length > 0 ? (
-              <View style={s.listCard}>
-                {recent.map((p, i) => (
-                  <AlertRow
-                    key={i}
-                    last={i === recent.length - 1}
-                    icon="folder-outline"
-                    iconColor="#2563EB"
-                    iconBg="#EFF6FF"
-                    title={p.name}
-                    subtitle={p.clientName || 'Interior Fit-out'}
-                    badge={p.status || 'Ongoing'}
-                    badgeColor="#2563EB"
-                  />
-                ))}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={s.scroll}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={() => fetchInteriorDashboard(true)} tintColor="#fff" colors={['#2563EB']} />
+            }
+          >
+            {isEmpty ? (
+              <View style={[s.card, { alignItems: 'center', paddingVertical: 40, marginTop: 12 }]}>
+                <Text style={{ fontSize: 32, marginBottom: 12 }}>🏢</Text>
+                <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 6 }}>No Active Projects</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', marginBottom: 20 }}>
+                  Your workspace is empty. Generate a demo portfolio to explore the dashboard.
+                </Text>
+                <TouchableOpacity
+                  style={[s.loginButton, { paddingHorizontal: 24, borderRadius: 14, opacity: seeding ? 0.7 : 1 }]}
+                  onPress={handleSeedInteriorData}
+                  disabled={seeding}
+                >
+                  {seeding ? <ActivityIndicator color="#fff" size="small" /> : (
+                    <Text style={s.loginButtonText}>Seed Demo Portfolio Data</Text>
+                  )}
+                </TouchableOpacity>
               </View>
             ) : (
-              <View style={s.card}>
-                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' }}>
-                  No fit-out projects yet.
-                </Text>
-              </View>
+              <>
+                {/* Stats */}
+                <SectionLabel title="Summary" />
+                <View style={s.interiorStatsGrid}>
+                  <InteriorStatCard icon="folder-outline" iconBg="#F0F9FF" iconColor="#0284C7" label="Active Projects" value={kpis.activeProjects} />
+                  <InteriorStatCard icon="time-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Delayed" value={kpis.delayedProjects} subColor="#D97706" />
+                  <InteriorStatCard icon="bug-outline" iconBg="#FEF2F2" iconColor="#DC2626" label="Open Snags" value={kpis.openSnags} />
+                  <InteriorStatCard icon="chatbox-ellipses-outline" iconBg="#EEF2FF" iconColor="#4F46E5" label="Open RFIs" value={kpis.openRFIs} />
+                  <InteriorStatCard icon="alert-circle-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Critical Risks" value={kpis.criticalRisks} subColor="#D97706" />
+                  <InteriorStatCard icon="cart-outline" iconBg="#F0FDF4" iconColor="#16A34A" label="Procurement Pending" value={kpis.procurementPending} />
+                </View>
+
+                {/* Progress Trend */}
+                {revenueLineData.length > 0 && (
+                  <>
+                    <SectionLabel title="Progress Trend" />
+                    <View style={s.card}>
+                      <View style={s.chartHeaderRow}>
+                        <Text style={s.chartHeaderTitle}>Planned vs Actual (%)</Text>
+                        <Text style={s.chartHeaderTag}>Last 6 Months</Text>
+                      </View>
+                      <LineChart
+                        data={revenueLineData}
+                        areaChart
+                        curved
+                        height={140}
+                        spacing={44}
+                        initialSpacing={10}
+                        color="#2563EB"
+                        thickness={2.5}
+                        startFillColor="#2563EB"
+                        startOpacity={0.25}
+                        endFillColor="#2563EB"
+                        endOpacity={0.02}
+                        hideRules
+                        hideDataPoints
+                        xAxisColor="#E2E8F0"
+                        yAxisThickness={0}
+                        yAxisTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        xAxisLabelTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        noOfSections={3}
+                        yAxisLabelSuffix="%"
+                        isAnimated
+                        animationDuration={600}
+                      />
+                    </View>
+                  </>
+                )}
+
+                {/* Project Health */}
+                {healthDonutData.length > 0 && (
+                  <>
+                    <SectionLabel title="Project Health" />
+                    <View style={[s.card, s.chartRow]}>
+                      <PieChart
+                        donut
+                        data={healthDonutData}
+                        radius={64}
+                        innerRadius={44}
+                        centerLabelComponent={() => (
+                          <View style={{ alignItems: 'center' }}>
+                            <Text style={s.donutNum}>{healthDonutData.length}</Text>
+                            <Text style={s.donutLbl}>states</Text>
+                          </View>
+                        )}
+                        isAnimated
+                        animationDuration={600}
+                      />
+                      <View style={s.legendBlock}>
+                        {projectHealth.map((h) => (
+                          <LegendItem key={h.name} color={h.color} label={h.name} value={`${h.value}`} />
+                        ))}
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                {/* Top Projects */}
+                <SectionLabel title="Top Projects" />
+                {topProjects.length > 0 ? (
+                  <View style={s.listCard}>
+                    {topProjects.map((p, i) => (
+                      <AlertRow
+                        key={p.id || i}
+                        last={i === topProjects.length - 1}
+                        icon="folder-outline"
+                        iconColor="#2563EB"
+                        iconBg="#EFF6FF"
+                        title={p.name}
+                        subtitle={`${p.progress || 0}% complete`}
+                        badge={p.health === 'green' ? 'On Track' : p.health === 'yellow' ? 'At Risk' : 'Delayed'}
+                        badgeColor={p.health === 'green' ? '#16A34A' : p.health === 'yellow' ? '#D97706' : '#DC2626'}
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <View style={s.card}>
+                    <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' }}>
+                      No projects yet.
+                    </Text>
+                  </View>
+                )}
+
+                {/* Recent Activity */}
+                {recentActivities.length > 0 && (
+                  <>
+                    <SectionLabel title="Recent Activity" />
+                    <View style={s.listCard}>
+                      {recentActivities.map((a, i) => (
+                        <AlertRow
+                          key={i}
+                          last={i === recentActivities.length - 1}
+                          icon="ellipse"
+                          iconColor="#2563EB"
+                          iconBg="#EFF6FF"
+                          title={a.action}
+                          subtitle={`${a.project} · ${a.time}`}
+                        />
+                      ))}
+                    </View>
+                  </>
+                )}
+              </>
             )}
 
             {/* Workspace Modules */}

@@ -18,6 +18,7 @@ const SimpleBackground = () => (
 );
 
 export default function LoginScreen() {
+  const [industryType, setIndustryType] = useState('construction');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -37,6 +38,17 @@ export default function LoginScreen() {
     setIsLoading(true);
     setError('');
 
+    if (industryType === 'interior') {
+      const result = await login(email, password, 'interior');
+      setIsLoading(false);
+      if (result.success) {
+        router.replace('/(tabs)/dashboard');
+        return;
+      }
+      setError(result.message || t('invalidCredentials', 'Invalid credentials'));
+      return;
+    }
+
     // Try Super Admin login first
     const saResult = await saLogin(email, password);
     if (saResult.success) {
@@ -46,7 +58,7 @@ export default function LoginScreen() {
     }
 
     // If SA login fails, try regular user login
-    const result = await login(email, password);
+    const result = await login(email, password, 'construction');
     setIsLoading(false);
     if (result.success) {
       router.replace('/(tabs)/dashboard');
@@ -65,7 +77,7 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.formContainer}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -86,6 +98,49 @@ export default function LoginScreen() {
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Workspace Mode</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setIndustryType('construction')}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: industryType === 'construction' ? '#2563EB' : '#E2E8F0',
+                    backgroundColor: industryType === 'construction' ? '#EFF6FF' : '#F8FAFC',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: industryType === 'construction' ? '#1E40AF' : '#64748B' }}>
+                    🏗️ Construction
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setIndustryType('interior')}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: industryType === 'interior' ? '#2563EB' : '#E2E8F0',
+                    backgroundColor: industryType === 'interior' ? '#DBEAFE' : '#F8FAFC',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: industryType === 'interior' ? '#6B21A8' : '#64748B' }}>
+                    🎨 Interior Design
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>{t('email', 'Email')}</Text>
@@ -242,7 +297,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 13,
-     fontFamily: 'Inter-Bold',
+    fontFamily: 'Inter-Bold',
     color: '#334155',
     marginBottom: 8,
   },
@@ -292,7 +347,7 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     color: '#3B82F6',
     fontSize: 14,
-     fontFamily: 'Inter-Bold',
+    fontFamily: 'Inter-Bold',
   },
   buttonContainer: {
     borderRadius: 16,
@@ -306,7 +361,7 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-     fontFamily: 'Inter-Bold',
+    fontFamily: 'Inter-Bold',
   },
   forgotRow: {
     alignItems: 'flex-end',
@@ -318,11 +373,11 @@ const styles = StyleSheet.create({
   registerLinkText: {
     color: '#475569',
     fontSize: 14,
-     fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Inter-SemiBold',
   },
   registerLinkHighlight: {
     color: '#3B82F6',
-     fontFamily: 'Inter-Black',
+    fontFamily: 'Inter-Black',
   },
   errorContainer: {
     backgroundColor: '#FEF2F2',
@@ -335,7 +390,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#DC2626',
     fontSize: 14,
-     fontFamily: 'Inter-Bold',
+    fontFamily: 'Inter-Bold',
     textAlign: 'center',
   },
 });

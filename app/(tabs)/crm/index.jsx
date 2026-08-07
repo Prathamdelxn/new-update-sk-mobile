@@ -1,77 +1,205 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, StatusBar, KeyboardAvoidingView, Platform,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { useToast } from '../../context/ToastContext';
 import HeaderNotification from '../../components/HeaderNotification';
+import interiorApiClient from '../../services/interiorApiClient';
 
-const STAGES = ['New Lead', 'Consultation Scheduled', 'Proposal Sent', 'Contract Signed'];
+const FOLLOWUP_TYPES = ['Phone Call', 'WhatsApp', 'Meeting', 'Office Visit', 'Site Visit'];
+
+function userLabel(u) {
+  const name = u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || 'User';
+  return `${name}${u.role?.name || u.role ? ` (${u.role?.name || u.role})` : ''}`;
+}
+
+// Must match CrmCustomer's actual `status` enum in interior-os-backend exactly —
+// it does NOT include "Negotiation"/"Converted" (those were leftover copy from
+// a different status vocabulary); the real terminal stages are "Booking
+// Pending" and "Won".
+const STAGES = ['New Lead', 'Contacted', 'Meeting Scheduled', 'Measurement Done', 'Requirement Completed', 'Design Approved', 'Quotation Sent', 'Booking Pending', 'Won', 'Lost'];
 
 const STAGE_META = {
-  'New Lead':                  { color: '#0284C7', bg: '#F0F9FF' },
-  'Consultation Scheduled':    { color: '#4F46E5', bg: '#EEF2FF' },
-  'Proposal Sent':             { color: '#D97706', bg: '#FFFBEB' },
-  'Contract Signed':           { color: '#16A34A', bg: '#F0FDF4' },
-  'Lost':                      { color: '#64748B', bg: '#F8FAFC' },
+  'New Lead':               { color: '#0284C7', bg: '#F0F9FF' },
+  'Contacted':               { color: '#D97706', bg: '#FFFBEB' },
+  'Meeting Scheduled':       { color: '#7C3AED', bg: '#F5F3FF' },
+  'Measurement Done':        { color: '#7C3AED', bg: '#F5F3FF' },
+  'Requirement Completed':   { color: '#4F46E5', bg: '#EEF2FF' },
+  'Design Approved':         { color: '#4F46E5', bg: '#EEF2FF' },
+  'Quotation Sent':          { color: '#E11D48', bg: '#FFF1F2' },
+  'Booking Pending':         { color: '#E11D48', bg: '#FFF1F2' },
+  'Won':                     { color: '#16A34A', bg: '#F0FDF4' },
+  'Lost':                    { color: '#64748B', bg: '#F8FAFC' },
 };
 
-const INITIAL_LEADS = [
-  { id: '1', clientName: 'Vikram & Radhika Mehta', email: 'vikram.mehta@gmail.com', phone: '+1 (555) 234-8901', propertyType: 'Luxury Penthouse (450 m²)', budget: '$120,000', stage: 'Contract Signed', consultationDate: 'Jul 24, 2026' },
-  { id: '2', clientName: 'Sophie Turner', email: 'sophie.t@designcorp.com', phone: '+1 (555) 876-1234', propertyType: 'Residential Villa (600 m²)', budget: '$250,000', stage: 'Proposal Sent', consultationDate: 'Jul 28, 2026' },
-  { id: '3', clientName: 'Apex Capital Offices', email: 'contact@apexcap.com', phone: '+1 (555) 432-9087', propertyType: 'Executive Office Suite (800 m²)', budget: '$180,000', stage: 'Consultation Scheduled', consultationDate: 'Jul 31, 2026' },
-  { id: '4', clientName: 'Julian Rossi', email: 'julian.rossi@luxury.it', phone: '+1 (555) 345-6789', propertyType: 'Boutique Hotel Lobby', budget: '$300,000', stage: 'New Lead', consultationDate: 'Aug 02, 2026' },
-];
+const LEAD_SOURCES = ['Phone Call', 'Walk-in', 'Referral', 'Existing Customer', 'Builder Reference', 'Architect Reference', 'Society Reference', 'Social Media', 'Other'];
+const PROPERTY_TYPES = ['Flat', 'Villa', 'Office', 'Shop', 'Other'];
+
+const emptyForm = { name: '', mobileNumber: '', email: '', leadSource: 'Phone Call', propertyType: 'Flat', projectLocation: '' };
+const emptyFollowUpForm = { type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' };
 
 export default function CRMScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
 
-  const [leads, setLeads] = useState(INITIAL_LEADS);
+  const [leads, setLeads] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState('All');
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [form, setForm] = useState(emptyForm);
 
-  const [clientName, setClientName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [propertyType, setPropertyType] = useState('Residential Villa');
-  const [budget, setBudget] = useState('$50,000');
+  const [followUpLead, setFollowUpLead] = useState(null);
+  const [followUpForm, setFollowUpForm] = useState(emptyFollowUpForm);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [schedulingFollowUp, setSchedulingFollowUp] = useState(false);
+
+  const loadLeads = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    try {
+      const res = await interiorApiClient.get('/crm/customers');
+      const list = res?.success && res?.data ? res.data : Array.isArray(res) ? res : [];
+      setLeads(list);
+    } catch (e) {
+      console.error('Failed to load leads', e);
+      setLeads([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  const loadUsers = useCallback(async () => {
+    try {
+      const res = await interiorApiClient.get('/users');
+      setUsers(res?.success && res?.data ? res.data : Array.isArray(res) ? res : []);
+    } catch (e) {
+      setUsers([]);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadLeads(); loadUsers(); }, [loadLeads, loadUsers]));
 
   const filteredLeads = leads.filter((l) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
-      l.clientName.toLowerCase().includes(q) ||
-      l.email.toLowerCase().includes(q) ||
-      l.propertyType.toLowerCase().includes(q);
-    const matchesStage = stageFilter === 'All' || l.stage === stageFilter;
+      l.name?.toLowerCase().includes(q) ||
+      l.email?.toLowerCase().includes(q) ||
+      l.mobileNumber?.toLowerCase().includes(q);
+    const matchesStage = stageFilter === 'All' || l.status === stageFilter;
     return matchesSearch && matchesStage;
   });
 
-  const resetForm = () => {
-    setClientName('');
-    setEmail('');
-    setPhone('');
-    setPropertyType('Residential Villa');
-    setBudget('$50,000');
+  const handleAddLead = async () => {
+    if (!form.name.trim() || !form.mobileNumber.trim()) {
+      showToast('Name and Mobile Number are required', 'error');
+      return;
+    }
+    setCreateLoading(true);
+    try {
+      await interiorApiClient.post('/crm/customers', form);
+      showToast('Lead created successfully!', 'success');
+      setForm(emptyForm);
+      setIsModalVisible(false);
+      loadLeads();
+    } catch (e) {
+      showToast(e.message || 'Failed to create lead', 'error');
+    } finally {
+      setCreateLoading(false);
+    }
   };
 
-  const handleAddLead = () => {
-    if (!clientName.trim() || !email.trim()) return;
-    const newLead = {
-      id: String(Date.now()),
-      clientName: clientName.trim(),
-      email: email.trim(),
-      phone: phone.trim() || '+1 (555) 000-0000',
-      propertyType,
-      budget: budget.startsWith('$') ? budget : `$${budget}`,
-      stage: 'New Lead',
-      consultationDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    };
-    setLeads([newLead, ...leads]);
-    resetForm();
-    setIsModalVisible(false);
+  const openFollowUpModal = (lead) => {
+    setFollowUpLead(lead);
+    setFollowUpForm(emptyFollowUpForm);
   };
+
+  // Android has no native combined date+time dialog, and its imperative
+  // picker auto-dismisses itself — rendering the declarative <DateTimePicker>
+  // there too causes a double-dismiss crash on unmount. So on Android we
+  // chain a date dialog into a time dialog imperatively; iOS keeps the
+  // declarative "datetime" spinner.
+  const openScheduleDatePicker = () => {
+    if (Platform.OS === 'android') {
+      const base = followUpForm.scheduledDate || new Date();
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, pickedDate) => {
+          if (event.type !== 'set' || !pickedDate) return;
+          DateTimePickerAndroid.open({
+            value: base,
+            mode: 'time',
+            onChange: (timeEvent, pickedTime) => {
+              if (timeEvent.type !== 'set' || !pickedTime) return;
+              const combined = new Date(pickedDate);
+              combined.setHours(pickedTime.getHours(), pickedTime.getMinutes());
+              setFollowUpForm((prev) => ({ ...prev, scheduledDate: combined }));
+            },
+          });
+        },
+      });
+    } else {
+      setShowDatePicker(true);
+    }
+  };
+
+  const closeFollowUpModal = () => {
+    setFollowUpLead(null);
+    setFollowUpForm(emptyFollowUpForm);
+  };
+
+  const handleScheduleFollowUp = async () => {
+    if (!followUpForm.scheduledDate) return showToast('Date is required', 'error');
+    if (!followUpForm.remarks.trim()) return showToast('Remarks are required', 'error');
+
+    setSchedulingFollowUp(true);
+    try {
+      await interiorApiClient.post('/crm/activities', {
+        customer: followUpLead._id,
+        type: followUpForm.type,
+        status: 'Pending',
+        scheduledDate: followUpForm.scheduledDate.toISOString(),
+        remarks: followUpForm.remarks,
+      });
+
+      await interiorApiClient.patch(`/crm/customers/${followUpLead._id}`, followUpForm.assignedSalesExecutive
+        ? { assignedSalesExecutive: followUpForm.assignedSalesExecutive, status: 'Contacted' }
+        : { status: 'Contacted' });
+
+      showToast('Follow-up scheduled successfully!', 'success');
+      closeFollowUpModal();
+      loadLeads();
+    } catch (e) {
+      showToast(e.message || 'Failed to schedule follow-up', 'error');
+    } finally {
+      setSchedulingFollowUp(false);
+    }
+  };
+
+  const passToSiteVisit = async (lead) => {
+    try {
+      await interiorApiClient.patch(`/crm/customers/${lead._id}`, { status: 'Meeting Scheduled' });
+      showToast(`${lead.name} moved to Site Visit`, 'success');
+      loadLeads();
+    } catch (e) {
+      showToast(e.message || 'Failed to update lead', 'error');
+    }
+  };
+
+  const pipelineValue = leads.length;
+  const converted = leads.filter((l) => l.status === 'Won').length;
+  const conversionRate = leads.length ? Math.round((converted / leads.length) * 100) : 0;
 
   return (
     <View style={s.outerContainer}>
@@ -81,89 +209,118 @@ export default function CRMScreen() {
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <View>
             <Text style={s.headerGreeting}>Workspace</Text>
-            <Text style={s.pageTitle}>Client CRM</Text>
+            <Text style={s.pageTitle}>CRM Workspace</Text>
           </View>
-          <HeaderNotification />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity style={s.followUpsBtn} onPress={() => router.push('/crm-pipeline')}>
+              <Ionicons name="funnel-outline" size={16} color="#1D4ED8" />
+            </TouchableOpacity>
+            <TouchableOpacity style={s.followUpsBtn} onPress={() => router.push('/crm-followups')}>
+              <Ionicons name="time-outline" size={17} color="#1D4ED8" />
+            </TouchableOpacity>
+            <HeaderNotification />
+          </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-          {/* Stat cards */}
-          <View style={s.statsGrid}>
-            <StatCard icon="people-outline" iconBg="#F0F9FF" iconColor="#0284C7" label="Total Pipeline" value={`${leads.length}`} sub="leads" />
-            <StatCard icon="calendar-outline" iconBg="#EEF2FF" iconColor="#4F46E5" label="Consultations" value="3" sub="this week" />
-            <StatCard icon="cash-outline" iconBg="#F0FDF4" iconColor="#16A34A" label="Pipeline Value" value="$850K" />
-            <StatCard icon="trending-up-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Conversion" value="85%" />
+        {loading ? (
+          <View style={s.center}>
+            <ActivityIndicator size="large" color="#2563EB" />
           </View>
+        ) : (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={s.scroll}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadLeads(true)} tintColor="#2563EB" colors={['#2563EB']} />}
+          >
+            {/* Stat cards */}
+            <View style={s.statsGrid}>
+              <StatCard icon="people-outline" iconBg="#F0F9FF" iconColor="#0284C7" label="Total Pipeline" value={`${pipelineValue}`} sub="leads" />
+              <StatCard icon="trending-up-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Conversion" value={`${conversionRate}%`} />
+              <StatCard icon="checkmark-circle-outline" iconBg="#F0FDF4" iconColor="#16A34A" label="Converted" value={`${converted}`} onPress={() => router.push('/crm-won-projects')} />
+              <StatCard icon="hourglass-outline" iconBg="#EEF2FF" iconColor="#4F46E5" label="In Progress" value={`${leads.length - converted}`} />
+            </View>
 
-          {/* Search */}
-          <View style={s.searchRow}>
-            <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
-            <TextInput
-              style={s.searchInput}
-              placeholder="Search by client or property..."
-              placeholderTextColor="#94A3B8"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+            {/* Search */}
+            <View style={s.searchRow}>
+              <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
+              <TextInput
+                style={s.searchInput}
+                placeholder="Search by name, email or phone..."
+                placeholderTextColor="#94A3B8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
 
-          {/* Stage filter chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
-            {['All', ...STAGES].map((stage) => {
-              const active = stageFilter === stage;
-              return (
-                <TouchableOpacity
-                  key={stage}
-                  style={[s.chip, active && s.chipActive]}
-                  onPress={() => setStageFilter(stage)}
-                >
-                  <Text style={[s.chipText, active && s.chipTextActive]}>{stage}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Lead list */}
-          <View style={{ marginTop: 16, gap: 12 }}>
-            {filteredLeads.length === 0 ? (
-              <View style={s.empty}>
-                <Ionicons name="people-outline" size={44} color="#94A3B8" />
-                <Text style={s.emptyTitle}>No client leads found</Text>
-              </View>
-            ) : (
-              filteredLeads.map((lead) => {
-                const meta = STAGE_META[lead.stage] || STAGE_META['Lost'];
+            {/* Stage filter chips */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
+              {['All', ...STAGES].map((stage) => {
+                const active = stageFilter === stage;
                 return (
-                  <View key={lead.id} style={s.leadCard}>
-                    <View style={s.leadTopRow}>
-                      <View style={s.avatar}>
-                        <Text style={s.avatarText}>{lead.clientName.charAt(0).toUpperCase()}</Text>
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={s.leadName} numberOfLines={1}>{lead.clientName}</Text>
-                        <Text style={s.leadSub} numberOfLines={1}>{lead.propertyType}</Text>
-                      </View>
-                      <Text style={s.leadBudget}>{lead.budget}</Text>
-                    </View>
-
-                    <View style={s.leadBottomRow}>
-                      <View style={[s.stageBadge, { backgroundColor: meta.bg }]}>
-                        <Text style={[s.stageBadgeText, { color: meta.color }]}>{lead.stage}</Text>
-                      </View>
-                      <Text style={s.leadDate}>{lead.consultationDate}</Text>
-                      <TouchableOpacity style={s.contactBtn}>
-                        <Ionicons name="call-outline" size={13} color="#2563EB" />
-                        <Text style={s.contactBtnText}>Contact</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                  <TouchableOpacity key={stage} style={[s.chip, active && s.chipActive]} onPress={() => setStageFilter(stage)}>
+                    <Text style={[s.chipText, active && s.chipTextActive]}>{stage}</Text>
+                  </TouchableOpacity>
                 );
-              })
-            )}
-          </View>
+              })}
+            </ScrollView>
 
-          <View style={{ height: 100 }} />
-        </ScrollView>
+            {/* Lead list */}
+            <View style={{ marginTop: 16, gap: 12 }}>
+              {filteredLeads.length === 0 ? (
+                <View style={s.empty}>
+                  <Ionicons name="people-outline" size={44} color="#94A3B8" />
+                  <Text style={s.emptyTitle}>No leads found</Text>
+                </View>
+              ) : (
+                filteredLeads.map((lead) => {
+                  const meta = STAGE_META[lead.status] || STAGE_META['Lost'];
+                  return (
+                    <TouchableOpacity 
+                      key={lead._id} 
+                      style={s.leadCard}
+                      onPress={() => router.push(`/crm-lead/${lead._id}`)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={s.leadTopRow}>
+                        <View style={s.avatar}>
+                          <Text style={s.avatarText}>{lead.name?.charAt(0).toUpperCase()}</Text>
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Text style={s.leadName} numberOfLines={1}>{lead.name}</Text>
+                            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                          </View>
+                          <Text style={s.leadSub} numberOfLines={1}>{lead.mobileNumber}{lead.propertyType ? ` · ${lead.propertyType}` : ''}</Text>
+                        </View>
+                      </View>
+
+                      <View style={s.leadBottomRow}>
+                        <View style={[s.stageBadge, { backgroundColor: meta.bg }]}>
+                          <Text style={[s.stageBadgeText, { color: meta.color }]}>{lead.status}</Text>
+                        </View>
+                        <Text style={s.leadDate} numberOfLines={1}>{lead.leadSource || 'N/A'}</Text>
+                        {lead.status === 'New Lead' && (
+                          <TouchableOpacity style={s.contactBtn} onPress={() => openFollowUpModal(lead)}>
+                            <Ionicons name="arrow-forward" size={13} color="#2563EB" />
+                            <Text style={s.contactBtnText}>Follow-up</Text>
+                          </TouchableOpacity>
+                        )}
+                        {lead.status === 'Contacted' && (
+                          <TouchableOpacity style={s.contactBtn} onPress={() => passToSiteVisit(lead)}>
+                            <Ionicons name="arrow-forward" size={13} color="#2563EB" />
+                            <Text style={s.contactBtnText}>Site Visit</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </View>
+
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        )}
 
         {/* Add Lead FAB */}
         <TouchableOpacity style={s.fab} onPress={() => setIsModalVisible(true)}>
@@ -173,49 +330,140 @@ export default function CRMScreen() {
 
       {/* Add Lead Modal */}
       <Modal visible={isModalVisible} animationType="slide" transparent onRequestClose={() => setIsModalVisible(false)}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={s.modalOverlay}
-        >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Add Client Lead</Text>
+              <Text style={s.modalTitle}>Add New Lead</Text>
               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Client Full Name</Text>
-              <TextInput style={s.input} placeholder="e.g. Vikram Mehta" placeholderTextColor="#94A3B8" value={clientName} onChangeText={setClientName} />
+              <Text style={s.label}>Full Name *</Text>
+              <TextInput style={s.input} placeholder="e.g. John Doe" placeholderTextColor="#94A3B8" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
+
+              <Text style={s.label}>Mobile Number *</Text>
+              <TextInput style={s.input} placeholder="+91 9876543210" placeholderTextColor="#94A3B8" value={form.mobileNumber} onChangeText={(v) => setForm({ ...form, mobileNumber: v })} keyboardType="phone-pad" />
 
               <Text style={s.label}>Email Address</Text>
-              <TextInput style={s.input} placeholder="client@gmail.com" placeholderTextColor="#94A3B8" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+              <TextInput style={s.input} placeholder="john@example.com" placeholderTextColor="#94A3B8" value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} keyboardType="email-address" autoCapitalize="none" />
 
-              <Text style={s.label}>Phone</Text>
-              <TextInput style={s.input} placeholder="+1 (555) 000-0000" placeholderTextColor="#94A3B8" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-
-              <Text style={s.label}>Est. Budget</Text>
-              <TextInput style={s.input} placeholder="$150,000" placeholderTextColor="#94A3B8" value={budget} onChangeText={setBudget} />
-
-              <Text style={s.label}>Property & Project Scope</Text>
+              <Text style={s.label}>Lead Source</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {['Residential Villa', 'Luxury Penthouse Apartment', 'Commercial Executive Office', 'Hospitality / Retail Suite'].map((opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[s.optionChip, propertyType === opt && s.optionChipActive]}
-                    onPress={() => setPropertyType(opt)}
-                  >
-                    <Text style={[s.optionChipText, propertyType === opt && s.optionChipTextActive]}>{opt}</Text>
+                {LEAD_SOURCES.map((opt) => (
+                  <TouchableOpacity key={opt} style={[s.optionChip, form.leadSource === opt && s.optionChipActive]} onPress={() => setForm({ ...form, leadSource: opt })}>
+                    <Text style={[s.optionChipText, form.leadSource === opt && s.optionChipTextActive]}>{opt}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <TouchableOpacity style={s.saveBtn} onPress={handleAddLead}>
-                <Ionicons name="send" size={15} color="#FFFFFF" />
-                <Text style={s.saveBtnText}>Save Client Lead</Text>
+              <Text style={s.label}>Property Type</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                {PROPERTY_TYPES.map((opt) => (
+                  <TouchableOpacity key={opt} style={[s.optionChip, form.propertyType === opt && s.optionChipActive]} onPress={() => setForm({ ...form, propertyType: opt })}>
+                    <Text style={[s.optionChipText, form.propertyType === opt && s.optionChipTextActive]}>{opt}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={s.label}>Project Location</Text>
+              <TextInput style={s.input} placeholder="e.g. Hiranandani Estate, Thane" placeholderTextColor="#94A3B8" value={form.projectLocation} onChangeText={(v) => setForm({ ...form, projectLocation: v })} />
+
+              <TouchableOpacity style={[s.saveBtn, createLoading && { opacity: 0.7 }]} onPress={handleAddLead} disabled={createLoading}>
+                {createLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
+                  <>
+                    <Ionicons name="send" size={15} color="#FFFFFF" />
+                    <Text style={s.saveBtnText}>Create Lead</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Schedule Follow-up Modal */}
+      <Modal visible={!!followUpLead} animationType="slide" transparent onRequestClose={closeFollowUpModal}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            {followUpLead && (
+              <>
+                <View style={s.modalHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.modalTitle}>Schedule Follow-up</Text>
+                    <Text style={s.modalSubtitle}>Plan a future touchpoint with {followUpLead.name}</Text>
+                  </View>
+                  <TouchableOpacity onPress={closeFollowUpModal}>
+                    <Ionicons name="close" size={22} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <Text style={s.label}>Follow-up Type</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                    {FOLLOWUP_TYPES.map((opt) => (
+                      <TouchableOpacity key={opt} style={[s.optionChip, followUpForm.type === opt && s.optionChipActive]} onPress={() => setFollowUpForm({ ...followUpForm, type: opt })}>
+                        <Text style={[s.optionChipText, followUpForm.type === opt && s.optionChipTextActive]}>{opt}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <Text style={s.label}>Date & Time *</Text>
+                  <TouchableOpacity style={s.dateInput} onPress={openScheduleDatePicker}>
+                    <Text style={[s.dateInputText, !followUpForm.scheduledDate && { color: '#94A3B8' }]}>
+                      {followUpForm.scheduledDate
+                        ? followUpForm.scheduledDate.toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                        : 'Select date & time'}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
+                  </TouchableOpacity>
+                  {Platform.OS === 'ios' && showDatePicker && (
+                    <DateTimePicker
+                      value={followUpForm.scheduledDate || new Date()}
+                      mode="datetime"
+                      display="spinner"
+                      onChange={(e, d) => {
+                        setShowDatePicker(false);
+                        if (d) setFollowUpForm((prev) => ({ ...prev, scheduledDate: d }));
+                      }}
+                    />
+                  )}
+
+                  <Text style={s.label}>Assign Member</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                    <TouchableOpacity
+                      style={[s.optionChip, !followUpForm.assignedSalesExecutive && s.optionChipActive]}
+                      onPress={() => setFollowUpForm({ ...followUpForm, assignedSalesExecutive: '' })}
+                    >
+                      <Text style={[s.optionChipText, !followUpForm.assignedSalesExecutive && s.optionChipTextActive]}>Unassigned (Keep Current)</Text>
+                    </TouchableOpacity>
+                    {users.map((u) => {
+                      const uid = u._id || u.id;
+                      return (
+                        <TouchableOpacity key={uid} style={[s.optionChip, followUpForm.assignedSalesExecutive === uid && s.optionChipActive]} onPress={() => setFollowUpForm({ ...followUpForm, assignedSalesExecutive: uid })}>
+                          <Text style={[s.optionChipText, followUpForm.assignedSalesExecutive === uid && s.optionChipTextActive]}>{userLabel(u)}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  <Text style={s.label}>Follow-up Goal / Notes *</Text>
+                  <TextInput
+                    style={[s.input, { height: 90, textAlignVertical: 'top', paddingTop: 12 }]}
+                    placeholder="E.g., Call to discuss revised quotation..."
+                    placeholderTextColor="#94A3B8"
+                    value={followUpForm.remarks}
+                    onChangeText={(v) => setFollowUpForm({ ...followUpForm, remarks: v })}
+                    multiline
+                  />
+
+                  <TouchableOpacity style={[s.saveBtn, schedulingFollowUp && { opacity: 0.7 }]} onPress={handleScheduleFollowUp} disabled={schedulingFollowUp}>
+                    {schedulingFollowUp ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Schedule Follow-up</Text>}
+                  </TouchableOpacity>
+                </ScrollView>
+              </>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -223,9 +471,10 @@ export default function CRMScreen() {
   );
 }
 
-function StatCard({ icon, iconBg, iconColor, label, value, sub }) {
+function StatCard({ icon, iconBg, iconColor, label, value, sub, onPress }) {
+  const Wrapper = onPress ? TouchableOpacity : View;
   return (
-    <View style={s.statCard}>
+    <Wrapper style={s.statCard} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
       <View style={[s.statIconBox, { backgroundColor: iconBg }]}>
         <Ionicons name={icon} size={16} color={iconColor} />
       </View>
@@ -233,7 +482,7 @@ function StatCard({ icon, iconBg, iconColor, label, value, sub }) {
       <Text style={s.statValue}>
         {value} {!!sub && <Text style={s.statValueSub}>{sub}</Text>}
       </Text>
-    </View>
+    </Wrapper>
   );
 }
 
@@ -241,6 +490,7 @@ const s = StyleSheet.create({
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   bgBase: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingHorizontal: 20, paddingTop: 16 },
 
   header: {
@@ -254,6 +504,7 @@ const s = StyleSheet.create({
     borderBottomColor: '#DBEAFE',
   },
   headerGreeting: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#1D4ED8', marginBottom: 2 },
+  followUpsBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
   pageTitle: { fontSize: 22, fontFamily: 'Inter-Black', color: '#0F172A', letterSpacing: -0.5 },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -294,15 +545,14 @@ const s = StyleSheet.create({
   avatarText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   leadName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
   leadSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
-  leadBudget: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   leadBottomRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', gap: 8,
     borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 10,
   },
   stageBadge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
   stageBadgeText: { fontSize: 10, fontFamily: 'Inter-Bold' },
-  leadDate: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  leadDate: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', flex: 1 },
   contactBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#EFF6FF', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8,
@@ -329,12 +579,18 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14,
   },
   modalTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  modalSubtitle: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
   label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 12 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
+  dateInput: {
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  dateInputText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
 
   optionChip: {
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,

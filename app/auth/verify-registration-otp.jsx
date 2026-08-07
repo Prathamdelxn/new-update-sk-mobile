@@ -13,7 +13,7 @@ const SimpleBackground = () => (
 
 export default function VerifyRegistrationOtpScreen() {
   const { t } = useTranslation();
-  const { email, password } = useLocalSearchParams();
+  const { email, password, industryType } = useLocalSearchParams();
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -35,7 +35,7 @@ export default function VerifyRegistrationOtpScreen() {
     setError('');
 
     try {
-      const result = await verifyRegistrationOtp(email, otp, password);
+      const result = await verifyRegistrationOtp(email, otp, password, industryType || 'construction');
 
       if (result.success) {
         showToast('Account verified successfully!', 'success');

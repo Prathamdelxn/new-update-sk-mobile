@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import AdaptiveGlass from '../../components/AdaptiveGlass';
 import HeaderNotification from '../../components/HeaderNotification';
 import { useAuth } from '../../context/AuthContext';
@@ -58,6 +59,7 @@ const Sheet = ({ visible, onClose, title, children }) => (
 
 export default function InteriorSettingsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { user, token, logout } = useAuth();
   const { showToast } = useToast();
 
@@ -227,6 +229,7 @@ export default function InteriorSettingsScreen() {
               <SettingItem icon="business-outline" title="Company & Workspace" subtitle="Studio branding & currency" onPress={() => setActiveSheet('workspace')} />
               <SettingItem icon="options-outline" title="App Preferences" subtitle="Date format" onPress={() => setActiveSheet('preferences')} />
               <SettingItem icon="notifications-outline" title="Notifications" subtitle="Email & in-app alerts" onPress={() => setActiveSheet('notifications')} />
+              <SettingItem icon="people-outline" iconBg="#F5F3FF" iconColor="#7C3AED" title="Users & Roles" subtitle="Team assignments & permission matrix" onPress={() => router.push('/interior-users-roles')} />
             </View>
           </View>
 

@@ -83,13 +83,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="i-template/index"
-        options={{
-          href: isInterior ? undefined : null,
-          title: 'Template',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'layers' : 'layers-outline'} size={22} color={color} />
-          ),
-        }}
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="payment/index"

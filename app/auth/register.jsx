@@ -24,12 +24,43 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isPhoneValid, setIsPhoneValid] = useState(true);
+  const [organizationName, setOrganizationName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const { register } = useAuth();
   const router = useRouter();
+  const isInterior = industryType === 'interior';
 
   const handleRegister = async () => {
+    if (isInterior) {
+      if (!organizationName || !firstName || !lastName || !email || !password) {
+        setError('Please fill in all required fields');
+        return;
+      }
+      const strongEnough = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /[0-9]/.test(password);
+      if (!strongEnough) {
+        setError('Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number');
+        return;
+      }
+
+      setIsLoading(true);
+      setError('');
+      const result = await register(null, email, password, null, 'interior', { organizationName, firstName, lastName });
+      setIsLoading(false);
+
+      if (result.success) {
+        router.push({
+          pathname: '/auth/verify-registration-otp',
+          params: { email, password, industryType: 'interior' }
+        });
+      } else {
+        setError(result.message);
+      }
+      return;
+    }
+
     if (!name || !email || !password || !confirmPassword) {
       setError('Please fill in all fields');
       return;
@@ -59,7 +90,7 @@ export default function RegisterScreen() {
     if (result.success) {
       router.push({
         pathname: '/auth/verify-registration-otp',
-        params: { email, password }
+        params: { email, password, industryType: 'construction' }
       });
     } else {
       setError(result.message);
@@ -140,77 +171,161 @@ export default function RegisterScreen() {
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('fullName')}</Text>
-              <View style={[styles.inputWrapper, { gap: 12 }]}>
-                <Ionicons name="person-outline" size={20} color="#94A3B8" />
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('johnDoePlaceholder')}
-                  placeholderTextColor="#94A3B8"
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                />
-              </View>
-            </View>
+            {isInterior ? (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Company / Organization</Text>
+                  <View style={[styles.inputWrapper, { gap: 12 }]}>
+                    <Ionicons name="business-outline" size={20} color="#94A3B8" />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Acme Interior Solutions"
+                      placeholderTextColor="#94A3B8"
+                      value={organizationName}
+                      onChangeText={setOrganizationName}
+                    />
+                  </View>
+                </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('email')}</Text>
-              <View style={[styles.inputWrapper, { gap: 12 }]}>
-                <Ionicons name="mail-outline" size={20} color="#94A3B8" />
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('emailPlaceholder')}
-                  placeholderTextColor="#94A3B8"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-            </View>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.inputLabel}>First name</Text>
+                    <View style={[styles.inputWrapper, { gap: 12 }]}>
+                      <Ionicons name="person-outline" size={20} color="#94A3B8" />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="John"
+                        placeholderTextColor="#94A3B8"
+                        value={firstName}
+                        onChangeText={setFirstName}
+                        autoCapitalize="words"
+                      />
+                    </View>
+                  </View>
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.inputLabel}>Last name</Text>
+                    <View style={[styles.inputWrapper, { gap: 12 }]}>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Doe"
+                        placeholderTextColor="#94A3B8"
+                        value={lastName}
+                        onChangeText={setLastName}
+                        autoCapitalize="words"
+                      />
+                    </View>
+                  </View>
+                </View>
 
-            <View style={[styles.inputGroup, { marginBottom: 0 }]}>
-              <Text style={styles.inputLabel}>{t('mobileNumber')}</Text>
-              <PhoneInput
-                value={phoneNumber}
-                onChange={setPhoneNumber}
-                onValidate={setIsPhoneValid}
-                placeholder="Enter mobile number"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Work email</Text>
+                  <View style={[styles.inputWrapper, { gap: 12 }]}>
+                    <Ionicons name="mail-outline" size={20} color="#94A3B8" />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="john@acme.com"
+                      placeholderTextColor="#94A3B8"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('password')}</Text>
-              <View style={[styles.inputWrapper, { gap: 12 }]}>
-                <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" />
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor="#94A3B8"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
-            </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('password')}</Text>
+                  <View style={[styles.inputWrapper, { gap: 12 }]}>
+                    <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Min. 8 characters"
+                      placeholderTextColor="#94A3B8"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry
+                    />
+                  </View>
+                  <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
+                    Must include an uppercase letter, a lowercase letter, and a number.
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('fullName')}</Text>
+                  <View style={[styles.inputWrapper, { gap: 12 }]}>
+                    <Ionicons name="person-outline" size={20} color="#94A3B8" />
+                    <TextInput
+                      style={styles.input}
+                      placeholder={t('johnDoePlaceholder')}
+                      placeholderTextColor="#94A3B8"
+                      value={name}
+                      onChangeText={setName}
+                      autoCapitalize="words"
+                    />
+                  </View>
+                </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('confirmPassword')}</Text>
-              <View style={[styles.inputWrapper, { gap: 12 }]}>
-                <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" />
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor="#94A3B8"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry
-                />
-              </View>
-            </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('email')}</Text>
+                  <View style={[styles.inputWrapper, { gap: 12 }]}>
+                    <Ionicons name="mail-outline" size={20} color="#94A3B8" />
+                    <TextInput
+                      style={styles.input}
+                      placeholder={t('emailPlaceholder')}
+                      placeholderTextColor="#94A3B8"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </View>
+
+                <View style={[styles.inputGroup, { marginBottom: 0 }]}>
+                  <Text style={styles.inputLabel}>{t('mobileNumber')}</Text>
+                  <PhoneInput
+                    value={phoneNumber}
+                    onChange={setPhoneNumber}
+                    onValidate={setIsPhoneValid}
+                    placeholder="Enter mobile number"
+                    placeholderTextColor="#94A3B8"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('password')}</Text>
+                  <View style={[styles.inputWrapper, { gap: 12 }]}>
+                    <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="••••••••"
+                      placeholderTextColor="#94A3B8"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('confirmPassword')}</Text>
+                  <View style={[styles.inputWrapper, { gap: 12 }]}>
+                    <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="••••••••"
+                      placeholderTextColor="#94A3B8"
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      secureTextEntry
+                    />
+                  </View>
+                </View>
+              </>
+            )}
 
             <TouchableOpacity
               activeOpacity={0.8}

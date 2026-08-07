@@ -4,13 +4,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSocket } from '../context/SocketContext';
 import * as SecureStore from 'expo-secure-store';
+import { useAuth } from '../context/AuthContext';
 
 export default function HeaderNotification() {
   const [unreadCount, setUnreadCount] = useState(0);
   const { socket, connected } = useSocket();
   const router = useRouter();
+  const { user } = useAuth();
+  const isInteriorUser = user?.organization?.industryType === 'interior';
 
   const fetchUnreadCount = useCallback(async () => {
+    // Interior sessions hold an interior-os JWT, which the construction
+    // notifications endpoint rejects with 401 — skip to avoid the global
+    // auto-logout interceptor kicking the user back to login.
+    if (isInteriorUser) return;
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/notifications`, {
@@ -24,7 +31,7 @@ export default function HeaderNotification() {
     } catch (error) {
       console.error('Fetch unread count error:', error);
     }
-  }, []);
+  }, [isInteriorUser]);
 
   useEffect(() => {
     fetchUnreadCount();
@@ -40,18 +47,7 @@ export default function HeaderNotification() {
   }, [socket, connected, fetchUnreadCount]);
 
   return (
-    <TouchableOpacity 
-      style={styles.container} 
-      onPress={() => router.push('/notifications')}
-      activeOpacity={0.7}
-    >
-      <Ionicons name="notifications-outline" size={24} color="#0F172A" />
-      {unreadCount > 0 && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
+    <View style={{ width: 48, height: 48 }} />
   );
 }
 
