@@ -17,15 +17,16 @@ const ACTION_MAP = [
   { id: 'assign', label: 'Assign', color: '#EC4899' },
 ];
 
-const ModulePermissionCard = ({ title, permissions, onToggle }) => {
+const ModulePermissionCard = ({ title, permissions, onToggle, excludeActions = [] }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const actions = ACTION_MAP.filter(a => !excludeActions.includes(a.id));
 
   const toggleExpand = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsExpanded(!isExpanded);
   };
 
-  const activeCount = Object.values(permissions).filter(val => val).length;
+  const activeCount = actions.filter(a => permissions[a.id]).length;
 
   return (
     <AdaptiveGlass intensity={10} tint="light" style={styles.card}>
@@ -51,7 +52,7 @@ const ModulePermissionCard = ({ title, permissions, onToggle }) => {
 
       {isExpanded && (
         <View style={styles.grid}>
-          {ACTION_MAP.map((action) => {
+          {actions.map((action) => {
             const isActive = permissions[action.id];
             return (
               <TouchableOpacity

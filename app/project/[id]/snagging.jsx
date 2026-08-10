@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, FlatList, TextInput, Modal, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, FlatList, TextInput, Modal, Image, Alert, Platform, Keyboard, LayoutAnimation } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,6 +36,28 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
   const [snags, setSnags] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardHeight(0);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
   const [isAssignModalVisible, setIsAssignModalVisible] = useState(false);
   const [assigningSnag, setAssigningSnag] = useState(null);
   const [fixingMembers, setFixingMembers] = useState([]);
@@ -587,10 +609,10 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
       )}
 
       {/* Add Snag Modal */}
-      <Modal visible={isAddModalVisible} animationType="slide" transparent>
+      <Modal visible={isAddModalVisible} animationType="slide" transparent statusBarTranslucent>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setIsAddModalVisible(false)} />
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { maxHeight: '85%', paddingBottom: keyboardHeight > 0 ? keyboardHeight + 10 : 40 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingSnagId ? t('updateSnagDetails', 'Update Snag Details') : t('reportNewSnag', 'Report New Snag')}</Text>
               <TouchableOpacity onPress={() => {
@@ -601,6 +623,7 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
               </TouchableOpacity>
             </View>
 
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={styles.form}>
               <Text style={styles.label}>{t('title', 'Title')}</Text>
               <TextInput
@@ -654,6 +677,7 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
                 {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>{editingSnagId ? t('updateSnagDetails', 'Update Snag Details') : t('reportSnag', 'Report Snag')}</Text>}
               </TouchableOpacity>
             </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>

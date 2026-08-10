@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
+import { hasProjectPermission, hasAnyProjectPermissionPrefix } from '../../utils/permissions';
 import ProjectDashboardTab from './dashboard';
 import ProjectPlansTab from './plans';
 import ProjectDetailsTab from './details';
@@ -46,7 +47,6 @@ export default function FullWorkspacePreview() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(initialTab ? initialTab : 'Details');
   const [visibleTab, setVisibleTab] = useState(initialTab ? initialTab : 'Details');
-  const [canAnnotate, setCanAnnotate] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -64,18 +64,29 @@ export default function FullWorkspacePreview() {
   }, []);
 
   const isInterior = project?.projectType === 'Interior';
-  
-  const isSurveyPending = (project?.status === 'Site Survey' || (project?.status === 'Initialized' && project?.needSiteSurvey)) && project?.surveyStatus !== 'Approved';
+
+  const isSurveyPending = project?.needSiteSurvey || (project?.status === 'Site Survey' && project?.surveyStatus !== 'Approved');
   const restrictedTabs = ['Drawings', 'Rooms', 'FFE', 'BOQ', 'Milestone', 'Audit', 'Material', 'Transactions', 'Risk', 'Snags', 'Handover', 'Attendance', 'Reports'];
   const isRestrictedTab = isSurveyPending && restrictedTabs.includes(visibleTab);
   const TABS = (() => {
-    const base = project?.siteSurveyor
+    let base = project?.siteSurveyor
       ? ['Details', 'Survey', 'Drawings', 'Documents', 'BOQ', 'Milestone', 'Material', 'Attendance', 'Snags', 'Risk', 'Transactions', 'Reports', 'Audit', 'Handover']
       : ['Details', 'Drawings', 'Documents', 'BOQ', 'Milestone', 'Material', 'Attendance', 'Snags', 'Risk', 'Transactions', 'Reports', 'Audit', 'Handover'];
     if (isInterior) {
       const insertIndex = base.indexOf('Milestone') + 1;
       base.splice(insertIndex, 0, 'Rooms', 'FFE');
     }
+    // Only gate tabs that have an established view-permission module —
+    // matches the same scope/keys already used inside each screen's own
+    // canView check (documents.jsx, risk.jsx), or the equivalent web fix
+    // (reports.jsx, handover.jsx).
+    base = base.filter(tab => {
+      if (tab === 'Documents') return isAdmin || hasAnyProjectPermissionPrefix(user, project, 'land:');
+      if (tab === 'Risk') return isAdmin || hasAnyProjectPermissionPrefix(user, project, 'risks:');
+      if (tab === 'Reports') return isAdmin || hasProjectPermission(user, project, 'reports:view');
+      if (tab === 'Handover') return isAdmin || hasProjectPermission(user, project, 'handover:view');
+      return true;
+    });
     return base;
   })();
 
@@ -97,14 +108,12 @@ export default function FullWorkspacePreview() {
     setIsRefreshing(false);
   }, [fetchProjectData]);
 
-  useEffect(() => {
-    if (!id || !token) return;
-    let isActive = true;
-    fetch(`${API_BASE_URL}/projects/${id}/annotations`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    }).then(r => { if (isActive) setCanAnnotate(r.ok); }).catch(() => {});
-    return () => { isActive = false; };
-  }, [id, token]);
+  // Governs whether the user can create/edit annotation pins — must check
+  // create/update permission, not view (a prior version pinged the GET
+  // .../annotations endpoint and used its success as a stand-in, which
+  // actually only reflects 'annotations:view' and so incorrectly blocked
+  // users who had create/update granted without view, or vice versa).
+  const canAnnotate = isAdmin || hasProjectPermission(user, project, 'annotations:create') || hasProjectPermission(user, project, 'annotations:update');
 
   useEffect(() => { fetchProjectData(); }, [fetchProjectData]);
 
@@ -127,6 +136,14 @@ export default function FullWorkspacePreview() {
     }
   }, [tabLayouts, bubbleX, bubbleWidth]);
 
+  const tabsSignature = TABS.join('|');
+  const prevTabsSignatureRef = useRef(tabsSignature);
+  if (prevTabsSignatureRef.current !== tabsSignature) {
+    prevTabsSignatureRef.current = tabsSignature;
+    Object.keys(tabLayouts).forEach(key => delete tabLayouts[key]);
+    if (layoutReady) setLayoutReady(false);
+  }
+
   useEffect(() => {
     if (layoutReady) animateBubble(activeTab);
   }, [activeTab, layoutReady, animateBubble]);
@@ -140,7 +157,7 @@ export default function FullWorkspacePreview() {
 
   const onTabLayout = (tab, e) => {
     tabLayouts[tab] = e.nativeEvent.layout;
-    if (Object.keys(tabLayouts).length === TABS.length) setLayoutReady(true);
+    if (TABS.every(t => tabLayouts[t])) setLayoutReady(true);
   };
 
   return (
@@ -160,24 +177,32 @@ export default function FullWorkspacePreview() {
 
         {activeTab !== 'Chat' && (
           <View style={styles.tabPillWrapper}>
-            <AdaptiveGlass intensity={40} tint="light" style={styles.pillBox}>
-              <ScrollView
-                ref={tabScrollRef}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tabScroll}
-                keyboardShouldPersistTaps="handled"
-                removeClippedSubviews={false}
-                onLayout={(e) => { scrollContainerWidth.current = e.nativeEvent.layout.width; }}
-              >
-                <Animated.View pointerEvents="none" style={[styles.bubble, { width: bubbleWidth, transform: [{ translateX: bubbleX }] }]} />
-                {TABS.map(tab => (
-                  <TouchableOpacity key={tab} onLayout={(e) => onTabLayout(tab, e)} onPress={() => handleTabPress(tab)} style={styles.tabBtn} activeOpacity={0.9}>
-                    <Text style={[styles.tabLabel, activeTab === tab && styles.tabLabelActive]}>{t(tab)}</Text>
-                  </TouchableOpacity>
+            {isLoading ? (
+              <View style={[styles.pillBox, styles.pillSkeleton]}>
+                {[70, 90, 80, 100].map((w, i) => (
+                  <View key={i} style={[styles.tabSkeletonPill, { width: w }]} />
                 ))}
-              </ScrollView>
-            </AdaptiveGlass>
+              </View>
+            ) : (
+              <AdaptiveGlass intensity={40} tint="light" style={styles.pillBox}>
+                <ScrollView
+                  ref={tabScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.tabScroll}
+                  keyboardShouldPersistTaps="handled"
+                  removeClippedSubviews={false}
+                  onLayout={(e) => { scrollContainerWidth.current = e.nativeEvent.layout.width; }}
+                >
+                  <Animated.View pointerEvents="none" style={[styles.bubble, { width: bubbleWidth, transform: [{ translateX: bubbleX }] }]} />
+                  {TABS.map(tab => (
+                    <TouchableOpacity key={tab} onLayout={(e) => onTabLayout(tab, e)} onPress={() => handleTabPress(tab)} style={styles.tabBtn} activeOpacity={0.9}>
+                      <Text style={[styles.tabLabel, activeTab === tab && styles.tabLabelActive]}>{t(tab)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </AdaptiveGlass>
+            )}
           </View>
         )}
 
@@ -193,7 +218,7 @@ export default function FullWorkspacePreview() {
               {t('completeSiteSurveyToUnlock', 'Please complete and approve the Site Survey to unlock this section.')}
             </Text>
             {TABS.includes('Survey') && (
-               <TouchableOpacity 
+               <TouchableOpacity
                  style={{ marginTop: 24, backgroundColor: '#3B82F6', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}
                  onPress={() => handleTabPress('Survey')}
                >
@@ -257,6 +282,8 @@ const styles = StyleSheet.create({
   hTitle: { fontSize: 19, fontFamily: 'Inter-Black', color: '#0F172A', lineHeight: 26 },
   tabPillWrapper: { paddingHorizontal: 20, marginBottom: 12 },
   pillBox: { height: 52, borderRadius: 26, paddingHorizontal: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)', backgroundColor: 'rgba(255, 255, 255, 0.4)', overflow: 'hidden' },
+  pillSkeleton: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, backgroundColor: 'rgba(255, 255, 255, 0.6)' },
+  tabSkeletonPill: { height: 24, borderRadius: 12, backgroundColor: '#E2E8F0' },
   tabScroll: { height: '100%', alignItems: 'center' },
   bubble: { position: 'absolute', height: 42, backgroundColor: '#3B82F6', borderRadius: 21, top: 4, zIndex: -1 },
   tabBtn: { paddingHorizontal: 20, height: '100%', justifyContent: 'center' },

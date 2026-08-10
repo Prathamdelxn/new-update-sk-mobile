@@ -6,13 +6,14 @@ import { Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useLocalSearchParams } from 'expo-router';
 import { LineChart } from 'react-native-gifted-charts';
+import { hasProjectPermission } from '../../utils/permissions';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const { width } = Dimensions.get('window');
 
 export default function ProjectReportsTab() {
   const { id } = useLocalSearchParams();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   
   const [reportType, setReportType] = useState('Daily'); // 'Daily' | 'Monthly' | 'Custom'
   const [customSubTab, setCustomSubTab] = useState('Tasks'); // 'Tasks' | 'Logs' | 'Issues' | 'Snags'
@@ -319,6 +320,19 @@ export default function ProjectReportsTab() {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' }}>
         <ActivityIndicator size="large" color="#3B82F6" />
         <Text style={{ marginTop: 10, color: '#64748B', fontFamily: 'Inter-Medium' }}>Loading reports...</Text>
+      </View>
+    );
+  }
+
+  const canView = user?.role?.name === 'Admin' || hasProjectPermission(user, project, 'reports:view');
+  if (!canView) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, marginTop: 40 }}>
+        <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
+        <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>Access Restricted</Text>
+        <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', marginTop: 8 }}>
+          You don't have permission to view Reports.
+        </Text>
       </View>
     );
   }

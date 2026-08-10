@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, 
-  TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, 
-  Platform, Alert 
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  TextInput, ActivityIndicator, Modal, KeyboardAvoidingView,
+  Platform, Alert, Dimensions
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import cloudinaryService from '../../services/cloudinaryService';
 import AdaptiveGlass from '../../components/AdaptiveGlass';
 import ConfirmModal from '../../components/ConfirmModal';
+import { hasAnyProjectPermissionPrefix, hasProjectPermission, isProjectLocked } from '../../utils/permissions';
 
 export default function ProjectMaterialTab({ project, fetchProjectData }) {
   const { t } = useTranslation();
@@ -26,11 +27,19 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
   const { materialAction } = useLocalSearchParams();
   const projectId = project?._id;
 
+  const isAdmin = user?.role?.name === 'Admin';
+  const isLocked = isProjectLocked(project);
+  const canView = isAdmin || hasAnyProjectPermissionPrefix(user, project, 'inventory:');
+  const canCreate = !isLocked && (isAdmin || hasProjectPermission(user, project, 'inventory:create'));
+  const canUpdate = !isLocked && (isAdmin || hasProjectPermission(user, project, 'inventory:update'));
+  const canDelete = !isLocked && (isAdmin || hasProjectPermission(user, project, 'inventory:delete'));
+  const canApprove = !isLocked && (isAdmin || hasProjectPermission(user, project, 'inventory:approve'));
+
   useEffect(() => {
-    if (materialAction === 'Used') {
+    if (materialAction === 'Used' && canCreate) {
       startBulkAction('Used');
     }
-  }, [materialAction]);
+  }, [materialAction, canCreate]);
 
   const [materials, setMaterials] = useState([]);
   const [materialRequests, setMaterialRequests] = useState([]);
@@ -574,7 +583,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
 
   const handlePurchaseAction = async (purchaseId, status) => {
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/material-purchase/${purchaseId}`, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/projects/${projectId}/material-purchase/${purchaseId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -678,13 +687,14 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
       type: 'destructive',
       onConfirm: async () => {
         try {
-          const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/material-usage/${usageId}`, {
+          const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/projects/${projectId}/material-usage/${usageId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (response.ok) {
             fetchMaterialUsages();
-            showToast('Usage log deleted successfully', 'delete');
+            fetchMaterials();
+            showToast('Usage log deleted and stock restored', 'delete');
           }
         } catch (error) {
           console.error('Error deleting usage:', error);
@@ -703,7 +713,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
       type: 'destructive',
       onConfirm: async () => {
         try {
-          const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/material-purchase/${purchaseId}`, {
+          const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/projects/${projectId}/material-purchase/${purchaseId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
           });
@@ -878,17 +888,36 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
     );
   }
 
+  if (!canView) {
+    // Rendered inside the parent's shared ScrollView (unlike BOQ/Milestone,
+    // which render full-screen), so flex:1 has no height to center within.
+    // Give it an explicit height approximating the visible content area so
+    // it visually centers at the same position as BOQ's "Access Restricted".
+    const { height: screenHeight } = Dimensions.get('window');
+    return (
+      <View style={{ height: screenHeight - 250, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+        <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
+        <Text style={{ fontSize: 20, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 16 }}>Access Restricted</Text>
+        <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', marginTop: 8 }}>
+          You don't have permission to view the Material Management module.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.sectionLabel}>Material Management</Text>
-        <TouchableOpacity 
-          style={styles.smallAddBtn} 
-          onPress={() => setIsAddModalVisible(true)}
-        >
-          <Feather name="plus" size={16} color="#FFFFFF" />
-          <Text style={styles.smallAddBtnText}>Add</Text>
-        </TouchableOpacity>
+        {canCreate && (
+          <TouchableOpacity
+            style={styles.smallAddBtn}
+            onPress={() => setIsAddModalVisible(true)}
+          >
+            <Feather name="plus" size={16} color="#FFFFFF" />
+            <Text style={styles.smallAddBtnText}>Add</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <View style={styles.header}>
         <View style={styles.searchContainer}>
@@ -901,12 +930,14 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
             onChangeText={setSearchQuery}
           />
         </View>
-        <TouchableOpacity 
-          style={styles.menuBtn} 
-          onPress={() => setIsBulkActionSheetVisible(true)}
-        >
-          <Ionicons name="options" size={20} color="#64748B" />
-        </TouchableOpacity>
+        {canCreate && (
+          <TouchableOpacity
+            style={styles.menuBtn}
+            onPress={() => setIsBulkActionSheetVisible(true)}
+          >
+            <Ionicons name="options" size={20} color="#64748B" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar}>
@@ -945,16 +976,18 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                   <View style={[styles.statusBadge, { backgroundColor: req.status === 'Pending' ? '#FEF08A' : req.status === 'Approved' ? '#BAE6FD' : req.status === 'Fulfilled' ? '#D1FAE5' : '#FECDD3' }]}>
                     <Text style={[styles.statusText, { color: req.status === 'Pending' ? '#CA8A04' : req.status === 'Approved' ? '#0284C7' : req.status === 'Fulfilled' ? '#059669' : '#E11D48' }]}>{req.status}</Text>
                   </View>
-                  {(user?.role?.name === 'SuperAdmin' || user?.role?.name === 'Admin' || user?.role?.name === 'Manager') && (
+                  {(canUpdate || canDelete) && (
                     <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
-                      {req.status === 'Pending' && (
+                      {req.status === 'Pending' && canUpdate && (
                         <TouchableOpacity style={styles.actionIconBtn} onPress={() => handleEditRequest(req)}>
                           <Feather name="edit-3" size={14} color="#3B82F6" />
                         </TouchableOpacity>
                       )}
-                      <TouchableOpacity style={styles.actionIconBtn} onPress={() => handleDeleteRequest(req._id)}>
-                        <Feather name="trash-2" size={14} color="#EF4444" />
-                      </TouchableOpacity>
+                      {canDelete && (
+                        <TouchableOpacity style={styles.actionIconBtn} onPress={() => handleDeleteRequest(req._id)}>
+                          <Feather name="trash-2" size={14} color="#EF4444" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 </View>
@@ -974,10 +1007,10 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     <Text style={styles.historyUserText}>Requested by {req.requestedByName}</Text>
                   </View>
                   
-                  {/* Action Buttons for Admins/Managers */}
-                  {user?.role?.name === 'SuperAdmin' || user?.role?.name === 'Admin' || user?.role?.name === 'Manager' ? (
+                  {/* Action Buttons — require the actual granted permission, not a hardcoded role name */}
+                  {(canApprove || canUpdate) ? (
                     <View style={styles.reqActionRow}>
-                      {req.status === 'Pending' && (
+                      {req.status === 'Pending' && canApprove && (
                         <>
                           <TouchableOpacity style={[styles.reqBtn, { backgroundColor: '#10B981' }]} onPress={() => handleRequestAction(req._id, 'Approved')}>
                             <Text style={styles.reqBtnText}>Approve</Text>
@@ -987,7 +1020,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                           </TouchableOpacity>
                         </>
                       )}
-                      {req.status === 'Approved' && (
+                      {req.status === 'Approved' && canUpdate && (
                         <TouchableOpacity style={[styles.reqBtn, { backgroundColor: '#3B82F6', width: '100%' }]} onPress={() => handleRequestAction(req._id, 'Fulfilled')}>
                           <Text style={styles.reqBtnText}>Mark Fulfilled</Text>
                         </TouchableOpacity>
@@ -1025,7 +1058,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                   <View style={[styles.statusBadge, { backgroundColor: rec.status === 'Pending Verification' ? '#FEF08A' : rec.status === 'Verified' ? '#D1FAE5' : '#FECDD3' }]}>
                     <Text style={[styles.statusText, { color: rec.status === 'Pending Verification' ? '#CA8A04' : rec.status === 'Verified' ? '#059669' : '#E11D48' }]}>{rec.status}</Text>
                   </View>
-                  {(user?.role?.name === 'SuperAdmin' || user?.role?.name === 'Admin' || user?.role?.name === 'Manager') && (
+                  {canDelete && (
                     <TouchableOpacity onPress={() => handleDeleteReceipt(rec._id)} style={{ marginLeft: 8 }}>
                       <Feather name="trash-2" size={18} color="#EF4444" />
                     </TouchableOpacity>
@@ -1066,7 +1099,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                   </View>
                   
                   {/* Action Buttons */}
-                  {user?.role?.name === 'SuperAdmin' || user?.role?.name === 'Admin' || user?.role?.name === 'Manager' ? (
+                  {canApprove ? (
                     <View style={styles.reqActionRow}>
                       {rec.status === 'Pending Verification' && (
                         <>
@@ -1111,7 +1144,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                   <View style={[styles.statusBadge, { backgroundColor: purchase.status === 'Pending Approval' ? '#FEF08A' : purchase.status === 'Approved' ? '#D1FAE5' : '#FECDD3' }]}>
                     <Text style={[styles.statusText, { color: purchase.status === 'Pending Approval' ? '#CA8A04' : purchase.status === 'Approved' ? '#059669' : '#E11D48' }]}>{purchase.status}</Text>
                   </View>
-                  {(user?.role?.name === 'SuperAdmin' || user?.role?.name === 'Admin' || user?.role?.name === 'Manager') && (
+                  {canDelete && (
                     <TouchableOpacity style={[styles.actionIconBtn, { marginLeft: 8 }]} onPress={() => handleDeletePurchase(purchase._id)}>
                       <Feather name="trash-2" size={14} color="#EF4444" />
                     </TouchableOpacity>
@@ -1167,7 +1200,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     <Text style={styles.historyUserText}>Purchased by {purchase.purchasedByName}</Text>
                   </View>
                   
-                  {user?.role?.name === 'SuperAdmin' || user?.role?.name === 'Admin' || user?.role?.name === 'Manager' ? (
+                  {canApprove ? (
                     <View style={styles.reqActionRow}>
                       {purchase.status === 'Pending Approval' && (
                         <>
@@ -1207,7 +1240,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                   <View style={[styles.statusBadge, { backgroundColor: '#D1FAE5' }]}>
                     <Text style={[styles.statusText, { color: '#059669' }]}>Logged</Text>
                   </View>
-                  {(user?.role?.name === 'SuperAdmin' || user?.role?.name === 'Admin' || user?.role?.name === 'Manager') && (
+                  {canDelete && (
                     <TouchableOpacity onPress={() => handleDeleteUsage(usage._id)} style={{ marginLeft: 8 }}>
                       <Feather name="trash-2" size={18} color="#EF4444" />
                     </TouchableOpacity>
@@ -1366,12 +1399,12 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
             </View>
 
             <View style={styles.actionOptions}>
-              {[
+              {(canCreate ? [
                 { id: 'Request', icon: 'file-text', color: '#0EA5E9', title: 'Material Request', sub: 'Request multiple items for site' },
                 { id: 'Received', icon: 'download', color: '#10B981', title: 'Material Received', sub: 'Record delivery for multiple items' },
                 { id: 'Used', icon: 'upload', color: '#F97316', title: 'Material Used', sub: 'Log daily consumption for all' },
                 { id: 'Purchase', icon: 'shopping-cart', color: '#8B5CF6', title: 'Material Purchase', sub: 'Record purchases for all items' }
-              ].map((item) => (
+              ] : []).map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={styles.actionOptionRow}
@@ -1699,12 +1732,12 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
             </View>
 
             <View style={styles.actionOptions}>
-              {[
+              {(canCreate ? [
                 { id: 'Request', icon: 'file-text', color: '#0EA5E9', title: 'Material Request', sub: 'Request materials from warehouse' },
                 { id: 'Received', icon: 'download', color: '#10B981', title: 'Material Received', sub: 'Record incoming site delivery' },
                 { id: 'Used', icon: 'upload', color: '#F97316', title: 'Material Used', sub: 'Log daily site consumption' },
                 { id: 'Purchase', icon: 'shopping-cart', color: '#8B5CF6', title: 'Material Purchase', sub: 'Record new vendor purchase' },
-              ].map((item) => (
+              ] : []).map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={styles.actionOptionRow}

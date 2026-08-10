@@ -69,8 +69,10 @@ export default function ProjectHandoverTab({ project, fetchProjectData }) {
     try {
       setIsLoadingMembers(true);
       
-      // Fetch users from the backend who have handover approve permissions
-      const response = await fetch(`${API_BASE_URL}/users?projectId=${projectId}&permission=handover:approve`, {
+      // Fetch every project member — being selected as approver is itself the
+      // authorization, so this must not be pre-filtered to only members who
+      // already hold the handover:approve permission (that hid most members).
+      const response = await fetch(`${API_BASE_URL}/users?projectId=${projectId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -707,6 +709,19 @@ export default function ProjectHandoverTab({ project, fetchProjectData }) {
       </View>
     );
   };
+
+  const canView = user?.role?.name === 'Admin' || hasProjectPermission(user, project, 'handover:view');
+  if (!canView) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, marginTop: 40 }}>
+        <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
+        <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>Access Restricted</Text>
+        <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', marginTop: 8 }}>
+          You don't have permission to view Handover.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

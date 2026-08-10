@@ -1051,29 +1051,37 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
                         <Feather name="download-cloud" size={14} color="#3B82F6" />
                       </TouchableOpacity>
                       
-                      {!item.isPurchase && hasPermission('transactions', 'update') && (
-                        <TouchableOpacity 
-                          onPress={() => {
-                            setEditingTxId(item._id);
-                            setTxType(item.type);
-                            setAmount(item.amount.toString());
-                            setPartyName(item.partyName || '');
-                            setPaymentMethod(item.paymentMethod || 'Bank Transfer');
-                            setReferenceNumber(item.referenceNumber || '');
-                            setCategory(item.category || '');
-                            setDescription(item.description || '');
-                            setIsTxModalVisible(true);
-                          }} 
-                          style={styles.actionIconBtn} 
-                        >
-                          <Feather name="edit-2" size={14} color="#64748B" />
-                        </TouchableOpacity>
-                      )}
-                      
-                      {!item.isPurchase && hasPermission('transactions', 'delete') && (
-                        <TouchableOpacity onPress={() => handleDeleteTx(item._id)} style={styles.actionIconBtn}>
-                          <Feather name="trash-2" size={14} color="#EF4444" />
-                        </TouchableOpacity>
+                      {item.linkedPurchase ? (
+                        <View style={styles.actionIconBtn}>
+                          <Feather name="lock" size={14} color="#CBD5E1" />
+                        </View>
+                      ) : (
+                        <>
+                          {!item.isPurchase && hasPermission('transactions', 'update') && (
+                            <TouchableOpacity
+                              onPress={() => {
+                                setEditingTxId(item._id);
+                                setTxType(item.type);
+                                setAmount(item.amount.toString());
+                                setPartyName(item.partyName || '');
+                                setPaymentMethod(item.paymentMethod || 'Bank Transfer');
+                                setReferenceNumber(item.referenceNumber || '');
+                                setCategory(item.category || '');
+                                setDescription(item.description || '');
+                                setIsTxModalVisible(true);
+                              }}
+                              style={styles.actionIconBtn}
+                            >
+                              <Feather name="edit-2" size={14} color="#64748B" />
+                            </TouchableOpacity>
+                          )}
+
+                          {!item.isPurchase && hasPermission('transactions', 'delete') && (
+                            <TouchableOpacity onPress={() => handleDeleteTx(item._id)} style={styles.actionIconBtn}>
+                              <Feather name="trash-2" size={14} color="#EF4444" />
+                            </TouchableOpacity>
+                          )}
+                        </>
                       )}
                     </View>
                   </View>

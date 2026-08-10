@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, RefreshControl, LayoutAnimation, Image, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, ActivityIndicator, Modal, TextInput, Platform, RefreshControl, LayoutAnimation, Image, Alert, Linking, Keyboard } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -55,6 +55,28 @@ export default function ProjectIssuesTab({ project }) {
   const [isAddIssueModalVisible, setIsAddIssueModalVisible] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardHeight(0);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Form States
   const [title, setTitle] = useState('');
@@ -696,9 +718,9 @@ export default function ProjectIssuesTab({ project }) {
 
       {/* MODALS */}
       <Modal visible={isAddIssueModalVisible} animationType="slide" transparent statusBarTranslucent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+        <View style={styles.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setIsAddIssueModalVisible(false)} />
-          <AdaptiveGlass intensity={40} tint="light" style={styles.bottomSheet}>
+          <AdaptiveGlass intensity={40} tint="light" style={[styles.bottomSheet, keyboardHeight > 0 && { paddingBottom: keyboardHeight + 10 }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <Text style={styles.modalTitle}>{selectedIssue ? 'Edit Issue Details' : 'Report New Issue'}</Text>
@@ -763,11 +785,11 @@ export default function ProjectIssuesTab({ project }) {
               </TouchableOpacity>
             </ScrollView>
           </AdaptiveGlass>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       <Modal visible={isAssignModalVisible} animationType="fade" transparent statusBarTranslucent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlayCenter}>
+        <View style={styles.modalOverlayCenter}>
           <TouchableOpacity style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setIsAssignModalVisible(false)} />
           <View style={styles.smallModal}>
             <Text style={styles.modalTitleSmall}>Assign Issue</Text>
@@ -802,13 +824,13 @@ export default function ProjectIssuesTab({ project }) {
               <Text style={{ color: '#64748B', fontFamily: 'Inter-Bold' }}>Cancel</Text>
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       <Modal visible={isUpdateModalVisible} animationType="slide" transparent statusBarTranslucent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+        <View style={styles.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setIsUpdateModalVisible(false)} />
-          <AdaptiveGlass intensity={40} tint="light" style={styles.bottomSheet}>
+          <AdaptiveGlass intensity={40} tint="light" style={[styles.bottomSheet, keyboardHeight > 0 && { paddingBottom: keyboardHeight + 10 }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <Text style={styles.modalTitle}>Update Status</Text>
@@ -917,11 +939,11 @@ export default function ProjectIssuesTab({ project }) {
               </TouchableOpacity>
             </ScrollView>
           </AdaptiveGlass>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       <Modal visible={isEditMatrixModalVisible} animationType="slide" transparent statusBarTranslucent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+        <View style={styles.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setIsEditMatrixModalVisible(false)} />
           <AdaptiveGlass intensity={40} tint="light" style={styles.bottomSheet}>
             <View style={styles.sheetHandle} />
@@ -1049,7 +1071,7 @@ export default function ProjectIssuesTab({ project }) {
               </TouchableOpacity>
             </ScrollView>
           </AdaptiveGlass>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       <ConfirmModal 

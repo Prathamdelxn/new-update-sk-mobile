@@ -280,7 +280,14 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 <Text style={styles.tRole}>{project?.createdBy?.email || t('adminCreator')}</Text>
               </View>
             </View>
-            {project?.members?.filter(m => m.user?.email !== project?.createdBy?.email).map((m, i) => (
+            {project?.members
+              ?.filter(m => m.user?.email !== project?.createdBy?.email)
+              // Skip members whose user was deleted from the DB (m.user is null/undefined) —
+              // these would otherwise render as a fake "User"/'U' placeholder entry with no
+              // way to remove them, since member removal isn't implemented yet. Remove this
+              // filter once member removal ships and deleted-user records are cleaned up.
+              .filter(m => !!m.user)
+              .map((m, i) => (
               <View key={i} style={styles.tMember}>
                 <View style={[styles.circleAvatar, { backgroundColor: '#F1F5F9' }]}>
                   <Text style={[styles.cAvText, { color: '#64748B' }]}>{m.user?.name?.charAt(0) || 'U'}</Text>

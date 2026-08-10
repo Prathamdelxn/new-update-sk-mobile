@@ -36,7 +36,7 @@ const FolderCard = memo(({ folder, onSelect }) => (
   </TouchableOpacity>
 ));
 
-const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, onDocDelete, onVersionDelete, onDocView, onSendApproval, onRevertDraft, onApprove, onReject, onUploadRevision, onShowHistory, isUpdating, uploadingRevisionId, canAnnotate, onAnnotate }) => {
+const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAssignPlans, onDocDelete, onVersionDelete, onDocView, onSendApproval, onRevertDraft, onApprove, onReject, onUploadRevision, onShowHistory, isUpdating, uploadingRevisionId, canAnnotate, onAnnotate }) => {
   const versions = item.versions || [];
   const [viewIdx, setViewIdx] = useState(versions.length - 1);
 
@@ -137,7 +137,7 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, onDoc
             </TouchableOpacity>
           ) : (
             <>
-              {activeIsAdmin && status === 'Draft' && (
+              {(activeIsAdmin || canAssignPlans) && status === 'Draft' && (
                 <TouchableOpacity
                   style={[styles.miniBtn, { backgroundColor: '#3B82F6', borderColor: '#3B82F6' }]}
                   activeOpacity={0.85}
@@ -228,6 +228,8 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
   const canDeleteDocument = !isLocked && (activeIsAdmin || hasProjectPermission(user, project, 'plans:delete'));
   const canCreatePlans = !isLocked && (activeIsAdmin || hasProjectPermission(user, project, 'plans:create'));
   const canEditPlans = !isLocked && (activeIsAdmin || hasProjectPermission(user, project, 'plans:update') || hasProjectPermission(user, project, 'plans:edit'));
+  const canApprovePlans = !isLocked && (activeIsAdmin || hasProjectPermission(user, project, 'plans:approve'));
+  const canAssignPlans = !isLocked && (activeIsAdmin || hasProjectPermission(user, project, 'plans:assign'));
   const canViewPlans = activeIsAdmin || hasAnyProjectPermissionPrefix(user, project, 'plans:');
   const activeCurrentUserId = currentUserId || user?.id;
 
@@ -688,12 +690,12 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
     if (isImage && plan?._id && folderId) {
       router.push({
         pathname: '/annotate-plan',
-        params: { url, name, documentId: plan._id, folderId, projectId: activeId },
+        params: { url, name, documentId: plan._id, folderId, projectId: activeId, canAnnotate: canAnnotate ? '1' : '0' },
       });
     } else {
       router.push({ pathname: '/document-viewer', params: { url, name } });
     }
-  }, [router, activeId]);
+  }, [router, activeId, canAnnotate]);
 
   const activeFolder = useMemo(() => planFolders.find(f => f._id === activeFolderId), [planFolders, activeFolderId]);
 
@@ -790,6 +792,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
       folderId={activeFolderId}
       activeIsAdmin={activeIsAdmin}
       canDeleteDocument={canDeleteDocument}
+      canAssignPlans={canAssignPlans}
       onDocDelete={handlePlanDeleteDoc}
       onVersionDelete={handleVersionDelete}
       onDocView={handleViewDocument}
@@ -804,7 +807,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
       canAnnotate={canAnnotate}
       onAnnotate={openAnnotateModal}
     />
-  ), [activeFolderId, activeIsAdmin, handlePlanDeleteDoc, handleVersionDelete, handleViewDocument, handleDocSendApproval, handleRevertDraft, handleDocApprove, handleDocReject, handleUploadDocument, updatingDocId, uploadingRevisionId, canAnnotate, openAnnotateModal]);
+  ), [activeFolderId, activeIsAdmin, canDeleteDocument, canAssignPlans, handlePlanDeleteDoc, handleVersionDelete, handleViewDocument, handleDocSendApproval, handleRevertDraft, handleDocApprove, handleDocReject, handleUploadDocument, updatingDocId, uploadingRevisionId, canAnnotate, openAnnotateModal]);
 
   if (!canViewPlans) {
     return (

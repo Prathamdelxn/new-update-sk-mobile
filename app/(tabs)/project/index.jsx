@@ -165,6 +165,11 @@ export default function ProjectScreen() {
   };
 
   const handleSendForSiteSurvey = (projectId) => {
+    const hasAssignPermission = user?.role?.name === 'Admin' || user?.role?.permissions?.includes('*') || user?.role?.permissions?.includes('sitesurvey:manage');
+    if (!hasAssignPermission) {
+      showToast('You do not have permission to assign site surveys.', 'error');
+      return;
+    }
     setMembersList([]);
     setMemberSearchQuery('');
     setSurveyProjectId(projectId);
@@ -185,13 +190,12 @@ export default function ProjectScreen() {
       const updatedMembers = [...new Set([...existingMembers, memberId])];
 
       const response = await fetch(`${API_BASE_URL}/projects/${surveyProjectId}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          needSiteSurvey: false,
           siteSurveyor: memberId,
           status: 'Site Survey'
         }),

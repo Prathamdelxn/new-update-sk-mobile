@@ -79,6 +79,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
   const canUpdate = !isLocked && (isAdmin || hasProjectPermission(user, project, 'boq:update'));
   const canDelete = !isLocked && (isAdmin || hasProjectPermission(user, project, 'boq:delete'));
   const canApprove = !isLocked && (isAdmin || hasProjectPermission(user, project, 'boq:approve'));
+  const canAssign = !isLocked && (isAdmin || hasProjectPermission(user, project, 'boq:assign'));
 
   // Debugging user permissions as requested
   console.log("=== USER PERMISSIONS DEBUG ===");
@@ -203,6 +204,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
   };
 
   const handleUpdateStatus = async (itemId, newStatus, budgetData = null) => {
+    if (isLocked) { showToast('This project is locked and can no longer be modified.', 'error'); return; }
     // For rejection — show reason modal first
     if (newStatus === 'Rejected') {
       setPendingRejectionItemId(itemId);
@@ -749,6 +751,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
       canApprove={canApprove}
       canUpdate={canUpdate}
       canDelete={canDelete}
+      canAssign={canAssign}
       onToggleSelection={toggleSelection}
       onOpenView={handleOpenView}
       onEdit={handleEditItem}
@@ -759,7 +762,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
       isAdmin={isAdmin}
       currency={project?.currency || '$'}
     />
-  ), [isSelectionMode, selectedItems, canApprove, canUpdate, canDelete, toggleSelection, project?.currency]);
+  ), [isSelectionMode, selectedItems, canApprove, canUpdate, canDelete, canAssign, toggleSelection, project?.currency]);
 
   if (loading) {
     return (
@@ -817,7 +820,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
 
                 <Text style={styles.selectionCount}>{selectedItems.length} Selected</Text>
                 <View style={styles.selectionActions}>
-                  {items.some(it => selectedItems.includes(it._id) && it.status === 'Draft') && (
+                  {canAssign && items.some(it => selectedItems.includes(it._id) && it.status === 'Draft') && (
                     <TouchableOpacity 
                       onPress={() => handleOpenApproverSelection(selectedItems.filter(id => items.find(it => it._id === id)?.status === 'Draft'))} 
                       style={[styles.selectionActionBtn, { backgroundColor: '#4F46E5' }]}
@@ -894,6 +897,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
         selectedVersionIdx={selectedVersionIdx}
         setSelectedVersionIdx={setSelectedVersionIdx}
         isAdmin={isAdmin}
+        isLocked={isLocked}
         user={user}
         isSubmitting={isSubmitting}
         handleUpdateStatus={handleUpdateStatus}

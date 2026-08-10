@@ -622,6 +622,11 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
   // Authorization Check
   const isLocked = isProjectLocked(project);
   const isAdminOrManager = !isLocked && hasProjectPermission(user, project, 'sitesurvey:manage');
+  const isAssignedSurveyor = !!(
+    project?.siteSurveyor &&
+    (user?.id === (project.siteSurveyor?._id || project.siteSurveyor) || user?._id === (project.siteSurveyor?._id || project.siteSurveyor))
+  );
+  const canView = hasProjectPermission(user, project, 'sitesurvey:view') || isAdminOrManager || isAssignedSurveyor;
 
   const fetchSurvey = useCallback(async () => {
     try {
@@ -760,6 +765,15 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
     );
   }
 
+  if (!canView) {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
+        <Text style={styles.emptyText}>You don't have permission to view the site survey.</Text>
+      </View>
+    );
+  }
+
   if (!survey) {
     const surveyorId = project?.siteSurveyor?._id || project?.siteSurveyor;
     const currentUserId = user?._id || user?.id;
@@ -789,9 +803,13 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
 
   const badge = getStatusBadge(survey.status);
 
-  // Extract true surveyor details from the already-decrypted project members list
+  // Extract true surveyor details from the already-decrypted project members list.
+  // `project.members` is a list of { user, role } subdocuments, so it must be
+  // matched on `m.user._id`, not `m._id` (that's the membership record's own
+  // id, never the user's), and `.user` (not the subdocument) holds name/email.
   const surveyorId = survey.surveyor?._id || survey.surveyor;
-  const surveyorUser = project?.members?.find(m => m._id === surveyorId) || 
+  const matchedMember = project?.members?.find(m => String(m.user?._id || m.user) === String(surveyorId));
+  const surveyorUser = (matchedMember?.user && typeof matchedMember.user === 'object' ? matchedMember.user : null) ||
                        (project?.createdBy?._id === surveyorId ? project?.createdBy : survey.surveyor);
   
   let surveyorName = 'Surveyor';

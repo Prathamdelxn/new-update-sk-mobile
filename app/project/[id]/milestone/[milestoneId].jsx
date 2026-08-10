@@ -26,6 +26,7 @@ export default function MilestoneTaskDetail() {
   const canUpdateTask = !isLocked && (isAdmin || hasProjectPermission(user, project, 'tasks:update'));
   const canDeleteTask = !isLocked && (isAdmin || hasProjectPermission(user, project, 'tasks:delete'));
   const canCompleteTask = !isLocked && (isAdmin || hasProjectPermission(user, project, 'tasks:complete'));
+  const canAssignTask = !isLocked && (isAdmin || hasProjectPermission(user, project, 'tasks:assign'));
   const insets = useSafeAreaInsets();
 
   const [milestone, setMilestone] = useState(null);
@@ -176,12 +177,55 @@ export default function MilestoneTaskDetail() {
     fetchMilestone();
   }, [fetchMilestone]);
 
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardHeight(0);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const handleAddTask = async () => {
-    if (!canCreateTask) {
+    if (editingTaskIndex === null && !canCreateTask) {
       setConfirmModal({
         visible: true,
         title: 'Access Denied',
         message: 'You do not have permission to create tasks.',
+        confirmText: 'OK',
+        onConfirm: () => setConfirmModal(prev => ({ ...prev, visible: false }))
+      });
+      return;
+    }
+
+    if (editingTaskIndex !== null && !canUpdateTask) {
+      setConfirmModal({
+        visible: true,
+        title: 'Access Denied',
+        message: 'You do not have permission to edit tasks.',
+        confirmText: 'OK',
+        onConfirm: () => setConfirmModal(prev => ({ ...prev, visible: false }))
+      });
+      return;
+    }
+
+    if (editingTaskIndex === null && !canAssignTask) {
+      setConfirmModal({
+        visible: true,
+        title: 'Access Denied',
+        message: 'You do not have permission to assign tasks.',
         confirmText: 'OK',
         onConfirm: () => setConfirmModal(prev => ({ ...prev, visible: false }))
       });
@@ -193,6 +237,17 @@ export default function MilestoneTaskDetail() {
         visible: true,
         title: 'Validation',
         message: 'Task title is required',
+        confirmText: 'OK',
+        onConfirm: () => setConfirmModal(prev => ({ ...prev, visible: false }))
+      });
+      return;
+    }
+
+    if (!newTask.assignedTo) {
+      setConfirmModal({
+        visible: true,
+        title: 'Validation',
+        message: 'Please assign this task to a team member',
         confirmText: 'OK',
         onConfirm: () => setConfirmModal(prev => ({ ...prev, visible: false }))
       });
@@ -577,7 +632,7 @@ export default function MilestoneTaskDetail() {
           <Text style={styles.headerPre}>MILESTONE TASKS</Text>
           <Text style={styles.headerTitle} numberOfLines={1}>{milestone.name}</Text>
         </View>
-        {canCreateTask && (
+        {canCreateTask && canAssignTask && (
           <TouchableOpacity style={styles.addBtn} onPress={() => setIsModalVisible(true)}>
             <Feather name="plus" size={20} color="#FFF" />
           </TouchableOpacity>
@@ -702,7 +757,7 @@ export default function MilestoneTaskDetail() {
                 </View>
 
                  <View style={styles.cardActions}>
-                  {canUpdateTask && !task.isCompleted && (
+                  {(canUpdateTask || canAssignTask) && !task.isCompleted && (
                     <TouchableOpacity onPress={() => handleEditTask(index)} style={styles.actionIconBtn}>
                       <Feather name="edit-3" size={14} color="#3B82F6" />
                     </TouchableOpacity>
@@ -968,7 +1023,7 @@ export default function MilestoneTaskDetail() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Assign To</Text>
+                <Text style={styles.inputLabel}>Assign To *</Text>
                 <TouchableOpacity 
                   style={styles.assigneeSelector} 
                   onPress={() => setIsAssignModalVisible(true)}
@@ -1045,10 +1100,10 @@ export default function MilestoneTaskDetail() {
               </Modal>
 
               <TouchableOpacity
-                style={[styles.submitBtn, !newTask.title.trim() && styles.submitBtnDisabled]}
+                style={[styles.submitBtn, (!newTask.title.trim() || !newTask.assignedTo) && styles.submitBtnDisabled]}
                 activeOpacity={0.8}
                 onPress={handleAddTask}
-                disabled={!newTask.title.trim() || isSubmitting}
+                disabled={!newTask.title.trim() || !newTask.assignedTo || isSubmitting}
               >
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFF" size="small" />

@@ -8,6 +8,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { File, Directory, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import LabourManagement from './LabourManagement';
+import { isProjectLocked } from '../../utils/permissions';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -116,6 +117,7 @@ export default function ProjectAttendanceTab({ project }) {
 
   const handleManualOverride = async () => {
     if (!manualUserId) return;
+    if (isProjectLocked(project)) { showToast('error', 'This project is locked and can no longer be modified.'); return; }
     setSubmittingManual(true);
     try {
       const res = await fetch(`${API_BASE_URL}/attendance/manual`, {
@@ -245,10 +247,12 @@ export default function ProjectAttendanceTab({ project }) {
             <>
               <View style={s.teamHeaderRow}>
                 <Text style={s.sectionTitle}>Team Check-ins</Text>
-                <TouchableOpacity style={s.overrideBtn} onPress={() => setManualModalVisible(true)}>
-                  <Ionicons name="add" size={16} color="#2563EB" />
-                  <Text style={s.overrideBtnText}>Manual Override</Text>
-                </TouchableOpacity>
+                {!isProjectLocked(project) && (
+                  <TouchableOpacity style={s.overrideBtn} onPress={() => setManualModalVisible(true)}>
+                    <Ionicons name="add" size={16} color="#2563EB" />
+                    <Text style={s.overrideBtnText}>Manual Override</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {filteredRecords.length === 0 ? (

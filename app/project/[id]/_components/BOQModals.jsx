@@ -13,6 +13,7 @@ export const ViewDetailsModal = ({
   selectedVersionIdx,
   setSelectedVersionIdx,
   isAdmin,
+  isLocked,
   user,
   isSubmitting,
   handleUpdateStatus,
@@ -136,7 +137,7 @@ export const ViewDetailsModal = ({
           </ScrollView>
 
           <View style={styles.viewActions}>
-            {selectedVersionIdx === 0 && (isAdmin || String(user?._id) === String(viewingHistory[0]?.requestedApprover) || String(user?.id) === String(viewingHistory[0]?.requestedApprover)) && viewingHistory[0]?.status === 'Pending' ? (
+            {selectedVersionIdx === 0 && !isLocked && (isAdmin || String(user?._id) === String(viewingHistory[0]?.requestedApprover) || String(user?.id) === String(viewingHistory[0]?.requestedApprover)) && viewingHistory[0]?.status === 'Pending' ? (
               <View style={styles.approvalWrapper}>
                 <Text style={styles.approvalTitle}>Approval Required</Text>
                 <View style={styles.approvalActions}>
@@ -160,8 +161,8 @@ export const ViewDetailsModal = ({
               <View style={styles.readOnlyNote}>
                 <Ionicons name="information-circle-outline" size={16} color="#64748B" />
                 <Text style={styles.readOnlyText}>
-                  {viewingHistory[0]?.status === 'Pending' 
-                    ? `Pending with ${viewingHistory[0]?.requestedApproverName || 'Authorized Approver'}` 
+                  {selectedVersionIdx === 0 && viewingHistory[0]?.status === 'Pending'
+                    ? `Pending with ${viewingHistory[0]?.requestedApproverName || 'Authorized Approver'}`
                     : (selectedVersionIdx === 0 ? 'Viewing current version.' : 'Viewing historical version.')}
                 </Text>
               </View>

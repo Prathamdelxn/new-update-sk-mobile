@@ -11,6 +11,7 @@ const BOQItem = memo(({
   canApprove,
   canUpdate,
   canDelete,
+  canAssign,
   onToggleSelection,
   onOpenView,
   onEdit,
@@ -99,7 +100,7 @@ const BOQItem = memo(({
                       <Feather name="edit-3" size={14} color={item.status === 'Rejected' ? '#D97706' : '#16A34A'} />
                     </TouchableOpacity>
                   )}
-                  {item.status === 'Draft' && (
+                  {canAssign && item.status === 'Draft' && (
                     <TouchableOpacity
                       style={styles.actionIconBtn}
                       onPress={() => onSendForApproval([item._id])}

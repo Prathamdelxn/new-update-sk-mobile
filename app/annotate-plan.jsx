@@ -1454,8 +1454,14 @@ export default function AnnotatePlan() {
   const sheetMaxWidth = isTablet ? 480 : SCREEN_W;
 
   const perms = user?.role?.permissions || [];
-  const canAnnotate = perms.includes('*') || perms.includes('annotations:update');
-  const { url, name, documentId, folderId, projectId } = useLocalSearchParams();
+  const { url, name, documentId, folderId, projectId, canAnnotate: canAnnotateParam } = useLocalSearchParams();
+  // canAnnotateParam is resolved by the caller (plans.jsx) using the user's
+  // project-specific role — checking only user.role.permissions here would
+  // miss permissions granted via a project-level role assignment rather than
+  // the user's global default role.
+  const canAnnotate = canAnnotateParam !== undefined
+    ? canAnnotateParam === '1'
+    : (perms.includes('*') || perms.includes('annotations:update'));
 
   // Canvas sizing
   const [containerH, setContainerH] = useState(SCREEN_H - 180);

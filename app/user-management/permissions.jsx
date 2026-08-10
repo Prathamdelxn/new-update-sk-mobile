@@ -25,9 +25,9 @@ const MODULES = [
   { id: 'annotations', title: 'Plan Annotations' },
   { id: 'sitesurvey', title: 'Site Survey Management' },
   { id: 'budget', title: 'Budget Management' },
-  { id: 'land', title: 'Land Documents Mgmt' },
-  { id: 'boq', title: 'BOQ Management' },
-  { id: 'tasks', title: 'Task Management' },
+  { id: 'land', title: 'Land Documents Mgmt', excludeActions: ['complete', 'assign'] },
+  { id: 'boq', title: 'BOQ Management', excludeActions: ['complete'] },
+  { id: 'tasks', title: 'Task Management', excludeActions: ['approve'] },
   { id: 'workprogress', title: 'Work Progress' },
   { id: 'risks', title: 'Risk & Escalation Matrix' },
   { id: 'handover', title: 'Handover Management' },
@@ -117,8 +117,9 @@ export default function RolePermissionsEdit() {
   const toBackendFormat = (nestedObject) => {
     const flat = [];
     Object.keys(nestedObject).forEach(moduleId => {
+      const excluded = MODULES.find(m => m.id === moduleId)?.excludeActions || [];
       Object.keys(nestedObject[moduleId]).forEach(actionId => {
-        if (nestedObject[moduleId][actionId]) {
+        if (nestedObject[moduleId][actionId] && !excluded.includes(actionId)) {
           flat.push(`${moduleId}:${actionId}`);
         }
       });
@@ -248,6 +249,7 @@ export default function RolePermissionsEdit() {
                   title={module.title}
                   permissions={permissions[module.id] || DEFAULT_ACTIONS}
                   onToggle={(actionId) => !isAdminRole && toggleAction(module.id, actionId)}
+                  excludeActions={module.excludeActions}
                 />
               ))}
             </>
