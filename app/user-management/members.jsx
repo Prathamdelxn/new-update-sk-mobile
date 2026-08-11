@@ -175,6 +175,11 @@ export default function MemberManagementScreen() {
         name: newMemberName,
         email: newMemberEmail,
         phoneNumber: newMemberMobile,
+        roleId: selectedRole?.id,
+        projects: selectedProjects.map(p => ({
+          project: p._id,
+          role: projectRoles[p._id] || undefined,
+        })),
       };
       if (!isEditing) body.password = finalPassword;
 
@@ -234,9 +239,21 @@ export default function MemberManagementScreen() {
     setActiveProjectForRole(null);
   };
 
+  // An Admin's own account can only be edited/removed by that Admin —
+  // never by another member, even one with user-management permission.
+  const canManageMember = (member) => {
+    const isTargetAdmin = (member.role?.name || '').toLowerCase() === 'admin';
+    const isSelf = !!user && (user._id === member._id || user.id === member._id);
+    return !isTargetAdmin || isSelf;
+  };
+
   const handleEditMember = (member) => {
     if (!hasPermission('users', 'update')) {
       showToast("You don't have permission to update members.", "error");
+      return;
+    }
+    if (!canManageMember(member)) {
+      showToast("Only the Admin can edit their own account.", "error");
       return;
     }
     setEditingId(member._id);
@@ -250,6 +267,9 @@ export default function MemberManagementScreen() {
     if (foundRole) setSelectedRole(foundRole);
 
     // Set projects and roles
+    // Entries with no linked project (project: null) are orphaned
+    // assignments left over from elsewhere — they don't reference a real
+    // project, so there's nothing to display or resubmit for them.
     const projArr = [];
     const roleMap = {};
     if (member.projects) {
@@ -257,8 +277,6 @@ export default function MemberManagementScreen() {
         if (p.project) {
           projArr.push(p.project);
           if (p.role) roleMap[p.project._id] = p.role._id || p.role;
-        } else if (p._id) {
-          projArr.push(p);
         }
       });
     }
@@ -268,9 +286,13 @@ export default function MemberManagementScreen() {
     setIsAddMemberVisible(true);
   };
 
-  const removeMember = (id, name) => {
+  const removeMember = (id, name, member) => {
     if (!hasPermission('users', 'delete')) {
       showToast("You don't have permission to remove members.", "error");
+      return;
+    }
+    if (member && !canManageMember(member)) {
+      showToast("Only the Admin can remove their own account.", "error");
       return;
     }
     setConfirmModal({
@@ -357,8 +379,9 @@ export default function MemberManagementScreen() {
                 name={member.name}
                 email={member.email}
                 role={member.role?.name || 'No Role'}
-                onRemove={() => removeMember(member._id, member.name)}
+                onRemove={() => removeMember(member._id, member.name, member)}
                 onChangeRole={() => handleEditMember(member)}
+                showActions={canManageMember(member)}
               />
             ))
           )}
