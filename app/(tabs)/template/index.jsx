@@ -319,7 +319,7 @@ export default function TemplateScreen() {
 
           <View style={styles.areaUnderImage}>
             <Ionicons name="map-outline" size={12} color="#3B82F6" />
-            <Text style={styles.areaTextUnder}>{item.area?.toLocaleString()} sqft</Text>
+            <Text style={styles.areaTextUnder}>{item.area?.toLocaleString('en-US')} sqft</Text>
           </View>
         </View>
 

@@ -154,7 +154,7 @@ export default function ViewTemplateScreen() {
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
                 <Text style={styles.statLabel}>Est. Area</Text>
-                <Text style={styles.statValue}>{template.area?.toLocaleString()} sqft</Text>
+                <Text style={styles.statValue}>{template.area?.toLocaleString('en-US')} sqft</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>

@@ -948,6 +948,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { WebView } from 'react-native-webview';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
 import cloudinaryService from './services/cloudinaryService';
@@ -955,6 +956,42 @@ import { useTranslation } from 'react-i18next';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+// Renders page 1 of a PDF to a JPEG data URI off-screen via pdf.js, so it can
+// be dropped into the same <Image>-based pin canvas used for image plans.
+function buildPdfToImageHtml(pdfUrl) {
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    function post(msg) {
+      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+    }
+
+    pdfjsLib.getDocument('${pdfUrl.replace(/'/g, "\\'")}').promise.then(async (pdf) => {
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 2 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      post({ dataUrl, width: viewport.width, height: viewport.height });
+    }).catch((err) => {
+      post({ error: String(err && err.message || err) });
+    });
+  </script>
+</body>
+</html>
+`;
+}
 
 // ─── Design tokens ────────────────────────────────────────────────────────
 const COLORS = {
@@ -1454,7 +1491,7 @@ export default function AnnotatePlan() {
   const sheetMaxWidth = isTablet ? 480 : SCREEN_W;
 
   const perms = user?.role?.permissions || [];
-  const { url, name, documentId, folderId, projectId, canAnnotate: canAnnotateParam } = useLocalSearchParams();
+  const { url, name, documentId, folderId, projectId, canAnnotate: canAnnotateParam, isPdf: isPdfParam } = useLocalSearchParams();
   // canAnnotateParam is resolved by the caller (plans.jsx) using the user's
   // project-specific role — checking only user.role.permissions here would
   // miss permissions granted via a project-level role assignment rather than
@@ -1462,6 +1499,30 @@ export default function AnnotatePlan() {
   const canAnnotate = canAnnotateParam !== undefined
     ? canAnnotateParam === '1'
     : (perms.includes('*') || perms.includes('annotations:update'));
+
+  const isPdf = isPdfParam !== undefined
+    ? isPdfParam === '1'
+    : (/\.pdf($|\?)/i.test(name || '') || /\.pdf($|\?)/i.test(url || ''));
+
+  // For PDFs, rasterize page 1 off-screen to a JPEG data URI so it can feed
+  // the same <Image>-based pin canvas used for image plans.
+  const [pdfImageUri, setPdfImageUri] = useState(null);
+  const [pdfRenderFailed, setPdfRenderFailed] = useState(false);
+  const canvasImageUri = isPdf ? pdfImageUri : url;
+
+  const handlePdfMessage = useCallback((event) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.dataUrl) {
+        setPdfImageUri(data.dataUrl);
+      } else {
+        setPdfRenderFailed(true);
+        showToast('Could not render PDF for annotation.', 'error');
+      }
+    } catch (e) {
+      setPdfRenderFailed(true);
+    }
+  }, [showToast]);
 
   // Canvas sizing
   const [containerH, setContainerH] = useState(SCREEN_H - 180);
@@ -1484,6 +1545,7 @@ export default function AnnotatePlan() {
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasUnsaved, setHasUnsaved] = useState(false);
+  const isCanvasLoading = isLoading || (isPdf && !pdfImageUri && !pdfRenderFailed);
 
   useEffect(() => {
     if (!folderId || !documentId || !token) { setIsLoading(false); return; }
@@ -1707,20 +1769,36 @@ export default function AnnotatePlan() {
                 style={{ width: canvasW, height: Math.max(canvasH, 1) }}
               >
                 <View style={{ width: canvasW, height: Math.max(canvasH, 1), backgroundColor: COLORS.bg }}>
-                  {isLoading ? (
+                  {isCanvasLoading ? (
                     <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', gap: SPACE.sm }}>
                       <ActivityIndicator size="large" color={COLORS.primary} />
-                      <Text style={styles.loadingText}>Loading plan…</Text>
+                      <Text style={styles.loadingText}>{isPdf ? 'Rendering PDF…' : 'Loading plan…'}</Text>
+                    </View>
+                  ) : pdfRenderFailed ? (
+                    <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', gap: SPACE.sm, paddingHorizontal: SPACE.xxl }}>
+                      <Ionicons name="alert-circle-outline" size={32} color={COLORS.textTertiary} />
+                      <Text style={[styles.loadingText, { textAlign: 'center' }]}>Couldn't render this PDF for annotation.</Text>
                     </View>
                   ) : (
                     <Image
-                      source={{ uri: url }}
+                      source={{ uri: canvasImageUri }}
                       style={{ width: canvasW, height: canvasH }}
                       resizeMode="contain"
                     />
                   )}
 
-                  {!isLoading && annotations.map((ann, idx) => (
+                  {isPdf && !pdfImageUri && !pdfRenderFailed && (
+                    <WebView
+                      style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
+                      originWhitelist={['*']}
+                      source={{ html: buildPdfToImageHtml(url) }}
+                      onMessage={handlePdfMessage}
+                      javaScriptEnabled
+                      domStorageEnabled
+                    />
+                  )}
+
+                  {!isCanvasLoading && !pdfRenderFailed && annotations.map((ann, idx) => (
                     <Pin
                       key={ann.clientId}
                       ann={ann}

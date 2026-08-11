@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AdaptiveGlass from './AdaptiveGlass';
 
-const MemberCard = ({ name, email, role, onRemove, onChangeRole }) => {
+const MemberCard = ({ name, email, role, onRemove, onChangeRole, showActions = true }) => {
   // Generate initials for avatar
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 
@@ -40,22 +40,24 @@ const MemberCard = ({ name, email, role, onRemove, onChangeRole }) => {
           )}
         </View>
 
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={styles.actionBtn} 
-            onPress={onChangeRole}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="settings-outline" size={18} color="#94A3B8" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.actionBtn, styles.deleteBtn]} 
-            onPress={onRemove}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-          </TouchableOpacity>
-        </View>
+        {showActions && (
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={onChangeRole}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="settings-outline" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.deleteBtn]}
+              onPress={onRemove}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </AdaptiveGlass>
   );

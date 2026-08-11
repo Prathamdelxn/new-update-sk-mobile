@@ -88,7 +88,7 @@ const BOQItem = memo(({
                 <Text style={styles.versionText}>v{item.version || 1}</Text>
               </TouchableOpacity>
             )}
-            <Text style={styles.boqPrice} numberOfLines={1}>Total: {currency} {formatCompact(item.totalCost)}</Text>
+            <Text style={styles.boqPrice} numberOfLines={1} adjustsFontSizeToFit>Total: {currency} {formatCompact(item.totalCost)}</Text>
             <View style={styles.rowActions}>
               {(item.status === 'Draft' || item.status === 'Rejected') && (
                 <>

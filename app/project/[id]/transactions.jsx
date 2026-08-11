@@ -627,7 +627,6 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import cloudinaryService from '../../services/cloudinaryService';
-import { formatCompact } from '../../utils/format';
 import { useTranslation } from 'react-i18next';
 import { hasProjectPermission, isProjectLocked } from '../../utils/permissions';
 export default function ProjectTransactionsTab({ project, fetchProjectData }) {
@@ -654,6 +653,21 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
   const [isTxModalVisible, setIsTxModalVisible] = useState(false);
   const [editingTxId, setEditingTxId] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ visible: false, title: '', message: '', onConfirm: null });
+
+  // Amounts are truncated with "..." by default (huge/garbage values shouldn't
+  // break tile layout) — each amount has its own eye toggle to reveal the
+  // full figure, wrapped across lines instead of forced onto one.
+  const [revealedBalance, setRevealedBalance] = useState(false);
+  const [revealedInflow, setRevealedInflow] = useState(false);
+  const [revealedOutflow, setRevealedOutflow] = useState(false);
+  const [revealedTxIds, setRevealedTxIds] = useState(() => new Set());
+  const toggleTxReveal = useCallback((id) => {
+    setRevealedTxIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
   
   // Form State
   const [txType, setTxType] = useState('Incoming');
@@ -957,38 +971,51 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
       {/* Premium Dark Dashboard Card */}
       <View style={styles.dashboardCard}>
         <View style={styles.dashTop}>
-          <Text style={styles.dashLabel}>Available Balance</Text>
-          <Text 
-            style={[styles.dashBalance, { color: netBalance >= 0 ? '#FFFFFF' : '#EF4444' }]} 
-            numberOfLines={1} 
-            adjustsFontSizeToFit
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.dashLabel}>Available Balance</Text>
+            <TouchableOpacity onPress={() => setRevealedBalance(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name={revealedBalance ? 'eye-off' : 'eye'} size={13} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+          <Text
+            style={[styles.dashBalance, { color: netBalance >= 0 ? '#FFFFFF' : '#EF4444', textAlign: 'center' }]}
+            numberOfLines={revealedBalance ? undefined : 1}
+            ellipsizeMode="tail"
           >
             {netBalance >= 0 ? '' : '-'}{project?.currency || '$'} {Number(Math.abs(netBalance)).toLocaleString('en-US')}
           </Text>
         </View>
-        
+
         <View style={styles.dashDivider} />
-        
+
         <View style={styles.dashRow}>
           <View style={styles.dashCol}>
             <View style={styles.dashIconBoxIn}>
               <Feather name="arrow-down-left" size={20} color="#10B981" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.dashSubLabel} numberOfLines={1}>Total Inflow</Text>
-              <Text style={styles.dashSubValue} numberOfLines={1} adjustsFontSizeToFit>{project?.currency || '$'} {Number(totals.incoming).toLocaleString('en-US')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text style={styles.dashSubLabel} numberOfLines={1}>Total Inflow</Text>
+                <TouchableOpacity onPress={() => setRevealedInflow(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name={revealedInflow ? 'eye-off' : 'eye'} size={11} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.dashSubValue} numberOfLines={revealedInflow ? undefined : 1} ellipsizeMode="tail">{project?.currency || '$'} {Number(totals.incoming).toLocaleString('en-US')}</Text>
             </View>
           </View>
-          
-          <View style={{ width: 16 }} />
 
           <View style={styles.dashCol}>
             <View style={styles.dashIconBoxOut}>
               <Feather name="arrow-up-right" size={20} color="#EF4444" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.dashSubLabel} numberOfLines={1}>Total Outflow</Text>
-              <Text style={styles.dashSubValue} numberOfLines={1} adjustsFontSizeToFit>{project?.currency || '$'} {Number(totals.outgoing).toLocaleString('en-US')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text style={styles.dashSubLabel} numberOfLines={1}>Total Outflow</Text>
+                <TouchableOpacity onPress={() => setRevealedOutflow(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name={revealedOutflow ? 'eye-off' : 'eye'} size={11} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.dashSubValue} numberOfLines={revealedOutflow ? undefined : 1} ellipsizeMode="tail">{project?.currency || '$'} {Number(totals.outgoing).toLocaleString('en-US')}</Text>
             </View>
           </View>
         </View>
@@ -1045,7 +1072,18 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
                     </View>
                   </View>
                   <View style={styles.txRight}>
-                    <Text style={[styles.txAmount, { color }]} numberOfLines={1} adjustsFontSizeToFit>{prefix}{project?.currency || '$'} {Number(item.amount).toLocaleString('en-US')}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                      <TouchableOpacity onPress={() => toggleTxReveal(item._id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Feather name={revealedTxIds.has(item._id) ? 'eye-off' : 'eye'} size={12} color="#94A3B8" />
+                      </TouchableOpacity>
+                      <Text
+                        style={[styles.txAmount, { color, marginBottom: 0, flexShrink: 1 }]}
+                        numberOfLines={revealedTxIds.has(item._id) ? undefined : 1}
+                        ellipsizeMode="tail"
+                      >
+                        {prefix}{project?.currency || '$'} {Number(item.amount).toLocaleString('en-US')}
+                      </Text>
+                    </View>
                     <View style={styles.txActionRow}>
                       <TouchableOpacity onPress={() => handleDownloadInvoice(item)} style={styles.actionIconBtn}>
                         <Feather name="download-cloud" size={14} color="#3B82F6" />
@@ -1206,10 +1244,10 @@ const styles = StyleSheet.create({
   dashboardCard: { borderRadius: 24, padding: 24, marginBottom: 20, backgroundColor: '#0F172A', shadowColor: '#0F172A', shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   dashTop: { alignItems: 'center', marginBottom: 20 },
   dashLabel: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  dashBalance: { fontSize: 36, fontFamily: 'Inter-Black', color: '#FFFFFF' },
+  dashBalance: { fontSize: 30, fontFamily: 'Inter-Black', color: '#FFFFFF' },
   dashDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: 20 },
-  dashRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  dashCol: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  dashRow: { flexDirection: 'column', gap: 14 },
+  dashCol: { flexDirection: 'row', alignItems: 'center' },
   dashIconBoxIn: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(16, 185, 129, 0.15)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   dashIconBoxOut: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(239, 68, 68, 0.15)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   dashSubLabel: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#94A3B8', marginBottom: 4 },
@@ -1236,8 +1274,8 @@ const styles = StyleSheet.create({
   txContent: { flex: 1 },
   txParty: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#0F172A', marginBottom: 2 },
   txMeta: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' },
-  txRight: { alignItems: 'flex-end', justifyContent: 'center' },
-  txAmount: { fontSize: 14, fontFamily: 'Inter-Bold', marginBottom: 6 },
+  txRight: { alignItems: 'flex-end', justifyContent: 'center', maxWidth: '55%' },
+  txAmount: { fontSize: 14, fontFamily: 'Inter-Bold', marginBottom: 6, textAlign: 'right' },
   txActionRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   actionIconBtn: { width: 28, height: 28, backgroundColor: '#F8FAFF', borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
 

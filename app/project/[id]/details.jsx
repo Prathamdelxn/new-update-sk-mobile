@@ -227,9 +227,9 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
           </View>
           
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-            <View>
-              <Text style={styles.bentoDigit}>
-                {project?.area ? `${project.area.toLocaleString()} ${project.areaUnit ? project.areaUnit.toUpperCase() : 'SQFT'}` : t('nA', 'N/A')}
+            <View style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
+              <Text style={styles.bentoDigit} numberOfLines={1} adjustsFontSizeToFit>
+                {project?.area ? `${project.area.toLocaleString('en-US')} ${project.areaUnit ? project.areaUnit.toUpperCase() : 'SQFT'}` : t('nA', 'N/A')}
               </Text>
               <Text style={styles.bentoSub}>{t('totalSiteArea', 'Total Site Area')}</Text>
             </View>
@@ -243,7 +243,8 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                   borderRadius: 10,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 4
+                  gap: 4,
+                  flexShrink: 0
                 }}
                 onPress={() => {
                   const lat = project.siteLocation.latitude;
