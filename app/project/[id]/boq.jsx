@@ -737,7 +737,11 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
         <View style={styles.groupAccent} />
         <Text style={[styles.categoryTitle, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{section.title}</Text>
       </View>
-      <Text style={styles.groupTotal}>
+      <Text
+        style={[styles.groupTotal, { maxWidth: '40%', flexShrink: 1 }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
         {project?.currency || '$'} {formatCompact(section.total)}
       </Text>
     </View>
@@ -873,7 +877,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
           items.length > 0 ? (
             <View style={styles.grandTotalBox}>
               <Text style={styles.grandTotalLabel}>APPROVED GRAND TOTAL</Text>
-              <Text style={styles.grandTotalValue} numberOfLines={1}>{project?.currency || '$'} {formatCompact(grandTotal)}</Text>
+              <Text style={styles.grandTotalValue} numberOfLines={1} adjustsFontSizeToFit>{project?.currency || '$'} {formatCompact(grandTotal)}</Text>
             </View>
           ) : null
         }

@@ -19,7 +19,7 @@ export const styles = StyleSheet.create({
   boqRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
   borderBottom: { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
   boqMain: { flex: 1, paddingRight: 12 },
-  rightCol: { alignItems: 'flex-end', justifyContent: 'center', marginLeft: 12, gap: 4 },
+  rightCol: { alignItems: 'flex-end', justifyContent: 'center', marginLeft: 12, gap: 4, maxWidth: '45%' },
   rowActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
   actionIconBtn: { width: 28, height: 28, backgroundColor: '#F8FAFF', borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

@@ -687,10 +687,12 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
     const latestVersion = plan.versions?.[plan.versions.length - 1];
     const isImage = latestVersion?.mimeType?.startsWith('image/') ||
       /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name || '');
-    if (isImage && plan?._id && folderId) {
+    const isPdf = latestVersion?.mimeType === 'application/pdf' ||
+      /\.pdf$/i.test(name || '') || /\.pdf($|\?)/i.test(url || '');
+    if ((isImage || isPdf) && plan?._id && folderId) {
       router.push({
         pathname: '/annotate-plan',
-        params: { url, name, documentId: plan._id, folderId, projectId: activeId, canAnnotate: canAnnotate ? '1' : '0' },
+        params: { url, name, documentId: plan._id, folderId, projectId: activeId, canAnnotate: canAnnotate ? '1' : '0', isPdf: isPdf ? '1' : '0' },
       });
     } else {
       router.push({ pathname: '/document-viewer', params: { url, name } });

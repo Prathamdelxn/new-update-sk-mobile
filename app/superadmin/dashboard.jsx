@@ -1545,7 +1545,7 @@ export default function SuperAdminDashboard() {
 
                 <Text style={styles.mrrLabel}>Estimated MRR</Text>
 
-                <Text style={styles.mrrValue}>${dashboardData.mrr.toLocaleString()}</Text>
+                <Text style={styles.mrrValue}>${dashboardData.mrr.toLocaleString('en-US')}</Text>
 
                 <Text style={styles.mrrSub}>Based on active plans</Text>
 
