@@ -239,10 +239,18 @@ export default function MemberManagementScreen() {
     setActiveProjectForRole(null);
   };
 
-  // An Admin's own account can only be edited/removed by that Admin —
-  // never by another member, even one with user-management permission.
+  // An Admin-equivalent account can only be edited/removed by that account
+  // itself — never by another member, even one with user-management
+  // permission. Checked against name, wildcard permission, and
+  // isSystemRole (not just an exact "Admin" string match) so a
+  // differently-named or custom-flagged admin role is still protected.
   const canManageMember = (member) => {
-    const isTargetAdmin = (member.role?.name || '').toLowerCase() === 'admin';
+    const targetRole = member.role;
+    const isTargetAdmin = !!targetRole && (
+      (targetRole.name || '').toLowerCase() === 'admin' ||
+      targetRole.permissions?.includes('*') ||
+      targetRole.isSystemRole === true
+    );
     const isSelf = !!user && (user._id === member._id || user.id === member._id);
     return !isTargetAdmin || isSelf;
   };
