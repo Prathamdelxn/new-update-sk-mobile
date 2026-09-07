@@ -9,11 +9,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useToast } from '../context/ToastContext';
 import interiorApiClient from '../services/interiorApiClient';
+import interiorCrmService from '../services/interiorCrmService';
 import * as ImagePicker from 'expo-image-picker';
+import BoqBuilderModal from '../components/crm/BoqBuilderModal';
+import {
+  SendToSiteVisitModal,
+  SendToRequirementsModal,
+  SendToDrawingModal,
+  SendToBoqModal,
+  SendToQuotationsModal,
+  ConvertToProjectModal,
+} from '../components/crm/StageTransitionModals';
 
 const STAGES = [
-  'New Lead', 'Contacted', 'Meeting Scheduled', 'Measurement Done',
-  'Requirement Completed', 'Design Approved', 'Quotation Sent',
+  'New Lead', 'Contacted', 'Meeting Scheduled', 'Under Site Visit', 'Measurement Done',
+  'Under Requirement', 'Requirement Completed', 'Under Drawing', 'Design Approved',
+  'Under BOQ Creation', 'Under Quotation', 'Quotation Sent',
   'Booking Pending', 'Won', 'Lost'
 ];
 
@@ -21,13 +32,38 @@ const STAGE_META = {
   'New Lead': { color: '#0284C7', bg: '#F0F9FF' },
   'Contacted': { color: '#D97706', bg: '#FFFBEB' },
   'Meeting Scheduled': { color: '#7C3AED', bg: '#F5F3FF' },
+  'Under Site Visit': { color: '#7C3AED', bg: '#F5F3FF' },
   'Measurement Done': { color: '#7C3AED', bg: '#F5F3FF' },
+  'Under Requirement': { color: '#4F46E5', bg: '#EEF2FF' },
   'Requirement Completed': { color: '#4F46E5', bg: '#EEF2FF' },
-  'Design Approved': { color: '#4F46E5', bg: '#EEF2FF' },
+  'Under Drawing': { color: '#0284C7', bg: '#F0F9FF' },
+  'Design Approved': { color: '#0284C7', bg: '#F0F9FF' },
+  'Under BOQ Creation': { color: '#059669', bg: '#ECFDF5' },
+  'Under Quotation': { color: '#E11D48', bg: '#FFF1F2' },
   'Quotation Sent': { color: '#E11D48', bg: '#FFF1F2' },
   'Booking Pending': { color: '#E11D48', bg: '#FFF1F2' },
   'Won': { color: '#16A34A', bg: '#F0FDF4' },
   'Lost': { color: '#64748B', bg: '#F8FAFC' },
+};
+
+const STAGE_ORDER = {
+  'New Lead': 0,
+  'Contacted': 0,
+  'Meeting Scheduled': 0,
+  'Under Site Visit': 1,
+  'Measurement Done': 1,
+  'Under Requirement': 2,
+  'Requirement Completed': 2,
+  'Under Drawing': 3,
+  'Design Approved': 3,
+  'Under BOQ Creation': 4,
+  'BOQ Approved': 4,
+  'Under Quotation': 5,
+  'Quotation Sent': 5,
+  'Booking Pending': 5,
+  'Won': 6,
+  'Converted': 6,
+  'Lost': 6,
 };
 
 const TABS = [
@@ -35,6 +71,7 @@ const TABS = [
   { id: 'site', label: 'Site Visits' },
   { id: 'requirements', label: 'Requirements' },
   { id: 'designs', label: 'Designs & Files' },
+  { id: 'boq', label: 'BOQ' },
   { id: 'quotations', label: 'Quotations' },
 ];
 
@@ -51,6 +88,19 @@ export default function Lead360Screen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [activeQuoteIdx, setActiveQuoteIdx] = useState(0);
+
+  // BOQ state
+  const [activeBoqIdx, setActiveBoqIdx] = useState(0);
+  const [showBoqModal, setShowBoqModal] = useState(false);
+  const [editingBoqIdx, setEditingBoqIdx] = useState(null);
+
+  // Guided Transition Modals
+  const [showSendSiteModal, setShowSendSiteModal] = useState(false);
+  const [showSendReqModal, setShowSendReqModal] = useState(false);
+  const [showSendDrawingModal, setShowSendDrawingModal] = useState(false);
+  const [showSendBoqModal, setShowSendBoqModal] = useState(false);
+  const [showSendQuoteModal, setShowSendQuoteModal] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
 
   // Status Change Modal
   const [showStatusModal, setShowStatusModal] = useState(false);
@@ -92,24 +142,54 @@ export default function Lead360Screen() {
   const [shouldSendEmail, setShouldSendEmail] = useState(true);
   const [recipientEmail, setRecipientEmail] = useState('');
 
+  const isConverted = lead?.status === 'Won' || lead?.status === 'Converted' || !!lead?.linkedProject;
+
+  const getTabLockState = (tabId) => {
+    if (isConverted) return { isLocked: false, requiredStage: '', stageTitle: '' };
+    const currentStage = STAGE_ORDER[lead?.status || 'New Lead'] ?? 0;
+
+    switch (tabId) {
+      case 'overview':
+        return { isLocked: false, requiredStage: 'New Lead', stageTitle: 'Overview' };
+      case 'site': {
+        const isUnlocked = currentStage >= 1 || !!lead?.siteMeasurements || (lead?.sitePhotos && lead.sitePhotos.length > 0);
+        return { isLocked: !isUnlocked, requiredStage: 'Under Site Visit', stageTitle: 'Site Visit' };
+      }
+      case 'requirements': {
+        const isUnlocked = currentStage >= 2 || (lead?.requirements && lead.requirements.length > 0);
+        return { isLocked: !isUnlocked, requiredStage: 'Under Requirement', stageTitle: 'Requirements' };
+      }
+      case 'designs': {
+        const isUnlocked = currentStage >= 3 || (lead?.designFiles && lead.designFiles.length > 0);
+        return { isLocked: !isUnlocked, requiredStage: 'Under Drawing', stageTitle: '2D/3D Drawing' };
+      }
+      case 'boq': {
+        const isUnlocked = currentStage >= 4 || (lead?.boqs && lead.boqs.length > 0);
+        return { isLocked: !isUnlocked, requiredStage: 'Under BOQ Creation', stageTitle: 'BOQ' };
+      }
+      case 'quotations': {
+        const isUnlocked = currentStage >= 5 || (lead?.quotations && lead.quotations.length > 0);
+        return { isLocked: !isUnlocked, requiredStage: 'Under Quotation', stageTitle: 'Quotations' };
+      }
+      default:
+        return { isLocked: false, requiredStage: '', stageTitle: '' };
+    }
+  };
+
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
       // 1. Fetch lead
-      const custRes = await interiorApiClient.get('/crm/customers');
-      const list = custRes?.success && custRes?.data ? custRes.data : Array.isArray(custRes) ? custRes : [];
-      const found = list.find((c) => c._id === id);
-      if (found) setLead(found);
+      const cust = await interiorCrmService.getCustomerById(id);
+      if (cust) setLead(cust);
 
       // 2. Fetch activities
-      const actRes = await interiorApiClient.get('/crm/activities', { customerId: id });
-      const actList = actRes?.success && actRes?.data ? actRes.data : Array.isArray(actRes) ? actRes : [];
-      setActivities(actList);
+      const actList = await interiorCrmService.getActivities(id);
+      setActivities(Array.isArray(actList) ? actList : []);
 
       // 3. Fetch users
-      const userRes = await interiorApiClient.get('/users');
-      const userList = userRes?.success && userRes?.data ? userRes.data : Array.isArray(userRes) ? userRes : [];
-      setUsers(userList);
+      const userList = await interiorCrmService.getUsers();
+      setUsers(Array.isArray(userList) ? userList : []);
     } catch (e) {
       showToast(e.message || 'Failed to load lead details', 'error');
     } finally {
@@ -532,9 +612,16 @@ export default function Lead360Screen() {
             <Text style={s.actionLabel}>Designs</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity style={s.actionCard} onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}>
+            <View style={[s.actionIconBox, { backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="calculator-outline" size={18} color="#059669" />
+            </View>
+            <Text style={s.actionLabel}>BOQ</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={s.actionCard} onPress={openQuoteModal}>
             <View style={[s.actionIconBox, { backgroundColor: '#FFF1F2' }]}>
-              <Ionicons name="calculator-outline" size={18} color="#E11D48" />
+              <Ionicons name="document-text-outline" size={18} color="#E11D48" />
             </View>
             <Text style={s.actionLabel}>Quote</Text>
           </TouchableOpacity>
@@ -547,13 +634,148 @@ export default function Lead360Screen() {
           </TouchableOpacity>
         </ScrollView>
 
+        {/* --- STAGE ADVANCEMENT ACTION BANNER --- */}
+        {(() => {
+          const st = lead.status;
+          if (st === 'New Lead' || st === 'Contacted' || st === 'Meeting Scheduled') {
+            return (
+              <TouchableOpacity style={s.advanceBanner} onPress={() => setShowSendSiteModal(true)}>
+                <View style={s.advanceBannerLeft}>
+                  <View style={[s.advanceIconBox, { backgroundColor: '#F3E8FF' }]}>
+                    <Ionicons name="location" size={16} color="#7C3AED" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.advanceBannerTitle}>Advance Pipeline: Schedule Site Visit</Text>
+                    <Text style={s.advanceBannerSub}>Assign executive & schedule on-site measurements</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#7C3AED" />
+              </TouchableOpacity>
+            );
+          }
+          if (st === 'Under Site Visit' || st === 'Measurement Done') {
+            return (
+              <TouchableOpacity style={s.advanceBanner} onPress={() => setShowSendReqModal(true)}>
+                <View style={s.advanceBannerLeft}>
+                  <View style={[s.advanceIconBox, { backgroundColor: '#EEF2FF' }]}>
+                    <Ionicons name="create" size={16} color="#4F46E5" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.advanceBannerTitle}>Advance Pipeline: Pass to Requirements</Text>
+                    <Text style={s.advanceBannerSub}>Assign interior designer for room & theme specs</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#4F46E5" />
+              </TouchableOpacity>
+            );
+          }
+          if (st === 'Under Requirement' || st === 'Requirement Completed') {
+            return (
+              <TouchableOpacity style={s.advanceBanner} onPress={() => setShowSendDrawingModal(true)}>
+                <View style={s.advanceBannerLeft}>
+                  <View style={[s.advanceIconBox, { backgroundColor: '#F0F9FF' }]}>
+                    <Ionicons name="pencil" size={16} color="#0284C7" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.advanceBannerTitle}>Advance Pipeline: Commission Drawings</Text>
+                    <Text style={s.advanceBannerSub}>Commission 2D layout & 3D visual concepts</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#0284C7" />
+              </TouchableOpacity>
+            );
+          }
+          if (st === 'Under Drawing' || st === 'Design Approved') {
+            return (
+              <TouchableOpacity style={s.advanceBanner} onPress={() => setShowSendBoqModal(true)}>
+                <View style={s.advanceBannerLeft}>
+                  <View style={[s.advanceIconBox, { backgroundColor: '#ECFDF5' }]}>
+                    <Ionicons name="calculator" size={16} color="#059669" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.advanceBannerTitle}>Advance Pipeline: Pass to BOQ Estimator</Text>
+                    <Text style={s.advanceBannerSub}>Assign quantity surveyor for itemized cost sheet</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#059669" />
+              </TouchableOpacity>
+            );
+          }
+          if (st === 'Under BOQ Creation' || st === 'BOQ Approved') {
+            return (
+              <TouchableOpacity style={s.advanceBanner} onPress={() => setShowSendQuoteModal(true)}>
+                <View style={s.advanceBannerLeft}>
+                  <View style={[s.advanceIconBox, { backgroundColor: '#FFF1F2' }]}>
+                    <Ionicons name="document-text" size={16} color="#E11D48" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.advanceBannerTitle}>Advance Pipeline: Pass to Quotations</Text>
+                    <Text style={s.advanceBannerSub}>Prepare commercial proposal for client presentation</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#E11D48" />
+              </TouchableOpacity>
+            );
+          }
+          if (st === 'Under Quotation' || st === 'Quotation Sent' || st === 'Booking Pending') {
+            return (
+              <TouchableOpacity style={[s.advanceBanner, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]} onPress={() => setShowConvertModal(true)}>
+                <View style={s.advanceBannerLeft}>
+                  <View style={[s.advanceIconBox, { backgroundColor: '#DCFCE7' }]}>
+                    <Ionicons name="trophy" size={16} color="#16A34A" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.advanceBannerTitle, { color: '#15803D' }]}>Win Deal: Convert to Project</Text>
+                    <Text style={s.advanceBannerSub}>Deal closed! Initialize execution workspace</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#16A34A" />
+              </TouchableOpacity>
+            );
+          }
+          if (st === 'Won' || st === 'Converted' || !!lead.linkedProject) {
+            const prjId =
+              typeof lead.linkedProject === 'object' && lead.linkedProject !== null && lead.linkedProject._id
+                ? lead.linkedProject._id
+                : lead.linkedProject;
+            return (
+              <TouchableOpacity
+                style={[s.advanceBanner, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
+                onPress={() => {
+                  if (prjId) {
+                    router.push(`/i-project/${prjId}`);
+                  } else {
+                    router.push('/(tabs)/projects');
+                  }
+                }}
+              >
+                <View style={s.advanceBannerLeft}>
+                  <View style={[s.advanceIconBox, { backgroundColor: '#DCFCE7' }]}>
+                    <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.advanceBannerTitle, { color: '#15803D' }]}>Active Project Converted ✓</Text>
+                    <Text style={s.advanceBannerSub}>Tap to open live project execution workspace</Text>
+                  </View>
+                </View>
+                <Ionicons name="open-outline" size={18} color="#16A34A" />
+              </TouchableOpacity>
+            );
+          }
+          return null;
+        })()}
+
         {/* --- TAB NAVIGATION --- */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabRow}>
           {TABS.map((t) => {
             const active = activeTab === t.id;
+            const lock = getTabLockState(t.id);
             return (
               <TouchableOpacity key={t.id} style={[s.tabItem, active && s.tabItemActive]} onPress={() => setActiveTab(t.id)}>
-                <Text style={[s.tabText, active && s.tabTextActive]}>{t.label}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {lock.isLocked && <Ionicons name="lock-closed" size={11} color="#94A3B8" />}
+                  <Text style={[s.tabText, active && s.tabTextActive, lock.isLocked && { color: '#94A3B8' }]}>{t.label}</Text>
+                </View>
                 {active && <View style={s.tabIndicator} />}
               </TouchableOpacity>
             );
@@ -624,7 +846,18 @@ export default function Lead360Screen() {
           {/* 2. SITE VISITS TAB */}
           {activeTab === 'site' && (
             <View style={{ gap: 16 }}>
-              {!lead.siteMeasurements ? (
+              {getTabLockState('site').isLocked ? (
+                <View style={s.lockedCard}>
+                  <View style={[s.lockedIconBox, { backgroundColor: '#F3E8FF' }]}>
+                    <Ionicons name="lock-closed" size={24} color="#7C3AED" />
+                  </View>
+                  <Text style={s.lockedTitle}>Site Visit Phase Locked</Text>
+                  <Text style={s.lockedSub}>Advance the lead from "{lead.status}" to begin physical site measurements.</Text>
+                  <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#7C3AED' }]} onPress={() => setShowSendSiteModal(true)}>
+                    <Text style={s.unlockActionBtnText}>Pass to Site Visit</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : !lead.siteMeasurements ? (
                 <View style={s.emptyCard}>
                   <Ionicons name="location-outline" size={40} color="#7C3AED" />
                   <Text style={s.emptyCardTitle}>No Site Measurements</Text>
@@ -679,7 +912,18 @@ export default function Lead360Screen() {
           {/* 3. REQUIREMENTS TAB */}
           {activeTab === 'requirements' && (
             <View style={{ gap: 16 }}>
-              {!lead.requirements || lead.requirements.length === 0 ? (
+              {getTabLockState('requirements').isLocked ? (
+                <View style={s.lockedCard}>
+                  <View style={[s.lockedIconBox, { backgroundColor: '#EEF2FF' }]}>
+                    <Ionicons name="lock-closed" size={24} color="#4F46E5" />
+                  </View>
+                  <Text style={s.lockedTitle}>Requirements Phase Locked</Text>
+                  <Text style={s.lockedSub}>Complete site measurements before logging detailed room specifications.</Text>
+                  <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#4F46E5' }]} onPress={() => setShowSendReqModal(true)}>
+                    <Text style={s.unlockActionBtnText}>Pass to Requirements</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : !lead.requirements || lead.requirements.length === 0 ? (
                 <View style={s.emptyCard}>
                   <Ionicons name="create-outline" size={40} color="#059669" />
                   <Text style={s.emptyCardTitle}>No Requirements Recorded</Text>
@@ -711,7 +955,18 @@ export default function Lead360Screen() {
           {/* 4. DESIGNS & FILES TAB */}
           {activeTab === 'designs' && (
             <View style={{ gap: 16 }}>
-              {!lead.designFiles || lead.designFiles.length === 0 ? (
+              {getTabLockState('designs').isLocked ? (
+                <View style={s.lockedCard}>
+                  <View style={[s.lockedIconBox, { backgroundColor: '#F0F9FF' }]}>
+                    <Ionicons name="lock-closed" size={24} color="#0284C7" />
+                  </View>
+                  <Text style={s.lockedTitle}>Drawing & Design Phase Locked</Text>
+                  <Text style={s.lockedSub}>Finalize site requirements before initiating 2D/3D design drafting.</Text>
+                  <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#0284C7' }]} onPress={() => setShowSendDrawingModal(true)}>
+                    <Text style={s.unlockActionBtnText}>Pass to Drawing</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : !lead.designFiles || lead.designFiles.length === 0 ? (
                 <View style={s.emptyCard}>
                   <Ionicons name="cloud-upload-outline" size={40} color="#2563EB" />
                   <Text style={s.emptyCardTitle}>No Designs Uploaded</Text>
@@ -743,10 +998,163 @@ export default function Lead360Screen() {
             </View>
           )}
 
-          {/* 5. QUOTATIONS TAB */}
+          {/* 5. BOQ TAB */}
+          {activeTab === 'boq' && (
+            <View style={{ gap: 16 }}>
+              {getTabLockState('boq').isLocked ? (
+                <View style={s.lockedCard}>
+                  <View style={[s.lockedIconBox, { backgroundColor: '#ECFDF5' }]}>
+                    <Ionicons name="lock-closed" size={24} color="#059669" />
+                  </View>
+                  <Text style={s.lockedTitle}>BOQ Estimation Phase Locked</Text>
+                  <Text style={s.lockedSub}>Approval of 2D/3D drawings is required before building itemized BOQs.</Text>
+                  <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#059669' }]} onPress={() => setShowSendBoqModal(true)}>
+                    <Text style={s.unlockActionBtnText}>Pass to BOQ Phase</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : !lead.boqs || lead.boqs.length === 0 ? (
+                <View style={s.emptyCard}>
+                  <Ionicons name="calculator-outline" size={40} color="#059669" />
+                  <Text style={s.emptyCardTitle}>No BOQ Generated</Text>
+                  <Text style={s.emptySubText}>Build an itemized Bill of Quantities with quantities and rates.</Text>
+                  <TouchableOpacity
+                    style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]}
+                    onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
+                  >
+                    <Text style={s.actionBtnText}>+ Create Estimate BOQ</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={{ gap: 14 }}>
+                  {/* BOQ Header & Rev Switcher */}
+                  <View style={s.boqHeaderCard}>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={s.boqNumberText}>{lead.boqs[activeBoqIdx]?.boqNumber || 'BOQ'}</Text>
+                        <View style={s.versionTag}>
+                          <Text style={s.versionTagText}>{lead.boqs[activeBoqIdx]?.version || 'v1.0'}</Text>
+                        </View>
+                      </View>
+                      <Text style={s.boqDateText}>
+                        Updated: {new Date(lead.boqs[activeBoqIdx]?.createdAt || Date.now()).toLocaleDateString()}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={s.editBoqBtn}
+                      onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}
+                    >
+                      <Ionicons name="create-outline" size={13} color="#2563EB" />
+                      <Text style={s.editBoqBtnText}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={s.newBoqBtn}
+                      onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
+                    >
+                      <Ionicons name="add" size={14} color="#FFFFFF" />
+                      <Text style={s.newBoqBtnText}>New Rev</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Versions Tabs if multiple */}
+                  {lead.boqs.length > 1 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                      {lead.boqs.map((b, idx) => (
+                        <TouchableOpacity
+                          key={idx}
+                          style={[s.versionChip, activeBoqIdx === idx && s.versionChipActive]}
+                          onPress={() => setActiveBoqIdx(idx)}
+                        >
+                          <Text style={[s.versionChipText, activeBoqIdx === idx && s.versionChipTextActive]}>
+                            {b.version || `v${idx + 1}.0`}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )}
+
+                  {/* Summary Totals */}
+                  <View style={s.costSummaryCard}>
+                    <View style={s.costRow}>
+                      <Text style={s.costLabel}>Items Subtotal</Text>
+                      <Text style={s.costVal}>₹{(lead.boqs[activeBoqIdx]?.subtotal || 0).toLocaleString('en-IN')}</Text>
+                    </View>
+                    <View style={s.costRow}>
+                      <Text style={s.costLabel}>GST ({lead.boqs[activeBoqIdx]?.taxPercent || 18}%)</Text>
+                      <Text style={s.costVal}>₹{(lead.boqs[activeBoqIdx]?.taxAmount || 0).toLocaleString('en-IN')}</Text>
+                    </View>
+                    <View style={[s.costRow, s.costRowTotal]}>
+                      <Text style={s.grandTotalTitle}>Estimated Total</Text>
+                      <Text style={s.grandTotalAmount}>
+                        ₹{(lead.boqs[activeBoqIdx]?.totalAmount || 0).toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Items List */}
+                  <View style={s.card}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={s.cardTitle}>Line Items ({lead.boqs[activeBoqIdx]?.items?.length || 0})</Text>
+                      <TouchableOpacity
+                        style={[s.smallBtn, { backgroundColor: '#FFF1F2' }]}
+                        onPress={() => {
+                          const activeItems = lead.boqs[activeBoqIdx]?.items || [];
+                          if (activeItems.length > 0) {
+                            setQuoteItems(
+                              activeItems.map((it) => ({
+                                description: `${it.category ? `[${it.category}] ` : ''}${it.itemName}`,
+                                quantity: String(it.quantity || 1),
+                                unitPrice: String(it.rate || it.unitRate || 0),
+                              }))
+                            );
+                            openQuoteModal();
+                          }
+                        }}
+                      >
+                        <Ionicons name="arrow-forward" size={13} color="#E11D48" />
+                        <Text style={[s.smallBtnText, { color: '#E11D48' }]}>Create Quote</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {(lead.boqs[activeBoqIdx]?.items || []).map((it, idx) => (
+                      <View key={idx} style={s.boqItemRow}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <View style={s.catBadgeSmall}>
+                              <Text style={s.catBadgeSmallText}>{it.category || 'Item'}</Text>
+                            </View>
+                            <Text style={s.itemNameText}>{it.itemName}</Text>
+                          </View>
+                          {!!it.description && <Text style={s.itemDescText}>{it.description}</Text>}
+                          <Text style={s.itemQtyRateText}>
+                            {it.quantity} {it.unit} × ₹{Number(it.rate || it.unitRate || 0).toLocaleString('en-IN')}
+                          </Text>
+                        </View>
+                        <Text style={s.itemTotalText}>
+                          ₹{Math.round(it.amount || (parseFloat(it.quantity) || 1) * (parseFloat(it.rate || it.unitRate) || 0)).toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* 6. QUOTATIONS TAB */}
           {activeTab === 'quotations' && (
             <View style={{ gap: 16 }}>
-              {!lead.quotations || lead.quotations.length === 0 ? (
+              {getTabLockState('quotations').isLocked ? (
+                <View style={s.lockedCard}>
+                  <View style={[s.lockedIconBox, { backgroundColor: '#FFF1F2' }]}>
+                    <Ionicons name="lock-closed" size={24} color="#E11D48" />
+                  </View>
+                  <Text style={s.lockedTitle}>Quotation Phase Locked</Text>
+                  <Text style={s.lockedSub}>An estimate BOQ is required before generating final sales quotations.</Text>
+                  <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#E11D48' }]} onPress={() => setShowSendQuoteModal(true)}>
+                    <Text style={s.unlockActionBtnText}>Pass to Quotation</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : !lead.quotations || lead.quotations.length === 0 ? (
                 <View style={s.emptyCard}>
                   <Ionicons name="calculator-outline" size={40} color="#E11D48" />
                   <Text style={s.emptyCardTitle}>No Quotations Created</Text>
@@ -1168,6 +1576,86 @@ export default function Lead360Screen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* 8. BOQ Builder Modal */}
+      <BoqBuilderModal
+        isOpen={showBoqModal}
+        onClose={() => setShowBoqModal(false)}
+        customerId={id}
+        currentStatus={lead?.status}
+        existingBoqs={lead?.boqs || []}
+        editingIndex={editingBoqIdx}
+        onSuccess={() => {
+          showToast('BOQ saved successfully!', 'success');
+          fetchData();
+        }}
+      />
+
+      {/* 9. Stage Advancement Guided Modals */}
+      <SendToSiteVisitModal
+        isOpen={showSendSiteModal}
+        onClose={() => setShowSendSiteModal(false)}
+        customerId={id}
+        users={users}
+        onSuccess={() => {
+          showToast('Passed to Site Visit phase!', 'success');
+          fetchData();
+        }}
+      />
+
+      <SendToRequirementsModal
+        isOpen={showSendReqModal}
+        onClose={() => setShowSendReqModal(false)}
+        customerId={id}
+        users={users}
+        onSuccess={() => {
+          showToast('Passed to Requirements phase!', 'success');
+          fetchData();
+        }}
+      />
+
+      <SendToDrawingModal
+        isOpen={showSendDrawingModal}
+        onClose={() => setShowSendDrawingModal(false)}
+        customerId={id}
+        users={users}
+        onSuccess={() => {
+          showToast('Passed to Drawing phase!', 'success');
+          fetchData();
+        }}
+      />
+
+      <SendToBoqModal
+        isOpen={showSendBoqModal}
+        onClose={() => setShowSendBoqModal(false)}
+        customerId={id}
+        users={users}
+        onSuccess={() => {
+          showToast('Passed to BOQ Estimation phase!', 'success');
+          fetchData();
+        }}
+      />
+
+      <SendToQuotationsModal
+        isOpen={showSendQuoteModal}
+        onClose={() => setShowSendQuoteModal(false)}
+        customerId={id}
+        onSuccess={() => {
+          showToast('Passed to Quotation phase!', 'success');
+          fetchData();
+        }}
+      />
+
+      <ConvertToProjectModal
+        isOpen={showConvertModal}
+        onClose={() => setShowConvertModal(false)}
+        customerId={id}
+        onSuccess={() => {
+          showToast('🎉 Converted to active project!', 'success');
+          fetchData();
+          router.push('/(tabs)/crm');
+        }}
+      />
     </View>
   );
 }
@@ -1272,4 +1760,235 @@ const s = StyleSheet.create({
   quoteItemBuilderRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
   addItemBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginVertical: 6 },
   addItemText: { fontSize: 12, fontWeight: '700', color: '#2563EB' },
+
+  // Stage Advancement Banner
+  advanceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  advanceBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  advanceIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  advanceBannerTitle: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  advanceBannerSub: {
+    fontSize: 10,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 1,
+  },
+
+  // Locked Phase Card
+  lockedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 10,
+  },
+  lockedIconBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockedTitle: {
+    fontSize: 15,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  lockedSub: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 280,
+  },
+  unlockActionBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  unlockActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+  },
+
+  // BOQ Component Styles
+  boqHeaderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+  },
+  boqNumberText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  versionTag: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  versionTagText: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#059669',
+  },
+  boqDateText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  editBoqBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+  },
+  editBoqBtnText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#2563EB',
+  },
+  newBoqBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#059669',
+  },
+  newBoqBtnText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#FFFFFF',
+  },
+  costSummaryCard: {
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
+  },
+  costRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  costRowTotal: {
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginTop: 4,
+  },
+  costLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+  },
+  costVal: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  grandTotalTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  grandTotalAmount: {
+    fontSize: 16,
+    fontFamily: 'Inter-Black',
+    color: '#059669',
+  },
+  boqItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  catBadgeSmall: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  catBadgeSmallText: {
+    fontSize: 9,
+    fontFamily: 'Inter-Bold',
+    color: '#475569',
+    textTransform: 'uppercase',
+  },
+  itemNameText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+    flex: 1,
+  },
+  itemDescText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  itemQtyRateText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#94A3B8',
+    marginTop: 3,
+  },
+  itemTotalText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+    marginLeft: 8,
+  },
 });
+

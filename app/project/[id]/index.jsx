@@ -28,6 +28,7 @@ import ProjectRoomsTab from './rooms';
 import ProjectFFETab from './ffe';
 import ProjectAttendanceTab from './attendance';
 import ProjectReportsTab from './reports';
+import ProjectBudgetTab from './budget';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -66,12 +67,12 @@ export default function FullWorkspacePreview() {
   const isInterior = project?.projectType === 'Interior';
 
   const isSurveyPending = project?.needSiteSurvey || (project?.status === 'Site Survey' && project?.surveyStatus !== 'Approved');
-  const restrictedTabs = ['Drawings', 'Rooms', 'FFE', 'BOQ', 'Milestone', 'Audit', 'Material', 'Transactions', 'Risk', 'Snags', 'Handover', 'Attendance', 'Reports'];
+  const restrictedTabs = ['Drawings', 'Rooms', 'FFE', 'BOQ', 'Budget', 'Milestone', 'Audit', 'Material', 'Transactions', 'Risk', 'Snags', 'Handover', 'Attendance', 'Reports'];
   const isRestrictedTab = isSurveyPending && restrictedTabs.includes(visibleTab);
   const TABS = (() => {
     let base = project?.siteSurveyor
-      ? ['Details', 'Survey', 'Drawings', 'Documents', 'BOQ', 'Milestone', 'Material', 'Attendance', 'Snags', 'Risk', 'Transactions', 'Reports', 'Audit', 'Handover']
-      : ['Details', 'Drawings', 'Documents', 'BOQ', 'Milestone', 'Material', 'Attendance', 'Snags', 'Risk', 'Transactions', 'Reports', 'Audit', 'Handover'];
+      ? ['Details', 'Survey', 'Drawings', 'Documents', 'BOQ', 'Budget', 'Milestone', 'Material', 'Attendance', 'Snags', 'Risk', 'Transactions', 'Reports', 'Audit', 'Handover']
+      : ['Details', 'Drawings', 'Documents', 'BOQ', 'Budget', 'Milestone', 'Material', 'Attendance', 'Snags', 'Risk', 'Transactions', 'Reports', 'Audit', 'Handover'];
     if (isInterior) {
       const insertIndex = base.indexOf('Milestone') + 1;
       base.splice(insertIndex, 0, 'Rooms', 'FFE');
@@ -254,6 +255,7 @@ export default function FullWorkspacePreview() {
           >
             <>
               {visibleTab === 'Details' && <ProjectDetailsTab project={project} fetchProjectData={fetchProjectData} />}
+              {visibleTab === 'Budget' && <ProjectBudgetTab project={project} fetchProjectData={fetchProjectData} />}
               {visibleTab === 'Attendance' && <ProjectAttendanceTab project={project} />}
               {visibleTab === 'Reports' && <ProjectReportsTab />}
               {visibleTab === 'Survey' && <ProjectSurveyTab project={project} fetchProjectData={fetchProjectData} />}

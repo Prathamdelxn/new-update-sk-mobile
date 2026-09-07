@@ -31,18 +31,8 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
     };
   }, [socket, fetchProjectData]);
 
-  const [showBudgetHist, setShowBudgetHist] = useState(false);
+  // State
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // Modern Confirmation Modal State
-  const [confirmModal, setConfirmModal] = useState({
-    visible: false,
-    title: '',
-    message: '',
-    confirmText: '',
-    onConfirm: null,
-    type: 'default'
-  });
 
   const handleOpenAddMember = () => {
     router.push(`/project/${project._id}/add-member`);
@@ -63,41 +53,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
     return diffDays > 0 ? diffDays : 0;
   };
 
-  const handleBudgetAction = (budgetId, action) => {
-    setConfirmModal({
-      visible: true,
-      title: `${action} Budget`,
-      message: `Are you sure you want to ${action.toLowerCase()} this budget request?`,
-      confirmText: action,
-      type: action === 'Approved' ? 'success' : 'destructive',
-      onConfirm: async () => {
-        try {
-          setIsProcessing(true);
-          const res = await fetch(`${API_BASE_URL}/projects/${project._id}/budget-action`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ budgetId, action })
-          });
-
-          if (res.ok) {
-            showToast(`Budget ${action.toLowerCase()} successfully`, 'success');
-            if (fetchProjectData) await fetchProjectData();
-          } else {
-            const err = await res.json();
-            showToast(err.message || 'Action failed', 'error');
-          }
-        } catch (e) {
-          showToast(t('networkError'), 'error');
-        } finally {
-          setIsProcessing(false);
-          setConfirmModal(prev => ({ ...prev, visible: false }));
-        }
-      }
-    });
-  };
+  // Removed legacy handleBudgetAction
 
   return (
     <View style={styles.tabScrollContent}>
@@ -113,22 +69,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
         </AdaptiveGlass>
       ) : null}
 
-      {canApproveBudget && pendingRequests.length > 0 && (
-        <AdaptiveGlass intensity={40} tint="light" style={styles.pendingBudgetBanner}>
-          <View style={styles.pendingHeader}>
-            <Ionicons name="notifications" size={20} color="#DC2626" />
-            <Text style={styles.pendingTitle}>{t('pendingBudgetTitle', { count: pendingRequests.length })}</Text>
-          </View>
-          <Text style={styles.pendingDesc}>{t('newBudgetRequests')}</Text>
-          <TouchableOpacity 
-            style={styles.viewPendingBtn}
-            onPress={() => setShowBudgetHist(true)}
-          >
-            <Text style={styles.viewPendingText}>{t('viewRequests')}</Text>
-            <Ionicons name="arrow-forward" size={14} color="#DC2626" />
-          </TouchableOpacity>
-        </AdaptiveGlass>
-      )}
+      {/* Pending budget banner moved to dedicated Budget Tab */}
 
       {project?.status === 'Under Snagging' && (
         <AdaptiveGlass intensity={20} tint="light" style={styles.snaggingBanner}>
@@ -197,11 +138,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
           </View>
         </AdaptiveGlass>
 
-        <TouchableOpacity
-          style={styles.bentoCard}
-          onPress={() => setShowBudgetHist(true)}
-          activeOpacity={0.8}
-        >
+        <View style={styles.bentoCard}>
           <View style={styles.bentoHeader}>
             <Text style={styles.bentoLabel}>{t('totalBudget').toUpperCase()}</Text>
             <Ionicons name="time-outline" size={14} color="#64748B" />
@@ -210,7 +147,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
             {project?.currency || '$'} {formatCompact(project?.budgetHistory?.[project.budgetHistory.length - 1]?.amount || 0)}
           </Text>
           <Text style={styles.bentoSub}>{t('latestApproved')}</Text>
-        </TouchableOpacity>
+        </View>
 
         <View style={styles.bentoCard}>
           <Text style={styles.bentoLabel}>{t('daysRemaining').toUpperCase()}</Text>
@@ -305,74 +242,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
 
 
 
-      {/* BUDGET HISTORY MODAL */}
-      <Modal visible={showBudgetHist} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.modalDismiss} onPress={() => setShowBudgetHist(false)} />
-          <AdaptiveGlass intensity={40} tint="light" style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('budgetLifecycle')}</Text>
-              <TouchableOpacity onPress={() => setShowBudgetHist(false)}>
-                <Ionicons name="close" size={24} color="#0F172A" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.histList} showsVerticalScrollIndicator={false}>
-              {project?.budgetHistory?.slice().reverse().map((bh, i) => (
-                <View key={i} style={styles.histItem}>
-                  <View style={styles.histTop}>
-                    <Text style={styles.histAmt}>{project?.currency || '$'} {formatCompact(bh.amount)}</Text>
-                    <View style={styles.histStatus}>
-                      <Text style={styles.histStatusText}>{bh.approvalStatus || t('approved')}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.histReason}>{bh.reason}</Text>
-                  
-                  {bh.approvalStatus === 'Pending' && canApproveBudget && (
-                    <View style={styles.histActionRow}>
-                      <TouchableOpacity 
-                        style={[styles.miniActionBtn, styles.rejectBtn]} 
-                        onPress={() => handleBudgetAction(bh._id, 'Rejected')}
-                        disabled={isProcessing}
-                      >
-                        <Text style={styles.rejectBtnText}>{t('reject')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={[styles.miniActionBtn, styles.approveBtn]} 
-                        onPress={() => handleBudgetAction(bh._id, 'Approved')}
-                        disabled={isProcessing}
-                      >
-                        {isProcessing ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.approveBtnText}>{t('approve')}</Text>}
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  <View style={styles.histFooter}>
-                    <Text style={styles.histMeta}>
-                      {bh.updatedByName || 'System'} • {new Date(bh.timestamp).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-              {(!project?.budgetHistory || project.budgetHistory.length === 0) && (
-                <Text style={{ textAlign: 'center', marginTop: 20, color: '#94A3B8', fontFamily: 'Inter-Medium' }}>
-                  {t('noUpdatesFound')}
-                </Text>
-              )}
-            </ScrollView>
-          </AdaptiveGlass>
-        </View>
-      </Modal>
-
-      <ConfirmModal 
-        visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        confirmText={confirmModal.confirmText}
-        type={confirmModal.type}
-        isSubmitting={isProcessing}
-        onConfirm={confirmModal.onConfirm}
-        onCancel={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
-      />
+      {/* Budget history modal moved to dedicated Budget Tab */}
     </View>
   );
 }

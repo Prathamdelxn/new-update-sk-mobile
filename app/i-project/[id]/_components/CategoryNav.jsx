@@ -45,6 +45,7 @@ export default function CategoryNav({ projectId, activeItem, comingSoon }) {
       case 'Payments': return go('payments');
       case 'Project Quotation': return go('quotation');
       case 'Site Details': return go('site-details');
+      case 'File Management': return go('filemgt');
       default: return comingSoon ? comingSoon(item) : undefined;
     }
   };

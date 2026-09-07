@@ -11,6 +11,8 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useToast } from '../../context/ToastContext';
 import HeaderNotification from '../../components/HeaderNotification';
 import interiorApiClient from '../../services/interiorApiClient';
+import interiorCrmService from '../../services/interiorCrmService';
+import CrmFlowTabs from '../../components/crm/CrmFlowTabs';
 
 const FOLLOWUP_TYPES = ['Phone Call', 'WhatsApp', 'Meeting', 'Office Visit', 'Site Visit'];
 
@@ -55,6 +57,7 @@ export default function CRMScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState('All');
+  const [activeFlowTab, setActiveFlowTab] = useState('leads');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -67,9 +70,8 @@ export default function CRMScreen() {
   const loadLeads = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
-      const res = await interiorApiClient.get('/crm/customers');
-      const list = res?.success && res?.data ? res.data : Array.isArray(res) ? res : [];
-      setLeads(list);
+      const list = await interiorCrmService.getCustomers();
+      setLeads(Array.isArray(list) ? list : []);
     } catch (e) {
       console.error('Failed to load leads', e);
       setLeads([]);
@@ -81,8 +83,8 @@ export default function CRMScreen() {
 
   const loadUsers = useCallback(async () => {
     try {
-      const res = await interiorApiClient.get('/users');
-      setUsers(res?.success && res?.data ? res.data : Array.isArray(res) ? res : []);
+      const list = await interiorCrmService.getUsers();
+      setUsers(Array.isArray(list) ? list : []);
     } catch (e) {
       setUsers([]);
     }
@@ -90,14 +92,42 @@ export default function CRMScreen() {
 
   useFocusEffect(useCallback(() => { loadLeads(); loadUsers(); }, [loadLeads, loadUsers]));
 
+  const flowCounts = {
+    leads: leads.length,
+    follow_ups: leads.filter((l) => ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status)).length,
+    site_visits: leads.filter((l) => ['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0)).length,
+    requirement_design: leads.filter((l) => ['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0)).length,
+    drawing: leads.filter((l) => ['Under Drawing', 'Design Approved'].includes(l.status) || (l.designFiles && l.designFiles.length > 0)).length,
+    boq: leads.filter((l) => ['Under BOQ Creation', 'BOQ Approved'].includes(l.status) || (l.boqs && l.boqs.length > 0)).length,
+    quotations: leads.filter((l) => ['Under Quotation', 'Quotation Sent', 'Booking Pending'].includes(l.status) || (l.quotations && l.quotations.length > 0)).length,
+    won_projects: leads.filter((l) => l.status === 'Won' || l.status === 'Converted' || !!l.linkedProject).length,
+    lost_leads: leads.filter((l) => l.status === 'Lost').length,
+  };
+
   const filteredLeads = leads.filter((l) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
+      !q ||
       l.name?.toLowerCase().includes(q) ||
       l.email?.toLowerCase().includes(q) ||
       l.mobileNumber?.toLowerCase().includes(q);
-    const matchesStage = stageFilter === 'All' || l.status === stageFilter;
-    return matchesSearch && matchesStage;
+
+    if (!matchesSearch) return false;
+
+    // Direct stage chip filter
+    if (stageFilter !== 'All' && l.status !== stageFilter) return false;
+
+    // Horizontal workflow tab filter
+    if (activeFlowTab === 'leads') return true;
+    if (activeFlowTab === 'follow_ups') return ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status);
+    if (activeFlowTab === 'site_visits') return ['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0);
+    if (activeFlowTab === 'requirement_design') return ['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0);
+    if (activeFlowTab === 'drawing') return ['Under Drawing', 'Design Approved'].includes(l.status) || (l.designFiles && l.designFiles.length > 0);
+    if (activeFlowTab === 'boq') return ['Under BOQ Creation', 'BOQ Approved'].includes(l.status) || (l.boqs && l.boqs.length > 0);
+    if (activeFlowTab === 'quotations') return ['Under Quotation', 'Quotation Sent', 'Booking Pending'].includes(l.status) || (l.quotations && l.quotations.length > 0);
+    if (activeFlowTab === 'won_projects') return l.status === 'Won' || l.status === 'Converted' || !!l.linkedProject;
+    if (activeFlowTab === 'lost_leads') return l.status === 'Lost';
+    return true;
   });
 
   const handleAddLead = async () => {
@@ -221,6 +251,12 @@ export default function CRMScreen() {
             <HeaderNotification />
           </View>
         </View>
+
+        <CrmFlowTabs
+          activeTab={activeFlowTab}
+          onSelectTab={setActiveFlowTab}
+          counts={flowCounts}
+        />
 
         {loading ? (
           <View style={s.center}>
