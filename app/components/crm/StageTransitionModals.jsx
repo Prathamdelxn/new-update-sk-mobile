@@ -44,6 +44,7 @@ function ModalShell({ isOpen, onClose, icon, iconColor, title, subtitle, childre
 // ─────────────────────────────────────────────────────────────────────────────
 export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, users = [] }) {
   const [assignedExecutive, setAssignedExecutive] = useState('');
+  const [showExecutiveDropdown, setShowExecutiveDropdown] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -82,25 +83,39 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
       title="Pass to Site Visit"
       subtitle="Schedule site measurement and inspection"
     >
-      <ScrollView style={{ maxHeight: 380 }}>
+      <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         <Text style={s.label}>Assign Site Executive</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.pickerRow}>
-          {users.map((u) => {
-            const id = u._id || u.id;
-            const active = assignedExecutive === id;
-            return (
-              <TouchableOpacity
-                key={id}
-                style={[s.userChip, active && s.userChipActive]}
-                onPress={() => setAssignedExecutive(id)}
-              >
-                <Text style={[s.userChipText, active && s.userChipTextActive]}>
-                  {userLabel(u)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <TouchableOpacity 
+           style={s.input} 
+           onPress={() => setShowExecutiveDropdown(!showExecutiveDropdown)}
+        >
+          <Text style={{ color: assignedExecutive ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+            {assignedExecutive ? userLabel(users.find(u => (u._id || u.id) === assignedExecutive) || {}) : "Select Executive"}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
+        </TouchableOpacity>
+        
+        {showExecutiveDropdown && (
+          <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, maxHeight: 150, overflow: 'hidden' }}>
+            <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
+              {users.map(u => {
+                const id = u._id || u.id;
+                const active = assignedExecutive === id;
+                return (
+                  <TouchableOpacity 
+                    key={id} 
+                    style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
+                    onPress={() => { setAssignedExecutive(id); setShowExecutiveDropdown(false); }}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
+                      {userLabel(u)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         <Text style={s.label}>Target Visit Date (YYYY-MM-DD)</Text>
         <TextInput
@@ -143,6 +158,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
 // ─────────────────────────────────────────────────────────────────────────────
 export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess, users = [] }) {
   const [assignedDesigner, setAssignedDesigner] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -180,25 +196,39 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
       title="Pass to Requirements"
       subtitle="Gather room preferences, styling & functional specs"
     >
-      <ScrollView style={{ maxHeight: 380 }}>
+      <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         <Text style={s.label}>Assign Interior Designer</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.pickerRow}>
-          {users.map((u) => {
-            const id = u._id || u.id;
-            const active = assignedDesigner === id;
-            return (
-              <TouchableOpacity
-                key={id}
-                style={[s.userChip, active && s.userChipActive]}
-                onPress={() => setAssignedDesigner(id)}
-              >
-                <Text style={[s.userChipText, active && s.userChipTextActive]}>
-                  {userLabel(u)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <TouchableOpacity 
+           style={s.input} 
+           onPress={() => setShowDropdown(!showDropdown)}
+        >
+          <Text style={{ color: assignedDesigner ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+            {assignedDesigner ? userLabel(users.find(u => (u._id || u.id) === assignedDesigner) || {}) : "Select Designer"}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
+        </TouchableOpacity>
+        
+        {showDropdown && (
+          <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, maxHeight: 150, overflow: 'hidden' }}>
+            <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
+              {users.map(u => {
+                const id = u._id || u.id;
+                const active = assignedDesigner === id;
+                return (
+                  <TouchableOpacity 
+                    key={id} 
+                    style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
+                    onPress={() => { setAssignedDesigner(id); setShowDropdown(false); }}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
+                      {userLabel(u)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         <Text style={s.label}>Client Brief / Onboarding Remarks</Text>
         <TextInput
@@ -232,6 +262,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
 // ─────────────────────────────────────────────────────────────────────────────
 export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, users = [] }) {
   const [assignedArchitect, setAssignedArchitect] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -269,25 +300,39 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
       title="Pass to Drawing & Layout"
       subtitle="Commission 2D CAD floor plans and 3D visual concepts"
     >
-      <ScrollView style={{ maxHeight: 380 }}>
+      <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         <Text style={s.label}>Assign Draftsperson / Architect</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.pickerRow}>
-          {users.map((u) => {
-            const id = u._id || u.id;
-            const active = assignedArchitect === id;
-            return (
-              <TouchableOpacity
-                key={id}
-                style={[s.userChip, active && s.userChipActive]}
-                onPress={() => setAssignedArchitect(id)}
-              >
-                <Text style={[s.userChipText, active && s.userChipTextActive]}>
-                  {userLabel(u)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <TouchableOpacity 
+           style={s.input} 
+           onPress={() => setShowDropdown(!showDropdown)}
+        >
+          <Text style={{ color: assignedArchitect ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+            {assignedArchitect ? userLabel(users.find(u => (u._id || u.id) === assignedArchitect) || {}) : "Select Architect"}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
+        </TouchableOpacity>
+        
+        {showDropdown && (
+          <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, maxHeight: 150, overflow: 'hidden' }}>
+            <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
+              {users.map(u => {
+                const id = u._id || u.id;
+                const active = assignedArchitect === id;
+                return (
+                  <TouchableOpacity 
+                    key={id} 
+                    style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
+                    onPress={() => { setAssignedArchitect(id); setShowDropdown(false); }}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
+                      {userLabel(u)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         <Text style={s.label}>Drafting Scope & Deliverables</Text>
         <TextInput
@@ -321,6 +366,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
 // ─────────────────────────────────────────────────────────────────────────────
 export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users = [] }) {
   const [assignedEstimator, setAssignedEstimator] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -358,25 +404,39 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
       title="Pass to BOQ Estimation"
       subtitle="Generate itemized bill of quantities and cost sheets"
     >
-      <ScrollView style={{ maxHeight: 380 }}>
+      <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         <Text style={s.label}>Assign Quantity Surveyor / Estimator</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.pickerRow}>
-          {users.map((u) => {
-            const id = u._id || u.id;
-            const active = assignedEstimator === id;
-            return (
-              <TouchableOpacity
-                key={id}
-                style={[s.userChip, active && s.userChipActive]}
-                onPress={() => setAssignedEstimator(id)}
-              >
-                <Text style={[s.userChipText, active && s.userChipTextActive]}>
-                  {userLabel(u)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <TouchableOpacity 
+           style={s.input} 
+           onPress={() => setShowDropdown(!showDropdown)}
+        >
+          <Text style={{ color: assignedEstimator ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+            {assignedEstimator ? userLabel(users.find(u => (u._id || u.id) === assignedEstimator) || {}) : "Select Estimator"}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
+        </TouchableOpacity>
+        
+        {showDropdown && (
+          <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, maxHeight: 150, overflow: 'hidden' }}>
+            <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
+              {users.map(u => {
+                const id = u._id || u.id;
+                const active = assignedEstimator === id;
+                return (
+                  <TouchableOpacity 
+                    key={id} 
+                    style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
+                    onPress={() => { setAssignedEstimator(id); setShowDropdown(false); }}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
+                      {userLabel(u)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         <Text style={s.label}>Estimation Notes</Text>
         <TextInput

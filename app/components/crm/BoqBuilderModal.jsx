@@ -1,539 +1,452 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity,
-  TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  Modal,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import interiorCrmService from '../../services/interiorCrmService';
+import { interiorCrmService } from '../../services/interiorCrmService';
 
-const CATEGORIES = [
-  'Flooring', 'Carpentry', 'False Ceiling', 'Electrical',
-  'Plumbing', 'Painting', 'Civil', 'Hardware', 'Other'
-];
-
-const UNITS = ['sqft', 'rft', 'nos', 'lump-sum', 'bags', 'sqm'];
-
-const emptyItem = (index = 1) => ({
-  serialNumber: index,
-  category: 'Flooring',
-  itemName: '',
-  description: '',
-  quantity: '1',
-  unit: 'sqft',
-  rate: '0',
-  amount: 0,
-});
-
-export default function BoqBuilderModal({
-  isOpen,
-  onClose,
-  customerId,
-  currentStatus,
-  existingBoqs = [],
-  editingIndex = null,
-  onSuccess,
+export default function BoqBuilderModal({ 
+  visible, 
+  onClose, 
+  customerId, 
+  existingBoqs = [], 
+  editingBoqIndex = null, 
+  onSuccess 
 }) {
-  const isEditing = editingIndex !== null && editingIndex >= 0 && existingBoqs[editingIndex];
-  const [items, setItems] = useState([emptyItem(1)]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [items, setItems] = useState([]);
   const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+
+  const isEditing = editingBoqIndex !== null && editingBoqIndex >= 0 && existingBoqs[editingBoqIndex];
 
   useEffect(() => {
-    if (isOpen) {
+    if (visible) {
       if (isEditing) {
-        const target = existingBoqs[editingIndex];
-        setItems(
-          target.items && target.items.length > 0
-            ? target.items.map((it, idx) => ({
-                ...it,
-                serialNumber: idx + 1,
-                quantity: String(it.quantity || 1),
-                rate: String(it.rate || it.unitRate || 0),
-                amount: (parseFloat(it.quantity) || 0) * (parseFloat(it.rate || it.unitRate) || 0),
-              }))
-            : [emptyItem(1)]
-        );
-        setNotes(target.notes || '');
+        const targetBoq = existingBoqs[editingBoqIndex];
+        setItems(targetBoq.items?.length > 0 ? [...targetBoq.items] : [createEmptyItem(1)]);
+        setNotes(targetBoq.notes || '');
       } else {
-        setItems([emptyItem(1)]);
+        setItems([createEmptyItem(1)]);
         setNotes('');
       }
     }
-  }, [isOpen, editingIndex, existingBoqs]);
+  }, [visible, editingBoqIndex, existingBoqs]);
 
-  const updateField = (index, field, value) => {
-    setItems((prev) => {
-      const copy = [...prev];
-      const it = { ...copy[index], [field]: value };
-      const q = parseFloat(it.quantity) || 0;
-      const r = parseFloat(it.rate) || 0;
-      it.amount = q * r;
-      copy[index] = it;
-      return copy;
+  const createEmptyItem = (serialNumber) => ({
+    serialNumber,
+    category: 'Flooring',
+    itemName: '',
+    description: '',
+    quantity: '1',
+    unit: 'sqft',
+    rate: '0',
+    amount: 0
+  });
+
+  const updateItemField = (index, field, value) => {
+    setItems(prev => {
+      const newItems = [...prev];
+      const item = { ...newItems[index], [field]: value };
+      
+      // Recalculate amount if qty or rate changes
+      if (field === 'quantity' || field === 'rate') {
+        const q = parseFloat(item.quantity) || 0;
+        const r = parseFloat(item.rate) || 0;
+        item.amount = q * r;
+      }
+      
+      newItems[index] = item;
+      return newItems;
     });
   };
 
-  const addItem = () => {
-    setItems((prev) => [
-      ...prev,
+  const addItemRow = () => {
+    setItems(prev => [
+      ...prev, 
       {
-        ...emptyItem(prev.length + 1),
+        ...createEmptyItem(prev.length + 1),
         category: prev[prev.length - 1]?.category || 'Flooring',
-        unit: prev[prev.length - 1]?.unit || 'sqft',
-      },
+        unit: prev[prev.length - 1]?.unit || 'sqft'
+      }
     ]);
   };
 
-  const removeItem = (idx) => {
-    if (items.length <= 1) {
-      Alert.alert('Notice', 'BOQ must have at least one line item.');
-      return;
-    }
-    setItems((prev) => prev.filter((_, i) => i !== idx).map((it, i) => ({ ...it, serialNumber: i + 1 })));
+  const removeItemRow = (index) => {
+    if (items.length <= 1) return;
+    setItems(prev => prev.filter((_, i) => i !== index).map((it, idx) => ({ ...it, serialNumber: idx + 1 })));
   };
 
-  const subtotal = items.reduce((acc, it) => acc + (it.amount || 0), 0);
-  const taxAmount = Math.round(subtotal * 0.18);
-  const grandTotal = Math.round(subtotal + taxAmount);
+  const totalAmount = items.reduce((acc, item) => acc + (item.amount || 0), 0);
 
   const handleSubmit = async () => {
-    const invalid = items.some((it) => !it.itemName.trim());
-    if (invalid) {
-      Alert.alert('Validation Error', 'Please enter a name for all line items.');
+    if (items.length === 0) {
+      Alert.alert('Error', 'Please add at least one line item to the BOQ.');
+      return;
+    }
+    if (items.some(i => !i.itemName || !i.itemName.trim())) {
+      Alert.alert('Error', 'Please provide an item name for all items.');
       return;
     }
 
-    setSubmitting(true);
+    setIsSubmitting(true);
     try {
-      const sanitizedItems = items.map((it, idx) => ({
-        serialNumber: idx + 1,
-        category: it.category || 'Other',
-        itemName: it.itemName.trim(),
-        description: it.description?.trim() || '',
-        quantity: parseFloat(it.quantity) || 1,
-        unit: it.unit || 'sqft',
-        rate: parseFloat(it.rate) || 0,
-        amount: (parseFloat(it.quantity) || 1) * (parseFloat(it.rate) || 0),
+      const updatedBoqs = [...(existingBoqs || [])];
+      
+      const payloadItems = items.map(i => ({
+        ...i,
+        quantity: parseFloat(i.quantity) || 0,
+        rate: parseFloat(i.rate) || 0,
       }));
 
-      const newBoq = {
-        boqNumber: isEditing
-          ? existingBoqs[editingIndex].boqNumber
-          : `BOQ-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-        version: isEditing
-          ? existingBoqs[editingIndex].version
-          : existingBoqs.length > 0
-          ? `v${existingBoqs.length + 1}.0`
-          : 'v1.0',
-        items: sanitizedItems,
-        subtotal,
-        taxPercent: 18,
-        taxAmount,
-        totalAmount: grandTotal,
-        notes: notes.trim(),
-        status: isEditing ? existingBoqs[editingIndex].status : 'Draft',
-        createdAt: isEditing ? existingBoqs[editingIndex].createdAt : new Date().toISOString(),
-      };
-
-      let updatedBoqs = [...existingBoqs];
       if (isEditing) {
-        updatedBoqs[editingIndex] = newBoq;
+        const currentBoq = updatedBoqs[editingBoqIndex];
+        updatedBoqs[editingBoqIndex] = {
+          ...currentBoq,
+          items: payloadItems,
+          totalAmount,
+          notes,
+          updatedAt: new Date()
+        };
       } else {
-        updatedBoqs.push(newBoq);
+        const newVersion = (existingBoqs?.length || 0) + 1;
+        updatedBoqs.push({
+          version: newVersion, // Mongoose expects Number
+          items: payloadItems,
+          totalAmount: totalAmount * 1.18, // Added tax logic matching mobile ui
+          notes,
+          status: 'draft',
+          createdAt: new Date()
+        });
       }
-
-      const STAGES_AFTER_BOQ = ['Under Quotation', 'Won', 'Lost', 'Converted to Project'];
-      const shouldUpdateStatus = !currentStatus || !STAGES_AFTER_BOQ.includes(currentStatus);
 
       await interiorCrmService.updateCustomer(customerId, {
         boqs: updatedBoqs,
-        ...(shouldUpdateStatus ? { status: 'Under BOQ Creation' } : {}),
+        status: 'Under BOQ Creation'
       });
 
       await interiorCrmService.createActivity({
         customer: customerId,
-        type: 'Status Change',
+        type: 'System Update',
         status: 'Completed',
-        remarks: `${isEditing ? 'Updated' : 'Created'} Estimate BOQ (${newBoq.version}) totaling ₹${grandTotal.toLocaleString('en-IN')}.`,
-        completedDate: new Date(),
+        remarks: isEditing 
+          ? `BOQ Version ${existingBoqs[editingBoqIndex]?.version || (editingBoqIndex + 1)} details updated.`
+          : `BOQ Version ${updatedBoqs.length} added.`,
+        completedDate: new Date()
       });
 
       onSuccess();
       onClose();
-    } catch (e) {
-      Alert.alert('Save Failed', e.message || 'Failed to save BOQ.');
+    } catch (error) {
+      console.error('Error saving BOQ:', error);
+      Alert.alert('Error', 'Failed to save BOQ. Please try again.');
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <Modal visible={isOpen} animationType="slide" transparent={false} onRequestClose={onClose}>
-      <SafeAreaView style={s.safeArea} edges={['top', 'bottom']}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1 }}
-        >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
+        <View style={s.modalContent}>
           {/* Header */}
-          <View style={s.header}>
+          <View style={s.modalHeader}>
+            <Text style={s.modalTitle}>{isEditing ? 'Edit BOQ' : 'Create Estimate BOQ'}</Text>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
-              <Ionicons name="close" size={22} color="#0F172A" />
-            </TouchableOpacity>
-            <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text style={s.headerTitle}>
-                {isEditing ? `Edit BOQ (${existingBoqs[editingIndex]?.version})` : 'Create Estimate BOQ'}
-              </Text>
-              <Text style={s.headerSub}>Itemized cost calculation for pre-project estimate</Text>
-            </View>
-            <TouchableOpacity
-              onPress={handleSubmit}
-              disabled={submitting}
-              style={[s.saveBtn, submitting && { opacity: 0.6 }]}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={s.saveBtnText}>Save</Text>
-              )}
+              <Ionicons name="close" size={24} color="#64748B" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
-            {/* Item list */}
-            {items.map((item, idx) => (
-              <View key={idx} style={s.itemCard}>
+          {/* Body */}
+          <ScrollView style={s.modalBody} contentContainerStyle={{ padding: 16 }}>
+            {items.map((item, index) => (
+              <View key={index} style={s.itemCard}>
                 <View style={s.itemHeader}>
-                  <View style={s.itemIndexBadge}>
-                    <Text style={s.itemIndexText}>#{idx + 1}</Text>
-                  </View>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 6 }}
-                    style={{ flex: 1, marginHorizontal: 8 }}
-                  >
-                    {CATEGORIES.map((cat) => (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[s.catChip, item.category === cat && s.catChipActive]}
-                        onPress={() => updateField(idx, 'category', cat)}
-                      >
-                        <Text style={[s.catChipText, item.category === cat && s.catChipTextActive]}>
-                          {cat}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                  <TouchableOpacity onPress={() => removeItem(idx)} style={s.deleteBtn}>
-                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                  </TouchableOpacity>
+                  <Text style={s.itemTitle}>Item {item.serialNumber}</Text>
+                  {items.length > 1 && (
+                    <TouchableOpacity onPress={() => removeItemRow(index)}>
+                      <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
-                {/* Name */}
+                <Text style={s.label}>Category</Text>
                 <TextInput
                   style={s.input}
-                  placeholder="Item Name (e.g. Master Bedroom Wardrobe)"
-                  placeholderTextColor="#94A3B8"
-                  value={item.itemName}
-                  onChangeText={(v) => updateField(idx, 'itemName', v)}
+                  value={item.category}
+                  onChangeText={(val) => updateItemField(index, 'category', val)}
+                  placeholder="e.g. Flooring, Woodwork"
                 />
 
-                {/* Description */}
+                <Text style={s.label}>Item Name</Text>
                 <TextInput
-                  style={[s.input, s.inputSm, { marginTop: 8 }]}
-                  placeholder="Specifications / Materials (e.g. 18mm Marine Ply + Laminate)"
-                  placeholderTextColor="#94A3B8"
-                  value={item.description}
-                  onChangeText={(v) => updateField(idx, 'description', v)}
+                  style={s.input}
+                  value={item.itemName}
+                  onChangeText={(val) => updateItemField(index, 'itemName', val)}
+                  placeholder="e.g. Marine Plywood 18mm"
                 />
 
-                {/* Qty, Unit, Rate Row */}
-                <View style={s.calcRow}>
+                <Text style={s.label}>Description (Optional)</Text>
+                <TextInput
+                  style={s.input}
+                  value={item.description}
+                  onChangeText={(val) => updateItemField(index, 'description', val)}
+                  placeholder="Detailed specifications"
+                  multiline
+                />
+
+                <View style={{ flexDirection: 'row', gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.fieldLabel}>Qty</Text>
+                    <Text style={s.label}>Qty</Text>
                     <TextInput
                       style={s.input}
+                      value={String(item.quantity)}
+                      onChangeText={(val) => updateItemField(index, 'quantity', val)}
                       keyboardType="numeric"
-                      value={item.quantity}
-                      onChangeText={(v) => updateField(idx, 'quantity', v)}
+                      placeholder="0"
                     />
                   </View>
-
-                  <View style={{ width: 85 }}>
-                    <Text style={s.fieldLabel}>Unit</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={{ maxHeight: 42 }}
-                    >
-                      <View style={{ flexDirection: 'row', gap: 4 }}>
-                        {UNITS.map((u) => (
-                          <TouchableOpacity
-                            key={u}
-                            style={[s.unitChip, item.unit === u && s.unitChipActive]}
-                            onPress={() => updateField(idx, 'unit', u)}
-                          >
-                            <Text style={[s.unitChipText, item.unit === u && s.unitChipTextActive]}>
-                              {u}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </ScrollView>
-                  </View>
-
-                  <View style={{ flex: 1.2 }}>
-                    <Text style={s.fieldLabel}>Rate (₹)</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.label}>Unit</Text>
                     <TextInput
                       style={s.input}
-                      keyboardType="numeric"
-                      value={item.rate}
-                      onChangeText={(v) => updateField(idx, 'rate', v)}
+                      value={item.unit}
+                      onChangeText={(val) => updateItemField(index, 'unit', val)}
+                      placeholder="sqft"
                     />
                   </View>
-
-                  <View style={{ width: 90, alignItems: 'flex-end', justifyContent: 'center' }}>
-                    <Text style={s.fieldLabel}>Amount</Text>
-                    <Text style={s.amountText}>
-                      ₹{Math.round(item.amount || 0).toLocaleString('en-IN')}
-                    </Text>
+                  <View style={{ flex: 1.5 }}>
+                    <Text style={s.label}>Rate (₹)</Text>
+                    <TextInput
+                      style={s.input}
+                      value={String(item.rate)}
+                      onChangeText={(val) => updateItemField(index, 'rate', val)}
+                      keyboardType="numeric"
+                      placeholder="0"
+                    />
                   </View>
+                </View>
+
+                <View style={s.itemTotalRow}>
+                  <Text style={s.itemTotalLabel}>Line Total:</Text>
+                  <Text style={s.itemTotalValue}>₹{(item.amount || 0).toLocaleString('en-IN')}</Text>
                 </View>
               </View>
             ))}
 
-            {/* Add item button */}
-            <TouchableOpacity style={s.addBtn} onPress={addItem}>
-              <Ionicons name="add-circle-outline" size={18} color="#2563EB" />
-              <Text style={s.addBtnText}>Add Line Item</Text>
+            <TouchableOpacity style={s.addBtn} onPress={addItemRow}>
+              <Ionicons name="add-circle-outline" size={20} color="#059669" />
+              <Text style={s.addBtnText}>Add Row</Text>
             </TouchableOpacity>
 
-            {/* Notes */}
-            <View style={s.notesBox}>
-              <Text style={s.fieldLabel}>Estimator Notes & Exclusions (Optional)</Text>
-              <TextInput
-                style={[s.input, { minHeight: 70, textAlignVertical: 'top' }]}
-                multiline
-                numberOfLines={3}
-                placeholder="Add special terms, exclusions, or site delivery assumptions..."
-                placeholderTextColor="#94A3B8"
-                value={notes}
-                onChangeText={setNotes}
-              />
+            <View style={s.grandTotalBox}>
+              <Text style={s.grandTotalLabel}>Subtotal</Text>
+              <Text style={s.grandTotalValue}>₹{totalAmount.toLocaleString('en-IN')}</Text>
+              <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
+                +18% GST will be added automatically
+              </Text>
             </View>
+
+            <Text style={[s.label, { marginTop: 16 }]}>Notes / Terms (Optional)</Text>
+            <TextInput
+              style={[s.input, { height: 80, textAlignVertical: 'top' }]}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Any specific terms for this BOQ"
+              multiline
+            />
+            
+            <View style={{ height: 40 }} />
           </ScrollView>
 
-          {/* Sticky Total Footer */}
+          {/* Footer Actions */}
           <View style={s.footer}>
-            <View style={s.totalRow}>
-              <View>
-                <Text style={s.totalSubLabel}>Subtotal: ₹{subtotal.toLocaleString('en-IN')}</Text>
-                <Text style={s.totalSubLabel}>GST (18%): ₹{taxAmount.toLocaleString('en-IN')}</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={s.grandTotalLabel}>Estimated Total</Text>
-                <Text style={s.grandTotalValue}>₹{grandTotal.toLocaleString('en-IN')}</Text>
-              </View>
-            </View>
+            <TouchableOpacity style={s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
+              <Text style={s.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={s.saveBtnText}>Save BOQ</Text>
+              )}
+            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const s = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#F8FAFC',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '90%',
+  },
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    padding: 16,
     backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  headerTitle: {
-    fontSize: 16,
+  modalTitle: {
+    fontSize: 18,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
-  headerSub: {
-    fontSize: 11,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-    marginTop: 1,
+  closeBtn: {
+    padding: 4,
   },
-  saveBtn: {
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
+  modalBody: {
+    flex: 1,
   },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    fontSize: 13,
-  },
-  scroll: { flex: 1 },
-  scrollContent: { padding: 16, gap: 14, paddingBottom: 40 },
   itemCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
   },
   itemHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  itemIndexBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  itemIndexText: {
-    fontSize: 11,
+  itemTitle: {
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
-    color: '#2563EB',
+    color: '#334155',
   },
-  catChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#F1F5F9',
-  },
-  catChipActive: {
-    backgroundColor: '#DBEAFE',
-  },
-  catChipText: {
-    fontSize: 11,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-  },
-  catChipTextActive: {
-    color: '#1D4ED8',
-    fontFamily: 'Inter-Bold',
-  },
-  deleteBtn: {
-    padding: 6,
+  label: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#475569',
+    marginBottom: 6,
+    marginTop: 8,
   },
   input: {
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
     color: '#0F172A',
-    fontFamily: 'Inter-Medium',
+    backgroundColor: '#F8FAFC',
   },
-  inputSm: {
-    fontSize: 12,
-    paddingVertical: 6,
-  },
-  calcRow: {
+  itemTotalRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    marginTop: 10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
-  fieldLabel: {
-    fontSize: 10,
-    fontFamily: 'Inter-Bold',
-    color: '#64748B',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-  },
-  unitChip: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#F1F5F9',
-  },
-  unitChipActive: {
-    backgroundColor: '#2563EB',
-  },
-  unitChipText: {
-    fontSize: 10,
-    color: '#64748B',
-    fontFamily: 'Inter-Medium',
-  },
-  unitChipTextActive: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-  },
-  amountText: {
+  itemTotalLabel: {
     fontSize: 13,
+    fontFamily: 'Inter-SemiBold',
+    color: '#64748B',
+  },
+  itemTotalValue: {
+    fontSize: 15,
     fontFamily: 'Inter-Bold',
-    color: '#16A34A',
+    color: '#0F172A',
   },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#EFF6FF',
+    padding: 12,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
-    borderRadius: 14,
-    paddingVertical: 12,
+    borderColor: '#10B981',
+    borderStyle: 'dashed',
+    marginBottom: 20,
+    gap: 8,
   },
   addBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
-    color: '#2563EB',
+    color: '#059669',
   },
-  notesBox: {
+  grandTotalBox: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  grandTotalLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#64748B',
+  },
+  grandTotalValue: {
+    fontSize: 24,
+    fontFamily: 'Inter-Black',
+    color: '#059669',
+    marginTop: 4,
   },
   footer: {
+    flexDirection: 'row',
+    padding: 16,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: 12,
   },
-  totalRow: {
-    flexDirection: 'row',
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  totalSubLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-  },
-  grandTotalLabel: {
-    fontSize: 10,
+  cancelBtnText: {
+    fontSize: 15,
     fontFamily: 'Inter-Bold',
-    color: '#64748B',
-    textTransform: 'uppercase',
+    color: '#475569',
   },
-  grandTotalValue: {
-    fontSize: 18,
-    fontFamily: 'Inter-Black',
-    color: '#0F172A',
+  saveBtn: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#059669',
+    alignItems: 'center',
   },
+  saveBtnText: {
+    fontSize: 15,
+    fontFamily: 'Inter-Bold',
+    color: '#FFFFFF',
+  }
 });

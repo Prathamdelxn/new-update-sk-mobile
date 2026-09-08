@@ -12,6 +12,10 @@ import interiorApiClient from '../services/interiorApiClient';
 import interiorCrmService from '../services/interiorCrmService';
 import * as ImagePicker from 'expo-image-picker';
 import BoqBuilderModal from '../components/crm/BoqBuilderModal';
+import LogSiteVisitModal from '../components/crm/LogSiteVisitModal';
+import LogRequirementsModal from '../components/crm/LogRequirementsModal';
+import UploadDesignModal from '../components/crm/UploadDesignModal';
+import MarkLostModal from '../components/crm/MarkLostModal';
 import {
   SendToSiteVisitModal,
   SendToRequirementsModal,
@@ -101,13 +105,14 @@ export default function Lead360Screen() {
   const [showSendBoqModal, setShowSendBoqModal] = useState(false);
   const [showSendQuoteModal, setShowSendQuoteModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  const [showLostModal, setShowLostModal] = useState(false);
 
   // Status Change Modal
   const [showStatusModal, setShowStatusModal] = useState(false);
 
   // Edit Lead Modal State
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', mobileNumber: '', email: '', leadSource: 'Phone Call', propertyType: 'Flat', projectLocation: '', budgetRange: '' });
+  const [editForm, setEditForm] = useState({ name: '', mobileNumber: '', email: '', leadSource: 'Phone Call', propertyType: 'Flat', projectLocation: '' });
   const [submittingEdit, setSubmittingEdit] = useState(false);
   const [deletingLead, setDeletingLead] = useState(false);
 
@@ -458,7 +463,6 @@ export default function Lead360Screen() {
       leadSource: lead.leadSource || 'Phone Call',
       propertyType: lead.propertyType || 'Flat',
       projectLocation: lead.projectLocation || '',
-      budgetRange: lead.budgetRange || '',
     });
     setShowEditModal(true);
   };
@@ -476,7 +480,6 @@ export default function Lead360Screen() {
         mobileNumber: editForm.mobileNumber.trim(),
         email: editForm.email.trim(),
         projectLocation: editForm.projectLocation.trim(),
-        budgetRange: editForm.budgetRange.trim(),
       });
       showToast('Lead updated successfully!', 'success');
       setShowEditModal(false);
@@ -578,9 +581,15 @@ export default function Lead360Screen() {
           {deletingLead ? <ActivityIndicator size="small" color="#DC2626" /> : <Ionicons name="trash-outline" size={17} color="#DC2626" />}
         </TouchableOpacity>
 
-        <TouchableOpacity style={[s.statusDropdownBtn, { backgroundColor: meta.bg }]} onPress={() => setShowStatusModal(true)}>
+        {lead.status !== 'Lost' && (
+          <TouchableOpacity style={s.headerIconBtn} onPress={() => setShowLostModal(true)}>
+            <Ionicons name="close-circle-outline" size={19} color="#BE123C" />
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity style={[s.statusDropdownBtn, { backgroundColor: meta.bg }]} >
           <Text style={[s.statusDropdownText, { color: meta.color }]} numberOfLines={1}>{lead.status}</Text>
-          <Ionicons name="chevron-down" size={14} color={meta.color} />
+          {/* <Ionicons name="chevron-down" size={14} color={meta.color} /> */}
         </TouchableOpacity>
       </View>
 
@@ -634,136 +643,7 @@ export default function Lead360Screen() {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* --- STAGE ADVANCEMENT ACTION BANNER --- */}
-        {(() => {
-          const st = lead.status;
-          if (st === 'New Lead' || st === 'Contacted' || st === 'Meeting Scheduled') {
-            return (
-              <TouchableOpacity style={s.advanceBanner} onPress={() => setShowSendSiteModal(true)}>
-                <View style={s.advanceBannerLeft}>
-                  <View style={[s.advanceIconBox, { backgroundColor: '#F3E8FF' }]}>
-                    <Ionicons name="location" size={16} color="#7C3AED" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.advanceBannerTitle}>Advance Pipeline: Schedule Site Visit</Text>
-                    <Text style={s.advanceBannerSub}>Assign executive & schedule on-site measurements</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#7C3AED" />
-              </TouchableOpacity>
-            );
-          }
-          if (st === 'Under Site Visit' || st === 'Measurement Done') {
-            return (
-              <TouchableOpacity style={s.advanceBanner} onPress={() => setShowSendReqModal(true)}>
-                <View style={s.advanceBannerLeft}>
-                  <View style={[s.advanceIconBox, { backgroundColor: '#EEF2FF' }]}>
-                    <Ionicons name="create" size={16} color="#4F46E5" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.advanceBannerTitle}>Advance Pipeline: Pass to Requirements</Text>
-                    <Text style={s.advanceBannerSub}>Assign interior designer for room & theme specs</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#4F46E5" />
-              </TouchableOpacity>
-            );
-          }
-          if (st === 'Under Requirement' || st === 'Requirement Completed') {
-            return (
-              <TouchableOpacity style={s.advanceBanner} onPress={() => setShowSendDrawingModal(true)}>
-                <View style={s.advanceBannerLeft}>
-                  <View style={[s.advanceIconBox, { backgroundColor: '#F0F9FF' }]}>
-                    <Ionicons name="pencil" size={16} color="#0284C7" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.advanceBannerTitle}>Advance Pipeline: Commission Drawings</Text>
-                    <Text style={s.advanceBannerSub}>Commission 2D layout & 3D visual concepts</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#0284C7" />
-              </TouchableOpacity>
-            );
-          }
-          if (st === 'Under Drawing' || st === 'Design Approved') {
-            return (
-              <TouchableOpacity style={s.advanceBanner} onPress={() => setShowSendBoqModal(true)}>
-                <View style={s.advanceBannerLeft}>
-                  <View style={[s.advanceIconBox, { backgroundColor: '#ECFDF5' }]}>
-                    <Ionicons name="calculator" size={16} color="#059669" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.advanceBannerTitle}>Advance Pipeline: Pass to BOQ Estimator</Text>
-                    <Text style={s.advanceBannerSub}>Assign quantity surveyor for itemized cost sheet</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#059669" />
-              </TouchableOpacity>
-            );
-          }
-          if (st === 'Under BOQ Creation' || st === 'BOQ Approved') {
-            return (
-              <TouchableOpacity style={s.advanceBanner} onPress={() => setShowSendQuoteModal(true)}>
-                <View style={s.advanceBannerLeft}>
-                  <View style={[s.advanceIconBox, { backgroundColor: '#FFF1F2' }]}>
-                    <Ionicons name="document-text" size={16} color="#E11D48" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.advanceBannerTitle}>Advance Pipeline: Pass to Quotations</Text>
-                    <Text style={s.advanceBannerSub}>Prepare commercial proposal for client presentation</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#E11D48" />
-              </TouchableOpacity>
-            );
-          }
-          if (st === 'Under Quotation' || st === 'Quotation Sent' || st === 'Booking Pending') {
-            return (
-              <TouchableOpacity style={[s.advanceBanner, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]} onPress={() => setShowConvertModal(true)}>
-                <View style={s.advanceBannerLeft}>
-                  <View style={[s.advanceIconBox, { backgroundColor: '#DCFCE7' }]}>
-                    <Ionicons name="trophy" size={16} color="#16A34A" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.advanceBannerTitle, { color: '#15803D' }]}>Win Deal: Convert to Project</Text>
-                    <Text style={s.advanceBannerSub}>Deal closed! Initialize execution workspace</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#16A34A" />
-              </TouchableOpacity>
-            );
-          }
-          if (st === 'Won' || st === 'Converted' || !!lead.linkedProject) {
-            const prjId =
-              typeof lead.linkedProject === 'object' && lead.linkedProject !== null && lead.linkedProject._id
-                ? lead.linkedProject._id
-                : lead.linkedProject;
-            return (
-              <TouchableOpacity
-                style={[s.advanceBanner, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
-                onPress={() => {
-                  if (prjId) {
-                    router.push(`/i-project/${prjId}`);
-                  } else {
-                    router.push('/(tabs)/projects');
-                  }
-                }}
-              >
-                <View style={s.advanceBannerLeft}>
-                  <View style={[s.advanceIconBox, { backgroundColor: '#DCFCE7' }]}>
-                    <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.advanceBannerTitle, { color: '#15803D' }]}>Active Project Converted ✓</Text>
-                    <Text style={s.advanceBannerSub}>Tap to open live project execution workspace</Text>
-                  </View>
-                </View>
-                <Ionicons name="open-outline" size={18} color="#16A34A" />
-              </TouchableOpacity>
-            );
-          }
-          return null;
-        })()}
+
 
         {/* --- TAB NAVIGATION --- */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabRow}>
@@ -789,16 +669,20 @@ export default function Lead360Screen() {
             <View style={{ gap: 16 }}>
               <View style={s.metricsGrid}>
                 <View style={s.metricCard}>
+                  <Text style={s.metricLabel}>Mobile Number</Text>
+                  <Text style={s.metricVal}>{lead.mobileNumber || 'Not specified'}</Text>
+                </View>
+                <View style={s.metricCard}>
+                  <Text style={s.metricLabel}>Email</Text>
+                  <Text style={s.metricVal} numberOfLines={1}>{lead.email || 'Not specified'}</Text>
+                </View>
+                <View style={s.metricCard}>
                   <Text style={s.metricLabel}>Client Source</Text>
                   <Text style={s.metricVal}>{lead.leadSource || 'Manual Entry'}</Text>
                 </View>
                 <View style={s.metricCard}>
                   <Text style={s.metricLabel}>Property Scope</Text>
                   <Text style={s.metricVal}>{lead.propertyType || 'Not specified'}</Text>
-                </View>
-                <View style={s.metricCard}>
-                  <Text style={s.metricLabel}>Est. Budget</Text>
-                  <Text style={s.metricVal}>{lead.budgetRange || 'Not specified'}</Text>
                 </View>
                 <View style={s.metricCard}>
                   <Text style={s.metricLabel}>Location</Text>
@@ -869,23 +753,75 @@ export default function Lead360Screen() {
               ) : (
                 <View style={{ gap: 16 }}>
                   <View style={s.card}>
-                    <Text style={s.cardTitle}>Measurements</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={s.cardTitle}>Measurements & Specs</Text>
+                      <TouchableOpacity style={s.smallBtn} onPress={() => setShowSiteModal(true)}>
+                        <Ionicons name="create-outline" size={14} color="#4F46E5" />
+                        <Text style={[s.smallBtnText, { color: '#4F46E5' }]}>Edit</Text>
+                      </TouchableOpacity>
+                    </View>
+                    
                     <View style={s.measureGrid}>
                       <View style={s.measureItem}>
                         <Text style={s.metricLabel}>Carpet Area</Text>
-                        <Text style={s.measureVal}>{lead.siteMeasurements.carpetArea || 'N/A'} Sq.Ft</Text>
+                        <Text style={s.measureVal}>{lead.siteMeasurements.carpetArea ? `${lead.siteMeasurements.carpetArea} Sq.Ft` : 'N/A'}</Text>
                       </View>
                       <View style={s.measureItem}>
-                        <Text style={s.metricLabel}>Ceiling Height</Text>
-                        <Text style={s.measureVal}>{lead.siteMeasurements.ceilingHeight || 'N/A'} Ft</Text>
-                      </View>
-                      <View style={[s.measureItem, { width: '100%' }]}>
-                        <Text style={s.metricLabel}>Rooms Count</Text>
+                        <Text style={s.metricLabel}>Rooms</Text>
                         <Text style={s.measureVal}>{lead.siteMeasurements.rooms || 'N/A'}</Text>
                       </View>
+                      <View style={s.measureItem}>
+                        <Text style={s.metricLabel}>Ceiling Ht</Text>
+                        <Text style={s.measureVal}>{lead.siteMeasurements.ceilingHeight ? `${lead.siteMeasurements.ceilingHeight} Ft` : 'N/A'}</Text>
+                      </View>
+                      <View style={s.measureItem}>
+                        <Text style={s.metricLabel}>Drop Ht</Text>
+                        <Text style={s.measureVal}>{lead.siteMeasurements.floorToCeilingHeight ? `${lead.siteMeasurements.floorToCeilingHeight} Ft` : 'N/A'}</Text>
+                      </View>
                     </View>
+
+                    <View style={{ marginTop: 16, gap: 12 }}>
+                      {lead.siteMeasurements.roomDimensions && (
+                        <View>
+                          <Text style={s.metricLabel}>Room Dimensions</Text>
+                          <Text style={s.measureVal}>{lead.siteMeasurements.roomDimensions}</Text>
+                        </View>
+                      )}
+                      {(lead.siteMeasurements.doorDimensions || lead.siteMeasurements.windowDimensions) && (
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.metricLabel}>Doors</Text>
+                            <Text style={s.measureVal}>{lead.siteMeasurements.doorDimensions || 'N/A'}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.metricLabel}>Windows</Text>
+                            <Text style={s.measureVal}>{lead.siteMeasurements.windowDimensions || 'N/A'}</Text>
+                          </View>
+                        </View>
+                      )}
+                      {lead.siteMeasurements.electricalPoints && (
+                        <View>
+                          <Text style={s.metricLabel}>Electrical & Plumbing</Text>
+                          <Text style={s.measureVal}>{lead.siteMeasurements.electricalPoints}</Text>
+                          {lead.siteMeasurements.plumbingPoints && <Text style={s.measureVal}>{lead.siteMeasurements.plumbingPoints}</Text>}
+                        </View>
+                      )}
+                      {lead.siteMeasurements.acLocations && (
+                        <View>
+                          <Text style={s.metricLabel}>AC Locations & Piping</Text>
+                          <Text style={s.measureVal}>{lead.siteMeasurements.acLocations}</Text>
+                        </View>
+                      )}
+                      {lead.siteMeasurements.siteConstraints && (
+                        <View>
+                          <Text style={s.metricLabel}>Site Constraints / Rules</Text>
+                          <Text style={s.measureVal}>{lead.siteMeasurements.siteConstraints}</Text>
+                        </View>
+                      )}
+                    </View>
+
                     {lead.siteMeasurements.notes && (
-                      <View style={{ marginTop: 12, padding: 10, backgroundColor: '#F3E8FF', borderRadius: 8 }}>
+                      <View style={{ marginTop: 16, padding: 10, backgroundColor: '#F3E8FF', borderRadius: 8 }}>
                         <Text style={{ fontSize: 11, fontWeight: '700', color: '#7C3AED' }}>Notes</Text>
                         <Text style={{ fontSize: 13, color: '#4C1D95', marginTop: 2 }}>{lead.siteMeasurements.notes}</Text>
                       </View>
@@ -904,6 +840,12 @@ export default function Lead360Screen() {
                       <Text style={s.emptySubText}>No photos attached yet.</Text>
                     )}
                   </View>
+                  
+                  {lead.status === 'Under Site Visit' && (
+                    <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#7C3AED', marginTop: 8 }]} onPress={() => setShowSendReqModal(true)}>
+                      <Text style={s.actionBtnText}>Complete Phase & Pass to Requirements</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             </View>
@@ -934,20 +876,55 @@ export default function Lead360Screen() {
                 </View>
               ) : (
                 <View style={{ gap: 12 }}>
-                  <TouchableOpacity style={[s.smallBtn, { alignSelf: 'flex-end' }]} onPress={() => setShowReqModal(true)}>
-                    <Ionicons name="add" size={14} color="#059669" />
-                    <Text style={[s.smallBtnText, { color: '#059669' }]}>Add Room</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {lead.budgetRange ? (
+                      <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#059669' }}>Budget: ₹{lead.budgetRange}</Text>
+                    ) : <View />}
+                    <TouchableOpacity style={s.smallBtn} onPress={() => setShowReqModal(true)}>
+                      <Ionicons name="create-outline" size={14} color="#059669" />
+                      <Text style={[s.smallBtnText, { color: '#059669' }]}>Edit / Add</Text>
+                    </TouchableOpacity>
+                  </View>
                   {lead.requirements.map((req, idx) => (
                     <View key={idx} style={s.card}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                         <Text style={s.reqRoomName}>{req.roomName}</Text>
                         {req.theme && <Text style={s.reqThemeBadge}>{req.theme}</Text>}
                       </View>
-                      <Text style={s.reqDesc}>{req.description}</Text>
+                      {req.description && <Text style={s.reqDesc}>{req.description}</Text>}
+                      
+                      {/* Functional Details */}
+                      {(req.roomUsage || req.furnitureRequirements || req.storage || req.electricalPoints || req.plumbingPoints) && (
+                        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                          <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginBottom: 6 }}>FUNCTIONAL</Text>
+                          {req.roomUsage && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Usage:</Text> {req.roomUsage}</Text>}
+                          {req.furnitureRequirements && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Furniture:</Text> {req.furnitureRequirements}</Text>}
+                          {req.storage && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Storage:</Text> {req.storage}</Text>}
+                          {req.electricalPoints && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Electrical:</Text> {req.electricalPoints}</Text>}
+                          {req.plumbingPoints && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Plumbing:</Text> {req.plumbingPoints}</Text>}
+                        </View>
+                      )}
+
+                      {/* Aesthetic Details */}
+                      {(req.colours || req.materials || req.flooring || req.ceiling || req.wallFinishes) && (
+                        <View style={{ marginTop: 8 }}>
+                          <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginBottom: 6 }}>AESTHETIC</Text>
+                          {req.colours && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Colors:</Text> {req.colours}</Text>}
+                          {req.materials && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Materials:</Text> {req.materials}</Text>}
+                          {req.flooring && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Flooring:</Text> {req.flooring}</Text>}
+                          {req.ceiling && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Ceiling:</Text> {req.ceiling}</Text>}
+                          {req.wallFinishes && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Walls:</Text> {req.wallFinishes}</Text>}
+                        </View>
+                      )}
                     </View>
                   ))}
                 </View>
+                
+                {lead.status === 'Under Requirement' && (
+                  <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#4F46E5', marginTop: 8 }]} onPress={() => setShowSendDrawingModal(true)}>
+                    <Text style={s.actionBtnText}>Complete Phase & Pass to Drawing</Text>
+                  </TouchableOpacity>
+                )}
               )}
             </View>
           )}
@@ -984,16 +961,29 @@ export default function Lead360Screen() {
                   {lead.designFiles.map((file, idx) => (
                     <TouchableOpacity key={idx} style={s.fileCard} onPress={() => file.url && Linking.openURL(file.url)}>
                       <View style={s.fileIconBox}>
-                        <Ionicons name={file.fileType === 'pdf' ? 'document-text-outline' : 'image-outline'} size={20} color="#2563EB" />
+                        <Ionicons name={file.fileType === 'pdf' ? 'document-text-outline' : file.fileType === 'image' ? 'image-outline' : 'cube-outline'} size={20} color="#2563EB" />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={s.fileName} numberOfLines={1}>{file.name}</Text>
-                        <Text style={s.fileSub}>{new Date(file.uploadedAt).toLocaleDateString()}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                          {file.category && (
+                            <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                              <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#4F46E5', textTransform: 'uppercase' }}>{file.category}</Text>
+                            </View>
+                          )}
+                          <Text style={s.fileSub}>{new Date(file.uploadedAt).toLocaleDateString()}</Text>
+                        </View>
                       </View>
                       <Ionicons name="open-outline" size={16} color="#64748B" />
                     </TouchableOpacity>
                   ))}
                 </View>
+                
+                {lead.status === 'Under Drawing' && (
+                  <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#0284C7', marginTop: 8 }]} onPress={() => setShowSendBoqModal(true)}>
+                    <Text style={s.actionBtnText}>Complete Phase & Pass to BOQ Estimation</Text>
+                  </TouchableOpacity>
+                )}
               )}
             </View>
           )}
@@ -1032,7 +1022,9 @@ export default function Lead360Screen() {
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <Text style={s.boqNumberText}>{lead.boqs[activeBoqIdx]?.boqNumber || 'BOQ'}</Text>
                         <View style={s.versionTag}>
-                          <Text style={s.versionTagText}>{lead.boqs[activeBoqIdx]?.version || 'v1.0'}</Text>
+                          <Text style={s.versionTagText}>
+                            {lead.boqs[activeBoqIdx]?.version ? `v${lead.boqs[activeBoqIdx].version}.0` : 'v1.0'}
+                          </Text>
                         </View>
                       </View>
                       <Text style={s.boqDateText}>
@@ -1065,7 +1057,7 @@ export default function Lead360Screen() {
                           onPress={() => setActiveBoqIdx(idx)}
                         >
                           <Text style={[s.versionChipText, activeBoqIdx === idx && s.versionChipTextActive]}>
-                            {b.version || `v${idx + 1}.0`}
+                            {b.version ? `v${b.version}.0` : `v${idx + 1}.0`}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -1136,6 +1128,12 @@ export default function Lead360Screen() {
                     ))}
                   </View>
                 </View>
+                
+                {lead.status === 'Under BOQ Creation' && (
+                  <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 8 }]} onPress={() => setShowSendQuoteModal(true)}>
+                    <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
+                  </TouchableOpacity>
+                )}
               )}
             </View>
           )}
@@ -1257,6 +1255,15 @@ export default function Lead360Screen() {
       </ScrollView>
 
       {/* --- MODALS --- */}
+      {/* Mark Lost Modal */}
+      <MarkLostModal
+        visible={showLostModal}
+        onClose={() => setShowLostModal(false)}
+        customerId={id}
+        leadName={lead.name}
+        onSuccess={() => fetchData()}
+      />
+
       {/* 1. Status Modal */}
       <Modal visible={showStatusModal} transparent animationType="fade" onRequestClose={() => setShowStatusModal(false)}>
         <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowStatusModal(false)}>
@@ -1309,9 +1316,6 @@ export default function Lead360Screen() {
                   </TouchableOpacity>
                 ))}
               </View>
-
-              <Text style={s.label}>Estimated Budget</Text>
-              <TextInput style={s.input} placeholder="e.g. ₹5L - ₹10L" placeholderTextColor="#94A3B8" value={editForm.budgetRange} onChangeText={(v) => setEditForm({ ...editForm, budgetRange: v })} />
 
               <Text style={s.label}>Project Location</Text>
               <TextInput style={s.input} placeholder="e.g. Hiranandani Estate, Thane" placeholderTextColor="#94A3B8" value={editForm.projectLocation} onChangeText={(v) => setEditForm({ ...editForm, projectLocation: v })} />
@@ -1385,99 +1389,42 @@ export default function Lead360Screen() {
       </Modal>
 
       {/* 4. Site Visit Modal */}
-      <Modal visible={showSiteModal} transparent animationType="slide" onRequestClose={() => setShowSiteModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Log Site Visit</Text>
-              <TouchableOpacity onPress={() => setShowSiteModal(false)}>
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Carpet Area (Sq.Ft)</Text>
-              <TextInput style={s.input} placeholder="e.g. 1200" placeholderTextColor="#94A3B8" keyboardType="numeric" value={siteForm.carpetArea} onChangeText={(v) => setSiteForm({ ...siteForm, carpetArea: v })} />
-
-              <Text style={s.label}>Ceiling Height (Ft)</Text>
-              <TextInput style={s.input} placeholder="e.g. 10" placeholderTextColor="#94A3B8" keyboardType="numeric" value={siteForm.ceilingHeight} onChangeText={(v) => setSiteForm({ ...siteForm, ceilingHeight: v })} />
-
-              <Text style={s.label}>Rooms Count</Text>
-              <TextInput style={s.input} placeholder="e.g. 3BHK" placeholderTextColor="#94A3B8" value={siteForm.rooms} onChangeText={(v) => setSiteForm({ ...siteForm, rooms: v })} />
-
-              <Text style={s.label}>Site Notes</Text>
-              <TextInput style={[s.input, { height: 60 }]} multiline placeholder="Observations..." placeholderTextColor="#94A3B8" value={siteForm.notes} onChangeText={(v) => setSiteForm({ ...siteForm, notes: v })} />
-
-              <Text style={s.label}>Photos ({sitePhotos.length})</Text>
-              <TouchableOpacity style={s.photoPickBtn} onPress={handlePickSitePhoto}>
-                <Ionicons name="camera-outline" size={20} color="#2563EB" />
-                <Text style={s.photoPickText}>Pick Site Photo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.submitBtn} onPress={handleSaveSiteVisit} disabled={submittingAct}>
-                <Text style={s.submitBtnText}>{submittingAct ? 'Saving...' : 'Save Site Visit'}</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <LogSiteVisitModal
+        visible={showSiteModal}
+        onClose={() => setShowSiteModal(false)}
+        customerId={id}
+        initialMeasurements={lead?.siteMeasurements}
+        initialPhotos={lead?.sitePhotos}
+        onSuccess={() => {
+          showToast('Site visit logged successfully!', 'success');
+          fetchData();
+        }}
+      />
 
       {/* 5. Requirements Modal */}
-      <Modal visible={showReqModal} transparent animationType="slide" onRequestClose={() => setShowReqModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Add Room Requirement</Text>
-              <TouchableOpacity onPress={() => setShowReqModal(false)}>
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-            <Text style={s.label}>Room Name *</Text>
-            <TextInput style={s.input} placeholder="e.g. Master Bedroom" placeholderTextColor="#94A3B8" value={reqForm.roomName} onChangeText={(v) => setReqForm({ ...reqForm, roomName: v })} />
-
-            <Text style={s.label}>Theme Tag</Text>
-            <TextInput style={s.input} placeholder="e.g. Modern Minimalist" placeholderTextColor="#94A3B8" value={reqForm.theme} onChangeText={(v) => setReqForm({ ...reqForm, theme: v })} />
-
-            <Text style={s.label}>Description</Text>
-            <TextInput style={[s.input, { height: 70 }]} multiline placeholder="King size bed, modular wardrobe..." placeholderTextColor="#94A3B8" value={reqForm.description} onChangeText={(v) => setReqForm({ ...reqForm, description: v })} />
-
-            <TouchableOpacity style={s.submitBtn} onPress={handleSaveRequirements} disabled={submittingAct}>
-              <Text style={s.submitBtnText}>{submittingAct ? 'Saving...' : 'Save Requirement'}</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <LogRequirementsModal
+        visible={showReqModal}
+        onClose={() => setShowReqModal(false)}
+        customerId={id}
+        initialBudgetRange={lead?.budgetRange}
+        initialRequirements={lead?.requirements}
+        onSuccess={() => {
+          showToast('Requirements logged successfully!', 'success');
+          fetchData();
+        }}
+      />
 
       {/* 6. Upload Design Modal */}
-      <Modal visible={showDesignModal} transparent animationType="slide" onRequestClose={() => setShowDesignModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Upload Design File</Text>
-              <TouchableOpacity onPress={() => setShowDesignModal(false)}>
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-            <Text style={s.label}>File Name *</Text>
-            <TextInput style={s.input} placeholder="e.g. 2D Layout Plan v1" placeholderTextColor="#94A3B8" value={designForm.name} onChangeText={(v) => setDesignForm({ ...designForm, name: v })} />
-
-            <Text style={s.label}>File Type</Text>
-            <View style={s.chipOptions}>
-              {['image', 'pdf'].map((t) => (
-                <TouchableOpacity key={t} style={[s.optionChip, designForm.fileType === t && s.optionChipActive]} onPress={() => setDesignForm({ ...designForm, fileType: t })}>
-                  <Text style={[s.optionChipText, designForm.fileType === t && s.optionChipTextActive]}>{t.toUpperCase()}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={s.label}>File / Render URL *</Text>
-            <TextInput style={s.input} placeholder="https://example.com/render.png" placeholderTextColor="#94A3B8" value={designForm.url} onChangeText={(v) => setDesignForm({ ...designForm, url: v })} autoCapitalize="none" />
-
-            <TouchableOpacity style={s.submitBtn} onPress={handleSaveDesign} disabled={submittingAct}>
-              <Text style={s.submitBtnText}>{submittingAct ? 'Uploading...' : 'Save Design'}</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <UploadDesignModal
+        visible={showDesignModal}
+        onClose={() => setShowDesignModal(false)}
+        customerId={id}
+        existingDesigns={lead?.designFiles}
+        onSuccess={() => {
+          showToast('Design file uploaded successfully!', 'success');
+          fetchData();
+        }}
+      />
 
       {/* 7. Quotation Builder Modal */}
       <Modal visible={showQuoteModal} transparent animationType="slide" onRequestClose={() => setShowQuoteModal(false)}>
@@ -1579,12 +1526,11 @@ export default function Lead360Screen() {
 
       {/* 8. BOQ Builder Modal */}
       <BoqBuilderModal
-        isOpen={showBoqModal}
+        visible={showBoqModal}
         onClose={() => setShowBoqModal(false)}
         customerId={id}
-        currentStatus={lead?.status}
         existingBoqs={lead?.boqs || []}
-        editingIndex={editingBoqIdx}
+        editingBoqIndex={editingBoqIdx}
         onSuccess={() => {
           showToast('BOQ saved successfully!', 'success');
           fetchData();

@@ -95,7 +95,10 @@ export default function CrmFollowUpsScreen() {
                       <Text style={s.avatarText}>{act.customer?.name?.charAt(0).toUpperCase() || '?'}</Text>
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={s.leadName} numberOfLines={1}>{act.customer?.name || 'Unknown'}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={s.leadName} numberOfLines={1}>{act.customer?.name || 'Unknown'}</Text>
+                        <Text style={s.leadNumber}>{act.customer?.leadNumber || 'LD-XXXX'}</Text>
+                      </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <Ionicons name="call-outline" size={11} color="#94A3B8" />
                         <Text style={s.leadPhone}>{act.customer?.mobileNumber}</Text>
@@ -162,6 +165,7 @@ const s = StyleSheet.create({
   avatar: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   leadName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  leadNumber: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' },
   leadPhone: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   scheduledBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },

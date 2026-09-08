@@ -323,7 +323,10 @@ export default function CRMScreen() {
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Text style={s.leadName} numberOfLines={1}>{lead.name}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={s.leadName} numberOfLines={1}>{lead.name}</Text>
+                              <Text style={s.leadNumber}>{lead.leadNumber || 'LD-XXXX'}</Text>
+                            </View>
                             <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
                           </View>
                           <Text style={s.leadSub} numberOfLines={1}>{lead.mobileNumber}{lead.propertyType ? ` · ${lead.propertyType}` : ''}</Text>
@@ -580,6 +583,7 @@ const s = StyleSheet.create({
   },
   avatarText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   leadName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  leadNumber: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' },
   leadSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
 
   leadBottomRow: {
