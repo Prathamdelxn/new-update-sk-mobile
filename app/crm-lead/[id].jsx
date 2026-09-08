@@ -918,13 +918,13 @@ export default function Lead360Screen() {
                       )}
                     </View>
                   ))}
+                  
+                  {lead.status === 'Under Requirement' && (
+                    <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#4F46E5', marginTop: 8 }]} onPress={() => setShowSendDrawingModal(true)}>
+                      <Text style={s.actionBtnText}>Complete Phase & Pass to Drawing</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                
-                {lead.status === 'Under Requirement' && (
-                  <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#4F46E5', marginTop: 8 }]} onPress={() => setShowSendDrawingModal(true)}>
-                    <Text style={s.actionBtnText}>Complete Phase & Pass to Drawing</Text>
-                  </TouchableOpacity>
-                )}
               )}
             </View>
           )}
@@ -977,13 +977,13 @@ export default function Lead360Screen() {
                       <Ionicons name="open-outline" size={16} color="#64748B" />
                     </TouchableOpacity>
                   ))}
+                  
+                  {lead.status === 'Under Drawing' && (
+                    <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#0284C7', marginTop: 8 }]} onPress={() => setShowSendBoqModal(true)}>
+                      <Text style={s.actionBtnText}>Complete Phase & Pass to BOQ Estimation</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                
-                {lead.status === 'Under Drawing' && (
-                  <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#0284C7', marginTop: 8 }]} onPress={() => setShowSendBoqModal(true)}>
-                    <Text style={s.actionBtnText}>Complete Phase & Pass to BOQ Estimation</Text>
-                  </TouchableOpacity>
-                )}
               )}
             </View>
           )}
@@ -1127,13 +1127,13 @@ export default function Lead360Screen() {
                       </View>
                     ))}
                   </View>
+                  
+                  {lead.status === 'Under BOQ Creation' && (
+                    <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 8 }]} onPress={() => setShowSendQuoteModal(true)}>
+                      <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                
-                {lead.status === 'Under BOQ Creation' && (
-                  <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 8 }]} onPress={() => setShowSendQuoteModal(true)}>
-                    <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
-                  </TouchableOpacity>
-                )}
               )}
             </View>
           )}
