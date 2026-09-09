@@ -91,6 +91,9 @@ export default function DashboardScreen() {
       return fetchInteriorDashboard(isRefresh);
     }
 
+    // Do not call construction API if user object is not yet loaded
+    if (!user) return;
+
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     try {
@@ -110,7 +113,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token, isInteriorUser, fetchInteriorDashboard]);
+  }, [token, user, isInteriorUser, fetchInteriorDashboard]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 

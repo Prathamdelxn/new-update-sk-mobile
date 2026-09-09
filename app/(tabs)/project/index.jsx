@@ -37,6 +37,7 @@ export default function ProjectScreen() {
   const { showToast } = useToast();
   const { t } = useTranslation();
   const isAdmin = user?.role?.name === 'Admin';
+  const isInterior = user?.organization?.industryType === 'interior';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -95,6 +96,7 @@ export default function ProjectScreen() {
   const [isModalDataLoading, setIsModalDataLoading] = useState(false);
 
   useEffect(() => {
+    if (isInterior) return;
     fetchInitialDashboard();
     checkAssignedSnagging();
 

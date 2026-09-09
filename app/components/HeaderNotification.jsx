@@ -17,9 +17,10 @@ export default function HeaderNotification() {
     // Interior sessions hold an interior-os JWT, which the construction
     // notifications endpoint rejects with 401 — skip to avoid the global
     // auto-logout interceptor kicking the user back to login.
-    if (isInteriorUser) return;
+    if (!user || isInteriorUser) return;
     try {
       const token = await SecureStore.getItemAsync('userToken');
+      if (!token) return;
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/notifications`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -31,11 +32,12 @@ export default function HeaderNotification() {
     } catch (error) {
       console.error('Fetch unread count error:', error);
     }
-  }, [isInteriorUser]);
+  }, [user, isInteriorUser]);
 
   useEffect(() => {
+    if (!user || isInteriorUser) return;
     fetchUnreadCount();
-  }, []);
+  }, [user, isInteriorUser, fetchUnreadCount]);
 
   useEffect(() => {
     if (socket && connected) {

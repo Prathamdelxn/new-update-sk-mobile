@@ -64,6 +64,7 @@ export const AuthProvider = ({ children }) => {
         try {
           parsedUser = JSON.parse(savedUser);
           setUser(parsedUser);
+          userRef.current = parsedUser;
         } catch {
           await SecureStore.deleteItemAsync('userData');
         }
@@ -104,6 +105,7 @@ export const AuthProvider = ({ children }) => {
   // `user.organization` so `user?.organization?.industryType === 'interior'`
   // checks (e.g. dashboard) work the same as the construction flow.
   const persistSession = useCallback(async (authToken, refreshToken, userObj) => {
+    userRef.current = userObj;
     await SecureStore.setItemAsync('userToken', authToken);
     if (refreshToken) await SecureStore.setItemAsync('refreshToken', refreshToken);
     else await SecureStore.deleteItemAsync('refreshToken');
@@ -305,7 +307,13 @@ export const AuthProvider = ({ children }) => {
       // flow below, bouncing the user back to login — so block it here,
       // globally, instead of relying on every screen to remember to guard.
       const isInteriorSession = userRef.current?.organization?.industryType === 'interior';
-      if (isInteriorSession && typeof url === 'string' && url.startsWith(API_BASE_URL)) {
+      const isConstructionCall = typeof url === 'string' && (
+        (API_BASE_URL && url.startsWith(API_BASE_URL)) ||
+        url.includes('new-update-two.vercel.app') ||
+        url.includes('sky-lite-api.vercel.app')
+      );
+
+      if (isInteriorSession && isConstructionCall) {
         console.warn('[blocked] construction API call from interior session:', url);
         return new Response(JSON.stringify({}), {
           status: 200,
@@ -318,12 +326,17 @@ export const AuthProvider = ({ children }) => {
       // If 401 Unauthorized, and it's an API request (not login, refresh, or logout)
       if (
         response.status === 401 &&
-        typeof url === 'string' &&
-        url.startsWith(API_BASE_URL) &&
+        isConstructionCall &&
         !url.includes('/auth/login') &&
         !url.includes('/auth/refresh') &&
         !url.includes('/auth/logout')
       ) {
+        // Never logout an interior session due to a construction API 401!
+        if (isInteriorSession) {
+          console.warn('[ignored 401] Construction API 401 ignored for interior session:', url);
+          return response;
+        }
+
         const currentRefreshToken = await SecureStore.getItemAsync('refreshToken');
 
         if (currentRefreshToken) {

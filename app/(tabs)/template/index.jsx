@@ -33,6 +33,7 @@ export default function TemplateScreen() {
   const router = useRouter();
   const { token, user } = useAuth();
   const { showToast } = useToast();
+  const isInterior = user?.organization?.industryType === 'interior';
 
   const [categories, setCategories] = useState([{ _id: 'All', name: 'All' }]);
   const [activeCategory, setActiveCategory] = useState('All');
@@ -66,6 +67,7 @@ export default function TemplateScreen() {
 
 
   useEffect(() => {
+    if (isInterior) return;
     fetchInitialData();
     const sub = DeviceEventEmitter.addListener('new_template', (newTpl) => {
       setTemplatesList(prev => {
