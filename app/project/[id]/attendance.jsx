@@ -60,7 +60,7 @@ export default function ProjectAttendanceTab({ project }) {
       }
     } catch (e) {
       console.error(e);
-      showToast('error', 'Failed to load attendance');
+      showToast('Failed to load attendance', 'error');
     } finally {
       setLoading(false);
     }
@@ -92,12 +92,12 @@ export default function ProjectAttendanceTab({ project }) {
           dialogTitle: 'Share Attendance Excel'
         });
       } else {
-        showToast('error', 'Sharing is not available on this device');
+        showToast('Sharing is not available on this device', 'error');
       }
       setExportModalVisible(false);
     } catch (e) {
       console.error(e);
-      showToast('error', 'Error exporting Excel file');
+      showToast('Error exporting Excel file', 'error');
     } finally {
       setExporting(false);
     }
@@ -117,7 +117,7 @@ export default function ProjectAttendanceTab({ project }) {
 
   const handleManualOverride = async () => {
     if (!manualUserId) return;
-    if (isProjectLocked(project)) { showToast('error', 'This project is locked and can no longer be modified.'); return; }
+    if (isProjectLocked(project)) { showToast('This project is locked and can no longer be modified.', 'error'); return; }
     setSubmittingManual(true);
     try {
       const res = await fetch(`${API_BASE_URL}/attendance/manual`, {
@@ -133,16 +133,16 @@ export default function ProjectAttendanceTab({ project }) {
         })
       });
       if (res.ok) {
-        showToast('success', 'Attendance marked manually!');
+        showToast('Attendance marked manually!', 'success');
         setManualModalVisible(false);
         setManualUserId(null);
         fetchAttendanceData(displayedMonth);
       } else {
         const err = await res.json();
-        showToast('error', err.message || 'Failed to mark attendance');
+        showToast(err.message || 'Failed to mark attendance', 'error');
       }
     } catch (e) {
-      showToast('error', 'Network error');
+      showToast('Network error', 'error');
     } finally {
       setSubmittingManual(false);
     }

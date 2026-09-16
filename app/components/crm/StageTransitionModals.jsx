@@ -42,7 +42,7 @@ function ModalShell({ isOpen, onClose, icon, iconColor, title, subtitle, childre
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. Send To Site Visit Modal
 // ─────────────────────────────────────────────────────────────────────────────
-export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, users = [] }) {
+export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, users = [], isFollowUpCompleted = true }) {
   const [assignedExecutive, setAssignedExecutive] = useState('');
   const [showExecutiveDropdown, setShowExecutiveDropdown] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -50,9 +50,22 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
+    if (!isFollowUpCompleted) {
+      Alert.alert('Follow-up Required', 'Please complete the follow-up before passing to the Site Visit stage.');
+      return;
+    }
+    if (!assignedExecutive) {
+      Alert.alert('Assignee Required', 'Please select a site executive before scheduling the site visit.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await interiorCrmService.updateCustomer(customerId, { status: 'Under Site Visit' });
+      await interiorCrmService.updateCustomer(customerId, {
+        status: 'Under Site Visit',
+        assignedTo: assignedExecutive,
+        assignedSalesExecutive: assignedExecutive,
+      });
       const assignedUser = users.find((u) => (u._id || u.id) === assignedExecutive);
       const assignNote = assignedUser ? `Assigned: ${userLabel(assignedUser)}` : '';
       const finalRemarks = [remarks.trim(), assignNote, `Scheduled for: ${scheduledDate}`].filter(Boolean).join(' | ');
@@ -84,13 +97,13 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
       subtitle="Schedule site measurement and inspection"
     >
       <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-        <Text style={s.label}>Assign Site Executive</Text>
+        <Text style={s.label}>Assign Site Executive *</Text>
         <TouchableOpacity 
            style={s.input} 
            onPress={() => setShowExecutiveDropdown(!showExecutiveDropdown)}
         >
           <Text style={{ color: assignedExecutive ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
-            {assignedExecutive ? userLabel(users.find(u => (u._id || u.id) === assignedExecutive) || {}) : "Select Executive"}
+            {assignedExecutive ? userLabel(users.find(u => (u._id || u.id) === assignedExecutive) || {}) : "Select Executive *"}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
@@ -163,9 +176,18 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
+    if (!assignedDesigner) {
+      Alert.alert('Assignee Required', 'Please select an interior designer before starting the requirements phase.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await interiorCrmService.updateCustomer(customerId, { status: 'Under Requirement' });
+      await interiorCrmService.updateCustomer(customerId, {
+        status: 'Under Requirement',
+        assignedTo: assignedDesigner,
+        designerAssigned: assignedDesigner,
+      });
       const assignedUser = users.find((u) => (u._id || u.id) === assignedDesigner);
       const assignNote = assignedUser ? `Designer: ${userLabel(assignedUser)}` : '';
       const finalRemarks = [remarks.trim(), assignNote].filter(Boolean).join(' | ') || 'Moved to requirement logging phase.';
@@ -197,13 +219,13 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
       subtitle="Gather room preferences, styling & functional specs"
     >
       <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-        <Text style={s.label}>Assign Interior Designer</Text>
+        <Text style={s.label}>Assign Interior Designer *</Text>
         <TouchableOpacity 
            style={s.input} 
            onPress={() => setShowDropdown(!showDropdown)}
         >
           <Text style={{ color: assignedDesigner ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
-            {assignedDesigner ? userLabel(users.find(u => (u._id || u.id) === assignedDesigner) || {}) : "Select Designer"}
+            {assignedDesigner ? userLabel(users.find(u => (u._id || u.id) === assignedDesigner) || {}) : "Select Designer *"}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
@@ -267,9 +289,17 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
+    if (!assignedArchitect) {
+      Alert.alert('Assignee Required', 'Please select a draftsperson or architect before commissioning drawings.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await interiorCrmService.updateCustomer(customerId, { status: 'Under Drawing' });
+      await interiorCrmService.updateCustomer(customerId, {
+        status: 'Under Drawing',
+        assignedTo: assignedArchitect,
+      });
       const assignedUser = users.find((u) => (u._id || u.id) === assignedArchitect);
       const assignNote = assignedUser ? `Architect: ${userLabel(assignedUser)}` : '';
       const finalRemarks = [remarks.trim(), assignNote].filter(Boolean).join(' | ') || 'Moved to 2D/3D drawing stage.';
@@ -301,13 +331,13 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
       subtitle="Commission 2D CAD floor plans and 3D visual concepts"
     >
       <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-        <Text style={s.label}>Assign Draftsperson / Architect</Text>
+        <Text style={s.label}>Assign Draftsperson / Architect *</Text>
         <TouchableOpacity 
            style={s.input} 
            onPress={() => setShowDropdown(!showDropdown)}
         >
           <Text style={{ color: assignedArchitect ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
-            {assignedArchitect ? userLabel(users.find(u => (u._id || u.id) === assignedArchitect) || {}) : "Select Architect"}
+            {assignedArchitect ? userLabel(users.find(u => (u._id || u.id) === assignedArchitect) || {}) : "Select Architect *"}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
@@ -371,9 +401,17 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
+    if (!assignedEstimator) {
+      Alert.alert('Assignee Required', 'Please select a quantity surveyor or estimator before moving to BOQ.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await interiorCrmService.updateCustomer(customerId, { status: 'Under BOQ Creation' });
+      await interiorCrmService.updateCustomer(customerId, {
+        status: 'Under BOQ Creation',
+        assignedTo: assignedEstimator,
+      });
       const assignedUser = users.find((u) => (u._id || u.id) === assignedEstimator);
       const assignNote = assignedUser ? `Estimator: ${userLabel(assignedUser)}` : '';
       const finalRemarks = [remarks.trim(), assignNote].filter(Boolean).join(' | ') || 'Moved to BOQ estimation phase.';
@@ -405,13 +443,13 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
       subtitle="Generate itemized bill of quantities and cost sheets"
     >
       <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-        <Text style={s.label}>Assign Quantity Surveyor / Estimator</Text>
+        <Text style={s.label}>Assign Quantity Surveyor / Estimator *</Text>
         <TouchableOpacity 
            style={s.input} 
            onPress={() => setShowDropdown(!showDropdown)}
         >
           <Text style={{ color: assignedEstimator ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
-            {assignedEstimator ? userLabel(users.find(u => (u._id || u.id) === assignedEstimator) || {}) : "Select Estimator"}
+            {assignedEstimator ? userLabel(users.find(u => (u._id || u.id) === assignedEstimator) || {}) : "Select Estimator *"}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
@@ -468,19 +506,35 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. Send To Quotations Modal
 // ─────────────────────────────────────────────────────────────────────────────
-export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess }) {
+export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, users = [] }) {
+  const [assignedSalesExecutive, setAssignedSalesExecutive] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
+    if (!assignedSalesExecutive) {
+      Alert.alert('Assignee Required', 'Please select a sales executive before moving to quotation.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await interiorCrmService.updateCustomer(customerId, { status: 'Under Quotation' });
+      const assignedUser = users.find((u) => (u._id || u.id) === assignedSalesExecutive);
+      const assignNote = assignedUser ? `Sales Executive: ${userLabel(assignedUser)}` : '';
+      const finalRemarks = [remarks.trim(), assignNote].filter(Boolean).join(' | ') || 'Moved to sales quotation & client presentation phase.';
+
+      await interiorCrmService.updateCustomer(customerId, {
+        status: 'Under Quotation',
+        assignedSalesExecutive,
+        assignedTo: assignedSalesExecutive,
+      });
+
       await interiorCrmService.createActivity({
         customer: customerId,
         type: 'Status Change',
         status: 'Completed',
-        remarks: remarks.trim() || 'Moved to sales quotation & client presentation phase.',
+        remarks: finalRemarks,
         completedDate: new Date(),
       });
 
@@ -502,7 +556,40 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess }
       title="Pass to Quotation Stage"
       subtitle="Prepare commercial proposal & discount approvals"
     >
-      <ScrollView style={{ maxHeight: 320 }}>
+      <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+        <Text style={s.label}>Assign Sales / Quotation Executive *</Text>
+        <TouchableOpacity 
+          style={s.input} 
+          onPress={() => setShowDropdown(!showDropdown)}
+        >
+          <Text style={{ color: assignedSalesExecutive ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+            {assignedSalesExecutive ? userLabel(users.find((u) => (u._id || u.id) === assignedSalesExecutive) || {}) : "Select Sales Executive *"}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
+        </TouchableOpacity>
+        
+        {showDropdown && (
+          <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, maxHeight: 150, overflow: 'hidden' }}>
+            <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
+              {users.map((u) => {
+                const id = u._id || u.id;
+                const active = assignedSalesExecutive === id;
+                return (
+                  <TouchableOpacity 
+                    key={id} 
+                    style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
+                    onPress={() => { setAssignedSalesExecutive(id); setShowDropdown(false); }}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
+                      {userLabel(u)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         <Text style={s.label}>Quotation Briefing / Target Margin</Text>
         <TextInput
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}

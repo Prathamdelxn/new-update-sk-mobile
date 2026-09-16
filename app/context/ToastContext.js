@@ -17,12 +17,53 @@ export const ToastProvider = ({ children }) => {
     message: ''
   });
 
-  const showToast = useCallback((message, type = 'success') => {
-    if (type === 'error') {
-      setErrorConfig({ visible: true, message });
-    } else {
-      setToastConfig({ visible: true, message, type });
+  const showToast = useCallback((arg1, arg2) => {
+    const KNOWN_TYPES = ['success', 'error', 'info', 'delete', 'warning', 'default', 'modal'];
+    let message = arg1;
+    let type = arg2;
+
+    // 1. Detect inverted arguments: showToast('error', 'Failed...') or showToast('success', 'Done!')
+    if (
+      typeof arg1 === 'string' &&
+      KNOWN_TYPES.includes(arg1.toLowerCase()) &&
+      typeof arg2 === 'string' &&
+      !KNOWN_TYPES.includes(arg2.toLowerCase())
+    ) {
+      type = arg1.toLowerCase();
+      message = arg2;
     }
+
+    // 2. Intelligent inference if type was not explicitly provided
+    if (!type) {
+      if (typeof message === 'string') {
+        const lower = message.toLowerCase();
+        if (/error|failed|fail|cannot|could not|please enter|please select|please fill|required|invalid|not allowed|forbidden|denied|permission/i.test(lower)) {
+          type = 'error';
+        } else if (/deleted|removed|discarded/i.test(lower)) {
+          type = 'delete';
+        } else if (/warning|caution|already/i.test(lower)) {
+          type = 'warning';
+        } else if (/notice|uploading|generating|loading|preparing|processing/i.test(lower)) {
+          type = 'info';
+        } else {
+          type = 'success';
+        }
+      } else {
+        type = 'success';
+      }
+    }
+
+    type = typeof type === 'string' ? type.toLowerCase() : 'success';
+
+    if (type === 'modal') {
+      setErrorConfig({ visible: true, message: String(message || '') });
+    } else {
+      setToastConfig({ visible: true, message: String(message || ''), type });
+    }
+  }, []);
+
+  const showErrorModal = useCallback((message) => {
+    setErrorConfig({ visible: true, message: String(message || '') });
   }, []);
 
   const hideToast = useCallback(() => {
@@ -35,8 +76,9 @@ export const ToastProvider = ({ children }) => {
 
   const contextValue = useMemo(() => ({
     showToast,
+    showErrorModal,
     hideToast,
-  }), [showToast, hideToast]);
+  }), [showToast, showErrorModal, hideToast]);
 
   return (
     <ToastContext.Provider value={contextValue}>

@@ -182,7 +182,7 @@ export default function InteriorProcurementScreen() {
         poId: selectedPo._id,
         vendorIds: rfqVendors,
         notes: rfqNotes.trim(),
-      }).catch(() => {});
+      });
 
       showToast(`Quotation request dispatched to ${rfqVendors.length} vendors!`, 'success');
       setIsRfqOpen(false);

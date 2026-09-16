@@ -974,5 +974,7 @@
   "addItem": "Add Item",
   "toastSuccess": "Success",
   "toastDeleted": "Deleted",
+  "toastInfo": "Notice",
+  "toastWarning": "Warning",
   "toastActionFailed": "Action Failed"
 }

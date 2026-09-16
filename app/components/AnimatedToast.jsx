@@ -332,12 +332,24 @@ export default function AnimatedToast({ visible, message, type = 'success', onHi
     switch (type) {
       case 'success': return { name: 'checkmark-circle', color: '#10B981', bg: 'rgba(16, 185, 129, 0.12)' };
       case 'delete': return { name: 'trash', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.12)' };
+      case 'warning': return { name: 'warning', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.12)' };
       case 'error': return { name: 'alert-circle', color: '#F43F5E', bg: 'rgba(244, 63, 94, 0.12)' };
       default: return { name: 'information-circle', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.12)' };
     }
   };
 
   const config = getIconConfig();
+
+  const getToastTitle = () => {
+    switch (type) {
+      case 'success': return t('toastSuccess') || 'Success';
+      case 'delete': return t('toastDeleted') || 'Deleted';
+      case 'warning': return t('toastWarning') || 'Warning';
+      case 'info': return t('toastInfo') || 'Notice';
+      case 'error': return t('toastActionFailed') || 'Action Failed';
+      default: return t('toastSuccess') || 'Success';
+    }
+  };
 
   return (
     <Modal
@@ -375,7 +387,7 @@ export default function AnimatedToast({ visible, message, type = 'success', onHi
                   transform: [{ translateX: textTranslateX }]
                 }
               ]}>
-                <Text style={styles.title}>{type === 'success' ? t('toastSuccess') : type === 'delete' ? t('toastDeleted') : t('toastActionFailed')}</Text>
+                <Text style={styles.title}>{getToastTitle()}</Text>
                 <Text style={styles.message} numberOfLines={1}>{message}</Text>
               </Animated.View>
 

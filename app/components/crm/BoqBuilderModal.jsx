@@ -108,12 +108,20 @@ export default function BoqBuilderModal({
         rate: parseFloat(i.rate) || 0,
       }));
 
+      const subtotal = totalAmount;
+      const taxPercent = 18;
+      const taxAmount = Math.round(subtotal * 0.18 * 100) / 100;
+      const grandTotal = Math.round((subtotal + taxAmount) * 100) / 100;
+
       if (isEditing) {
         const currentBoq = updatedBoqs[editingBoqIndex];
         updatedBoqs[editingBoqIndex] = {
           ...currentBoq,
           items: payloadItems,
-          totalAmount,
+          subtotal,
+          taxPercent,
+          taxAmount,
+          totalAmount: grandTotal,
           notes,
           updatedAt: new Date()
         };
@@ -122,7 +130,10 @@ export default function BoqBuilderModal({
         updatedBoqs.push({
           version: newVersion, // Mongoose expects Number
           items: payloadItems,
-          totalAmount: totalAmount * 1.18, // Added tax logic matching mobile ui
+          subtotal,
+          taxPercent,
+          taxAmount,
+          totalAmount: grandTotal,
           notes,
           status: 'draft',
           createdAt: new Date()

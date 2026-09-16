@@ -18,12 +18,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import cloudinaryService from '../../services/cloudinaryService';
 
 const CATEGORIES = [
-  '2D Floor Plan',
-  '3D Render',
-  'Autocad DWG',
-  'Moodboard',
-  'Reference Image',
-  'Other'
+  '2D',
+  '3D'
 ];
 
 const FILE_TYPES = [
@@ -33,6 +29,16 @@ const FILE_TYPES = [
   'cad',
   'document'
 ];
+
+function detectFileType(fileName) {
+  const ext = (fileName.split('.').pop() || '').toLowerCase();
+  if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'tiff', 'hdr', 'exr'].includes(ext)) return 'image';
+  if (['pdf'].includes(ext)) return 'pdf';
+  if (['dwg', 'skp', 'obj', 'fbx', '3ds', 'dae', 'blend', 'rvt', 'rfa', 'ifc', 'gltf', 'glb', 'max'].includes(ext)) return '3d-model';
+  if (['dxf'].includes(ext)) return 'cad';
+  if (['zip', 'rar', '7z', 'tar'].includes(ext)) return 'document';
+  return 'document';
+}
 
 export default function UploadDesignModal({ 
   visible, 
@@ -45,7 +51,7 @@ export default function UploadDesignModal({
   
   const [designForm, setDesignForm] = useState({
     name: '',
-    category: '2D Floor Plan',
+    category: '2D',
     fileType: 'image',
     fileUri: '',
     fileName: '',
@@ -57,16 +63,20 @@ export default function UploadDesignModal({
       const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        setDesignForm({ 
-          ...designForm, 
+        const detectedType = detectFileType(file.name);
+        setDesignForm((prev) => ({ 
+          ...prev, 
           fileUri: file.uri, 
           fileName: file.name, 
           mimeType: file.mimeType || 'application/octet-stream',
-          name: designForm.name ? designForm.name : file.name.split('.')[0]
-        });
+          fileType: detectedType,
+          category: (detectedType === '3d-model' || prev.category === '3D') ? '3D' : prev.category,
+          name: prev.name ? prev.name : file.name.replace(/\.[^/.]+$/, '')
+        }));
       }
     } catch (e) {
       console.log('Document picker error:', e);
+      Alert.alert('Picker Error', 'Failed to pick file from device.');
     }
   };
 
@@ -106,12 +116,12 @@ export default function UploadDesignModal({
         customer: customerId,
         type: 'Design Upload',
         status: 'Completed',
-        remarks: `Uploaded a ${designForm.category}: ${designForm.name}`,
+        remarks: `Uploaded ${designForm.category} design: ${designForm.name}`,
         completedDate: new Date()
       });
 
       // Reset form
-      setDesignForm({ name: '', category: '2D Floor Plan', fileType: 'image', fileUri: '', fileName: '', mimeType: '' });
+      setDesignForm({ name: '', category: '2D', fileType: 'image', fileUri: '', fileName: '', mimeType: '' });
       onSuccess();
       onClose();
     } catch (error) {

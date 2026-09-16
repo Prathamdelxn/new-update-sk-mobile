@@ -975,5 +975,7 @@
   "addItem": "إضافة عنصر",
   "toastSuccess": "نجاح",
   "toastDeleted": "تم الحذف",
+  "toastInfo": "ملاحظة",
+  "toastWarning": "تحذير",
   "toastActionFailed": "فشل الإجراء"
 }

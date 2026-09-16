@@ -39,7 +39,7 @@ export default function CrmPipelineScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const stage = STAGES.find((s) => s.key === activeStage);
-  const filtered = leads.filter((l) => stage.statuses.includes(l.status));
+  const filtered = leads.filter((l) => l.status !== 'Lost' && stage.statuses.includes(l.status));
 
   return (
     <View style={s.outerContainer}>

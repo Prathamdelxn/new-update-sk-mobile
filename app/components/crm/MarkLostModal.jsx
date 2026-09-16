@@ -38,14 +38,18 @@ export default function MarkLostModal({
         lostReason: reason.trim()
       });
 
-      // Optionally create an activity log
-      await interiorCrmService.createActivity({
-        customer: customerId,
-        type: 'Status Change',
-        status: 'Completed',
-        remarks: `Lead marked as Lost. Reason: ${reason.trim() || 'Not specified'}`,
-        completedDate: new Date()
-      });
+      // Optionally create an activity log (non-blocking since backend auto-logs status change)
+      try {
+        await interiorCrmService.createActivity({
+          customer: customerId,
+          type: 'Status Change',
+          status: 'Completed',
+          remarks: `Lead marked as Lost. Reason: ${reason.trim() || 'Not specified'}`,
+          completedDate: new Date()
+        });
+      } catch (actErr) {
+        console.warn('Activity log optional step:', actErr);
+      }
 
       setReason('');
       onSuccess();
@@ -87,6 +91,21 @@ export default function MarkLostModal({
 
             <View style={s.inputContainer}>
               <Text style={s.label}>Reason for Loss (Optional)</Text>
+
+              {/* Quick Select Chips */}
+              <View style={s.chipsRow}>
+                {['Price too high', 'Chose a competitor', 'Unresponsive', 'Budget constraints', 'Project deferred'].map((chip) => (
+                  <TouchableOpacity
+                    key={chip}
+                    style={[s.chip, reason === chip && s.chipActive]}
+                    onPress={() => setReason(chip)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.chipText, reason === chip && s.chipTextActive]}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <TextInput 
                 style={s.inputArea} 
                 placeholder="e.g., Price too high, chose competitor..." 
@@ -123,11 +142,33 @@ const s = StyleSheet.create({
   modalSubtitle: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
   closeBtn: { padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12 },
   modalBody: { padding: 20 },
-  warningBox: { flexDirection: 'row', backgroundColor: '#FFF1F2', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#FFE4E6', gap: 12, marginBottom: 20 },
+  warningBox: { flexDirection: 'row', backgroundColor: '#FFF1F2', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#FFE4E6', gap: 12, marginBottom: 16 },
   warningText: { flex: 1, fontSize: 13, color: '#BE123C', fontFamily: 'Inter-Medium', lineHeight: 20 },
   inputContainer: { marginBottom: 8 },
   label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 8 },
-  inputArea: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 14, fontFamily: 'Inter-Medium', color: '#0F172A', backgroundColor: '#F8FAFC', minHeight: 100 },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  chipActive: {
+    backgroundColor: '#FFF1F2',
+    borderColor: '#FECACA',
+  },
+  chipText: {
+    fontSize: 11.5,
+    fontFamily: 'Inter-Medium',
+    color: '#475569',
+  },
+  chipTextActive: {
+    color: '#E11D48',
+    fontFamily: 'Inter-Bold',
+  },
+  inputArea: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 13.5, fontFamily: 'Inter-Medium', color: '#0F172A', backgroundColor: '#F8FAFC', minHeight: 90 },
   footer: { flexDirection: 'row', padding: 20, borderTopWidth: 1, borderTopColor: '#F1F5F9', gap: 12, backgroundColor: '#F8FAFC' },
   cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
   cancelBtnText: { color: '#64748B', fontSize: 15, fontFamily: 'Inter-Bold' },

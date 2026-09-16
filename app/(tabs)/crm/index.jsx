@@ -41,9 +41,10 @@ const STAGE_META = {
 };
 
 const LEAD_SOURCES = ['Phone Call', 'Walk-in', 'Referral', 'Existing Customer', 'Builder Reference', 'Architect Reference', 'Society Reference', 'Social Media', 'Other'];
+const INTERIOR_TYPES = ['Residential', 'Commercial', 'Office', 'Restaurant', 'Retail', 'Other'];
 const PROPERTY_TYPES = ['Flat', 'Villa', 'Office', 'Shop', 'Other'];
 
-const emptyForm = { name: '', mobileNumber: '', email: '', leadSource: 'Phone Call', propertyType: 'Flat', projectLocation: '' };
+const emptyForm = { name: '', mobileNumber: '', email: '', leadSource: 'Phone Call', interiorType: 'Residential', propertyType: 'Flat', projectLocation: '' };
 const emptyFollowUpForm = { type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' };
 
 export default function CRMScreen() {
@@ -56,7 +57,6 @@ export default function CRMScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [stageFilter, setStageFilter] = useState('All');
   const [activeFlowTab, setActiveFlowTab] = useState('leads');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
@@ -93,14 +93,14 @@ export default function CRMScreen() {
   useFocusEffect(useCallback(() => { loadLeads(); loadUsers(); }, [loadLeads, loadUsers]));
 
   const flowCounts = {
-    leads: leads.length,
-    follow_ups: leads.filter((l) => ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status)).length,
-    site_visits: leads.filter((l) => ['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0)).length,
-    requirement_design: leads.filter((l) => ['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0)).length,
-    drawing: leads.filter((l) => ['Under Drawing', 'Design Approved'].includes(l.status) || (l.designFiles && l.designFiles.length > 0)).length,
-    boq: leads.filter((l) => ['Under BOQ Creation', 'BOQ Approved'].includes(l.status) || (l.boqs && l.boqs.length > 0)).length,
-    quotations: leads.filter((l) => ['Under Quotation', 'Quotation Sent', 'Booking Pending'].includes(l.status) || (l.quotations && l.quotations.length > 0)).length,
-    won_projects: leads.filter((l) => l.status === 'Won' || l.status === 'Converted' || !!l.linkedProject).length,
+    leads: leads.filter((l) => l.status !== 'Lost').length,
+    follow_ups: leads.filter((l) => l.status !== 'Lost' && ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status)).length,
+    site_visits: leads.filter((l) => l.status !== 'Lost' && (['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0))).length,
+    requirement_design: leads.filter((l) => l.status !== 'Lost' && (['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0))).length,
+    drawing: leads.filter((l) => l.status !== 'Lost' && (['Under Drawing', 'Design Approved'].includes(l.status) || (l.designFiles && l.designFiles.length > 0))).length,
+    boq: leads.filter((l) => l.status !== 'Lost' && (['Under BOQ Creation', 'BOQ Approved'].includes(l.status) || (l.boqs && l.boqs.length > 0))).length,
+    quotations: leads.filter((l) => l.status !== 'Lost' && (['Under Quotation', 'Quotation Sent', 'Booking Pending'].includes(l.status) || (l.quotations && l.quotations.length > 0))).length,
+    won_projects: leads.filter((l) => l.status !== 'Lost' && (l.status === 'Won' || l.status === 'Converted' || !!l.linkedProject)).length,
     lost_leads: leads.filter((l) => l.status === 'Lost').length,
   };
 
@@ -110,14 +110,20 @@ export default function CRMScreen() {
       !q ||
       l.name?.toLowerCase().includes(q) ||
       l.email?.toLowerCase().includes(q) ||
-      l.mobileNumber?.toLowerCase().includes(q);
+      l.mobileNumber?.toLowerCase().includes(q) ||
+      l.lostReason?.toLowerCase().includes(q);
 
     if (!matchesSearch) return false;
 
-    // Direct stage chip filter
-    if (stageFilter !== 'All' && l.status !== stageFilter) return false;
+    // Dedicated Lost Leads tab explicitly displays only leads where status === 'Lost'
+    if (activeFlowTab === 'lost_leads') {
+      return l.status === 'Lost';
+    }
 
-    // Horizontal workflow tab filter
+    // Active stages strictly EXCLUDE Lost leads to prevent pipeline clutter
+    if (l.status === 'Lost') return false;
+
+    // Active stage filters
     if (activeFlowTab === 'leads') return true;
     if (activeFlowTab === 'follow_ups') return ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status);
     if (activeFlowTab === 'site_visits') return ['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0);
@@ -126,7 +132,6 @@ export default function CRMScreen() {
     if (activeFlowTab === 'boq') return ['Under BOQ Creation', 'BOQ Approved'].includes(l.status) || (l.boqs && l.boqs.length > 0);
     if (activeFlowTab === 'quotations') return ['Under Quotation', 'Quotation Sent', 'Booking Pending'].includes(l.status) || (l.quotations && l.quotations.length > 0);
     if (activeFlowTab === 'won_projects') return l.status === 'Won' || l.status === 'Converted' || !!l.linkedProject;
-    if (activeFlowTab === 'lost_leads') return l.status === 'Lost';
     return true;
   });
 
@@ -137,11 +142,19 @@ export default function CRMScreen() {
     }
     setCreateLoading(true);
     try {
-      await interiorApiClient.post('/crm/customers', form);
+      const res = await interiorApiClient.post('/crm/customers', form);
       showToast('Lead created successfully!', 'success');
+      const createdLead = res?.data || res?.customer || res;
+      const createdId = createdLead?._id || createdLead?.id;
       setForm(emptyForm);
       setIsModalVisible(false);
       loadLeads();
+      if (createdId) {
+        router.push({
+          pathname: `/crm-lead/${createdId}`,
+          params: { tab: 'follow_ups' },
+        });
+      }
     } catch (e) {
       showToast(e.message || 'Failed to create lead', 'error');
     } finally {
@@ -150,8 +163,23 @@ export default function CRMScreen() {
   };
 
   const openFollowUpModal = (lead) => {
+    // Web flow: exactly 1 active follow-up until done.
+    // If already contacted/scheduled, direct user straight to the lead's follow-up tab to complete it.
+    if (lead?.status === 'Contacted') {
+      router.push({
+        pathname: `/crm-lead/${lead._id}`,
+        params: { tab: 'follow_ups' },
+      });
+      return;
+    }
     setFollowUpLead(lead);
-    setFollowUpForm(emptyFollowUpForm);
+    const currExecId = typeof lead?.assignedSalesExecutive === 'object'
+      ? (lead?.assignedSalesExecutive?._id || '')
+      : (lead?.assignedSalesExecutive || '');
+    setFollowUpForm({
+      ...emptyFollowUpForm,
+      assignedSalesExecutive: currExecId,
+    });
   };
 
   // Android has no native combined date+time dialog, and its imperative
@@ -227,10 +255,6 @@ export default function CRMScreen() {
     }
   };
 
-  const pipelineValue = leads.length;
-  const converted = leads.filter((l) => l.status === 'Won').length;
-  const conversionRate = leads.length ? Math.round((converted / leads.length) * 100) : 0;
-
   return (
     <View style={s.outerContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#DBEAFE" translucent={false} />
@@ -242,11 +266,12 @@ export default function CRMScreen() {
             <Text style={s.pageTitle}>CRM Workspace</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <TouchableOpacity style={s.followUpsBtn} onPress={() => router.push('/crm-pipeline')}>
-              <Ionicons name="funnel-outline" size={16} color="#1D4ED8" />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.followUpsBtn} onPress={() => router.push('/crm-followups')}>
-              <Ionicons name="time-outline" size={17} color="#1D4ED8" />
+            <TouchableOpacity
+              style={s.followUpsBtn}
+              onPress={() => router.push('/crm-followups')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="calendar-outline" size={17} color="#2563EB" />
             </TouchableOpacity>
             <HeaderNotification />
           </View>
@@ -268,14 +293,6 @@ export default function CRMScreen() {
             contentContainerStyle={s.scroll}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadLeads(true)} tintColor="#2563EB" colors={['#2563EB']} />}
           >
-            {/* Stat cards */}
-            <View style={s.statsGrid}>
-              <StatCard icon="people-outline" iconBg="#F0F9FF" iconColor="#0284C7" label="Total Pipeline" value={`${pipelineValue}`} sub="leads" />
-              <StatCard icon="trending-up-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Conversion" value={`${conversionRate}%`} />
-              <StatCard icon="checkmark-circle-outline" iconBg="#F0FDF4" iconColor="#16A34A" label="Converted" value={`${converted}`} onPress={() => router.push('/crm-won-projects')} />
-              <StatCard icon="hourglass-outline" iconBg="#EEF2FF" iconColor="#4F46E5" label="In Progress" value={`${leads.length - converted}`} />
-            </View>
-
             {/* Search */}
             <View style={s.searchRow}>
               <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
@@ -288,28 +305,56 @@ export default function CRMScreen() {
               />
             </View>
 
-            {/* Stage filter chips */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
-              {['All', ...STAGES].map((stage) => {
-                const active = stageFilter === stage;
-                return (
-                  <TouchableOpacity key={stage} style={[s.chip, active && s.chipActive]} onPress={() => setStageFilter(stage)}>
-                    <Text style={[s.chipText, active && s.chipTextActive]}>{stage}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            {/* Follow-ups Board Banner when in follow_ups tab */}
+            {activeFlowTab === 'follow_ups' && (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: '#EFF6FF',
+                  borderWidth: 1,
+                  borderColor: '#BFDBFE',
+                  borderRadius: 14,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  marginTop: 12,
+                }}
+                onPress={() => router.push('/crm-followups')}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                  <Ionicons name="calendar" size={18} color="#2563EB" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, fontFamily: 'Inter-Bold', color: '#1E40AF' }}>
+                      Follow-up Touchpoints Board
+                    </Text>
+                    <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#3B82F6' }}>
+                      View all scheduled calls, mark Done, or pass to Site Visit
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#2563EB" />
+              </TouchableOpacity>
+            )}
 
             {/* Lead list */}
             <View style={{ marginTop: 16, gap: 12 }}>
               {filteredLeads.length === 0 ? (
                 <View style={s.empty}>
-                  <Ionicons name="people-outline" size={44} color="#94A3B8" />
-                  <Text style={s.emptyTitle}>No leads found</Text>
+                  <Ionicons name={activeFlowTab === 'lost_leads' ? 'shield-checkmark-outline' : 'people-outline'} size={44} color="#94A3B8" />
+                  <Text style={s.emptyTitle}>
+                    {activeFlowTab === 'lost_leads' ? 'No Lost Leads' : 'No leads found'}
+                  </Text>
+                  {activeFlowTab === 'lost_leads' && (
+                    <Text style={s.emptySub}>All leads in your workspace are active or won.</Text>
+                  )}
                 </View>
               ) : (
                 filteredLeads.map((lead) => {
                   const meta = STAGE_META[lead.status] || STAGE_META['Lost'];
+                  const isLost = lead.status === 'Lost';
+
                   return (
                     <TouchableOpacity 
                       key={lead._id} 
@@ -318,38 +363,49 @@ export default function CRMScreen() {
                       activeOpacity={0.7}
                     >
                       <View style={s.leadTopRow}>
-                        <View style={s.avatar}>
-                          <Text style={s.avatarText}>{lead.name?.charAt(0).toUpperCase()}</Text>
+                        <View style={[s.avatar, isLost && { backgroundColor: '#F1F5F9' }]}>
+                          <Text style={[s.avatarText, isLost && { color: '#64748B' }]}>{lead.name?.charAt(0).toUpperCase()}</Text>
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text style={s.leadName} numberOfLines={1}>{lead.name}</Text>
-                              <Text style={s.leadNumber}>{lead.leadNumber || 'LD-XXXX'}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                              <Text style={[s.leadName, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{lead.name}</Text>
+                              <Text style={[s.leadNumber, { flexShrink: 0 }]}>{lead.leadNumber || 'LD-XXXX'}</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                            <Ionicons name="chevron-forward" size={16} color="#94A3B8" style={{ flexShrink: 0 }} />
                           </View>
                           <Text style={s.leadSub} numberOfLines={1}>{lead.mobileNumber}{lead.propertyType ? ` · ${lead.propertyType}` : ''}</Text>
                         </View>
                       </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 4 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}>
+                          <Ionicons name="person-circle-outline" size={15} color={lead.assignedSalesExecutive ? '#4F46E5' : '#94A3B8'} style={{ flexShrink: 0 }} />
+                          <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: lead.assignedSalesExecutive ? '#334155' : '#94A3B8', flexShrink: 1 }} numberOfLines={1}>
+                            {lead.assignedSalesExecutive
+                              ? (typeof lead.assignedSalesExecutive === 'object'
+                                  ? (lead.assignedSalesExecutive.fullName || `${lead.assignedSalesExecutive.firstName || ''} ${lead.assignedSalesExecutive.lastName || ''}`.trim() || lead.assignedSalesExecutive.name || 'Assigned')
+                                  : 'Assigned')
+                              : 'Unassigned'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Lost Reason Pill */}
+                      {isLost && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF1F2', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginTop: 4, borderWidth: 1, borderColor: '#FECACA' }}>
+                          <Ionicons name="alert-circle" size={14} color="#E11D48" />
+                          <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#9F1239', flex: 1 }} numberOfLines={2}>
+                            <Text style={{ fontFamily: 'Inter-Bold' }}>Reason: </Text>{lead.lostReason || 'Reason not recorded'}
+                          </Text>
+                        </View>
+                      )}
 
                       <View style={s.leadBottomRow}>
                         <View style={[s.stageBadge, { backgroundColor: meta.bg }]}>
                           <Text style={[s.stageBadgeText, { color: meta.color }]}>{lead.status}</Text>
                         </View>
                         <Text style={s.leadDate} numberOfLines={1}>{lead.leadSource || 'N/A'}</Text>
-                        {lead.status === 'New Lead' && (
-                          <TouchableOpacity style={s.contactBtn} onPress={() => openFollowUpModal(lead)}>
-                            <Ionicons name="arrow-forward" size={13} color="#2563EB" />
-                            <Text style={s.contactBtnText}>Follow-up</Text>
-                          </TouchableOpacity>
-                        )}
-                        {lead.status === 'Contacted' && (
-                          <TouchableOpacity style={s.contactBtn} onPress={() => passToSiteVisit(lead)}>
-                            <Ionicons name="arrow-forward" size={13} color="#2563EB" />
-                            <Text style={s.contactBtnText}>Site Visit</Text>
-                          </TouchableOpacity>
-                        )}
                       </View>
                     </TouchableOpacity>
                   );
@@ -378,7 +434,7 @@ export default function CRMScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
               <Text style={s.label}>Full Name *</Text>
               <TextInput style={s.input} placeholder="e.g. John Doe" placeholderTextColor="#94A3B8" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
 
@@ -387,6 +443,15 @@ export default function CRMScreen() {
 
               <Text style={s.label}>Email Address</Text>
               <TextInput style={s.input} placeholder="john@example.com" placeholderTextColor="#94A3B8" value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} keyboardType="email-address" autoCapitalize="none" />
+
+              <Text style={s.label}>Type of Interior</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                {INTERIOR_TYPES.map((opt) => (
+                  <TouchableOpacity key={opt} style={[s.optionChip, form.interiorType === opt && s.optionChipActive]} onPress={() => setForm({ ...form, interiorType: opt })}>
+                    <Text style={[s.optionChipText, form.interiorType === opt && s.optionChipTextActive]}>{opt}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
               <Text style={s.label}>Lead Source</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
@@ -475,7 +540,7 @@ export default function CRMScreen() {
                       style={[s.optionChip, !followUpForm.assignedSalesExecutive && s.optionChipActive]}
                       onPress={() => setFollowUpForm({ ...followUpForm, assignedSalesExecutive: '' })}
                     >
-                      <Text style={[s.optionChipText, !followUpForm.assignedSalesExecutive && s.optionChipTextActive]}>Unassigned (Keep Current)</Text>
+                      <Text style={[s.optionChipText, !followUpForm.assignedSalesExecutive && s.optionChipTextActive]}>Keep Current</Text>
                     </TouchableOpacity>
                     {users.map((u) => {
                       const uid = u._id || u.id;
@@ -631,6 +696,27 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   dateInputText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+
+  dropdownBtn: {
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  dropdownBtnActive: { borderColor: '#2563EB', backgroundColor: '#EFF6FF20' },
+  dropdownBtnContent: { flexDirection: 'row', alignItems: 'center' },
+  dropdownBtnText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  dropdownMenu: {
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
+    marginTop: 4, marginBottom: 10, overflow: 'hidden',
+    shadowColor: '#0F172A', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+  },
+  dropdownItem: {
+    paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+  },
+  dropdownItemActive: { backgroundColor: '#EFF6FF' },
+  dropdownItemText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155' },
+  dropdownItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   optionChip: {
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,

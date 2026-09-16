@@ -65,7 +65,7 @@ export default function AttendanceModule() {
         setProjects(projData);
       }
     } catch (e) {
-      showToast('error', 'Failed to load data');
+      showToast('Failed to load data', 'error');
     } finally {
       setLoading(false);
     }
@@ -137,7 +137,7 @@ export default function AttendanceModule() {
       return secureUrl;
     } catch (err) {
       console.error("Cloudinary upload failed:", err);
-      showToast('error', 'Failed to upload photo');
+      showToast('Failed to upload photo', 'error');
       return null;
     }
   };
@@ -173,14 +173,14 @@ export default function AttendanceModule() {
       });
       
       if (res.ok) {
-        showToast('success', 'Checked In Successfully!');
+        showToast('Checked In Successfully!', 'success');
         router.replace('/(tabs)/dashboard');
       } else {
         const err = await res.json();
-        showToast('error', err.message || 'Check In Failed');
+        showToast(err.message || 'Check In Failed', 'error');
       }
     } catch (e) {
-      showToast('error', 'Network Error');
+      showToast('Network Error', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -209,14 +209,14 @@ export default function AttendanceModule() {
       
       if (res.ok) {
         const data = await res.json();
-        showToast('success', `Checked out! Total hours: ${data.attendance.totalWorkHours}`);
+        showToast(`Checked out! Total hours: ${data.attendance.totalWorkHours}`, 'success');
         router.replace('/(tabs)/dashboard');
       } else {
         const err = await res.json();
-        showToast('error', err.message || 'Check Out Failed');
+        showToast(err.message || 'Check Out Failed', 'error');
       }
     } catch (e) {
-      showToast('error', 'Network Error');
+      showToast('Network Error', 'error');
     } finally {
       setSubmitting(false);
     }
