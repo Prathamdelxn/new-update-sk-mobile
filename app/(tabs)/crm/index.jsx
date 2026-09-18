@@ -444,15 +444,6 @@ export default function CRMScreen() {
               <Text style={s.label}>Email Address</Text>
               <TextInput style={s.input} placeholder="john@example.com" placeholderTextColor="#94A3B8" value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} keyboardType="email-address" autoCapitalize="none" />
 
-              <Text style={s.label}>Type of Interior</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {INTERIOR_TYPES.map((opt) => (
-                  <TouchableOpacity key={opt} style={[s.optionChip, form.interiorType === opt && s.optionChipActive]} onPress={() => setForm({ ...form, interiorType: opt })}>
-                    <Text style={[s.optionChipText, form.interiorType === opt && s.optionChipTextActive]}>{opt}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
               <Text style={s.label}>Lead Source</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                 {LEAD_SOURCES.map((opt) => (

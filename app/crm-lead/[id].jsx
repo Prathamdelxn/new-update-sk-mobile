@@ -298,7 +298,7 @@ export default function Lead360Screen() {
     if (!activityForm.remarks.trim()) return showToast('Remarks are required', 'error');
     setSubmittingAct(true);
     try {
-      await interiorApiClient.post('/crm/activities', {
+      await interiorCrmService.createActivity({
         customer: id,
         type: activityForm.type,
         status: 'Completed',
@@ -612,7 +612,7 @@ export default function Lead360Screen() {
           onPress: async () => {
             try {
               await interiorApiClient.post(`/crm/customers/${id}/convert`, { quotationIndex: quoteIndex });
-              showToast('🎉 Successfully converted to Project!', 'success');
+              showToast('ðŸŽ‰ Successfully converted to Project!', 'success');
               router.push('/(tabs)/crm');
             } catch (e) {
               showToast(e.message || 'Failed to convert to project', 'error');
@@ -682,7 +682,7 @@ export default function Lead360Screen() {
   const handleDeleteLead = () => {
     Alert.alert(
       'Delete Lead',
-      `Are you sure you want to delete ${lead?.name || 'this lead'}? This action cannot be undone — all site visits, requirements, quotations, and activity history will be permanently deleted.`,
+      `Are you sure you want to delete ${lead?.name || 'this lead'}? This action cannot be undone â€” all site visits, requirements, quotations, and activity history will be permanently deleted.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -761,26 +761,8 @@ export default function Lead360Screen() {
           </View>
         </View>
 
-        {/* Right Status / Stage Selector Badge */}
-        <View style={s.headerRight}>
-          <TouchableOpacity
-            onPress={() => setShowStatusModal(true)}
-            style={[
-              s.statusBadgeBtn,
-              {
-                backgroundColor: meta.bg || '#EFF6FF',
-                borderColor: meta.color ? `${meta.color}40` : '#BFDBFE',
-              },
-            ]}
-            activeOpacity={0.7}
-          >
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.color || '#2563EB' }} />
-            <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: meta.color || '#2563EB' }} numberOfLines={1}>
-              {lead.status || 'New Lead'}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
+
 
       {/* Lost Lead Alert Banner */}
       {lead.status === 'Lost' && (
@@ -974,7 +956,7 @@ export default function Lead360Screen() {
                         <View style={[s.timelineDot, { backgroundColor: act.status === 'Pending' ? '#F59E0B' : '#2563EB' }]} />
                         <View style={s.timelineBody}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={s.actType}>{act.type} {act.status === 'Pending' && '• Scheduled'}</Text>
+                            <Text style={s.actType}>{act.type} {act.status === 'Pending' && 'â€¢ Scheduled'}</Text>
                             <Text style={s.actTime}>
                               {new Date(act.scheduledDate || act.createdAt).toLocaleDateString()}
                             </Text>
@@ -1672,22 +1654,37 @@ export default function Lead360Screen() {
                       <Text style={s.smallBtnText}>Upload File</Text>
                     </TouchableOpacity>
                     {lead.designFiles.map((file, idx) => (
-                      <TouchableOpacity key={idx} style={s.fileCard} onPress={() => file.url && Linking.openURL(file.url)}>
-                        <View style={s.fileIconBox}>
-                          <Ionicons name={file.fileType === 'pdf' ? 'document-text-outline' : file.fileType === 'image' ? 'image-outline' : 'cube-outline'} size={20} color="#2563EB" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.fileName} numberOfLines={1}>{file.name}</Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                            {file.category && (
-                              <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#4F46E5', textTransform: 'uppercase' }}>{file.category}</Text>
-                              </View>
-                            )}
-                            <Text style={s.fileSub}>{new Date(file.uploadedAt).toLocaleDateString()}</Text>
+                      <TouchableOpacity key={idx} style={[s.fileCard, { flexDirection: 'column', padding: 0, overflow: 'hidden' }]} onPress={() => file.url && Linking.openURL(file.url)} activeOpacity={0.8}>
+                        {/* Thumbnail for image files */}
+                        {file.fileType === 'image' && file.url ? (
+                          <Image source={{ uri: file.url }} style={{ width: '100%', height: 160, resizeMode: 'cover', backgroundColor: '#E2E8F0' }} />
+                        ) : (
+                          <View style={{ width: '100%', height: 80, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons
+                              name={file.fileType === 'pdf' ? 'document-text-outline' : file.fileType === '3d-model' ? 'cube-outline' : file.fileType === 'cad' ? 'git-branch-outline' : 'document-outline'}
+                              size={36}
+                              color="#2563EB"
+                            />
+                            <Text style={{ fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#2563EB', marginTop: 4, textTransform: 'uppercase' }}>
+                              {file.fileType || 'File'}
+                            </Text>
                           </View>
+                        )}
+                        {/* File info row */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', padding: 10 }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.fileName} numberOfLines={1}>{file.name}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                              {file.category && (
+                                <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                  <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#4F46E5', textTransform: 'uppercase' }}>{file.category}</Text>
+                                </View>
+                              )}
+                              <Text style={s.fileSub}>{new Date(file.uploadedAt).toLocaleDateString()}</Text>
+                            </View>
+                          </View>
+                          <Ionicons name="open-outline" size={16} color="#64748B" />
                         </View>
-                        <Ionicons name="open-outline" size={16} color="#64748B" />
                       </TouchableOpacity>
                     ))}
                     
@@ -1844,25 +1841,6 @@ export default function Lead360Screen() {
                     <View style={s.card}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                         <Text style={s.cardTitle}>Line Items ({lead.boqs[activeBoqIdx]?.items?.length || 0})</Text>
-                        <TouchableOpacity
-                          style={[s.smallBtn, { backgroundColor: '#FFF1F2' }]}
-                          onPress={() => {
-                            const activeItems = lead.boqs[activeBoqIdx]?.items || [];
-                            if (activeItems.length > 0) {
-                              setQuoteItems(
-                                activeItems.map((it) => ({
-                                  description: `${it.category ? `[${it.category}] ` : ''}${it.itemName}`,
-                                  quantity: String(it.quantity || 1),
-                                  unitPrice: String(it.rate || it.unitRate || 0),
-                                }))
-                              );
-                              openQuoteModal();
-                            }
-                          }}
-                        >
-                          <Ionicons name="arrow-forward" size={13} color="#E11D48" />
-                          <Text style={[s.smallBtnText, { color: '#E11D48' }]}>Create Quote</Text>
-                        </TouchableOpacity>
                       </View>
 
                       {(lead.boqs[activeBoqIdx]?.items || []).map((it, idx) => (
@@ -1998,20 +1976,24 @@ export default function Lead360Screen() {
 
                         {/* Items */}
                         <View style={s.quoteTable}>
-                          <View style={s.quoteHeaderRow}>
-                            <Text style={[s.quoteCol, { flex: 2 }]}>Item</Text>
-                            <Text style={s.quoteCol}>Qty</Text>
-                            <Text style={s.quoteCol}>Rate</Text>
-                            <Text style={[s.quoteCol, { textAlign: 'right' }]}>Total</Text>
-                          </View>
-                          {currentQuote.items?.map((item, i) => (
-                            <View key={i} style={s.quoteRow}>
-                              <Text style={[s.quoteCell, { flex: 2 }]} numberOfLines={1}>{item.description}</Text>
-                              <Text style={s.quoteCell}>{item.quantity}</Text>
-                              <Text style={s.quoteCell}>₹{Number(item.unitPrice || 0).toLocaleString('en-IN')}</Text>
-                              <Text style={[s.quoteCell, { textAlign: 'right', fontWeight: '700' }]}>₹{Number(item.total || 0).toLocaleString('en-IN')}</Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={true} contentContainerStyle={{ minWidth: 400, flexGrow: 1 }}>
+                            <View style={{ flex: 1 }}>
+                              <View style={s.quoteHeaderRow}>
+                                <Text style={[s.quoteCol, { flex: 2.2 }]}>Item</Text>
+                                <Text style={[s.quoteCol, { flex: 0.6, textAlign: 'center' }]}>Qty</Text>
+                                <Text style={[s.quoteCol, { flex: 1.2, textAlign: 'right' }]}>Rate</Text>
+                                <Text style={[s.quoteCol, { flex: 1.4, textAlign: 'right' }]}>Total</Text>
+                              </View>
+                              {currentQuote.items?.map((item, i) => (
+                                <View key={i} style={s.quoteRow}>
+                                  <Text style={[s.quoteCell, { flex: 2.2 }]} numberOfLines={1}>{item.description}</Text>
+                                  <Text style={[s.quoteCell, { flex: 0.6, textAlign: 'center' }]}>{item.quantity}</Text>
+                                  <Text style={[s.quoteCell, { flex: 1.2, textAlign: 'right' }]}>₹{Number(item.unitPrice || 0).toLocaleString('en-IN')}</Text>
+                                  <Text style={[s.quoteCell, { flex: 1.4, textAlign: 'right', fontWeight: '700' }]}>₹{Number(item.total || 0).toLocaleString('en-IN')}</Text>
+                                </View>
+                              ))}
                             </View>
-                          ))}
+                          </ScrollView>
                         </View>
 
                         {/* Totals */}
@@ -2063,7 +2045,7 @@ export default function Lead360Screen() {
                               </View>
                             </View>
                             <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#16A34A' }]} onPress={() => handleConvertToProject(activeQuoteIdx)}>
-                              <Text style={s.actionBtnText}>🎉 Convert to Project</Text>
+                              <Text style={s.actionBtnText}>ðŸŽ‰ Convert to Project</Text>
                             </TouchableOpacity>
                           </View>
                         ) : currentQuote.status === 'Rejected' ? (
@@ -2735,7 +2717,7 @@ export default function Lead360Screen() {
         onClose={() => setShowConvertModal(false)}
         customerId={id}
         onSuccess={() => {
-          showToast('🎉 Converted to active project!', 'success');
+          showToast('ðŸŽ‰ Converted to active project!', 'success');
           fetchData();
           router.push('/(tabs)/crm');
         }}
@@ -3597,4 +3579,5 @@ const s = StyleSheet.create({
     color: '#2563EB',
   },
 });
+
 

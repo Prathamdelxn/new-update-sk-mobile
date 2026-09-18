@@ -164,6 +164,20 @@ export default function LogSiteVisitModal({
   };
 
   const handleSubmit = async () => {
+    // --- Required field validation ---
+    if (!measurements.ceilingHeight || !measurements.ceilingHeight.trim()) {
+      Alert.alert('Required Field', 'Please enter the Ceiling Height before saving.');
+      return;
+    }
+    if (!measurements.carpetArea || !measurements.carpetArea.trim()) {
+      Alert.alert('Required Field', 'Please enter the Carpet Area before saving.');
+      return;
+    }
+    if (!measurements.rooms || !measurements.rooms.trim()) {
+      Alert.alert('Required Field', 'Please enter the Rooms to Design (e.g. 3BHK) before saving.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const updatePayload = {

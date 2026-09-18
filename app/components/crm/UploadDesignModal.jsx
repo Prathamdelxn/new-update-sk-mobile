@@ -10,12 +10,15 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet
+  StyleSheet,
+  Image,
+  Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { interiorCrmService } from '../../services/interiorCrmService';
 import * as DocumentPicker from 'expo-document-picker';
 import cloudinaryService from '../../services/cloudinaryService';
+import * as Sharing from 'expo-sharing';
 
 const CATEGORIES = [
   '2D',
@@ -48,6 +51,7 @@ export default function UploadDesignModal({
   onSuccess 
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
   
   const [designForm, setDesignForm] = useState({
     name: '',
@@ -57,6 +61,20 @@ export default function UploadDesignModal({
     fileName: '',
     mimeType: ''
   });
+
+  const handlePreviewFile = async (uri) => {
+    try {
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(uri, { dialogTitle: 'Open / Preview File' });
+      } else {
+        Alert.alert('Preview Unavailable', 'File preview is not supported on this device.');
+      }
+    } catch (e) {
+      console.log('Preview error:', e);
+      Alert.alert('Preview Error', 'Could not open the file for preview.');
+    }
+  };
 
   const pickDocument = async () => {
     try {
@@ -114,9 +132,9 @@ export default function UploadDesignModal({
 
       await interiorCrmService.createActivity({
         customer: customerId,
-        type: 'Design Upload',
+        type: 'Status Change',
         status: 'Completed',
-        remarks: `Uploaded ${designForm.category} design: ${designForm.name}`,
+        remarks: `Uploaded ${designForm.category} design file: ${designForm.name}`,
         completedDate: new Date()
       });
 
@@ -135,6 +153,28 @@ export default function UploadDesignModal({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
+
+        {/* Full-screen image preview overlay */}
+        {imagePreviewVisible && designForm.fileUri && designForm.fileType === 'image' && (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setImagePreviewVisible(false)}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => setImagePreviewVisible(false)}
+                style={{ position: 'absolute', top: 48, right: 16, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: 8 }}
+              >
+                <Ionicons name="close" size={26} color="#FFFFFF" />
+              </TouchableOpacity>
+              <Image
+                source={{ uri: designForm.fileUri }}
+                style={{ width: '100%', height: '80%', resizeMode: 'contain' }}
+              />
+              <Text style={{ color: '#94A3B8', fontSize: 12, fontFamily: 'Inter-Regular', marginTop: 12 }} numberOfLines={1}>
+                {designForm.fileName}
+              </Text>
+            </View>
+          </Modal>
+        )}
+
         <View style={s.modalContent}>
           <View style={s.modalHeader}>
             <Text style={s.modalTitle}>Upload Design File</Text>
@@ -189,20 +229,56 @@ export default function UploadDesignModal({
             <View style={s.inputContainer}>
               <Text style={s.label}>Upload File *</Text>
               {designForm.fileUri ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', padding: 12, borderRadius: 8 }}>
-                  <Ionicons name="document-text" size={24} color="#64748B" />
-                  <Text style={{ flex: 1, marginLeft: 8, fontSize: 13, color: '#0F172A', fontFamily: 'Inter-Medium' }} numberOfLines={1}>{designForm.fileName || 'Selected File'}</Text>
-                  <TouchableOpacity onPress={() => setDesignForm({ ...designForm, fileUri: '', fileName: '', mimeType: '' })}>
-                    <Ionicons name="close-circle" size={24} color="#EF4444" />
-                  </TouchableOpacity>
+                <View style={{ borderRadius: 10, overflow: 'hidden', backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' }}>
+                  {/* Image preview */}
+                  {designForm.fileType === 'image' && (
+                    <Image
+                      source={{ uri: designForm.fileUri }}
+                      style={{ width: '100%', height: 180, resizeMode: 'cover' }}
+                    />
+                  )}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', padding: 10 }}>
+                    <Ionicons
+                      name={
+                        designForm.fileType === 'image' ? 'image-outline' :
+                        designForm.fileType === 'pdf' ? 'document-text-outline' :
+                        designForm.fileType === '3d-model' ? 'cube-outline' :
+                        designForm.fileType === 'cad' ? 'git-branch-outline' :
+                        'document-outline'
+                      }
+                      size={22}
+                      color="#2563EB"
+                    />
+                    <Text style={{ flex: 1, marginLeft: 8, fontSize: 13, color: '#0F172A', fontFamily: 'Inter-Medium' }} numberOfLines={1}>
+                      {designForm.fileName || 'Selected File'}
+                    </Text>
+                    {/* Preview button — always visible after file is selected */}
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (designForm.fileType === 'image') {
+                          setImagePreviewVisible(true);
+                        } else {
+                          handlePreviewFile(designForm.fileUri);
+                        }
+                      }}
+                      style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, marginRight: 6 }}
+                    >
+                      <Ionicons name="eye-outline" size={14} color="#2563EB" />
+                      <Text style={{ fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#2563EB', marginLeft: 4 }}>Preview</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setDesignForm({ ...designForm, fileUri: '', fileName: '', mimeType: '' })}>
+                      <Ionicons name="close-circle" size={22} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ) : (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: '#CBD5E1', borderRadius: 8, padding: 20, alignItems: 'center', backgroundColor: '#F8FAFC' }}
                   onPress={pickDocument}
                 >
                   <Ionicons name="cloud-upload-outline" size={32} color="#94A3B8" />
                   <Text style={{ marginTop: 8, color: '#64748B', fontFamily: 'Inter-Medium', fontSize: 13 }}>Tap to select file from device</Text>
+                  <Text style={{ marginTop: 4, color: '#94A3B8', fontFamily: 'Inter-Regular', fontSize: 11 }}>Images, PDFs, DWG, OBJ, FBX and more</Text>
                 </TouchableOpacity>
               )}
             </View>

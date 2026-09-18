@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+﻿import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -94,7 +94,7 @@ export default function CrmFollowUpsScreen() {
             : act
         )
       );
-      await interiorApiClient.patch(`/crm/activities/${activityId}`, {
+      await interiorCrmService.updateActivity(activityId, {
         status: 'Completed',
         completedDate: new Date(),
       });
@@ -112,7 +112,7 @@ export default function CrmFollowUpsScreen() {
     if (!leadId) return;
     try {
       setActionLoadingId(leadId);
-      await interiorApiClient.patch(`/crm/customers/${leadId}`, { status: 'Meeting Scheduled' });
+      await interiorCrmService.updateCustomer(leadId, { status: 'Meeting Scheduled' });
       showToast('Lead moved to Site Visit', 'success');
       loadFollowUps();
     } catch (e) {
@@ -326,7 +326,7 @@ export default function CrmFollowUpsScreen() {
                         </View>
                         <Text style={s.leadPhone} numberOfLines={1}>
                           {act.customer?.mobileNumber || 'No phone'}
-                          {act.customer?.propertyType ? ` · ${act.customer.propertyType}` : ''}
+                          {act.customer?.propertyType ? ` Â· ${act.customer.propertyType}` : ''}
                         </Text>
                       </View>
 
@@ -374,7 +374,7 @@ export default function CrmFollowUpsScreen() {
                                 month: 'short',
                                 day: 'numeric',
                               })
-                            : '—'}
+                            : 'â€”'}
                         </Text>
                       </View>
 
