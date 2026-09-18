@@ -681,7 +681,10 @@ export function ConvertToProjectModal({ isOpen, onClose, customerId, onSuccess }
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={s.actionBtnText}>🏆 Convert to Project</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Ionicons name="trophy-outline" size={16} color="#FFFFFF" />
+              <Text style={s.actionBtnText}>Convert to Project</Text>
+            </View>
           )}
         </TouchableOpacity>
       </ScrollView>

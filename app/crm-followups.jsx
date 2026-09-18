@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -374,7 +374,7 @@ export default function CrmFollowUpsScreen() {
                                 month: 'short',
                                 day: 'numeric',
                               })
-                            : 'â€”'}
+                            : '—'}
                         </Text>
                       </View>
 

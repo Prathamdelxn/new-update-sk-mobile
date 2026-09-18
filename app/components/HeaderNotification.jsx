@@ -48,9 +48,7 @@ export default function HeaderNotification() {
     }
   }, [socket, connected, fetchUnreadCount]);
 
-  return (
-    <View style={{ width: 48, height: 48 }} />
-  );
+  return null;
 }
 
 const styles = StyleSheet.create({

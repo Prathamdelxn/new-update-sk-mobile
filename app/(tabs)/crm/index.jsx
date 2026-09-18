@@ -261,20 +261,17 @@ export default function CRMScreen() {
       <View style={s.bgBase} />
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={s.headerGreeting}>Workspace</Text>
             <Text style={s.pageTitle}>CRM Workspace</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <TouchableOpacity
-              style={s.followUpsBtn}
-              onPress={() => router.push('/crm-followups')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="calendar-outline" size={17} color="#2563EB" />
-            </TouchableOpacity>
-            <HeaderNotification />
-          </View>
+          <TouchableOpacity
+            style={s.followUpsBtn}
+            onPress={() => router.push('/crm-followups')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="calendar-outline" size={18} color="#2563EB" />
+          </TouchableOpacity>
         </View>
 
         <CrmFlowTabs
@@ -303,6 +300,11 @@ export default function CRMScreen() {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
+              {!!searchQuery && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Follow-ups Board Banner when in follow_ups tab */}
@@ -318,7 +320,7 @@ export default function CRMScreen() {
                   borderRadius: 14,
                   paddingHorizontal: 14,
                   paddingVertical: 10,
-                  marginTop: 12,
+                  marginBottom: 14,
                 }}
                 onPress={() => router.push('/crm-followups')}
                 activeOpacity={0.7}
@@ -339,7 +341,7 @@ export default function CRMScreen() {
             )}
 
             {/* Lead list */}
-            <View style={{ marginTop: 16, gap: 12 }}>
+            <View style={{ gap: 12 }}>
               {filteredLeads.length === 0 ? (
                 <View style={s.empty}>
                   <Ionicons name={activeFlowTab === 'lost_leads' ? 'shield-checkmark-outline' : 'people-outline'} size={44} color="#94A3B8" />
@@ -586,11 +588,11 @@ const s = StyleSheet.create({
   bgBase: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { paddingHorizontal: 20, paddingTop: 16 },
+  scroll: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 },
 
   header: {
     backgroundColor: '#DBEAFE',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -599,7 +601,21 @@ const s = StyleSheet.create({
     borderBottomColor: '#DBEAFE',
   },
   headerGreeting: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#1D4ED8', marginBottom: 2 },
-  followUpsBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
+  followUpsBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   pageTitle: { fontSize: 22, fontFamily: 'Inter-Black', color: '#0F172A', letterSpacing: -0.5 },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -613,11 +629,25 @@ const s = StyleSheet.create({
   statValueSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   searchRow: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#DBEAFE',
-    paddingHorizontal: 14, paddingVertical: 10, marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    paddingHorizontal: 14,
+    height: 44,
+    marginBottom: 14,
   },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Inter-Regular',
+    color: '#0F172A',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    includeFontPadding: false,
+  },
 
   chipRow: { gap: 8, paddingVertical: 12 },
   chip: {

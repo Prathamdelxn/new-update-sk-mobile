@@ -612,7 +612,7 @@ export default function Lead360Screen() {
           onPress: async () => {
             try {
               await interiorApiClient.post(`/crm/customers/${id}/convert`, { quotationIndex: quoteIndex });
-              showToast('ðŸŽ‰ Successfully converted to Project!', 'success');
+              showToast('🎉 Successfully converted to Project!', 'success');
               router.push('/(tabs)/crm');
             } catch (e) {
               showToast(e.message || 'Failed to convert to project', 'error');
@@ -682,7 +682,7 @@ export default function Lead360Screen() {
   const handleDeleteLead = () => {
     Alert.alert(
       'Delete Lead',
-      `Are you sure you want to delete ${lead?.name || 'this lead'}? This action cannot be undone â€” all site visits, requirements, quotations, and activity history will be permanently deleted.`,
+      `Are you sure you want to delete ${lead?.name || 'this lead'}? This action cannot be undone — all site visits, requirements, quotations, and activity history will be permanently deleted.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -956,7 +956,7 @@ export default function Lead360Screen() {
                         <View style={[s.timelineDot, { backgroundColor: act.status === 'Pending' ? '#F59E0B' : '#2563EB' }]} />
                         <View style={s.timelineBody}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={s.actType}>{act.type} {act.status === 'Pending' && 'â€¢ Scheduled'}</Text>
+                            <Text style={s.actType}>{act.type} {act.status === 'Pending' && '• Scheduled'}</Text>
                             <Text style={s.actTime}>
                               {new Date(act.scheduledDate || act.createdAt).toLocaleDateString()}
                             </Text>
@@ -1960,7 +1960,8 @@ export default function Lead360Screen() {
                     {/* Quotation Detail Card */}
                     {currentQuote && (
                       <View style={s.card}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        {/* Quotation Header */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                           <View>
                             <Text style={s.cardTitle}>Quotation v{currentQuote.version}</Text>
                             <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>
@@ -1974,29 +1975,50 @@ export default function Lead360Screen() {
                           </View>
                         </View>
 
-                        {/* Items */}
-                        <View style={s.quoteTable}>
-                          <ScrollView horizontal showsHorizontalScrollIndicator={true} contentContainerStyle={{ minWidth: 400, flexGrow: 1 }}>
-                            <View style={{ flex: 1 }}>
-                              <View style={s.quoteHeaderRow}>
-                                <Text style={[s.quoteCol, { flex: 2.2 }]}>Item</Text>
-                                <Text style={[s.quoteCol, { flex: 0.6, textAlign: 'center' }]}>Qty</Text>
-                                <Text style={[s.quoteCol, { flex: 1.2, textAlign: 'right' }]}>Rate</Text>
-                                <Text style={[s.quoteCol, { flex: 1.4, textAlign: 'right' }]}>Total</Text>
-                              </View>
-                              {currentQuote.items?.map((item, i) => (
-                                <View key={i} style={s.quoteRow}>
-                                  <Text style={[s.quoteCell, { flex: 2.2 }]} numberOfLines={1}>{item.description}</Text>
-                                  <Text style={[s.quoteCell, { flex: 0.6, textAlign: 'center' }]}>{item.quantity}</Text>
-                                  <Text style={[s.quoteCell, { flex: 1.2, textAlign: 'right' }]}>₹{Number(item.unitPrice || 0).toLocaleString('en-IN')}</Text>
-                                  <Text style={[s.quoteCell, { flex: 1.4, textAlign: 'right', fontWeight: '700' }]}>₹{Number(item.total || 0).toLocaleString('en-IN')}</Text>
+                        {/* Items Section (Responsive Mobile Itemized Table) */}
+                        <View style={s.quoteTableCard}>
+                          <View style={s.quoteHeaderRow}>
+                            <Text style={s.quoteHeaderTitle}>ITEM & SPECIFICATION</Text>
+                            <Text style={s.quoteHeaderTotal}>TOTAL</Text>
+                          </View>
+
+                          {(currentQuote.items || []).map((item, i) => {
+                            const qty = Number(item.quantity) || 1;
+                            const unitPrice = Number(item.unitPrice || item.rate || 0);
+                            const lineTotal = Number(item.total) || (qty * unitPrice);
+
+                            // Extract category badge if item has [Category] prefix
+                            const catMatch = item.description?.match(/^\[(.*?)\]\s*(.*)$/);
+                            const category = catMatch ? catMatch[1] : null;
+                            const displayName = catMatch ? catMatch[2] : (item.description || 'Line Item');
+                            const isLast = i === (currentQuote.items?.length || 0) - 1;
+
+                            return (
+                              <View key={i} style={[s.quoteItemRow, isLast && { borderBottomWidth: 0 }]}>
+                                <View style={{ flex: 1, paddingRight: 12 }}>
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
+                                    {category && (
+                                      <View style={s.quoteCatBadge}>
+                                        <Text style={s.quoteCatBadgeText}>{category}</Text>
+                                      </View>
+                                    )}
+                                    <Text style={s.quoteItemName} numberOfLines={2}>
+                                      {displayName}
+                                    </Text>
+                                  </View>
+                                  <Text style={s.quoteItemMeta}>
+                                    {qty} {item.unit || 'unit'}{qty === 1 ? '' : 's'} × ₹{unitPrice.toLocaleString('en-IN')}
+                                  </Text>
                                 </View>
-                              ))}
-                            </View>
-                          </ScrollView>
+                                <Text style={s.quoteItemTotal}>
+                                  ₹{Math.round(lineTotal).toLocaleString('en-IN')}
+                                </Text>
+                              </View>
+                            );
+                          })}
                         </View>
 
-                        {/* Totals */}
+                        {/* Totals Summary Card */}
                         {(() => {
                           const quoteItems = currentQuote.items || [];
                           const computedSubtotal = quoteItems.reduce((acc, it) => acc + (Number(it.total) || ((parseFloat(it.quantity) || 0) * (parseFloat(it.unitPrice || it.rate) || 0))), 0);
@@ -2007,69 +2029,103 @@ export default function Lead360Screen() {
                           const grandTotal = Number(currentQuote.grandTotal) || Math.max(0, subtotal + taxAmount - discount);
 
                           return (
-                            <View style={s.quoteTotalsBox}>
-                              <View style={s.totalRow}>
-                                <Text style={s.totalLabel}>Total Items Count</Text>
-                                <Text style={s.totalVal}>{quoteItems.length} item{quoteItems.length === 1 ? '' : 's'}</Text>
+                            <View style={s.quoteTotalsCard}>
+                              <View style={s.quoteTotalRow}>
+                                <Text style={s.quoteTotalLabel}>Total Items</Text>
+                                <Text style={s.quoteTotalVal}>{quoteItems.length} item{quoteItems.length === 1 ? '' : 's'}</Text>
                               </View>
-                              <View style={s.totalRow}>
-                                <Text style={s.totalLabel}>Subtotal</Text>
-                                <Text style={s.totalVal}>₹{Math.round(subtotal).toLocaleString('en-IN')}</Text>
+                              <View style={s.quoteTotalRow}>
+                                <Text style={s.quoteTotalLabel}>Subtotal</Text>
+                                <Text style={s.quoteTotalVal}>₹{Math.round(subtotal).toLocaleString('en-IN')}</Text>
                               </View>
-                              <View style={s.totalRow}>
-                                <Text style={s.totalLabel}>Tax ({taxPercentage}%)</Text>
-                                <Text style={s.totalVal}>₹{Math.round(taxAmount).toLocaleString('en-IN')}</Text>
+                              <View style={s.quoteTotalRow}>
+                                <Text style={s.quoteTotalLabel}>GST ({taxPercentage}%)</Text>
+                                <Text style={s.quoteTotalVal}>+ ₹{Math.round(taxAmount).toLocaleString('en-IN')}</Text>
                               </View>
                               {discount > 0 && (
-                                <View style={s.totalRow}>
-                                  <Text style={{ fontSize: 12, color: '#16A34A' }}>Discount</Text>
-                                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#16A34A' }}>- ₹{Math.round(discount).toLocaleString('en-IN')}</Text>
+                                <View style={s.quoteTotalRow}>
+                                  <Text style={[s.quoteTotalLabel, { color: '#16A34A' }]}>Discount</Text>
+                                  <Text style={[s.quoteTotalVal, { color: '#16A34A' }]}>- ₹{Math.round(discount).toLocaleString('en-IN')}</Text>
                                 </View>
                               )}
-                              <View style={[s.totalRow, { paddingTop: 8, borderTopWidth: 1, borderColor: '#E2E8F0', marginTop: 4 }]}>
-                                <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F172A' }}>Grand Total</Text>
-                                <Text style={{ fontSize: 16, fontWeight: '900', color: '#2563EB' }}>₹{Math.round(grandTotal).toLocaleString('en-IN')}</Text>
+                              <View style={s.quoteTotalDivider} />
+                              <View style={s.quoteTotalRow}>
+                                <View>
+                                  <Text style={s.quoteGrandTotalTitle}>Grand Total</Text>
+                                  <Text style={s.quoteGrandTotalSub}>Inclusive of taxes</Text>
+                                </View>
+                                <Text style={s.quoteGrandTotalAmount}>
+                                  ₹{Math.round(grandTotal).toLocaleString('en-IN')}
+                                </Text>
                               </View>
                             </View>
                           );
                         })()}
 
+                        {/* Notes / Terms if present */}
+                        {!!currentQuote.notes && (
+                          <View style={s.quoteNotesBox}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                              <Ionicons name="document-text-outline" size={13} color="#64748B" />
+                              <Text style={s.quoteNotesHeader}>TERMS & CLIENT NOTES</Text>
+                            </View>
+                            <Text style={s.quoteNotesBody}>{currentQuote.notes}</Text>
+                          </View>
+                        )}
+
                         {/* Actions */}
                         {currentQuote.status === 'Accepted' ? (
                           <View style={{ marginTop: 16, gap: 10 }}>
-                            <View style={{ backgroundColor: '#DCFCE7', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#86EFAC', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={s.quoteAcceptedBanner}>
                               <Ionicons name="checkmark-circle" size={20} color="#15803D" />
                               <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#15803D' }}>Quotation Accepted</Text>
-                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#166534' }}>Client approved this proposal. Ready to initialize project execution.</Text>
+                                <Text style={s.quoteAcceptedTitle}>Quotation Accepted</Text>
+                                <Text style={s.quoteAcceptedSubtitle}>Client approved this proposal. Ready to initialize project execution.</Text>
                               </View>
                             </View>
-                            <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#16A34A' }]} onPress={() => handleConvertToProject(activeQuoteIdx)}>
-                              <Text style={s.actionBtnText}>ðŸŽ‰ Convert to Project</Text>
+                            <TouchableOpacity
+                              style={s.quoteConvertBtn}
+                              onPress={() => handleConvertToProject(activeQuoteIdx)}
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons name="rocket-outline" size={18} color="#FFFFFF" />
+                              <Text style={s.quoteConvertBtnText}>Convert to Project</Text>
                             </TouchableOpacity>
                           </View>
                         ) : currentQuote.status === 'Rejected' ? (
                           <View style={{ marginTop: 16, gap: 10 }}>
-                            <View style={{ backgroundColor: '#FEE2E2', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#FECACA', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={s.quoteRejectedBanner}>
                               <Ionicons name="close-circle" size={20} color="#B91C1C" />
                               <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#B91C1C' }}>Quotation Rejected</Text>
-                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#991B1B' }}>Client declined this version. Create a new revision with revised rates.</Text>
+                                <Text style={s.quoteRejectedTitle}>Quotation Rejected</Text>
+                                <Text style={s.quoteRejectedSubtitle}>Client declined this version. Create a new revision with revised rates.</Text>
                               </View>
                             </View>
-                            <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#2563EB' }]} onPress={openQuoteModal}>
-                              <Ionicons name="add" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                              <Text style={s.actionBtnText}>Create New Revision</Text>
+                            <TouchableOpacity
+                              style={s.quoteRevisionBtn}
+                              onPress={openQuoteModal}
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+                              <Text style={s.quoteConvertBtnText}>Create New Revision</Text>
                             </TouchableOpacity>
                           </View>
                         ) : (
                           <View style={{ gap: 8, marginTop: 16 }}>
                             <View style={{ flexDirection: 'row', gap: 8 }}>
-                              <TouchableOpacity style={[s.smallActionBtn, { backgroundColor: '#DCFCE7', flex: 1 }]} onPress={() => handleQuoteStatus(activeQuoteIdx, 'Accepted')}>
+                              <TouchableOpacity
+                                style={[s.smallActionBtn, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC', borderWidth: 1, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+                                onPress={() => handleQuoteStatus(activeQuoteIdx, 'Accepted')}
+                                activeOpacity={0.8}
+                              >
                                 <Ionicons name="checkmark-circle-outline" size={15} color="#15803D" style={{ marginRight: 4 }} />
                                 <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>Mark Accepted</Text>
                               </TouchableOpacity>
-                              <TouchableOpacity style={[s.smallActionBtn, { backgroundColor: '#FEE2E2', flex: 1 }]} onPress={() => handleQuoteStatus(activeQuoteIdx, 'Rejected')}>
+                              <TouchableOpacity
+                                style={[s.smallActionBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA', borderWidth: 1, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+                                onPress={() => handleQuoteStatus(activeQuoteIdx, 'Rejected')}
+                                activeOpacity={0.8}
+                              >
                                 <Ionicons name="close-circle-outline" size={15} color="#B91C1C" style={{ marginRight: 4 }} />
                                 <Text style={{ fontSize: 12, fontWeight: '700', color: '#B91C1C' }}>Mark Rejected</Text>
                               </TouchableOpacity>
@@ -2717,7 +2773,7 @@ export default function Lead360Screen() {
         onClose={() => setShowConvertModal(false)}
         customerId={id}
         onSuccess={() => {
-          showToast('ðŸŽ‰ Converted to active project!', 'success');
+          showToast('🎉 Converted to active project!', 'success');
           fetchData();
           router.push('/(tabs)/crm');
         }}
@@ -3013,15 +3069,204 @@ const s = StyleSheet.create({
   versionChipText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
   versionChipTextActive: { color: '#FFFFFF' },
   addVersionBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: '#FFF1F2', justifyContent: 'center' },
-  quoteTable: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, overflow: 'hidden' },
-  quoteHeaderRow: { flexDirection: 'row', backgroundColor: '#F8FAFC', padding: 8, borderBottomWidth: 1, borderColor: '#E2E8F0' },
-  quoteCol: { flex: 1, fontSize: 10, fontWeight: '800', color: '#64748B', uppercase: true },
-  quoteRow: { flexDirection: 'row', padding: 8, borderBottomWidth: 1, borderColor: '#F1F5F9' },
-  quoteCell: { flex: 1, fontSize: 12, color: '#334155' },
-  quoteTotalsBox: { marginTop: 12, gap: 6 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  totalLabel: { fontSize: 12, color: '#64748B' },
-  totalVal: { fontSize: 12, fontWeight: '700', color: '#0F172A' },
+  // Quotation Tab Layout Styles
+  quoteTableCard: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  quoteHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  quoteHeaderTitle: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  quoteHeaderTotal: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  quoteItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  quoteCatBadge: {
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  quoteCatBadgeText: {
+    fontSize: 9,
+    fontFamily: 'Inter-Bold',
+    color: '#4F46E5',
+    textTransform: 'uppercase',
+  },
+  quoteItemName: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  quoteItemMeta: {
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  quoteItemTotal: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+    marginLeft: 8,
+  },
+  quoteTotalsCard: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 12,
+    gap: 7,
+  },
+  quoteTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  quoteTotalLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+  },
+  quoteTotalVal: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  quoteTotalDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 4,
+  },
+  quoteGrandTotalTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  quoteGrandTotalSub: {
+    fontSize: 10,
+    fontFamily: 'Inter-Regular',
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+  quoteGrandTotalAmount: {
+    fontSize: 16,
+    fontFamily: 'Inter-Black',
+    color: '#2563EB',
+  },
+  quoteNotesBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 10,
+  },
+  quoteNotesHeader: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  quoteNotesBody: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#334155',
+    lineHeight: 17,
+  },
+  quoteAcceptedBanner: {
+    backgroundColor: '#DCFCE7',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  quoteAcceptedTitle: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#15803D',
+  },
+  quoteAcceptedSubtitle: {
+    fontSize: 11,
+    fontFamily: 'Inter-Regular',
+    color: '#166534',
+    marginTop: 1,
+  },
+  quoteRejectedBanner: {
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  quoteRejectedTitle: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#B91C1C',
+  },
+  quoteRejectedSubtitle: {
+    fontSize: 11,
+    fontFamily: 'Inter-Regular',
+    color: '#991B1B',
+    marginTop: 1,
+  },
+  quoteConvertBtn: {
+    backgroundColor: '#16A34A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  quoteRevisionBtn: {
+    backgroundColor: '#2563EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  quoteConvertBtnText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#FFFFFF',
+  },
   smallActionBtn: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, justifyContent: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.5)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 12 },
