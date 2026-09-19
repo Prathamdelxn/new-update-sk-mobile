@@ -14,20 +14,24 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { interiorCrmService } from '../../services/interiorCrmService';
+import { parseMaxBudget } from '../../utils/format';
 
-export default function BoqBuilderModal({ 
-  visible, 
-  onClose, 
-  customerId, 
-  existingBoqs = [], 
-  editingBoqIndex = null, 
-  onSuccess 
+export default function BoqBuilderModal({
+  visible,
+  onClose,
+  customerId,
+  existingBoqs = [],
+  editingBoqIndex = null,
+  isReadOnly = false,
+  budgetRange,
+  onSuccess
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [items, setItems] = useState([]);
   const [notes, setNotes] = useState('');
 
   const isEditing = editingBoqIndex !== null && editingBoqIndex >= 0 && existingBoqs[editingBoqIndex];
+  const targetBoq = isEditing ? existingBoqs[editingBoqIndex] : null;
 
   useEffect(() => {
     if (visible) {
@@ -88,7 +92,16 @@ export default function BoqBuilderModal({
 
   const totalAmount = items.reduce((acc, item) => acc + (item.amount || 0), 0);
 
+  const maxBudget = parseMaxBudget(budgetRange);
+  const isOverBudget = Boolean(maxBudget && maxBudget > 0 && totalAmount > maxBudget);
+  const budgetExcess = isOverBudget ? totalAmount - (maxBudget || 0) : 0;
+  const budgetExcessPct = isOverBudget && maxBudget ? ((totalAmount - maxBudget) / maxBudget) * 100 : 0;
+
   const handleSubmit = async () => {
+    if (isReadOnly) {
+      Alert.alert('Locked', 'BOQ cannot be edited because the quotation has already been approved.');
+      return;
+    }
     if (items.length === 0) {
       Alert.alert('Error', 'Please add at least one line item to the BOQ.');
       return;
@@ -97,31 +110,35 @@ export default function BoqBuilderModal({
       Alert.alert('Error', 'Please provide an item name for all items.');
       return;
     }
+    if (items.some(i => !i.quantity || parseFloat(i.quantity) <= 0)) {
+      Alert.alert('Error', 'Quantity must be greater than 0 for all items.');
+      return;
+    }
+    if (items.some(i => i.rate === undefined || i.rate === null || parseFloat(i.rate) <= 0)) {
+      Alert.alert('Error', 'Unit rate must be greater than ₹0 for all items.');
+      return;
+    }
+    if (totalAmount <= 0) {
+      Alert.alert('Error', 'Total BOQ amount must be greater than ₹0 to save.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       const updatedBoqs = [...(existingBoqs || [])];
-      
+
       const payloadItems = items.map(i => ({
         ...i,
         quantity: parseFloat(i.quantity) || 0,
         rate: parseFloat(i.rate) || 0,
       }));
 
-      const subtotal = totalAmount;
-      const taxPercent = 18;
-      const taxAmount = Math.round(subtotal * 0.18 * 100) / 100;
-      const grandTotal = Math.round((subtotal + taxAmount) * 100) / 100;
-
       if (isEditing) {
         const currentBoq = updatedBoqs[editingBoqIndex];
         updatedBoqs[editingBoqIndex] = {
           ...currentBoq,
           items: payloadItems,
-          subtotal,
-          taxPercent,
-          taxAmount,
-          totalAmount: grandTotal,
+          totalAmount,
           notes,
           updatedAt: new Date()
         };
@@ -130,10 +147,7 @@ export default function BoqBuilderModal({
         updatedBoqs.push({
           version: newVersion, // Mongoose expects Number
           items: payloadItems,
-          subtotal,
-          taxPercent,
-          taxAmount,
-          totalAmount: grandTotal,
+          totalAmount,
           notes,
           status: 'draft',
           createdAt: new Date()
@@ -171,7 +185,23 @@ export default function BoqBuilderModal({
         <View style={s.modalContent}>
           {/* Header */}
           <View style={s.modalHeader}>
-            <Text style={s.modalTitle}>{isEditing ? 'Edit BOQ' : 'Create Estimate BOQ'}</Text>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <Text style={s.modalTitle}>
+                  {isReadOnly ? `View BOQ (v${targetBoq?.version || (editingBoqIndex + 1)})` : isEditing ? `Edit BOQ (v${targetBoq?.version || (editingBoqIndex + 1)})` : `New BOQ Version (v${existingBoqs.length + 1})`}
+                </Text>
+                {isReadOnly && (
+                  <View style={{ backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#059669' }}>Locked</Text>
+                  </View>
+                )}
+              </View>
+              {isReadOnly && (
+                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 3 }}>
+                  This BOQ is locked because the client quotation has been approved.
+                </Text>
+              )}
+            </View>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
               <Ionicons name="close" size={24} color="#64748B" />
             </TouchableOpacity>
@@ -183,7 +213,7 @@ export default function BoqBuilderModal({
               <View key={index} style={s.itemCard}>
                 <View style={s.itemHeader}>
                   <Text style={s.itemTitle}>Item {item.serialNumber}</Text>
-                  {items.length > 1 && (
+                  {!isReadOnly && items.length > 1 && (
                     <TouchableOpacity onPress={() => removeItemRow(index)}>
                       <Ionicons name="trash-outline" size={18} color="#DC2626" />
                     </TouchableOpacity>
@@ -192,57 +222,63 @@ export default function BoqBuilderModal({
 
                 <Text style={s.label}>Category</Text>
                 <TextInput
-                  style={s.input}
+                  style={[s.input, isReadOnly && s.inputDisabled]}
                   value={item.category}
                   onChangeText={(val) => updateItemField(index, 'category', val)}
                   placeholder="e.g. Flooring, Woodwork"
+                  editable={!isReadOnly}
                 />
 
                 <Text style={s.label}>Item Name</Text>
                 <TextInput
-                  style={s.input}
+                  style={[s.input, isReadOnly && s.inputDisabled]}
                   value={item.itemName}
                   onChangeText={(val) => updateItemField(index, 'itemName', val)}
                   placeholder="e.g. Marine Plywood 18mm"
+                  editable={!isReadOnly}
                 />
 
                 <Text style={s.label}>Description (Optional)</Text>
                 <TextInput
-                  style={s.input}
+                  style={[s.input, isReadOnly && s.inputDisabled]}
                   value={item.description}
                   onChangeText={(val) => updateItemField(index, 'description', val)}
                   placeholder="Detailed specifications"
                   multiline
+                  editable={!isReadOnly}
                 />
 
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <View style={{ flex: 1 }}>
                     <Text style={s.label}>Qty</Text>
                     <TextInput
-                      style={s.input}
+                      style={[s.input, isReadOnly && s.inputDisabled]}
                       value={String(item.quantity)}
                       onChangeText={(val) => updateItemField(index, 'quantity', val)}
                       keyboardType="numeric"
                       placeholder="0"
+                      editable={!isReadOnly}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.label}>Unit</Text>
                     <TextInput
-                      style={s.input}
+                      style={[s.input, isReadOnly && s.inputDisabled]}
                       value={item.unit}
                       onChangeText={(val) => updateItemField(index, 'unit', val)}
                       placeholder="sqft"
+                      editable={!isReadOnly}
                     />
                   </View>
                   <View style={{ flex: 1.5 }}>
                     <Text style={s.label}>Rate (₹)</Text>
                     <TextInput
-                      style={s.input}
+                      style={[s.input, isReadOnly && s.inputDisabled]}
                       value={String(item.rate)}
                       onChangeText={(val) => updateItemField(index, 'rate', val)}
                       keyboardType="numeric"
                       placeholder="0"
+                      editable={!isReadOnly}
                     />
                   </View>
                 </View>
@@ -254,43 +290,59 @@ export default function BoqBuilderModal({
               </View>
             ))}
 
-            <TouchableOpacity style={s.addBtn} onPress={addItemRow}>
-              <Ionicons name="add-circle-outline" size={20} color="#059669" />
-              <Text style={s.addBtnText}>Add Row</Text>
-            </TouchableOpacity>
+            {!isReadOnly && (
+              <TouchableOpacity style={s.addBtn} onPress={addItemRow}>
+                <Ionicons name="add-circle-outline" size={20} color="#059669" />
+                <Text style={s.addBtnText}>Add Row</Text>
+              </TouchableOpacity>
+            )}
+
+            {isOverBudget && (
+              <View style={s.overBudgetBox}>
+                <Ionicons name="warning" size={16} color="#E11D48" style={{ marginTop: 1 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.overBudgetText}>
+                    <Text style={{ fontFamily: 'Inter-Bold' }}>Over Target Budget Warning:</Text> Exceeds estimated budget ({budgetRange}) by <Text style={{ fontFamily: 'Inter-ExtraBold', color: '#E11D48' }}>₹{budgetExcess.toLocaleString('en-IN')}</Text>
+                  </Text>
+                </View>
+                <View style={s.overBudgetPill}>
+                  <Text style={s.overBudgetPillText}>+{budgetExcessPct.toFixed(1)}%</Text>
+                </View>
+              </View>
+            )}
 
             <View style={s.grandTotalBox}>
-              <Text style={s.grandTotalLabel}>Subtotal</Text>
-              <Text style={s.grandTotalValue}>₹{totalAmount.toLocaleString('en-IN')}</Text>
-              <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
-                +18% GST will be added automatically
-              </Text>
+              <Text style={s.grandTotalLabel}>Total BOQ Amount</Text>
+              <Text style={[s.grandTotalValue, isOverBudget && { color: '#E11D48' }]}>₹{totalAmount.toLocaleString('en-IN')}</Text>
             </View>
 
             <Text style={[s.label, { marginTop: 16 }]}>Notes / Terms (Optional)</Text>
             <TextInput
-              style={[s.input, { height: 80, textAlignVertical: 'top' }]}
+              style={[s.input, { height: 80, textAlignVertical: 'top' }, isReadOnly && s.inputDisabled]}
               value={notes}
               onChangeText={setNotes}
               placeholder="Any specific terms for this BOQ"
               multiline
+              editable={!isReadOnly}
             />
-            
+
             <View style={{ height: 40 }} />
           </ScrollView>
 
           {/* Footer Actions */}
           <View style={s.footer}>
-            <TouchableOpacity style={s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={s.cancelBtnText}>Cancel</Text>
+            <TouchableOpacity style={isReadOnly ? s.saveBtn : s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
+              <Text style={isReadOnly ? s.saveBtnText : s.cancelBtnText}>{isReadOnly ? 'Close' : 'Cancel'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={s.saveBtnText}>Save BOQ</Text>
-              )}
-            </TouchableOpacity>
+            {!isReadOnly && (
+              <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={s.saveBtnText}>Save BOQ</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -339,6 +391,41 @@ const s = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  inputDisabled: {
+    backgroundColor: '#F1F5F9',
+    color: '#64748B',
+  },
+  overBudgetBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1,
+    borderColor: 'rgba(225,29,72,0.25)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  overBudgetText: {
+    flex: 1,
+    fontSize: 11.5,
+    fontFamily: 'Inter-Medium',
+    color: '#BE123C',
+    lineHeight: 16,
+  },
+  overBudgetPill: {
+    backgroundColor: 'rgba(225,29,72,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(225,29,72,0.3)',
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  overBudgetPillText: {
+    fontSize: 9.5,
+    fontFamily: 'Inter-ExtraBold',
+    color: '#BE123C',
   },
   itemHeader: {
     flexDirection: 'row',

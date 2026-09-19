@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, TextInput,
   ActivityIndicator, Alert, ScrollView, Platform
@@ -9,6 +9,20 @@ import interiorCrmService from '../../services/interiorCrmService';
 function userLabel(u) {
   const name = u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || 'User';
   return `${name}${u.role?.name || u.role ? ` (${u.role?.name || u.role})` : ''}`;
+}
+
+function toDateInputStr(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().split('T')[0];
+}
+
+function fmtScheduleDisplay(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,23 +53,104 @@ function ModalShell({ isOpen, onClose, icon, iconColor, title, subtitle, childre
   );
 }
 
+// Reusable "Previous Schedule (Reference)" box shown when reopening a modal in reschedule mode
+function PreviousScheduleBox({ color, phaseLabel, scheduledDate, assignedLabel, remarks }) {
+  return (
+    <View style={[s.prevBox, { borderColor: `${color}33`, backgroundColor: `${color}0D` }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Ionicons name="time-outline" size={12} color={color} />
+          <Text style={[s.prevBoxLabel, { color }]}>PREVIOUS SCHEDULE (REFERENCE)</Text>
+        </View>
+        <View style={s.prevBoxPill}>
+          <Text style={s.prevBoxPillText}>{phaseLabel}</Text>
+        </View>
+      </View>
+      {!!scheduledDate && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+          <Ionicons name="calendar-outline" size={12} color={color} />
+          <Text style={s.prevBoxText}>{fmtScheduleDisplay(scheduledDate)}</Text>
+        </View>
+      )}
+      {!!assignedLabel && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+          <Ionicons name="person-outline" size={12} color={color} />
+          <Text style={s.prevBoxSub}>Assigned: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{assignedLabel}</Text></Text>
+        </View>
+      )}
+      {!!remarks && (
+        <Text style={s.prevBoxNote} numberOfLines={2}>&quot;{remarks}&quot;</Text>
+      )}
+    </View>
+  );
+}
+
+// TAT (turnaround time) quick-date presets — adds N days to today and fills scheduledDate
+function TatPresets({ color, scheduledDate, onPick }) {
+  const presets = [
+    { label: '+1 Day', days: 1 },
+    { label: '+2 Days', days: 2 },
+    { label: '+3 Days', days: 3 },
+    { label: '+5 Days', days: 5 },
+    { label: '+1 Week', days: 7 },
+  ];
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+      <Text style={s.tatLabel}>Quick TAT:</Text>
+      {presets.map((p) => {
+        const target = new Date(Date.now() + p.days * 24 * 60 * 60 * 1000);
+        const formatted = toDateInputStr(target);
+        const active = scheduledDate === formatted;
+        return (
+          <TouchableOpacity
+            key={p.label}
+            style={[s.tatChip, active && { backgroundColor: color, borderColor: color }]}
+            onPress={() => onPick(formatted)}
+          >
+            <Text style={[s.tatChipText, active && { color: '#FFFFFF' }]}>{p.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. Send To Site Visit Modal
 // ─────────────────────────────────────────────────────────────────────────────
-export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, users = [], isFollowUpCompleted = true }) {
+export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, users = [], isFollowUpCompleted = true, initialData = null }) {
   const [assignedExecutive, setAssignedExecutive] = useState('');
   const [showExecutiveDropdown, setShowExecutiveDropdown] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [scheduledDate, setScheduledDate] = useState(() => toDateInputStr(new Date()));
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const isRescheduling = Boolean(initialData?.scheduledDate || initialData?.assignedSalesExecutive);
+
+  useEffect(() => {
+    if (isOpen) {
+      setAssignedExecutive(initialData?.assignedSalesExecutive || '');
+      setScheduledDate(initialData?.scheduledDate ? toDateInputStr(initialData.scheduledDate) : toDateInputStr(new Date()));
+      setRemarks(initialData?.remarks || '');
+      setShowExecutiveDropdown(false);
+    }
+  }, [isOpen, initialData]);
+
+  const previousAssignedUser = initialData?.assignedSalesExecutive
+    ? userLabel(users.find((u) => (u._id || u.id) === initialData.assignedSalesExecutive) || {})
+    : null;
+
   const handleSubmit = async () => {
-    if (!isFollowUpCompleted) {
+    if (!isFollowUpCompleted && !isRescheduling) {
       Alert.alert('Follow-up Required', 'Please complete the follow-up before passing to the Site Visit stage.');
       return;
     }
     if (!assignedExecutive) {
       Alert.alert('Assignee Required', 'Please select a site executive before scheduling the site visit.');
+      return;
+    }
+    if (!scheduledDate) {
+      Alert.alert('Date Required', 'Please select a target visit date.');
       return;
     }
 
@@ -79,6 +174,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
         status: 'Pending',
         scheduledDate,
         remarks: finalRemarks || 'Site visit scheduled.',
+        user: assignedExecutive || undefined,
       });
 
       // Auto-complete any pending follow-up activities (mirrors web flow)
@@ -113,13 +209,23 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
       onClose={onClose}
       icon="location-outline"
       iconColor="#7C3AED"
-      title="Pass to Site Visit"
-      subtitle="Schedule site measurement and inspection"
+      title={isRescheduling ? 'Reschedule Site Visit' : 'Pass to Site Visit'}
+      subtitle={isRescheduling ? 'Update scheduled visit date & assigned member' : 'Schedule site measurement and inspection'}
     >
-      <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+        {isRescheduling && (
+          <PreviousScheduleBox
+            color="#7C3AED"
+            phaseLabel="Site Visit"
+            scheduledDate={initialData?.scheduledDate}
+            assignedLabel={previousAssignedUser}
+            remarks={initialData?.remarks}
+          />
+        )}
+
         <Text style={s.label}>Assign Site Executive *</Text>
-        <TouchableOpacity 
-           style={s.input} 
+        <TouchableOpacity
+           style={s.input}
            onPress={() => setShowExecutiveDropdown(!showExecutiveDropdown)}
         >
           <Text style={{ color: assignedExecutive ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
@@ -127,7 +233,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
-        
+
         {showExecutiveDropdown && (
           <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, maxHeight: 150, overflow: 'hidden' }}>
             <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
@@ -135,8 +241,8 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
                 const id = u._id || u.id;
                 const active = assignedExecutive === id;
                 return (
-                  <TouchableOpacity 
-                    key={id} 
+                  <TouchableOpacity
+                    key={id}
                     style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
                     onPress={() => { setAssignedExecutive(id); setShowExecutiveDropdown(false); }}
                   >
@@ -150,7 +256,8 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
           </View>
         )}
 
-        <Text style={s.label}>Target Visit Date (YYYY-MM-DD)</Text>
+        <Text style={s.label}>Target Visit Date *</Text>
+        <TatPresets color="#7C3AED" scheduledDate={scheduledDate} onPick={setScheduledDate} />
         <TextInput
           style={s.input}
           value={scheduledDate}
@@ -178,7 +285,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={s.actionBtnText}>Schedule Site Visit</Text>
+            <Text style={s.actionBtnText}>{isRescheduling ? 'Confirm Reschedule' : 'Schedule Site Visit'}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -189,15 +296,35 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Send To Requirements Modal
 // ─────────────────────────────────────────────────────────────────────────────
-export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess, users = [] }) {
+export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess, users = [], initialData = null }) {
   const [assignedDesigner, setAssignedDesigner] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState(() => toDateInputStr(new Date()));
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const isRescheduling = Boolean(initialData?.scheduledDate || initialData?.assignedMember);
+
+  useEffect(() => {
+    if (isOpen) {
+      setAssignedDesigner(initialData?.assignedMember || '');
+      setScheduledDate(initialData?.scheduledDate ? toDateInputStr(initialData.scheduledDate) : toDateInputStr(new Date()));
+      setRemarks(initialData?.remarks || '');
+      setShowDropdown(false);
+    }
+  }, [isOpen, initialData]);
+
+  const previousAssignedUser = initialData?.assignedMember
+    ? userLabel(users.find((u) => (u._id || u.id) === initialData.assignedMember) || {})
+    : null;
 
   const handleSubmit = async () => {
     if (!assignedDesigner) {
       Alert.alert('Assignee Required', 'Please select an interior designer before starting the requirements phase.');
+      return;
+    }
+    if (!scheduledDate) {
+      Alert.alert('Date Required', 'Please select a session date.');
       return;
     }
 
@@ -210,14 +337,15 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
       });
       const assignedUser = users.find((u) => (u._id || u.id) === assignedDesigner);
       const assignNote = assignedUser ? `Designer: ${userLabel(assignedUser)}` : '';
-      const finalRemarks = [remarks.trim(), assignNote].filter(Boolean).join(' | ') || 'Moved to requirement logging phase.';
+      const finalRemarks = [remarks.trim(), assignNote, `Session: ${scheduledDate}`].filter(Boolean).join(' | ') || 'Moved to requirement logging phase.';
 
       await interiorCrmService.createActivity({
         customer: customerId,
-        type: 'Status Change',
-        status: 'Completed',
+        type: 'Requirement Gathering',
+        status: 'Pending',
+        scheduledDate,
         remarks: finalRemarks,
-        completedDate: new Date(),
+        user: assignedDesigner || undefined,
       });
 
       onSuccess();
@@ -235,13 +363,23 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
       onClose={onClose}
       icon="create-outline"
       iconColor="#4F46E5"
-      title="Pass to Requirements"
-      subtitle="Gather room preferences, styling & functional specs"
+      title={isRescheduling ? 'Reschedule Requirements Session' : 'Pass to Requirements'}
+      subtitle={isRescheduling ? 'Update session date & assigned designer' : 'Gather room preferences, styling & functional specs'}
     >
-      <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+        {isRescheduling && (
+          <PreviousScheduleBox
+            color="#4F46E5"
+            phaseLabel="Requirements"
+            scheduledDate={initialData?.scheduledDate}
+            assignedLabel={previousAssignedUser}
+            remarks={initialData?.remarks}
+          />
+        )}
+
         <Text style={s.label}>Assign Interior Designer *</Text>
-        <TouchableOpacity 
-           style={s.input} 
+        <TouchableOpacity
+           style={s.input}
            onPress={() => setShowDropdown(!showDropdown)}
         >
           <Text style={{ color: assignedDesigner ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
@@ -249,7 +387,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
-        
+
         {showDropdown && (
           <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, maxHeight: 150, overflow: 'hidden' }}>
             <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
@@ -257,8 +395,8 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
                 const id = u._id || u.id;
                 const active = assignedDesigner === id;
                 return (
-                  <TouchableOpacity 
-                    key={id} 
+                  <TouchableOpacity
+                    key={id}
                     style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
                     onPress={() => { setAssignedDesigner(id); setShowDropdown(false); }}
                   >
@@ -271,6 +409,16 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
             </ScrollView>
           </View>
         )}
+
+        <Text style={s.label}>Session Target Date *</Text>
+        <TatPresets color="#4F46E5" scheduledDate={scheduledDate} onPick={setScheduledDate} />
+        <TextInput
+          style={s.input}
+          value={scheduledDate}
+          onChangeText={setScheduledDate}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor="#94A3B8"
+        />
 
         <Text style={s.label}>Client Brief / Onboarding Remarks</Text>
         <TextInput
@@ -291,7 +439,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={s.actionBtnText}>Start Requirements</Text>
+            <Text style={s.actionBtnText}>{isRescheduling ? 'Reschedule Session' : 'Start Requirements'}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -302,15 +450,35 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. Send To Drawing Modal
 // ─────────────────────────────────────────────────────────────────────────────
-export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, users = [] }) {
+export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, users = [], initialData = null }) {
   const [assignedArchitect, setAssignedArchitect] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState(() => toDateInputStr(new Date()));
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const isRescheduling = Boolean(initialData?.scheduledDate || initialData?.assignedDesigner);
+
+  useEffect(() => {
+    if (isOpen) {
+      setAssignedArchitect(initialData?.assignedDesigner || '');
+      setScheduledDate(initialData?.scheduledDate ? toDateInputStr(initialData.scheduledDate) : toDateInputStr(new Date()));
+      setRemarks(initialData?.remarks || '');
+      setShowDropdown(false);
+    }
+  }, [isOpen, initialData]);
+
+  const previousAssignedUser = initialData?.assignedDesigner
+    ? userLabel(users.find((u) => (u._id || u.id) === initialData.assignedDesigner) || {})
+    : null;
 
   const handleSubmit = async () => {
     if (!assignedArchitect) {
       Alert.alert('Assignee Required', 'Please select a draftsperson or architect before commissioning drawings.');
+      return;
+    }
+    if (!scheduledDate) {
+      Alert.alert('Date Required', 'Please select a delivery deadline.');
       return;
     }
 
@@ -319,17 +487,20 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
       await interiorCrmService.updateCustomer(customerId, {
         status: 'Under Drawing',
         assignedTo: assignedArchitect,
+        designerAssigned: assignedArchitect,
+        drawingScheduledDate: new Date(scheduledDate).toISOString(),
       });
       const assignedUser = users.find((u) => (u._id || u.id) === assignedArchitect);
       const assignNote = assignedUser ? `Architect: ${userLabel(assignedUser)}` : '';
-      const finalRemarks = [remarks.trim(), assignNote].filter(Boolean).join(' | ') || 'Moved to 2D/3D drawing stage.';
+      const finalRemarks = [remarks.trim(), assignNote].filter(Boolean).join(' | ') || 'Lead passed to 2D/3D Drawing phase and assigned to designer.';
 
       await interiorCrmService.createActivity({
         customer: customerId,
-        type: 'Status Change',
-        status: 'Completed',
+        type: '2D/3D Drawing',
+        status: 'Pending',
+        scheduledDate,
         remarks: finalRemarks,
-        completedDate: new Date(),
+        user: assignedArchitect || undefined,
       });
 
       onSuccess();
@@ -347,13 +518,23 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
       onClose={onClose}
       icon="pencil-outline"
       iconColor="#0284C7"
-      title="Pass to Drawing & Layout"
-      subtitle="Commission 2D CAD floor plans and 3D visual concepts"
+      title={isRescheduling ? 'Reschedule Drawing Delivery' : 'Pass to Drawing & Layout'}
+      subtitle={isRescheduling ? 'Update drawing delivery date & assigned designer' : 'Commission 2D CAD floor plans and 3D visual concepts'}
     >
-      <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+        {isRescheduling && (
+          <PreviousScheduleBox
+            color="#0284C7"
+            phaseLabel="Drawing Phase"
+            scheduledDate={initialData?.scheduledDate}
+            assignedLabel={previousAssignedUser}
+            remarks={initialData?.remarks}
+          />
+        )}
+
         <Text style={s.label}>Assign Draftsperson / Architect *</Text>
-        <TouchableOpacity 
-           style={s.input} 
+        <TouchableOpacity
+           style={s.input}
            onPress={() => setShowDropdown(!showDropdown)}
         >
           <Text style={{ color: assignedArchitect ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
@@ -361,7 +542,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
-        
+
         {showDropdown && (
           <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, maxHeight: 150, overflow: 'hidden' }}>
             <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
@@ -369,8 +550,8 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
                 const id = u._id || u.id;
                 const active = assignedArchitect === id;
                 return (
-                  <TouchableOpacity 
-                    key={id} 
+                  <TouchableOpacity
+                    key={id}
                     style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
                     onPress={() => { setAssignedArchitect(id); setShowDropdown(false); }}
                   >
@@ -383,6 +564,16 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
             </ScrollView>
           </View>
         )}
+
+        <Text style={s.label}>Delivery Deadline *</Text>
+        <TatPresets color="#0284C7" scheduledDate={scheduledDate} onPick={setScheduledDate} />
+        <TextInput
+          style={s.input}
+          value={scheduledDate}
+          onChangeText={setScheduledDate}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor="#94A3B8"
+        />
 
         <Text style={s.label}>Drafting Scope & Deliverables</Text>
         <TextInput
@@ -403,7 +594,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={s.actionBtnText}>Commission Drawings</Text>
+            <Text style={s.actionBtnText}>{isRescheduling ? 'Reschedule Delivery' : 'Commission Drawings'}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -464,8 +655,8 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
     >
       <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         <Text style={s.label}>Assign Quantity Surveyor / Estimator *</Text>
-        <TouchableOpacity 
-           style={s.input} 
+        <TouchableOpacity
+           style={s.input}
            onPress={() => setShowDropdown(!showDropdown)}
         >
           <Text style={{ color: assignedEstimator ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
@@ -473,7 +664,7 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
-        
+
         {showDropdown && (
           <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, maxHeight: 150, overflow: 'hidden' }}>
             <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
@@ -481,8 +672,8 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
                 const id = u._id || u.id;
                 const active = assignedEstimator === id;
                 return (
-                  <TouchableOpacity 
-                    key={id} 
+                  <TouchableOpacity
+                    key={id}
                     style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
                     onPress={() => { setAssignedEstimator(id); setShowDropdown(false); }}
                   >
@@ -534,15 +725,19 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
 
   const handleSubmit = async () => {
     if (!assignedSalesExecutive) {
-      Alert.alert('Assignee Required', 'Please select a sales executive before moving to quotation.');
+      Alert.alert('Assignee Required', 'Please select a member to assign before passing to Quotations.');
+      return;
+    }
+    if (!remarks.trim()) {
+      Alert.alert('Handover Notes Required', 'Handover notes & pricing assumptions are required before passing to quotations.');
       return;
     }
 
     setSubmitting(true);
     try {
       const assignedUser = users.find((u) => (u._id || u.id) === assignedSalesExecutive);
-      const assignNote = assignedUser ? `Sales Executive: ${userLabel(assignedUser)}` : '';
-      const finalRemarks = [remarks.trim(), assignNote].filter(Boolean).join(' | ') || 'Moved to sales quotation & client presentation phase.';
+      const assignNote = assignedUser ? `Assigned Member: ${userLabel(assignedUser)}.` : '';
+      const finalRemarks = [remarks.trim(), assignNote].filter(Boolean).join(' | ');
 
       await interiorCrmService.updateCustomer(customerId, {
         status: 'Under Quotation',
@@ -573,13 +768,13 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
       onClose={onClose}
       icon="document-text-outline"
       iconColor="#E11D48"
-      title="Pass to Quotation Stage"
-      subtitle="Prepare commercial proposal & discount approvals"
+      title="Pass to Quotations"
+      subtitle="Assign a team member and document handover requirements"
     >
       <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         <Text style={s.label}>Assign Sales / Quotation Executive *</Text>
-        <TouchableOpacity 
-          style={s.input} 
+        <TouchableOpacity
+          style={s.input}
           onPress={() => setShowDropdown(!showDropdown)}
         >
           <Text style={{ color: assignedSalesExecutive ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
@@ -587,7 +782,7 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
-        
+
         {showDropdown && (
           <View style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, maxHeight: 150, overflow: 'hidden' }}>
             <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
@@ -595,8 +790,8 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
                 const id = u._id || u.id;
                 const active = assignedSalesExecutive === id;
                 return (
-                  <TouchableOpacity 
-                    key={id} 
+                  <TouchableOpacity
+                    key={id}
                     style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
                     onPress={() => { setAssignedSalesExecutive(id); setShowDropdown(false); }}
                   >
@@ -610,14 +805,14 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
           </View>
         )}
 
-        <Text style={s.label}>Quotation Briefing / Target Margin</Text>
+        <Text style={s.label}>Handover Notes & Pricing Assumptions *</Text>
         <TextInput
-          style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
+          style={[s.input, { minHeight: 70, textAlignVertical: 'top' }]}
           multiline
-          numberOfLines={2}
+          numberOfLines={3}
           value={remarks}
           onChangeText={setRemarks}
-          placeholder="Client requested 5% discount, payment in 4 tranches..."
+          placeholder="Enter client payment terms, target discount constraints, milestone breakdown requirements..."
           placeholderTextColor="#94A3B8"
         />
 
@@ -819,5 +1014,69 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontFamily: 'Inter-Bold',
+  },
+  prevBox: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  prevBoxLabel: {
+    fontSize: 9.5,
+    fontFamily: 'Inter-ExtraBold',
+    letterSpacing: 0.3,
+  },
+  prevBoxPill: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  prevBoxPillText: {
+    fontSize: 9,
+    fontFamily: 'Inter-Bold',
+    color: '#64748B',
+  },
+  prevBoxText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  prevBoxSub: {
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+  },
+  prevBoxNote: {
+    fontSize: 11.5,
+    fontFamily: 'Inter-MediumItalic',
+    color: '#64748B',
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 6,
+  },
+  tatLabel: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    marginRight: 2,
+    alignSelf: 'center',
+  },
+  tatChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  tatChipText: {
+    fontSize: 10.5,
+    fontFamily: 'Inter-SemiBold',
+    color: '#475569',
   },
 });

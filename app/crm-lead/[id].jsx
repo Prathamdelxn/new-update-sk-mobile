@@ -10,6 +10,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useToast } from '../context/ToastContext';
 import interiorApiClient from '../services/interiorApiClient';
 import interiorCrmService from '../services/interiorCrmService';
+import { parseMaxBudget } from '../utils/format';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import BoqBuilderModal from '../components/crm/BoqBuilderModal';
@@ -17,6 +18,7 @@ import LogSiteVisitModal from '../components/crm/LogSiteVisitModal';
 import LogRequirementsModal from '../components/crm/LogRequirementsModal';
 import UploadDesignModal from '../components/crm/UploadDesignModal';
 import MarkLostModal from '../components/crm/MarkLostModal';
+import SiteVisitHistoryModal from '../components/crm/SiteVisitHistoryModal';
 import {
   SendToSiteVisitModal,
   SendToRequirementsModal,
@@ -73,7 +75,9 @@ const STAGE_ORDER = {
   'Under BOQ Creation': 4,
   'BOQ Approved': 4,
   'Under Quotation': 5,
+  'Quotation Pending': 5,
   'Quotation Sent': 5,
+  'Negotiation': 5,
   'Booking Pending': 5,
   'Won': 6,
   'Converted': 6,
@@ -129,6 +133,9 @@ export default function Lead360Screen() {
   const [showSendSiteModal, setShowSendSiteModal] = useState(false);
   const [showSendReqModal, setShowSendReqModal] = useState(false);
   const [showSendDrawingModal, setShowSendDrawingModal] = useState(false);
+  const [sendSiteInitialData, setSendSiteInitialData] = useState(null);
+  const [sendReqInitialData, setSendReqInitialData] = useState(null);
+  const [sendDrawingInitialData, setSendDrawingInitialData] = useState(null);
   const [showSendBoqModal, setShowSendBoqModal] = useState(false);
   const [showSendQuoteModal, setShowSendQuoteModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
@@ -136,6 +143,7 @@ export default function Lead360Screen() {
 
   // Status Change Modal
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showSiteHistoryModal, setShowSiteHistoryModal] = useState(false);
 
   // Edit Lead Modal State
   const [showEditModal, setShowEditModal] = useState(false);
@@ -183,9 +191,12 @@ export default function Lead360Screen() {
   const [quoteNotes, setQuoteNotes] = useState('');
 
   const isConverted = lead?.status === 'Won' || lead?.status === 'Converted' || !!lead?.linkedProject;
+  const isLost = lead?.status === 'Lost';
+  const isReadOnly = isConverted || isLost;
 
   const getTabLockState = (tabId) => {
     if (isConverted) return { isLocked: false, requiredStage: '', stageTitle: '', reason: '' };
+    if (isLost) return { isLocked: false, requiredStage: '', stageTitle: '', reason: '' };
 
     if (tabId === 'overview') {
       return { isLocked: false, requiredStage: 'New Lead', stageTitle: 'Overview', reason: '' };
@@ -302,6 +313,7 @@ export default function Lead360Screen() {
   };
 
   const handleAddActivity = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
     if (!activityForm.remarks.trim()) return showToast('Remarks are required', 'error');
     setSubmittingAct(true);
     try {
@@ -348,6 +360,7 @@ export default function Lead360Screen() {
   };
 
   const handleAssignSalesExecutive = async (userId) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
     try {
       await interiorApiClient.patch(`/crm/customers/${id}`, {
         assignedSalesExecutive: userId,
@@ -362,6 +375,7 @@ export default function Lead360Screen() {
   };
 
   const handleCompleteFollowUp = async (actId) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
     try {
       // Optimistic update so Done disappears immediately
       setActivities((prev) =>
@@ -379,6 +393,36 @@ export default function Lead360Screen() {
     }
   };
 
+  const openRescheduleSiteVisit = (act) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    setSendSiteInitialData({
+      scheduledDate: act?.scheduledDate || null,
+      assignedSalesExecutive: act?.user?._id || act?.user?.id || act?.user || lead?.assignedSalesExecutive || '',
+      remarks: act?.remarks || '',
+    });
+    setShowSendSiteModal(true);
+  };
+
+  const openRescheduleRequirements = (act) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    setSendReqInitialData({
+      scheduledDate: act?.scheduledDate || null,
+      assignedMember: act?.user?._id || act?.user?.id || act?.user || lead?.designerAssigned || '',
+      remarks: act?.remarks || '',
+    });
+    setShowSendReqModal(true);
+  };
+
+  const openRescheduleDrawing = (act) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    setSendDrawingInitialData({
+      scheduledDate: act?.scheduledDate || null,
+      assignedDesigner: act?.user?._id || act?.user?.id || act?.user || lead?.designerAssigned || '',
+      remarks: act?.remarks || '',
+    });
+    setShowSendDrawingModal(true);
+  };
+
   const openRescheduleModal = (act) => {
     setReschedulingId(act._id);
     setRescheduleForm({
@@ -390,11 +434,15 @@ export default function Lead360Screen() {
   };
 
   const handleRescheduleFollowUp = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
     if (!rescheduleForm.remarks.trim()) return showToast('Notes are required', 'error');
     if (!reschedulingId) return;
     setSubmittingReschedule(true);
     try {
-      await interiorApiClient.patch(`/crm/activities/${reschedulingId}`, {
+      // Always create a new activity (rather than overwriting the old one) so the
+      // previous follow-up history is preserved in the timeline.
+      await interiorApiClient.post('/crm/activities', {
+        customer: id,
         type: rescheduleForm.type,
         scheduledDate: rescheduleForm.scheduledDate
           ? rescheduleForm.scheduledDate.toISOString()
@@ -439,6 +487,7 @@ export default function Lead360Screen() {
   };
 
   const handleScheduleFollowUp = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
     if (!followUpForm.remarks.trim()) return showToast('Notes are required', 'error');
     setSubmittingAct(true);
     try {
@@ -480,6 +529,7 @@ export default function Lead360Screen() {
   };
 
   const handleSaveSiteVisit = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
     setSubmittingAct(true);
     try {
       await interiorApiClient.patch(`/crm/customers/${id}`, {
@@ -506,6 +556,7 @@ export default function Lead360Screen() {
   };
 
   const handleSaveRequirements = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
     if (!reqForm.roomName.trim()) return showToast('Room name is required', 'error');
     setSubmittingAct(true);
     try {
@@ -529,6 +580,7 @@ export default function Lead360Screen() {
   };
 
   const handleSaveDesign = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
     if (!designForm.name.trim() || !designForm.url.trim()) return showToast('Name and URL are required', 'error');
     setSubmittingAct(true);
     try {
@@ -556,6 +608,7 @@ export default function Lead360Screen() {
   };
 
   const handleSaveQuotation = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
     if (quoteItems.length === 0 || !quoteItems[0].description.trim()) {
       return showToast('At least one item with a description is required', 'error');
     }
@@ -616,6 +669,7 @@ export default function Lead360Screen() {
   };
 
   const handleQuoteStatus = async (quoteIndex, status) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
     try {
       const updatedQuotations = [...(lead?.quotations || [])];
       if (updatedQuotations[quoteIndex]) {
@@ -626,7 +680,7 @@ export default function Lead360Screen() {
       }
       let nextStatus = lead.status;
       if (status === 'Accepted') nextStatus = 'Booking Pending';
-      if (status === 'Rejected') nextStatus = 'Lost';
+      if (status === 'Rejected') nextStatus = 'Under Quotation';
 
       // Optimistic update so UI immediately renders the updated status without delay
       setLead((prev) => (prev ? {
@@ -653,6 +707,45 @@ export default function Lead360Screen() {
       showToast(e.message || 'Failed to update quote status', 'error');
       fetchData();
     }
+  };
+
+  const handleDeleteQuotation = (quoteIndex) => {
+    const quote = lead?.quotations?.[quoteIndex];
+    Alert.alert(
+      `Delete Quotation Version ${quote?.version || quoteIndex + 1}`,
+      `Are you sure you want to delete Quotation Version ${quote?.version || quoteIndex + 1} (Total: ₹${(quote?.grandTotal || 0).toLocaleString('en-IN')})? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Quotation',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updatedQuotations = (lead.quotations || [])
+                .filter((_, idx) => idx !== quoteIndex)
+                .map((q, i) => ({ ...q, version: i + 1 }));
+
+              await interiorApiClient.patch(`/crm/customers/${id}`, {
+                quotations: updatedQuotations,
+              });
+
+              await interiorApiClient.post('/crm/activities', {
+                customer: id,
+                type: 'Status Change',
+                status: 'Completed',
+                remarks: `Deleted Quotation Version ${quote?.version || quoteIndex + 1}`,
+              });
+
+              showToast(`Quotation Version ${quote?.version || quoteIndex + 1} deleted successfully!`, 'success');
+              setActiveQuoteIdx((prev) => Math.max(0, Math.min(prev, updatedQuotations.length - 1)));
+              fetchData();
+            } catch (e) {
+              showToast(e.message || 'Failed to delete quotation', 'error');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleConvertToProject = async (quoteIndex) => {
@@ -728,6 +821,15 @@ export default function Lead360Screen() {
   };
 
   const openQuoteModal = () => {
+    const existingQuotations = lead?.quotations || [];
+    const latest = existingQuotations.length > 0 ? existingQuotations[existingQuotations.length - 1] : null;
+    if (latest && latest.status !== 'Rejected' && latest.status !== 'Draft') {
+      Alert.alert(
+        'Cannot Create New Version',
+        `The current quotation (v${latest.version}) is "${latest.status}". A new version can only be created if the latest one is Rejected.`
+      );
+      return;
+    }
     if (!quoteItems || quoteItems.length === 0) {
       setQuoteItems([{ description: '', quantity: '1', unitPrice: '' }]);
     }
@@ -911,7 +1013,7 @@ export default function Lead360Screen() {
                   LEAD DETAILS
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  {lead.status !== 'Lost' && lead.status !== 'Won' && lead.status !== 'Converted' && (
+                  {!isReadOnly && (
                     <TouchableOpacity
                       style={[s.editLeadBtn, { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }]}
                       onPress={() => setShowLostModal(true)}
@@ -921,14 +1023,16 @@ export default function Lead360Screen() {
                       <Text style={[s.editLeadBtnText, { color: '#DC2626' }]}>Mark Lost</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity
-                    style={s.editLeadBtn}
-                    onPress={openEditModal}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="pencil" size={13} color="#2563EB" />
-                    <Text style={s.editLeadBtnText}>Edit Details</Text>
-                  </TouchableOpacity>
+                  {!isReadOnly && (
+                    <TouchableOpacity
+                      style={s.editLeadBtn}
+                      onPress={openEditModal}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="pencil" size={13} color="#2563EB" />
+                      <Text style={s.editLeadBtnText}>Edit Details</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
 
@@ -1072,6 +1176,7 @@ export default function Lead360Screen() {
                 return (
                   <>
                     {/* Action Buttons Row */}
+                    {!isReadOnly && (
                     <View style={{ gap: 8 }}>
                       <View style={{ flexDirection: 'row', gap: 10 }}>
                         {activePendingFollowUp ? (
@@ -1119,17 +1224,16 @@ export default function Lead360Screen() {
                         )}
                       </View>
 
-                      {lead.status !== 'Lost' && lead.status !== 'Won' && lead.status !== 'Converted' && (
-                        <TouchableOpacity
-                          style={s.stageLostActionBtn}
-                          onPress={() => setShowLostModal(true)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
-                          <Text style={s.stageLostActionBtnText}>Mark as Lost</Text>
-                        </TouchableOpacity>
-                      )}
+                      <TouchableOpacity
+                        style={s.stageLostActionBtn}
+                        onPress={() => setShowLostModal(true)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
+                        <Text style={s.stageLostActionBtnText}>Mark as Lost</Text>
+                      </TouchableOpacity>
                     </View>
+                    )}
 
                     {/* Active Scheduled Follow-up Card */}
                     {activePendingFollowUp && (() => {
@@ -1193,6 +1297,7 @@ export default function Lead360Screen() {
                               </View>
                             </View>
 
+                            {!isReadOnly && (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                               <TouchableOpacity
                                 style={s.rescheduleBtn}
@@ -1211,6 +1316,7 @@ export default function Lead360Screen() {
                                 <Text style={{ color: '#FFFFFF', fontSize: 11.5, fontFamily: 'Inter-Bold' }}>Done</Text>
                               </TouchableOpacity>
                             </View>
+                            )}
                           </View>
 
                           {!!activePendingFollowUp.remarks && (
@@ -1218,6 +1324,34 @@ export default function Lead360Screen() {
                               &quot;{activePendingFollowUp.remarks}&quot;
                             </Text>
                           )}
+
+                          {/* Quick Spec Matrix */}
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>CHANNEL</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{activePendingFollowUp.type || 'Phone Call'}</Text>
+                            </View>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>ASSIGNED TO</Text>
+                              <Text style={s.specVal} numberOfLines={1}>
+                                {(() => {
+                                  const uRef = lead.assignedSalesExecutive || activePendingFollowUp.user;
+                                  if (!uRef) return 'Unassigned';
+                                  const uId = typeof uRef === 'object' ? (uRef._id || uRef.id) : uRef;
+                                  const matched = users.find((u) => (u._id || u.id) === uId);
+                                  return matched ? userLabel(matched).split(' (')[0] : (typeof uRef === 'object' ? userLabel(uRef).split(' (')[0] : 'Team Member');
+                                })()}
+                              </Text>
+                            </View>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>CLIENT MOBILE</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{lead.mobileNumber || '—'}</Text>
+                            </View>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>PROJECT CITY</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{lead.city || lead.projectLocation || 'Standard'}</Text>
+                            </View>
+                          </View>
 
                           {/* Quick Outreach Links */}
                           {!!lead.mobileNumber && (
@@ -1342,6 +1476,7 @@ export default function Lead360Screen() {
             <View style={{ gap: 16 }}>
               {(() => {
                 const lock = getTabLockState('site');
+                const siteVisitActs = activities.filter((a) => a.type === 'Site Visit');
                 if (lock.isLocked) {
                   return (
                     <View style={s.lockedCard}>
@@ -1397,6 +1532,12 @@ export default function Lead360Screen() {
                       <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowSiteModal(true)}>
                         <Text style={s.actionBtnText}>Log Site Visit</Text>
                       </TouchableOpacity>
+                      {siteVisitActs.length > 0 && (
+                        <TouchableOpacity style={[s.smallBtn, { marginTop: 8 }]} onPress={() => setShowSiteHistoryModal(true)}>
+                          <Ionicons name="time-outline" size={13} color="#7C3AED" />
+                          <Text style={s.smallBtnText}>View History ({siteVisitActs.length})</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   );
                 }
@@ -1414,6 +1555,12 @@ export default function Lead360Screen() {
                           <Text style={s.siteVisitBriefingText}>{lead.remarks}</Text>
                         </View>
                       </View>
+                    )}
+                    {siteVisitActs.length > 0 && (
+                      <TouchableOpacity style={[s.smallBtn, { alignSelf: 'flex-end' }]} onPress={() => setShowSiteHistoryModal(true)}>
+                        <Ionicons name="time-outline" size={13} color="#7C3AED" />
+                        <Text style={s.smallBtnText}>View History ({siteVisitActs.length})</Text>
+                      </TouchableOpacity>
                     )}
                     {/* 1. ROOM & SPATIAL DIMENSIONS */}
                     <View style={s.card}>
@@ -1607,7 +1754,7 @@ export default function Lead360Screen() {
                           <Text style={s.actionBtnText}>Complete Phase & Pass to Requirements</Text>
                         </TouchableOpacity>
                       )}
-                      {lead.status !== 'Lost' && lead.status !== 'Won' && lead.status !== 'Converted' && (
+                      {!isReadOnly && (
                         <TouchableOpacity
                           style={s.stageLostActionBtn}
                           onPress={() => setShowLostModal(true)}
@@ -1629,6 +1776,11 @@ export default function Lead360Screen() {
             <View style={{ gap: 16 }}>
               {(() => {
                 const lock = getTabLockState('requirements');
+                const reqActivity = activities.find(
+                  (a) => a.type === 'Requirement Gathering' && (a.status === 'Pending' || a.remarks)
+                ) || activities.find((a) => a.type === 'Requirement Gathering')
+                  || activities.find((a) => a.type === 'Status Change' && a.remarks?.toLowerCase().includes('requirement'));
+                const reqNote = reqActivity?.remarks || '';
                 if (lock.isLocked) {
                   return (
                     <View style={s.lockedCard}>
@@ -1657,23 +1809,61 @@ export default function Lead360Screen() {
                       <Ionicons name="create-outline" size={40} color="#059669" />
                       <Text style={s.emptyCardTitle}>No Requirements Recorded</Text>
                       <Text style={s.emptySubText}>Add room-by-room themes and specifications.</Text>
-                      <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
-                        <Text style={s.actionBtnText}>Log Requirement</Text>
-                      </TouchableOpacity>
+                      {!!reqNote && (
+                        <View style={s.briefingCardGreen}>
+                          <View style={s.briefingIconBoxGreen}>
+                            <Ionicons name="chatbubble-ellipses-outline" size={15} color="#059669" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.briefingLabelGreen}>REQUIREMENT HANDOVER & SCOPE NOTES</Text>
+                            <Text style={s.briefingTextGreen}>{reqNote}</Text>
+                          </View>
+                        </View>
+                      )}
+                      {!isReadOnly && (
+                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
+                          <Text style={s.actionBtnText}>Log Requirement</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   );
                 }
 
+                const pendingReqAct = activities
+                  .filter((a) => a.type === 'Requirement Gathering' && a.status === 'Pending')
+                  .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime())[0];
+
                 return (
                   <View style={{ gap: 12 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {!!reqNote && (
+                    <View style={s.briefingCardGreen}>
+                      <View style={s.briefingIconBoxGreen}>
+                        <Ionicons name="chatbubble-ellipses-outline" size={15} color="#059669" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.briefingLabelGreen}>REQUIREMENT HANDOVER & SCOPE NOTES</Text>
+                        <Text style={s.briefingTextGreen}>{reqNote}</Text>
+                      </View>
+                    </View>
+                  )}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                     {lead.budgetRange ? (
                       <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#059669' }}>Budget: ₹{lead.budgetRange}</Text>
                     ) : <View />}
-                    <TouchableOpacity style={s.smallBtn} onPress={() => setShowReqModal(true)}>
-                      <Ionicons name="create-outline" size={14} color="#059669" />
-                      <Text style={[s.smallBtnText, { color: '#059669' }]}>Edit / Add</Text>
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {!isReadOnly && pendingReqAct && (
+                        <TouchableOpacity style={s.smallBtn} onPress={() => openRescheduleRequirements(pendingReqAct)}>
+                          <Ionicons name="time-outline" size={14} color="#4F46E5" />
+                          <Text style={[s.smallBtnText, { color: '#4F46E5' }]}>Reschedule</Text>
+                        </TouchableOpacity>
+                      )}
+                      {!isReadOnly && (
+                        <TouchableOpacity style={s.smallBtn} onPress={() => setShowReqModal(true)}>
+                          <Ionicons name="create-outline" size={14} color="#059669" />
+                          <Text style={[s.smallBtnText, { color: '#059669' }]}>Edit / Add</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                   {lead.requirements.map((req, idx) => (
                     <View key={idx} style={s.card}>
@@ -1735,7 +1925,7 @@ export default function Lead360Screen() {
                         <Text style={s.actionBtnText}>Complete Phase & Pass to Drawing</Text>
                       </TouchableOpacity>
                     )}
-                    {lead.status !== 'Lost' && lead.status !== 'Won' && lead.status !== 'Converted' && (
+                    {!isReadOnly && (
                       <TouchableOpacity
                         style={s.stageLostActionBtn}
                         onPress={() => setShowLostModal(true)}
@@ -1779,25 +1969,69 @@ export default function Lead360Screen() {
                   );
                 }
 
+                const drawingActivity = activities.find(
+                  (a) => (a.type === '2D/3D Drawing' || a.type === 'Design Phase') && (a.status === 'Pending' || a.scheduledDate || a.remarks)
+                ) || activities.find((a) => a.type === '2D/3D Drawing' || a.type === 'Design Phase')
+                  || activities.find((a) => a.type === 'Status Change' && (a.remarks?.toLowerCase().includes('drawing') || a.remarks?.toLowerCase().includes('design')));
+                const drawingNote = drawingActivity?.remarks || '';
+
                 if (!lead.designFiles || lead.designFiles.length === 0) {
                   return (
                     <View style={s.emptyCard}>
                       <Ionicons name="cloud-upload-outline" size={40} color="#2563EB" />
                       <Text style={s.emptyCardTitle}>No Designs Uploaded</Text>
                       <Text style={s.emptySubText}>Attach 2D/3D design renders and files.</Text>
-                      <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowDesignModal(true)}>
-                        <Text style={s.actionBtnText}>Upload Design File</Text>
-                      </TouchableOpacity>
+                      {!!drawingNote && (
+                        <View style={s.briefingCardBlue}>
+                          <View style={s.briefingIconBoxBlue}>
+                            <Ionicons name="chatbubble-ellipses-outline" size={15} color="#1D4ED8" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.briefingLabelBlue}>DESIGN BRIEF & LAYER GUIDELINES</Text>
+                            <Text style={s.briefingTextBlue}>{drawingNote}</Text>
+                          </View>
+                        </View>
+                      )}
+                      {!isReadOnly && (
+                        <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowDesignModal(true)}>
+                          <Text style={s.actionBtnText}>Upload Design File</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   );
                 }
 
+                const pendingDrawingAct = activities
+                  .filter((a) => a.type === '2D/3D Drawing' && a.status === 'Pending')
+                  .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime())[0];
+
                 return (
                   <View style={{ gap: 12 }}>
-                    <TouchableOpacity style={[s.smallBtn, { alignSelf: 'flex-end' }]} onPress={() => setShowDesignModal(true)}>
-                      <Ionicons name="add" size={14} color="#2563EB" />
-                      <Text style={s.smallBtnText}>Upload File</Text>
-                    </TouchableOpacity>
+                    {!!drawingNote && (
+                      <View style={s.briefingCardBlue}>
+                        <View style={s.briefingIconBoxBlue}>
+                          <Ionicons name="chatbubble-ellipses-outline" size={15} color="#1D4ED8" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.briefingLabelBlue}>DESIGN BRIEF & LAYER GUIDELINES</Text>
+                          <Text style={s.briefingTextBlue}>{drawingNote}</Text>
+                        </View>
+                      </View>
+                    )}
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+                      {!isReadOnly && pendingDrawingAct && (
+                        <TouchableOpacity style={s.smallBtn} onPress={() => openRescheduleDrawing(pendingDrawingAct)}>
+                          <Ionicons name="time-outline" size={14} color="#0284C7" />
+                          <Text style={[s.smallBtnText, { color: '#0284C7' }]}>Reschedule</Text>
+                        </TouchableOpacity>
+                      )}
+                      {!isReadOnly && (
+                        <TouchableOpacity style={s.smallBtn} onPress={() => setShowDesignModal(true)}>
+                          <Ionicons name="add" size={14} color="#2563EB" />
+                          <Text style={s.smallBtnText}>Upload File</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     {lead.designFiles.map((file, idx) => (
                       <TouchableOpacity key={idx} style={[s.fileCard, { flexDirection: 'column', padding: 0, overflow: 'hidden' }]} onPress={() => file.url && Linking.openURL(file.url)} activeOpacity={0.8}>
                         {/* Thumbnail for image files */}
@@ -1839,7 +2073,7 @@ export default function Lead360Screen() {
                           <Text style={s.actionBtnText}>Complete Phase & Pass to BOQ Estimation</Text>
                         </TouchableOpacity>
                       )}
-                      {lead.status !== 'Lost' && lead.status !== 'Won' && lead.status !== 'Converted' && (
+                      {!isReadOnly && (
                         <TouchableOpacity
                           style={s.stageLostActionBtn}
                           onPress={() => setShowLostModal(true)}
@@ -1889,12 +2123,14 @@ export default function Lead360Screen() {
                       <Ionicons name="calculator-outline" size={40} color="#059669" />
                       <Text style={s.emptyCardTitle}>No BOQ Generated</Text>
                       <Text style={s.emptySubText}>Build an itemized Bill of Quantities with quantities and rates.</Text>
-                      <TouchableOpacity
-                        style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]}
-                        onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
-                      >
-                        <Text style={s.actionBtnText}>+ Create Estimate BOQ</Text>
-                      </TouchableOpacity>
+                      {!isReadOnly && (
+                        <TouchableOpacity
+                          style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]}
+                          onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
+                        >
+                          <Text style={s.actionBtnText}>+ Create Estimate BOQ</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   );
                 }
@@ -1909,13 +2145,36 @@ export default function Lead360Screen() {
                   return acc + (qty * rt);
                 }, 0);
 
-                const itemsSubtotal = Number(activeBoq.subtotal) || calculatedItemsSubtotal || (activeBoq.totalAmount ? Math.round(Number(activeBoq.totalAmount) / 1.18) : 0);
-                const taxPercent = Number(activeBoq.taxPercent) || 18;
-                const taxAmount = Number(activeBoq.taxAmount) || Math.round(itemsSubtotal * (taxPercent / 100));
-                const estimatedTotal = Number(activeBoq.totalAmount) || Math.round(itemsSubtotal + taxAmount);
+                const estimatedTotal = Number(activeBoq.totalAmount) || calculatedItemsSubtotal;
+
+                const boqMaxBudget = parseMaxBudget(lead?.budgetRange || lead?.estimatedBudget || lead?.budget);
+                const boqIsOverBudget = Boolean(boqMaxBudget && boqMaxBudget > 0 && estimatedTotal > boqMaxBudget);
+                const boqExcessPct = boqIsOverBudget ? ((estimatedTotal - boqMaxBudget) / boqMaxBudget) * 100 : 0;
+                const isQuotationApproved = Boolean(
+                  (lead.quotations && lead.quotations.some((q) => q.status === 'Accepted')) ||
+                  ['Booking Pending', 'Won', 'Converted'].includes(lead.status) ||
+                  lead.linkedProject
+                );
+                const boqIsLocked = isReadOnly || isQuotationApproved;
 
                 return (
                   <View style={{ gap: 14 }}>
+                    {boqIsOverBudget && (
+                      <View style={s.overBudgetBanner}>
+                        <Ionicons name="warning" size={18} color="#E11D48" style={{ marginTop: 1 }} />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <Text style={s.overBudgetTitle}>Over Budget Warning</Text>
+                            <View style={s.overBudgetPill}>
+                              <Text style={s.overBudgetPillText}>+{boqExcessPct.toFixed(1)}% Over Estimate</Text>
+                            </View>
+                          </View>
+                          <Text style={s.overBudgetSub}>
+                            Estimate ₹{estimatedTotal.toLocaleString('en-IN')} exceeds the client's target budget of ₹{boqMaxBudget.toLocaleString('en-IN')} by ₹{(estimatedTotal - boqMaxBudget).toLocaleString('en-IN')}.
+                          </Text>
+                        </View>
+                      </View>
+                    )}
                     {/* BOQ Header & Rev Switcher */}
                     <View style={s.boqHeaderCard}>
                       <View style={{ flex: 1 }}>
@@ -1931,20 +2190,29 @@ export default function Lead360Screen() {
                           Updated: {new Date(activeBoq.createdAt || Date.now()).toLocaleDateString()}
                         </Text>
                       </View>
-                      <TouchableOpacity
-                        style={s.editBoqBtn}
-                        onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}
-                      >
-                        <Ionicons name="create-outline" size={13} color="#2563EB" />
-                        <Text style={s.editBoqBtnText}>Edit</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={s.newBoqBtn}
-                        onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
-                      >
-                        <Ionicons name="add" size={14} color="#FFFFFF" />
-                        <Text style={s.newBoqBtnText}>New Rev</Text>
-                      </TouchableOpacity>
+                      {boqIsLocked ? (
+                        <View style={s.boqLockedPill}>
+                          <Ionicons name="lock-closed" size={12} color="#64748B" />
+                          <Text style={s.boqLockedPillText}>{isLost ? 'Lead Lost (Locked)' : 'Quotation Approved (Locked)'}</Text>
+                        </View>
+                      ) : (
+                        <>
+                          <TouchableOpacity
+                            style={s.editBoqBtn}
+                            onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}
+                          >
+                            <Ionicons name="create-outline" size={13} color="#2563EB" />
+                            <Text style={s.editBoqBtnText}>Edit</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={s.newBoqBtn}
+                            onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
+                          >
+                            <Ionicons name="add" size={14} color="#FFFFFF" />
+                            <Text style={s.newBoqBtnText}>New Rev</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
                     </View>
 
                     {/* Versions Tabs if multiple */}
@@ -1967,20 +2235,41 @@ export default function Lead360Screen() {
                     {/* Summary Totals */}
                     <View style={s.costSummaryCard}>
                       <View style={s.costRow}>
-                        <Text style={s.costLabel}>Items Subtotal</Text>
-                        <Text style={s.costVal}>₹{Math.round(itemsSubtotal).toLocaleString('en-IN')}</Text>
-                      </View>
-                      <View style={s.costRow}>
-                        <Text style={s.costLabel}>GST ({taxPercent}%)</Text>
-                        <Text style={s.costVal}>₹{Math.round(taxAmount).toLocaleString('en-IN')}</Text>
+                        <Text style={s.costLabel}>Line Items</Text>
+                        <Text style={s.costVal}>{boqItems.length} item{boqItems.length === 1 ? '' : 's'}</Text>
                       </View>
                       <View style={[s.costRow, s.costRowTotal]}>
-                        <Text style={s.grandTotalTitle}>Estimated Total</Text>
-                        <Text style={s.grandTotalAmount}>
+                        <Text style={s.grandTotalTitle}>Total BOQ Amount</Text>
+                        <Text style={[s.grandTotalAmount, boqIsOverBudget && { color: '#E11D48' }]}>
                           ₹{Math.round(estimatedTotal).toLocaleString('en-IN')}
                         </Text>
                       </View>
                     </View>
+
+                    {/* Category Breakdown Chips */}
+                    {(() => {
+                      const catMap = new Map();
+                      boqItems.forEach((it) => {
+                        const cat = it.category || 'General';
+                        const existing = catMap.get(cat) || { count: 0, total: 0 };
+                        existing.count += 1;
+                        existing.total += Number(it.amount) || (Number(it.quantity) * Number(it.rate)) || 0;
+                        catMap.set(cat, existing);
+                      });
+                      const cats = Array.from(catMap.entries()).map(([name, v]) => ({ name, ...v }));
+                      if (cats.length === 0) return null;
+                      return (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                          {cats.map((cat) => (
+                            <View key={cat.name} style={s.catChip}>
+                              <Ionicons name="pricetag-outline" size={11} color="#4F46E5" />
+                              <Text style={s.catChipText}>{cat.name}</Text>
+                              <Text style={s.catChipCount}>({cat.count})</Text>
+                            </View>
+                          ))}
+                        </ScrollView>
+                      );
+                    })()}
 
                     {/* Items List */}
                     <View style={s.card}>
@@ -2008,14 +2297,24 @@ export default function Lead360Screen() {
                         </View>
                       ))}
                     </View>
-                    
+
+                    {!!activeBoq.notes && (
+                      <View style={s.quoteNotesBox}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <Ionicons name="document-text-outline" size={13} color="#64748B" />
+                          <Text style={s.quoteNotesHeader}>BOQ REMARKS / TERMS</Text>
+                        </View>
+                        <Text style={s.quoteNotesBody}>{activeBoq.notes}</Text>
+                      </View>
+                    )}
+
                     <View style={{ gap: 8, marginTop: 8 }}>
                       {lead.status === 'Under BOQ Creation' && (
                         <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 0 }]} onPress={() => setShowSendQuoteModal(true)}>
                           <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
                         </TouchableOpacity>
                       )}
-                      {lead.status !== 'Lost' && lead.status !== 'Won' && lead.status !== 'Converted' && (
+                      {!isReadOnly && (
                         <TouchableOpacity
                           style={s.stageLostActionBtn}
                           onPress={() => setShowLostModal(true)}
@@ -2068,7 +2367,7 @@ export default function Lead360Screen() {
                       <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#E11D48' }]} onPress={openQuoteModal}>
                         <Text style={s.actionBtnText}>Generate Quotation</Text>
                       </TouchableOpacity>
-                      {lead.status !== 'Lost' && lead.status !== 'Won' && lead.status !== 'Converted' && (
+                      {!isReadOnly && (
                         <TouchableOpacity
                           style={[s.stageLostActionBtn, { marginTop: 8, width: '100%' }]}
                           onPress={() => setShowLostModal(true)}
@@ -2082,8 +2381,29 @@ export default function Lead360Screen() {
                   );
                 }
 
+                const quoteMaxBudget = parseMaxBudget(lead?.budgetRange || lead?.estimatedBudget || lead?.budget);
+                const quoteGrandTotal = Number(currentQuote?.grandTotal) || Number(currentQuote?.subtotal) || 0;
+                const quoteIsOverBudget = Boolean(quoteMaxBudget && quoteMaxBudget > 0 && quoteGrandTotal > quoteMaxBudget);
+                const quoteExcessPct = quoteIsOverBudget ? ((quoteGrandTotal - quoteMaxBudget) / quoteMaxBudget) * 100 : 0;
+
                 return (
                   <View style={{ gap: 16 }}>
+                    {quoteIsOverBudget && (
+                      <View style={s.overBudgetBanner}>
+                        <Ionicons name="warning" size={18} color="#E11D48" style={{ marginTop: 1 }} />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <Text style={s.overBudgetTitle}>Over Target Budget Warning</Text>
+                            <View style={s.overBudgetPill}>
+                              <Text style={s.overBudgetPillText}>+{quoteExcessPct.toFixed(1)}% Over Estimate</Text>
+                            </View>
+                          </View>
+                          <Text style={s.overBudgetSub}>
+                            Quote total ₹{quoteGrandTotal.toLocaleString('en-IN')} exceeds the client's target budget of ₹{quoteMaxBudget.toLocaleString('en-IN')} by ₹{(quoteGrandTotal - quoteMaxBudget).toLocaleString('en-IN')}.
+                          </Text>
+                        </View>
+                      </View>
+                    )}
                     {/* Version Picker */}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                       {lead.quotations.map((q, idx) => (
@@ -2097,9 +2417,11 @@ export default function Lead360Screen() {
                           </Text>
                         </TouchableOpacity>
                       ))}
-                      <TouchableOpacity style={s.addVersionBtn} onPress={openQuoteModal}>
-                        <Ionicons name="add" size={14} color="#E11D48" />
-                      </TouchableOpacity>
+                      {!isReadOnly && (lead.quotations[lead.quotations.length - 1]?.status === 'Rejected' || lead.quotations[lead.quotations.length - 1]?.status === 'Draft') && (
+                        <TouchableOpacity style={s.addVersionBtn} onPress={openQuoteModal}>
+                          <Ionicons name="add" size={14} color="#E11D48" />
+                        </TouchableOpacity>
+                      )}
                     </ScrollView>
 
                     {/* Quotation Detail Card */}
@@ -2113,10 +2435,17 @@ export default function Lead360Screen() {
                               {currentQuote.items?.length || 0} line item{currentQuote.items?.length === 1 ? '' : 's'}
                             </Text>
                           </View>
-                          <View style={[s.stageBadge, { backgroundColor: currentQuote.status === 'Accepted' ? '#DCFCE7' : currentQuote.status === 'Rejected' ? '#FEE2E2' : '#FEF3C7' }]}>
-                            <Text style={[s.stageBadgeText, { color: currentQuote.status === 'Accepted' ? '#15803D' : currentQuote.status === 'Rejected' ? '#B91C1C' : '#B45309' }]}>
-                              {currentQuote.status || 'Sent'}
-                            </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={[s.stageBadge, { backgroundColor: currentQuote.status === 'Accepted' ? '#DCFCE7' : currentQuote.status === 'Rejected' ? '#FEE2E2' : '#FEF3C7' }]}>
+                              <Text style={[s.stageBadgeText, { color: currentQuote.status === 'Accepted' ? '#15803D' : currentQuote.status === 'Rejected' ? '#B91C1C' : '#B45309' }]}>
+                                {currentQuote.status || 'Sent'}
+                              </Text>
+                            </View>
+                            {!isConverted && (
+                              <TouchableOpacity onPress={() => handleDeleteQuotation(activeQuoteIdx)} style={{ padding: 6, backgroundColor: '#FEF2F2', borderRadius: 8 }}>
+                                <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                              </TouchableOpacity>
+                            )}
                           </View>
                         </View>
 
@@ -2250,7 +2579,7 @@ export default function Lead360Screen() {
                               <Text style={s.quoteConvertBtnText}>Create New Revision</Text>
                             </TouchableOpacity>
                           </View>
-                        ) : (
+                        ) : !isReadOnly ? (
                           <View style={{ gap: 8, marginTop: 16 }}>
                             <View style={{ flexDirection: 'row', gap: 8 }}>
                               <TouchableOpacity
@@ -2270,18 +2599,16 @@ export default function Lead360Screen() {
                                 <Text style={{ fontSize: 12, fontWeight: '700', color: '#B91C1C' }}>Mark Rejected</Text>
                               </TouchableOpacity>
                             </View>
-                            {lead.status !== 'Lost' && lead.status !== 'Won' && lead.status !== 'Converted' && (
-                              <TouchableOpacity
-                                style={s.stageLostActionBtn}
-                                onPress={() => setShowLostModal(true)}
-                                activeOpacity={0.7}
-                              >
-                                <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
-                                <Text style={s.stageLostActionBtnText}>Mark as Lost</Text>
-                              </TouchableOpacity>
-                            )}
+                            <TouchableOpacity
+                              style={s.stageLostActionBtn}
+                              onPress={() => setShowLostModal(true)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
+                              <Text style={s.stageLostActionBtnText}>Mark as Lost</Text>
+                            </TouchableOpacity>
                           </View>
-                        )}
+                        ) : null}
                       </View>
                     )}
                   </View>
@@ -2303,6 +2630,25 @@ export default function Lead360Screen() {
           setLead((prev) => (prev ? { ...prev, status: 'Lost' } : prev));
           showToast('Lead has been marked as Lost.', 'success');
           fetchData();
+        }}
+      />
+
+      <SiteVisitHistoryModal
+        visible={showSiteHistoryModal}
+        onClose={() => setShowSiteHistoryModal(false)}
+        activities={activities}
+        users={users}
+        leadName={lead.name}
+        isReadOnly={isReadOnly}
+        onReschedule={() => {
+          const siteVisitActs = activities
+            .filter((a) => a.type === 'Site Visit')
+            .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime());
+          if (siteVisitActs[0]) {
+            openRescheduleSiteVisit(siteVisitActs[0]);
+          } else {
+            setShowSiteModal(true);
+          }
         }}
       />
 
@@ -2592,6 +2938,7 @@ export default function Lead360Screen() {
         initialMeasurements={lead?.siteMeasurements}
         initialPhotos={lead?.sitePhotos}
         instructions={lead?.remarks}
+        isReadOnly={isReadOnly}
         onSuccess={() => {
           showToast('Site visit logged successfully!', 'success');
           fetchData();
@@ -2668,20 +3015,6 @@ export default function Lead360Screen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Log Site Visit Modal */}
-      <LogSiteVisitModal
-        visible={showSiteModal}
-        onClose={() => setShowSiteModal(false)}
-        customerId={id}
-        initialMeasurements={lead?.siteMeasurements}
-        initialPhotos={lead?.sitePhotos}
-        instructions={lead?.remarks}
-        onSuccess={() => {
-          showToast('Site visit measurements saved successfully!', 'success');
-          fetchData();
-        }}
-      />
-
       {/* 5. Requirements Modal */}
       <LogRequirementsModal
         visible={showReqModal}
@@ -2689,6 +3022,7 @@ export default function Lead360Screen() {
         customerId={id}
         initialBudgetRange={lead?.budgetRange}
         initialRequirements={lead?.requirements}
+        isReadOnly={isReadOnly}
         onSuccess={() => {
           showToast('Requirements logged successfully!', 'success');
           fetchData();
@@ -2701,6 +3035,7 @@ export default function Lead360Screen() {
         onClose={() => setShowDesignModal(false)}
         customerId={id}
         existingDesigns={lead?.designFiles}
+        isReadOnly={isReadOnly}
         onSuccess={() => {
           showToast('Design file uploaded successfully!', 'success');
           fetchData();
@@ -2928,6 +3263,12 @@ export default function Lead360Screen() {
         customerId={id}
         existingBoqs={lead?.boqs || []}
         editingBoqIndex={editingBoqIdx}
+        budgetRange={lead?.budgetRange}
+        isReadOnly={isReadOnly || Boolean(
+          (lead?.quotations && lead.quotations.some((q) => q.status === 'Accepted')) ||
+          ['Booking Pending', 'Won', 'Converted'].includes(lead?.status) ||
+          lead?.linkedProject
+        )}
         onSuccess={() => {
           showToast('BOQ saved successfully!', 'success');
           fetchData();
@@ -2937,36 +3278,42 @@ export default function Lead360Screen() {
       {/* 9. Stage Advancement Guided Modals */}
       <SendToSiteVisitModal
         isOpen={showSendSiteModal}
-        onClose={() => setShowSendSiteModal(false)}
+        onClose={() => { setShowSendSiteModal(false); setSendSiteInitialData(null); }}
         customerId={id}
         users={users}
+        initialData={sendSiteInitialData}
         isFollowUpCompleted={activities.some(
           (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && a.status?.toLowerCase() === 'completed'
         )}
         onSuccess={() => {
-          showToast('Passed to Site Visit phase!', 'success');
+          showToast(sendSiteInitialData ? 'Site visit rescheduled successfully!' : 'Passed to Site Visit phase!', 'success');
+          setSendSiteInitialData(null);
           fetchData();
         }}
       />
 
       <SendToRequirementsModal
         isOpen={showSendReqModal}
-        onClose={() => setShowSendReqModal(false)}
+        onClose={() => { setShowSendReqModal(false); setSendReqInitialData(null); }}
         customerId={id}
         users={users}
+        initialData={sendReqInitialData}
         onSuccess={() => {
-          showToast('Passed to Requirements phase!', 'success');
+          showToast(sendReqInitialData ? 'Requirements session rescheduled!' : 'Passed to Requirements phase!', 'success');
+          setSendReqInitialData(null);
           fetchData();
         }}
       />
 
       <SendToDrawingModal
         isOpen={showSendDrawingModal}
-        onClose={() => setShowSendDrawingModal(false)}
+        onClose={() => { setShowSendDrawingModal(false); setSendDrawingInitialData(null); }}
         customerId={id}
         users={users}
+        initialData={sendDrawingInitialData}
         onSuccess={() => {
-          showToast('Passed to Drawing phase!', 'success');
+          showToast(sendDrawingInitialData ? 'Drawing schedule updated!' : 'Passed to Drawing phase!', 'success');
+          setSendDrawingInitialData(null);
           fetchData();
         }}
       />
@@ -3828,6 +4175,64 @@ const s = StyleSheet.create({
     color: '#64748B',
     marginTop: 2,
   },
+  specBox: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderRadius: 10,
+    padding: 8,
+  },
+  specLabel: {
+    fontSize: 8.5,
+    fontFamily: 'Inter-Bold',
+    color: '#94A3B8',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  specVal: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
+  },
+  catChipText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#4F46E5',
+  },
+  catChipCount: {
+    fontSize: 10,
+    fontFamily: 'Inter-Medium',
+    color: '#818CF8',
+  },
+  boqLockedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  boqLockedPillText: {
+    fontSize: 10.5,
+    fontFamily: 'Inter-Bold',
+    color: '#64748B',
+  },
   editBoqBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3938,6 +4343,42 @@ const s = StyleSheet.create({
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
     marginLeft: 8,
+  },
+  overBudgetBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1.5,
+    borderColor: 'rgba(225,29,72,0.3)',
+    borderRadius: 16,
+    padding: 14,
+  },
+  overBudgetTitle: {
+    fontSize: 12.5,
+    fontFamily: 'Inter-ExtraBold',
+    color: '#BE123C',
+  },
+  overBudgetPill: {
+    backgroundColor: 'rgba(225,29,72,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(225,29,72,0.3)',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  overBudgetPillText: {
+    fontSize: 9,
+    fontFamily: 'Inter-ExtraBold',
+    color: '#BE123C',
+    textTransform: 'uppercase',
+  },
+  overBudgetSub: {
+    fontSize: 11.5,
+    fontFamily: 'Inter-Medium',
+    color: '#9F1239',
+    marginTop: 4,
+    lineHeight: 16,
   },
   stageLostActionBtn: {
     flexDirection: 'row',
@@ -4083,6 +4524,74 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter-Medium',
     color: '#1E1B4B',
+    lineHeight: 17,
+  },
+  briefingCardGreen: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 14,
+    padding: 14,
+  },
+  briefingIconBoxGreen: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  briefingLabelGreen: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#047857',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  briefingTextGreen: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#064E3B',
+    lineHeight: 17,
+  },
+  briefingCardBlue: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 14,
+    padding: 14,
+  },
+  briefingIconBoxBlue: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  briefingLabelBlue: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#1D4ED8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  briefingTextBlue: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#1E3A8A',
     lineHeight: 17,
   },
 });

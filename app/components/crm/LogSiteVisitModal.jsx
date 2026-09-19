@@ -56,14 +56,15 @@ const SECTIONS = [
   { id: 'Photos', label: 'Photos' }
 ];
 
-export default function LogSiteVisitModal({ 
-  visible, 
-  onClose, 
-  customerId, 
-  initialMeasurements, 
-  initialPhotos, 
+export default function LogSiteVisitModal({
+  visible,
+  onClose,
+  customerId,
+  initialMeasurements,
+  initialPhotos,
   onSuccess,
   instructions,
+  isReadOnly = false,
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeSection, setActiveSection] = useState('All');
@@ -165,6 +166,10 @@ export default function LogSiteVisitModal({
   };
 
   const handleSubmit = async () => {
+    if (isReadOnly) {
+      Alert.alert('Locked', 'This lead is read-only and cannot be edited.');
+      return;
+    }
     // --- Required field validation ---
     if (!measurements.ceilingHeight || !measurements.ceilingHeight.trim()) {
       Alert.alert('Required Field', 'Please enter the Ceiling Height before saving.');
@@ -466,16 +471,18 @@ export default function LogSiteVisitModal({
 
           {/* Footer Actions */}
           <View style={s.footer}>
-            <TouchableOpacity style={s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={s.cancelBtnText}>Cancel</Text>
+            <TouchableOpacity style={isReadOnly ? s.saveBtn : s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
+              <Text style={isReadOnly ? s.saveBtnText : s.cancelBtnText}>{isReadOnly ? 'Close' : 'Cancel'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={s.saveBtnText}>Save Site Visit Measurements</Text>
-              )}
-            </TouchableOpacity>
+            {!isReadOnly && (
+              <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={s.saveBtnText}>Save Site Visit Measurements</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>

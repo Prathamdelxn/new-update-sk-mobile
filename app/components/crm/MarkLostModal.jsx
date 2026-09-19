@@ -14,42 +14,60 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { interiorCrmService } from '../../services/interiorCrmService';
 
-export default function MarkLostModal({ 
-  visible, 
-  onClose, 
-  customerId, 
+const LOST_REASON_CATEGORIES = [
+  { value: 'Budget', label: 'Budget / High Pricing' },
+  { value: 'Competitor', label: 'Chose Competitor' },
+  { value: 'No Response', label: 'No Response / Client Inactive' },
+  { value: 'Possession Delayed', label: 'Possession Delayed' },
+  { value: 'Cancelled', label: 'Project Cancelled / Dropped' },
+  { value: 'Other', label: 'Other Reason' },
+];
+
+export default function MarkLostModal({
+  visible,
+  onClose,
+  customerId,
   leadName,
-  onSuccess 
+  onSuccess
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reasonCategory, setReasonCategory] = useState('Budget');
   const [reason, setReason] = useState('');
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (visible) {
+      setReasonCategory('Budget');
       setReason('');
+      setError(null);
     }
   }, [visible]);
 
   const handleSubmit = async () => {
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      setError('Reason for loss is required');
+      return;
+    }
+    if (trimmed.length < 3) {
+      setError('Please provide at least 3 characters for the reason');
+      return;
+    }
     setIsSubmitting(true);
     try {
       await interiorCrmService.updateCustomer(customerId, {
         status: 'Lost',
-        lostReason: reason.trim()
+        lostReason: reasonCategory,
+        remarks: trimmed,
       });
 
-      // Optionally create an activity log (non-blocking since backend auto-logs status change)
-      try {
-        await interiorCrmService.createActivity({
-          customer: customerId,
-          type: 'Status Change',
-          status: 'Completed',
-          remarks: `Lead marked as Lost. Reason: ${reason.trim() || 'Not specified'}`,
-          completedDate: new Date()
-        });
-      } catch (actErr) {
-        console.warn('Activity log optional step:', actErr);
-      }
+      await interiorCrmService.createActivity({
+        customer: customerId,
+        type: 'Status Change',
+        status: 'Completed',
+        remarks: `Lead marked as Lost (${reasonCategory}): ${trimmed}`,
+        completedDate: new Date()
+      });
 
       setReason('');
       onSuccess();
@@ -90,32 +108,37 @@ export default function MarkLostModal({
             </View>
 
             <View style={s.inputContainer}>
-              <Text style={s.label}>Reason for Loss (Optional)</Text>
-
-              {/* Quick Select Chips */}
+              <Text style={s.label}>Loss Reason Category *</Text>
               <View style={s.chipsRow}>
-                {['Price too high', 'Chose a competitor', 'Unresponsive', 'Budget constraints', 'Project deferred'].map((chip) => (
+                {LOST_REASON_CATEGORIES.map((cat) => (
                   <TouchableOpacity
-                    key={chip}
-                    style={[s.chip, reason === chip && s.chipActive]}
-                    onPress={() => setReason(chip)}
+                    key={cat.value}
+                    style={[s.chip, reasonCategory === cat.value && s.chipActive]}
+                    onPress={() => setReasonCategory(cat.value)}
                     activeOpacity={0.7}
                   >
-                    <Text style={[s.chipText, reason === chip && s.chipTextActive]}>{chip}</Text>
+                    <Text style={[s.chipText, reasonCategory === cat.value && s.chipTextActive]}>{cat.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
 
-              <TextInput 
-                style={s.inputArea} 
-                placeholder="e.g., Price too high, chose competitor..." 
-                placeholderTextColor="#94A3B8" 
-                value={reason} 
-                onChangeText={setReason} 
+            <View style={s.inputContainer}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={s.label}>Reason & Notes *</Text>
+                <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#E11D48' }}>Required</Text>
+              </View>
+              <TextInput
+                style={[s.inputArea, error && { borderColor: '#E11D48' }]}
+                placeholder="Explain why the lead was lost (e.g., Client finalized another vendor with lower quotation)..."
+                placeholderTextColor="#94A3B8"
+                value={reason}
+                onChangeText={(t) => { setReason(t); if (error) setError(null); }}
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
               />
+              {!!error && <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#E11D48', marginTop: 4 }}>{error}</Text>}
             </View>
           </View>
 

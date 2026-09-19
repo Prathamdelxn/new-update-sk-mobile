@@ -28,13 +28,14 @@ const POPULAR_STYLES = [
   'Warm Neutral',
 ];
 
-export default function LogRequirementsModal({ 
-  visible, 
-  onClose, 
-  customerId, 
+export default function LogRequirementsModal({
+  visible,
+  onClose,
+  customerId,
   initialBudgetRange,
   initialRequirements = [],
-  onSuccess 
+  onSuccess,
+  isReadOnly = false,
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -117,6 +118,10 @@ export default function LogRequirementsModal({
   };
 
   const handleSubmit = async () => {
+    if (isReadOnly) {
+      Alert.alert('Locked', 'This lead is read-only and cannot be edited.');
+      return;
+    }
     if (requirements.length === 0) {
       Alert.alert('Error', 'Please add at least one room requirement.');
       return;
@@ -451,12 +456,14 @@ export default function LogRequirementsModal({
           </ScrollView>
 
           <View style={s.footer}>
-            <TouchableOpacity style={s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={s.cancelBtnText}>Cancel</Text>
+            <TouchableOpacity style={isReadOnly ? s.saveBtn : s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
+              <Text style={isReadOnly ? s.saveBtnText : s.cancelBtnText}>{isReadOnly ? 'Close' : 'Cancel'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Save Requirements</Text>}
-            </TouchableOpacity>
+            {!isReadOnly && (
+              <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Save Requirements</Text>}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>
