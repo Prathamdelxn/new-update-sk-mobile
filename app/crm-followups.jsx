@@ -289,6 +289,7 @@ export default function CrmFollowUpsScreen() {
             ) : (
               filteredActivities.map((act) => {
                 const isCompleted = act.status?.toLowerCase() === 'completed';
+                const isOverdue = !isCompleted && act.scheduledDate && new Date(act.scheduledDate).getTime() < Date.now();
                 const isCompleting = completingId === act._id;
                 const isPassingSite = actionLoadingId === act.customer?._id;
                 const canPassToSite =
@@ -296,61 +297,70 @@ export default function CrmFollowUpsScreen() {
                   ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(act.customer?.status || '');
 
                 return (
-                  <TouchableOpacity
-                    key={act._id}
-                    style={[
-                      s.card,
-                      !isCompleted && s.cardPending,
-                    ]}
-                    activeOpacity={0.75}
-                    onPress={() =>
-                      router.push({
-                        pathname: `/crm-lead/${act.customer?._id}`,
-                        params: { tab: 'follow_ups' },
-                      })
-                    }
-                  >
-                    {/* Top Row: Customer Info & Status Badge */}
-                    <View style={s.cardTopRow}>
-                      <View style={[s.avatar, isCompleted && { backgroundColor: '#10B981' }]}>
-                        <Text style={s.avatarText}>
-                          {act.customer?.name?.charAt(0).toUpperCase() || '?'}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={s.leadName} numberOfLines={1}>
-                            {act.customer?.name || 'Unknown Lead'}
-                          </Text>
-                          <Text style={s.leadNumber}>{act.customer?.leadNumber || 'LD-XXXX'}</Text>
-                        </View>
-                        <Text style={s.leadPhone} numberOfLines={1}>
-                          {act.customer?.mobileNumber || 'No phone'}
-                          {act.customer?.propertyType ? ` Â· ${act.customer.propertyType}` : ''}
-                        </Text>
-                      </View>
-
-                      <View
+                      <TouchableOpacity
+                        key={act._id}
                         style={[
-                          s.statusBadge,
-                          isCompleted ? s.statusBadgeCompleted : s.statusBadgePending,
+                          s.card,
+                          !isCompleted && s.cardPending,
+                          isOverdue && { borderColor: '#FCA5A5', backgroundColor: '#FFF5F5' },
                         ]}
+                        activeOpacity={0.75}
+                        onPress={() =>
+                          router.push({
+                            pathname: `/crm-lead/${act.customer?._id}`,
+                            params: { tab: 'follow_ups' },
+                          })
+                        }
                       >
-                        <Ionicons
-                          name={isCompleted ? 'checkmark-circle' : 'time'}
-                          size={11}
-                          color={isCompleted ? '#16A34A' : '#D97706'}
-                        />
-                        <Text
-                          style={[
-                            s.statusBadgeText,
-                            isCompleted ? { color: '#16A34A' } : { color: '#D97706' },
-                          ]}
-                        >
-                          {isCompleted ? 'COMPLETED' : 'PENDING'}
-                        </Text>
-                      </View>
-                    </View>
+                        {/* Top Row: Customer Info & Status Badge */}
+                        <View style={s.cardTopRow}>
+                          <View style={[s.avatar, isCompleted && { backgroundColor: '#10B981' }, isOverdue && { backgroundColor: '#EF4444' }]}>
+                            <Text style={s.avatarText}>
+                              {act.customer?.name?.charAt(0).toUpperCase() || '?'}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={s.leadName} numberOfLines={1}>
+                                {act.customer?.name || 'Unknown Lead'}
+                              </Text>
+                              <Text style={s.leadNumber}>{act.customer?.leadNumber || 'LD-XXXX'}</Text>
+                            </View>
+                            <Text style={s.leadPhone} numberOfLines={1}>
+                              {act.customer?.mobileNumber || 'No phone'}
+                              {act.customer?.propertyType ? ` · ${act.customer.propertyType}` : ''}
+                            </Text>
+                          </View>
+
+                          <View
+                            style={[
+                              s.statusBadge,
+                              isCompleted
+                                ? s.statusBadgeCompleted
+                                : isOverdue
+                                ? { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }
+                                : s.statusBadgePending,
+                            ]}
+                          >
+                            <Ionicons
+                              name={isCompleted ? 'checkmark-circle' : isOverdue ? 'alert-circle' : 'time'}
+                              size={11}
+                              color={isCompleted ? '#16A34A' : isOverdue ? '#DC2626' : '#D97706'}
+                            />
+                            <Text
+                              style={[
+                                s.statusBadgeText,
+                                isCompleted
+                                  ? { color: '#16A34A' }
+                                  : isOverdue
+                                  ? { color: '#DC2626', fontFamily: 'Inter-Bold' }
+                                  : { color: '#D97706' },
+                              ]}
+                            >
+                              {isCompleted ? 'COMPLETED' : isOverdue ? 'OVERDUE' : 'PENDING'}
+                            </Text>
+                          </View>
+                        </View>
 
                     {/* Meta Row: Follow-up Type & Scheduled Date */}
                     <View style={s.metaRow}>

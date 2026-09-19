@@ -61,14 +61,17 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
 
     setSubmitting(true);
     try {
+      const trimmedRemarks = remarks.trim();
       await interiorCrmService.updateCustomer(customerId, {
         status: 'Under Site Visit',
         assignedTo: assignedExecutive,
         assignedSalesExecutive: assignedExecutive,
+        siteVisitScheduledDate: new Date(scheduledDate).toISOString(),
+        remarks: trimmedRemarks || undefined,
       });
       const assignedUser = users.find((u) => (u._id || u.id) === assignedExecutive);
       const assignNote = assignedUser ? `Assigned: ${userLabel(assignedUser)}` : '';
-      const finalRemarks = [remarks.trim(), assignNote, `Scheduled for: ${scheduledDate}`].filter(Boolean).join(' | ');
+      const finalRemarks = [trimmedRemarks, assignNote, `Scheduled for: ${scheduledDate}`].filter(Boolean).join(' | ');
 
       await interiorCrmService.createActivity({
         customer: customerId,
@@ -77,6 +80,23 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
         scheduledDate,
         remarks: finalRemarks || 'Site visit scheduled.',
       });
+
+      // Auto-complete any pending follow-up activities (mirrors web flow)
+      try {
+        const actList = await interiorCrmService.getActivities(customerId);
+        const acts = Array.isArray(actList) ? actList : (actList?.data || []);
+        const pendingFollowUps = acts.filter(
+          (a) => a.status?.toLowerCase() === 'pending' && a.type !== 'Site Visit'
+        );
+        for (const act of pendingFollowUps) {
+          await interiorCrmService.updateActivity(act._id, {
+            status: 'Completed',
+            completedDate: new Date(),
+          });
+        }
+      } catch (_) {
+        // Non-critical – swallow silently
+      }
 
       onSuccess();
       onClose();

@@ -155,6 +155,13 @@ export default function Lead360Screen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [followUpForm, setFollowUpForm] = useState({ type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' });
 
+  // Reschedule Follow-up Modal State
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [reschedulingId, setReschedulingId] = useState(null);
+  const [rescheduleForm, setRescheduleForm] = useState({ type: 'Phone Call', scheduledDate: null, remarks: '' });
+  const [showRescheduleDatePicker, setShowRescheduleDatePicker] = useState(false);
+  const [submittingReschedule, setSubmittingReschedule] = useState(false);
+
   // Site Visit Modal State
   const [showSiteModal, setShowSiteModal] = useState(false);
   const [siteForm, setSiteForm] = useState({ carpetArea: '', ceilingHeight: '', rooms: '', notes: '' });
@@ -372,18 +379,66 @@ export default function Lead360Screen() {
     }
   };
 
+  const openRescheduleModal = (act) => {
+    setReschedulingId(act._id);
+    setRescheduleForm({
+      type: act.type || 'Phone Call',
+      scheduledDate: act.scheduledDate ? new Date(act.scheduledDate) : new Date(),
+      remarks: act.remarks || '',
+    });
+    setShowRescheduleModal(true);
+  };
+
+  const handleRescheduleFollowUp = async () => {
+    if (!rescheduleForm.remarks.trim()) return showToast('Notes are required', 'error');
+    if (!reschedulingId) return;
+    setSubmittingReschedule(true);
+    try {
+      await interiorApiClient.patch(`/crm/activities/${reschedulingId}`, {
+        type: rescheduleForm.type,
+        scheduledDate: rescheduleForm.scheduledDate
+          ? rescheduleForm.scheduledDate.toISOString()
+          : new Date().toISOString(),
+        remarks: rescheduleForm.remarks.trim(),
+        status: 'Pending',
+      });
+      showToast('Follow-up rescheduled successfully!', 'success');
+      setShowRescheduleModal(false);
+      setReschedulingId(null);
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to reschedule follow-up', 'error');
+    } finally {
+      setSubmittingReschedule(false);
+    }
+  };
+
+  const openRescheduleDatePicker = () => {
+    if (Platform.OS === 'android') {
+      const base = rescheduleForm.scheduledDate || new Date();
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, pickedDate) => {
+          if (event.type !== 'set' || !pickedDate) return;
+          DateTimePickerAndroid.open({
+            value: base,
+            mode: 'time',
+            onChange: (timeEvent, pickedTime) => {
+              if (timeEvent.type !== 'set' || !pickedTime) return;
+              const combined = new Date(pickedDate);
+              combined.setHours(pickedTime.getHours(), pickedTime.getMinutes());
+              setRescheduleForm((prev) => ({ ...prev, scheduledDate: combined }));
+            },
+          });
+        },
+      });
+    } else {
+      setShowRescheduleDatePicker(true);
+    }
+  };
+
   const handleScheduleFollowUp = async () => {
-    const followUpActs = activities.filter(
-      (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit'
-    );
-    const hasPending = followUpActs.some((a) => a.status?.toLowerCase() === 'pending');
-    const hasCompleted = followUpActs.some((a) => a.status?.toLowerCase() === 'completed');
-    if (hasPending) {
-      return showToast('A follow-up is already scheduled. Mark it as done before creating another.', 'error');
-    }
-    if (hasCompleted) {
-      return showToast('Follow-up is already completed for this lead.', 'info');
-    }
     if (!followUpForm.remarks.trim()) return showToast('Notes are required', 'error');
     setSubmittingAct(true);
     try {
@@ -796,32 +851,53 @@ export default function Lead360Screen() {
       >
         {/* --- TAB NAVIGATION --- */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabRow}>
-          {TABS.map((t) => {
-            const active = activeTab === t.id;
-            const lock = getTabLockState(t.id);
-            return (
-              <TouchableOpacity
-                key={t.id}
-                style={[s.tabItem, active && s.tabItemActive]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  if (lock.isLocked) {
-                    showToast(`Complete previous stages to unlock ${t.label}.`, 'info');
-                  }
-                  setActiveTab(t.id);
-                }}
-              >
-                {lock.isLocked ? (
-                  <Ionicons name="lock-closed" size={12} color="#94A3B8" />
-                ) : (
-                  <Ionicons name={t.icon} size={13} color={active ? '#2563EB' : '#64748B'} />
-                )}
-                <Text style={[s.tabText, active && s.tabTextActive, lock.isLocked && { color: '#94A3B8' }]}>
-                  {t.label}
-                </Text>
-              </TouchableOpacity>
+          {(() => {
+            const followUpActs = activities.filter(
+              (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit'
             );
-          })}
+            const activePendingFollowUp = followUpActs.find((a) => a.status?.toLowerCase() === 'pending');
+            const hasOverdueFollowUp = activePendingFollowUp && activePendingFollowUp.scheduledDate && new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now();
+
+            return TABS.map((t) => {
+              const active = activeTab === t.id;
+              const lock = getTabLockState(t.id);
+              const isFollowUpTab = t.id === 'follow_ups';
+
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  style={[
+                    s.tabItem,
+                    active && s.tabItemActive,
+                    isFollowUpTab && hasOverdueFollowUp && { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' }
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (lock.isLocked) {
+                      showToast(`Complete previous stages to unlock ${t.label}.`, 'info');
+                    }
+                    setActiveTab(t.id);
+                  }}
+                >
+                  {lock.isLocked ? (
+                    <Ionicons name="lock-closed" size={12} color="#94A3B8" />
+                  ) : (
+                    <Ionicons name={t.icon} size={13} color={isFollowUpTab && hasOverdueFollowUp ? '#DC2626' : active ? '#2563EB' : '#64748B'} />
+                  )}
+                  <Text style={[s.tabText, active && s.tabTextActive, lock.isLocked && { color: '#94A3B8' }, isFollowUpTab && hasOverdueFollowUp && { color: '#DC2626', fontFamily: 'Inter-Bold' }]}>
+                    {t.label}
+                  </Text>
+                  {isFollowUpTab && activePendingFollowUp && (
+                    <View style={{ backgroundColor: hasOverdueFollowUp ? '#DC2626' : '#D97706', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, marginLeft: 4 }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 9.5, fontFamily: 'Inter-Bold' }}>
+                        {hasOverdueFollowUp ? 'Overdue' : '1'}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            });
+          })()}
         </ScrollView>
 
         {/* --- TAB CONTENT --- */}
@@ -951,13 +1027,23 @@ export default function Lead360Screen() {
                 ) : (
                   activities.map((act) => {
                     const userName = act.user?.name || act.user?.firstName || 'User';
+                    const isPending = act.status?.toLowerCase() === 'pending';
+                    const isOverdue = isPending && act.scheduledDate && new Date(act.scheduledDate).getTime() < Date.now();
+
                     return (
-                      <View key={act._id} style={s.timelineItem}>
-                        <View style={[s.timelineDot, { backgroundColor: act.status === 'Pending' ? '#F59E0B' : '#2563EB' }]} />
+                      <View key={act._id} style={[s.timelineItem, isOverdue && { backgroundColor: '#FFF5F5', borderRadius: 10, padding: 8, marginVertical: 4 }]}>
+                        <View style={[s.timelineDot, { backgroundColor: isOverdue ? '#DC2626' : isPending ? '#F59E0B' : '#2563EB' }]} />
                         <View style={s.timelineBody}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={s.actType}>{act.type} {act.status === 'Pending' && '• Scheduled'}</Text>
-                            <Text style={s.actTime}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={s.actType}>{act.type} {isPending && (isOverdue ? '• Overdue' : '• Scheduled')}</Text>
+                              {isOverdue && (
+                                <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4, borderWidth: 1, borderColor: '#FCA5A5' }}>
+                                  <Text style={{ fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#DC2626' }}>Overdue</Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={[s.actTime, isOverdue && { color: '#DC2626', fontFamily: 'Inter-Bold' }]}>
                               {new Date(act.scheduledDate || act.createdAt).toLocaleDateString()}
                             </Text>
                           </View>
@@ -1045,20 +1131,43 @@ export default function Lead360Screen() {
                       )}
                     </View>
 
-                    {/* Active Scheduled Follow-up Card (1 Active Follow-up Until Done) */}
-                    {activePendingFollowUp && (
-                      <View style={[s.card, { borderColor: '#FDE68A', backgroundColor: '#FFFDF5' }]}>
+                    {/* Active Scheduled Follow-up Card */}
+                    {activePendingFollowUp && (() => {
+                      const isOverdue = activePendingFollowUp.scheduledDate &&
+                        new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now();
+                      const overdueMs = isOverdue
+                        ? Date.now() - new Date(activePendingFollowUp.scheduledDate).getTime() : 0;
+                      const overdueDays = Math.floor(overdueMs / (1000 * 60 * 60 * 24));
+                      const overdueHrs = Math.floor(overdueMs / (1000 * 60 * 60));
+                      const overdueText = overdueDays > 0
+                        ? `${overdueDays}d overdue`
+                        : overdueHrs > 0
+                        ? `${overdueHrs}h overdue`
+                        : 'Just overdue';
+                      return (
+                      <View style={[s.card, isOverdue
+                        ? { borderColor: '#FCA5A5', backgroundColor: '#FFF5F5' }
+                        : { borderColor: '#FDE68A', backgroundColor: '#FFFDF5' }
+                      ]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#D97706' }} />
-                            <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#92400E' }}>
-                              Current Active Follow-up
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isOverdue ? '#DC2626' : '#D97706' }} />
+                            <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: isOverdue ? '#991B1B' : '#92400E' }}>
+                              {isOverdue ? 'Overdue Follow-up' : 'Current Active Follow-up'}
                             </Text>
                           </View>
-                          <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#FDE68A' }}>
-                            <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#B45309', textTransform: 'uppercase' }}>
-                              Pending
-                            </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            {isOverdue && (
+                              <View style={s.overdueBadge}>
+                                <View style={s.overdueDot} />
+                                <Text style={s.overdueBadgeText}>{overdueText}</Text>
+                              </View>
+                            )}
+                            {!isOverdue && (
+                              <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#FDE68A' }}>
+                                <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#B45309', textTransform: 'uppercase' }}>Pending</Text>
+                              </View>
+                            )}
                           </View>
                         </View>
 
@@ -1084,14 +1193,24 @@ export default function Lead360Screen() {
                               </View>
                             </View>
 
-                            <TouchableOpacity
-                              style={{ backgroundColor: '#16A34A', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                              onPress={() => handleCompleteFollowUp(activePendingFollowUp._id)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-                              <Text style={{ color: '#FFFFFF', fontSize: 11.5, fontFamily: 'Inter-Bold' }}>Done</Text>
-                            </TouchableOpacity>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <TouchableOpacity
+                                style={s.rescheduleBtn}
+                                onPress={() => openRescheduleModal(activePendingFollowUp)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name="calendar-outline" size={13} color="#7C3AED" />
+                                <Text style={s.rescheduleBtnText}>Reschedule</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={{ backgroundColor: '#16A34A', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                                onPress={() => handleCompleteFollowUp(activePendingFollowUp._id)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                                <Text style={{ color: '#FFFFFF', fontSize: 11.5, fontFamily: 'Inter-Bold' }}>Done</Text>
+                              </TouchableOpacity>
+                            </View>
                           </View>
 
                           {!!activePendingFollowUp.remarks && (
@@ -1121,9 +1240,12 @@ export default function Lead360Screen() {
                           )}
                         </View>
                       </View>
-                    )}
+                    );
+                    })()}
 
                     {/* Follow-up Touchpoints / Completed History */}
+                    {/* Close the old activePendingFollowUp card wrapper */}
+
                     <View style={s.card}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -1261,6 +1383,17 @@ export default function Lead360Screen() {
                       <Ionicons name="location-outline" size={40} color="#7C3AED" />
                       <Text style={s.emptyCardTitle}>No Site Measurements</Text>
                       <Text style={s.emptySubText}>Capture area, height, and site photos.</Text>
+                      {!!lead.remarks && (
+                        <View style={s.siteVisitBriefingCard}>
+                          <View style={s.siteVisitBriefingIconBox}>
+                            <Ionicons name="document-text-outline" size={15} color="#7C3AED" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.siteVisitBriefingLabel}>SITE VISIT BRIEFING NOTE</Text>
+                            <Text style={s.siteVisitBriefingText}>{lead.remarks}</Text>
+                          </View>
+                        </View>
+                      )}
                       <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowSiteModal(true)}>
                         <Text style={s.actionBtnText}>Log Site Visit</Text>
                       </TouchableOpacity>
@@ -1270,6 +1403,18 @@ export default function Lead360Screen() {
 
                 return (
                   <View style={{ gap: 16 }}>
+                    {/* Site Visit Briefing Note (from scheduling) */}
+                    {!!lead.remarks && (
+                      <View style={s.siteVisitBriefingCard}>
+                        <View style={s.siteVisitBriefingIconBox}>
+                          <Ionicons name="document-text-outline" size={15} color="#7C3AED" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.siteVisitBriefingLabel}>SITE VISIT BRIEFING NOTE</Text>
+                          <Text style={s.siteVisitBriefingText}>{lead.remarks}</Text>
+                        </View>
+                      </View>
+                    )}
                     {/* 1. ROOM & SPATIAL DIMENSIONS */}
                     <View style={s.card}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -1823,16 +1968,16 @@ export default function Lead360Screen() {
                     <View style={s.costSummaryCard}>
                       <View style={s.costRow}>
                         <Text style={s.costLabel}>Items Subtotal</Text>
-                        <Text style={s.costVal}>₹{itemsSubtotal.toLocaleString('en-IN')}</Text>
+                        <Text style={s.costVal}>₹{Math.round(itemsSubtotal).toLocaleString('en-IN')}</Text>
                       </View>
                       <View style={s.costRow}>
                         <Text style={s.costLabel}>GST ({taxPercent}%)</Text>
-                        <Text style={s.costVal}>₹{taxAmount.toLocaleString('en-IN')}</Text>
+                        <Text style={s.costVal}>₹{Math.round(taxAmount).toLocaleString('en-IN')}</Text>
                       </View>
                       <View style={[s.costRow, s.costRowTotal]}>
                         <Text style={s.grandTotalTitle}>Estimated Total</Text>
                         <Text style={s.grandTotalAmount}>
-                          ₹{estimatedTotal.toLocaleString('en-IN')}
+                          ₹{Math.round(estimatedTotal).toLocaleString('en-IN')}
                         </Text>
                       </View>
                     </View>
@@ -1854,7 +1999,7 @@ export default function Lead360Screen() {
                             </View>
                             {!!it.description && <Text style={s.itemDescText}>{it.description}</Text>}
                             <Text style={s.itemQtyRateText}>
-                              {it.quantity} {it.unit} × ₹{Number(it.rate || it.unitRate || 0).toLocaleString('en-IN')}
+                              {it.quantity} {it.unit} × ₹{Math.round(Number(it.rate || it.unitRate || 0)).toLocaleString('en-IN')}
                             </Text>
                           </View>
                           <Text style={s.itemTotalText}>
@@ -1975,47 +2120,45 @@ export default function Lead360Screen() {
                           </View>
                         </View>
 
-                        {/* Items Section (Responsive Mobile Itemized Table) */}
-                        <View style={s.quoteTableCard}>
-                          <View style={s.quoteHeaderRow}>
-                            <Text style={s.quoteHeaderTitle}>ITEM & SPECIFICATION</Text>
-                            <Text style={s.quoteHeaderTotal}>TOTAL</Text>
-                          </View>
+                        {/* Items Section: Horizontally Scrollable 4-Column Table */}
+                        <View style={s.quoteTable}>
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={true}
+                            nestedScrollEnabled
+                            contentContainerStyle={{ minWidth: 460 }}
+                          >
+                            <View style={{ minWidth: 460, width: '100%' }}>
+                              <View style={s.quoteHeaderRow}>
+                                <Text style={[s.quoteCol, { width: 170, paddingLeft: 8 }]}>Item</Text>
+                                <Text style={[s.quoteCol, { width: 50, textAlign: 'center' }]}>Qty</Text>
+                                <Text style={[s.quoteCol, { width: 110, textAlign: 'right' }]}>Rate</Text>
+                                <Text style={[s.quoteCol, { width: 130, textAlign: 'right', paddingRight: 8 }]}>Total</Text>
+                              </View>
+                              {(currentQuote.items || []).map((item, i) => {
+                                const qty = Number(item.quantity) || 1;
+                                const unitPrice = Number(item.unitPrice || item.rate || 0);
+                                const lineTotal = Number(item.total) || (qty * unitPrice);
 
-                          {(currentQuote.items || []).map((item, i) => {
-                            const qty = Number(item.quantity) || 1;
-                            const unitPrice = Number(item.unitPrice || item.rate || 0);
-                            const lineTotal = Number(item.total) || (qty * unitPrice);
-
-                            // Extract category badge if item has [Category] prefix
-                            const catMatch = item.description?.match(/^\[(.*?)\]\s*(.*)$/);
-                            const category = catMatch ? catMatch[1] : null;
-                            const displayName = catMatch ? catMatch[2] : (item.description || 'Line Item');
-                            const isLast = i === (currentQuote.items?.length || 0) - 1;
-
-                            return (
-                              <View key={i} style={[s.quoteItemRow, isLast && { borderBottomWidth: 0 }]}>
-                                <View style={{ flex: 1, paddingRight: 12 }}>
-                                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
-                                    {category && (
-                                      <View style={s.quoteCatBadge}>
-                                        <Text style={s.quoteCatBadgeText}>{category}</Text>
-                                      </View>
-                                    )}
-                                    <Text style={s.quoteItemName} numberOfLines={2}>
-                                      {displayName}
+                                return (
+                                  <View key={i} style={s.quoteRow}>
+                                    <Text style={[s.quoteCell, { width: 170, paddingLeft: 8, fontFamily: 'Inter-Medium' }]} numberOfLines={2}>
+                                      {item.description || 'Line Item'}
+                                    </Text>
+                                    <Text style={[s.quoteCell, { width: 50, textAlign: 'center', fontFamily: 'Inter-Medium' }]}>
+                                      {qty}
+                                    </Text>
+                                    <Text style={[s.quoteCell, { width: 110, textAlign: 'right', fontFamily: 'Inter-Medium' }]} numberOfLines={1}>
+                                      ₹{Math.round(unitPrice).toLocaleString('en-IN')}
+                                    </Text>
+                                    <Text style={[s.quoteCell, { width: 130, textAlign: 'right', fontFamily: 'Inter-Bold', color: '#0F172A', paddingRight: 8 }]} numberOfLines={1}>
+                                      ₹{Math.round(lineTotal).toLocaleString('en-IN')}
                                     </Text>
                                   </View>
-                                  <Text style={s.quoteItemMeta}>
-                                    {qty} {item.unit || 'unit'}{qty === 1 ? '' : 's'} × ₹{unitPrice.toLocaleString('en-IN')}
-                                  </Text>
-                                </View>
-                                <Text style={s.quoteItemTotal}>
-                                  ₹{Math.round(lineTotal).toLocaleString('en-IN')}
-                                </Text>
-                              </View>
-                            );
-                          })}
+                                );
+                              })}
+                            </View>
+                          </ScrollView>
                         </View>
 
                         {/* Totals Summary Card */}
@@ -2029,32 +2172,29 @@ export default function Lead360Screen() {
                           const grandTotal = Number(currentQuote.grandTotal) || Math.max(0, subtotal + taxAmount - discount);
 
                           return (
-                            <View style={s.quoteTotalsCard}>
-                              <View style={s.quoteTotalRow}>
-                                <Text style={s.quoteTotalLabel}>Total Items</Text>
-                                <Text style={s.quoteTotalVal}>{quoteItems.length} item{quoteItems.length === 1 ? '' : 's'}</Text>
+                            <View style={s.quoteTotalsBox}>
+                              <View style={s.totalRow}>
+                                <Text style={s.totalLabel}>Total Items Count</Text>
+                                <Text style={s.totalVal}>{quoteItems.length} item{quoteItems.length === 1 ? '' : 's'}</Text>
                               </View>
-                              <View style={s.quoteTotalRow}>
-                                <Text style={s.quoteTotalLabel}>Subtotal</Text>
-                                <Text style={s.quoteTotalVal}>₹{Math.round(subtotal).toLocaleString('en-IN')}</Text>
+                              <View style={s.totalRow}>
+                                <Text style={s.totalLabel}>Subtotal</Text>
+                                <Text style={s.totalVal}>₹{Math.round(subtotal).toLocaleString('en-IN')}</Text>
                               </View>
-                              <View style={s.quoteTotalRow}>
-                                <Text style={s.quoteTotalLabel}>GST ({taxPercentage}%)</Text>
-                                <Text style={s.quoteTotalVal}>+ ₹{Math.round(taxAmount).toLocaleString('en-IN')}</Text>
+                              <View style={s.totalRow}>
+                                <Text style={s.totalLabel}>Tax ({taxPercentage}%)</Text>
+                                <Text style={s.totalVal}>₹{Math.round(taxAmount).toLocaleString('en-IN')}</Text>
                               </View>
                               {discount > 0 && (
-                                <View style={s.quoteTotalRow}>
-                                  <Text style={[s.quoteTotalLabel, { color: '#16A34A' }]}>Discount</Text>
-                                  <Text style={[s.quoteTotalVal, { color: '#16A34A' }]}>- ₹{Math.round(discount).toLocaleString('en-IN')}</Text>
+                                <View style={s.totalRow}>
+                                  <Text style={[s.totalLabel, { color: '#16A34A' }]}>Discount</Text>
+                                  <Text style={[s.totalVal, { color: '#16A34A' }]}>- ₹{Math.round(discount).toLocaleString('en-IN')}</Text>
                                 </View>
                               )}
-                              <View style={s.quoteTotalDivider} />
-                              <View style={s.quoteTotalRow}>
-                                <View>
-                                  <Text style={s.quoteGrandTotalTitle}>Grand Total</Text>
-                                  <Text style={s.quoteGrandTotalSub}>Inclusive of taxes</Text>
-                                </View>
-                                <Text style={s.quoteGrandTotalAmount}>
+                              <View style={{ height: 1, backgroundColor: '#E2E8F0', marginVertical: 6 }} />
+                              <View style={s.totalRow}>
+                                <Text style={s.grandTotalTitle}>Grand Total</Text>
+                                <Text style={s.grandTotalVal}>
                                   ₹{Math.round(grandTotal).toLocaleString('en-IN')}
                                 </Text>
                               </View>
@@ -2451,8 +2591,93 @@ export default function Lead360Screen() {
         customerId={id}
         initialMeasurements={lead?.siteMeasurements}
         initialPhotos={lead?.sitePhotos}
+        instructions={lead?.remarks}
         onSuccess={() => {
           showToast('Site visit logged successfully!', 'success');
+          fetchData();
+        }}
+      />
+
+      {/* Reschedule Follow-up Modal */}
+      <Modal visible={showRescheduleModal} transparent animationType="slide" onRequestClose={() => setShowRescheduleModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Reschedule Follow-up</Text>
+              <TouchableOpacity onPress={() => setShowRescheduleModal(false)}>
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={s.label}>Follow-up Type</Text>
+              <View style={[s.chipOptions, { marginBottom: 12 }]}>
+                {FOLLOWUP_TYPES.map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[s.optionChip, rescheduleForm.type === t && s.optionChipActive]}
+                    onPress={() => setRescheduleForm({ ...rescheduleForm, type: t })}
+                  >
+                    <Text style={[s.optionChipText, rescheduleForm.type === t && s.optionChipTextActive]}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={s.label}>New Date & Time *</Text>
+              <TouchableOpacity
+                style={[s.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                onPress={openRescheduleDatePicker}
+              >
+                <Text style={{ color: rescheduleForm.scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+                  {rescheduleForm.scheduledDate
+                    ? new Date(rescheduleForm.scheduledDate).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                    : 'Select date & time'}
+                </Text>
+                <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+              {Platform.OS === 'ios' && showRescheduleDatePicker && (
+                <DateTimePicker
+                  value={rescheduleForm.scheduledDate || new Date()}
+                  mode="datetime"
+                  display="spinner"
+                  onChange={(e, d) => {
+                    setShowRescheduleDatePicker(false);
+                    if (d) setRescheduleForm((prev) => ({ ...prev, scheduledDate: d }));
+                  }}
+                />
+              )}
+
+              <Text style={s.label}>Updated Notes / Goal *</Text>
+              <TextInput
+                style={[s.input, { height: 80 }]}
+                multiline
+                placeholder="e.g. Call client to confirm revised meeting time..."
+                placeholderTextColor="#94A3B8"
+                value={rescheduleForm.remarks}
+                onChangeText={(v) => setRescheduleForm({ ...rescheduleForm, remarks: v })}
+              />
+
+              <TouchableOpacity
+                style={[s.submitBtn, { backgroundColor: '#7C3AED' }, submittingReschedule && { opacity: 0.6 }]}
+                onPress={handleRescheduleFollowUp}
+                disabled={submittingReschedule}
+              >
+                <Text style={s.submitBtnText}>{submittingReschedule ? 'Rescheduling...' : 'Save & Reschedule'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Log Site Visit Modal */}
+      <LogSiteVisitModal
+        visible={showSiteModal}
+        onClose={() => setShowSiteModal(false)}
+        customerId={id}
+        initialMeasurements={lead?.siteMeasurements}
+        initialPhotos={lead?.sitePhotos}
+        instructions={lead?.remarks}
+        onSuccess={() => {
+          showToast('Site visit measurements saved successfully!', 'success');
           fetchData();
         }}
       />
@@ -3070,7 +3295,7 @@ const s = StyleSheet.create({
   versionChipTextActive: { color: '#FFFFFF' },
   addVersionBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: '#FFF1F2', justifyContent: 'center' },
   // Quotation Tab Layout Styles
-  quoteTableCard: {
+  quoteTable: {
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,
@@ -3080,106 +3305,63 @@ const s = StyleSheet.create({
   },
   quoteHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    paddingHorizontal: 12,
     paddingVertical: 9,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderColor: '#E2E8F0',
   },
-  quoteHeaderTitle: {
-    fontSize: 10,
+  quoteCol: {
+    fontSize: 11,
     fontFamily: 'Inter-Bold',
     color: '#64748B',
-    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
-  quoteHeaderTotal: {
-    fontSize: 10,
-    fontFamily: 'Inter-Bold',
-    color: '#64748B',
-    letterSpacing: 0.5,
-  },
-  quoteItemRow: {
+  quoteRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 11,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderColor: '#F1F5F9',
   },
-  quoteCatBadge: {
-    backgroundColor: '#EEF2FF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  quoteCell: {
+    fontSize: 12.5,
+    color: '#334155',
   },
-  quoteCatBadgeText: {
-    fontSize: 9,
-    fontFamily: 'Inter-Bold',
-    color: '#4F46E5',
-    textTransform: 'uppercase',
-  },
-  quoteItemName: {
-    fontSize: 13,
-    fontFamily: 'Inter-Bold',
-    color: '#0F172A',
-  },
-  quoteItemMeta: {
-    fontSize: 11,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-    marginTop: 2,
-  },
-  quoteItemTotal: {
-    fontSize: 13,
-    fontFamily: 'Inter-Bold',
-    color: '#0F172A',
-    marginLeft: 8,
-  },
-  quoteTotalsCard: {
-    backgroundColor: '#F8FAFC',
+  quoteTotalsBox: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,
-    padding: 12,
-    gap: 7,
+    padding: 14,
+    gap: 8,
   },
-  quoteTotalRow: {
+  totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  quoteTotalLabel: {
-    fontSize: 12,
+  totalLabel: {
+    fontSize: 12.5,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
   },
-  quoteTotalVal: {
-    fontSize: 12,
+  totalVal: {
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
-  quoteTotalDivider: {
-    height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: 4,
-  },
-  quoteGrandTotalTitle: {
-    fontSize: 14,
+  grandTotalTitle: {
+    fontSize: 15,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
-  quoteGrandTotalSub: {
-    fontSize: 10,
-    fontFamily: 'Inter-Regular',
-    color: '#94A3B8',
-    marginTop: 1,
-  },
-  quoteGrandTotalAmount: {
+  grandTotalVal: {
     fontSize: 16,
-    fontFamily: 'Inter-Black',
+    fontFamily: 'Inter-Bold',
     color: '#2563EB',
   },
   quoteNotesBox: {
@@ -3822,6 +4004,86 @@ const s = StyleSheet.create({
     fontSize: 11.5,
     fontFamily: 'Inter-Bold',
     color: '#2563EB',
+  },
+
+  // Overdue Badge
+  overdueBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  overdueDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#DC2626',
+  },
+  overdueBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#DC2626',
+    textTransform: 'uppercase',
+  },
+
+  // Reschedule Button
+  rescheduleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3E8FF',
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  rescheduleBtnText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#7C3AED',
+  },
+
+  // Site Visit Briefing Banner
+  siteVisitBriefingCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#F3E8FF',
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 4,
+  },
+  siteVisitBriefingIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  siteVisitBriefingLabel: {
+    fontSize: 9.5,
+    fontFamily: 'Inter-Bold',
+    color: '#6D28D9',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  siteVisitBriefingText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#1E1B4B',
+    lineHeight: 17,
   },
 });
 

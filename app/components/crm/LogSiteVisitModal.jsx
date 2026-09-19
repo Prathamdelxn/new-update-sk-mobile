@@ -62,7 +62,8 @@ export default function LogSiteVisitModal({
   customerId, 
   initialMeasurements, 
   initialPhotos, 
-  onSuccess 
+  onSuccess,
+  instructions,
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeSection, setActiveSection] = useState('All');
@@ -245,6 +246,18 @@ export default function LogSiteVisitModal({
 
           {/* Scrollable Form Body */}
           <ScrollView style={s.modalBody} contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
+            {/* Site Visit Briefing Note (from scheduling) */}
+            {!!instructions && instructions.trim() ? (
+              <View style={s.briefingBanner}>
+                <View style={s.briefingIconBox}>
+                  <Ionicons name="document-text-outline" size={16} color="#7C3AED" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.briefingLabel}>SITE VISIT INSTRUCTIONS / BRIEFING NOTE</Text>
+                  <Text style={s.briefingText}>{instructions}</Text>
+                </View>
+              </View>
+            ) : null}
             {/* 1. ROOM & SPATIAL DIMENSIONS */}
             {(activeSection === 'All' || activeSection === 'Dimensions') && (
               <View style={s.sectionCard}>
@@ -504,5 +517,9 @@ const s = StyleSheet.create({
   cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
   cancelBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#475569' },
   saveBtn: { flex: 2, paddingVertical: 12, borderRadius: 12, backgroundColor: '#2563EB', alignItems: 'center', justifyContent: 'center' },
-  saveBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' }
+  saveBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  briefingBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: '#F3E8FF', borderWidth: 1, borderColor: '#DDD6FE', borderRadius: 14, padding: 14 },
+  briefingIconBox: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#EDE9FE', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  briefingLabel: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#6D28D9', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  briefingText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#1E1B4B', lineHeight: 18 },
 });
