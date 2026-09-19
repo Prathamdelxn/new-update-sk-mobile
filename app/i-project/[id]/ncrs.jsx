@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +38,7 @@ export default function InteriorNcrsScreen() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [editNcrId, setEditNcrId] = useState(null);
 
   const fetchNcrs = useCallback(async () => {
     setLoading(true);
@@ -54,23 +55,67 @@ export default function InteriorNcrsScreen() {
 
   useFocusEffect(useCallback(() => { fetchNcrs(); }, [fetchNcrs]));
 
-  const handleCreate = async () => {
+  const handleSubmitNcr = async () => {
     if (!form.description.trim()) {
       showToast('Description is required', 'error');
       return;
     }
     setSubmitting(true);
     try {
-      await interiorApiClient.post(`/projects/${projectId}/ncrs`, form);
-      showToast('Non-Conformance Report logged successfully!', 'success');
-      setIsModalOpen(false);
-      setForm(emptyForm);
+      if (editNcrId) {
+        await interiorApiClient.put(`/projects/${projectId}/ncrs`, { ncrId: editNcrId, ...form });
+        showToast('NCR updated successfully!', 'success');
+      } else {
+        await interiorApiClient.post(`/projects/${projectId}/ncrs`, form);
+        showToast('Non-Conformance Report logged successfully!', 'success');
+      }
+      closeModal();
       fetchNcrs();
     } catch (e) {
-      showToast(e.message || 'Failed to log NCR', 'error');
+      showToast(e.message || (editNcrId ? 'Failed to update NCR' : 'Failed to log NCR'), 'error');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const openCreateModal = () => {
+    setEditNcrId(null);
+    setForm(emptyForm);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (ncr) => {
+    setEditNcrId(ncr._id);
+    setForm({
+      description: ncr.description || '',
+      rootCause: ncr.rootCause || '',
+      correctiveAction: ncr.correctiveAction || '',
+      status: ncr.status || 'open',
+    });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditNcrId(null);
+    setForm(emptyForm);
+  };
+
+  const handleDeleteNcr = (ncr) => {
+    Alert.alert('Delete NCR', 'Are you sure you want to delete this Non-Conformance Report? This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await interiorApiClient.delete(`/projects/${projectId}/ncrs?ncrId=${ncr._id}`);
+            showToast('NCR deleted successfully!', 'delete');
+            fetchNcrs();
+          } catch (e) {
+            showToast(e.message || 'Failed to delete NCR', 'error');
+          }
+        },
+      },
+    ]);
   };
 
   return (
@@ -109,8 +154,16 @@ export default function InteriorNcrsScreen() {
                         <Ionicons name="document-text-outline" size={12} color="#64748B" />
                         <Text style={s.ncrNumber}>{ncr.ncrNumber}</Text>
                       </View>
-                      <View style={[s.pill, { backgroundColor: meta.bg }]}>
-                        <Text style={[s.pillText, { color: meta.color }]}>{String(ncr.status).replace('_', ' ')}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View style={[s.pill, { backgroundColor: meta.bg }]}>
+                          <Text style={[s.pillText, { color: meta.color }]}>{String(ncr.status).replace('_', ' ')}</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => openEditModal(ncr)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                          <Ionicons name="pencil-outline" size={14} color="#94A3B8" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDeleteNcr(ncr)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                          <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                        </TouchableOpacity>
                       </View>
                     </View>
 
@@ -140,17 +193,17 @@ export default function InteriorNcrsScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={() => setIsModalOpen(true)}>
+        <TouchableOpacity style={s.fab} onPress={openCreateModal}>
           <Ionicons name="add" size={26} color="#FFFFFF" />
         </TouchableOpacity>
       </SafeAreaView>
 
-      <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={() => setIsModalOpen(false)}>
+      <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={closeModal}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Log Quality NCR</Text>
-              <TouchableOpacity onPress={() => setIsModalOpen(false)}>
+              <Text style={s.modalTitle}>{editNcrId ? 'Edit Quality NCR' : 'Log Quality NCR'}</Text>
+              <TouchableOpacity onPress={closeModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
@@ -174,8 +227,8 @@ export default function InteriorNcrsScreen() {
                 ))}
               </View>
 
-              <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleCreate} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Log NCR</Text>}
+              <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmitNcr} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editNcrId ? 'Update NCR' : 'Log NCR'}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

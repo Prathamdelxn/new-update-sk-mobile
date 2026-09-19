@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -81,7 +81,9 @@ export default function InteriorPaymentsScreen() {
 
   const [activeCategory, setActiveCategory] = useState('incoming');
   const [payments, setPayments] = useState([]);
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [incomingModalOpen, setIncomingModalOpen] = useState(false);
   const [outgoingModalOpen, setOutgoingModalOpen] = useState(false);
@@ -91,12 +93,17 @@ export default function InteriorPaymentsScreen() {
   const [incomingForm, setIncomingForm] = useState(emptyIncoming());
   const [outgoingForm, setOutgoingForm] = useState(emptyOutgoing());
   const [debitNoteForm, setDebitNoteForm] = useState(emptyDebitNote());
+  const [selectedPoId, setSelectedPoId] = useState('');
 
   const loadPayments = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await interiorApiClient.get(`/projects/${projectId}/payments`);
-      setPayments(res?.success ? res.data || [] : []);
+      const [payRes, poRes] = await Promise.allSettled([
+        interiorApiClient.get(`/projects/${projectId}/payments`),
+        interiorApiClient.get(`/projects/${projectId}/procurement`),
+      ]);
+      setPayments(payRes.status === 'fulfilled' && payRes.value?.success ? payRes.value.data || [] : []);
+      setPurchaseOrders(poRes.status === 'fulfilled' && poRes.value?.success ? poRes.value.data || [] : []);
     } catch (e) {
       console.error('Failed to load payments', e);
       setPayments([]);
@@ -107,11 +114,58 @@ export default function InteriorPaymentsScreen() {
 
   useFocusEffect(useCallback(() => { loadPayments(); }, [loadPayments]));
 
-  const incoming = payments.filter((p) => p.type === 'incoming');
-  const outgoing = payments.filter((p) => p.type === 'outgoing');
-  const debitNotes = payments.filter((p) => p.type === 'debit_note');
+  const matchesSearch = (fields) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return fields.some((f) => (f || '').toLowerCase().includes(q));
+  };
 
-  const netBalance = incoming.reduce((s, p) => s + (p.amount || 0), 0) - outgoing.reduce((s, p) => s + (p.amount || 0), 0);
+  const incoming = payments.filter((p) => p.type === 'incoming' && matchesSearch([p.invoiceNo, p.milestoneName, p.referenceNo]));
+  const outgoing = payments.filter((p) => p.type === 'outgoing' && matchesSearch([p.poNo, p.vendorName, p.category, p.referenceNo]));
+  const debitNotes = payments.filter((p) => p.type === 'debit_note' && matchesSearch([p.debitNoteNo, p.vendorName, p.reason]));
+  const allIncoming = payments.filter((p) => p.type === 'incoming');
+  const allOutgoing = payments.filter((p) => p.type === 'outgoing');
+  const allDebitNotes = payments.filter((p) => p.type === 'debit_note');
+
+  const handlePoSelect = (poId) => {
+    setSelectedPoId(poId);
+    if (!poId) {
+      setOutgoingForm((f) => ({ ...f, poNo: genRef('PO'), vendorName: '', category: EXPENSE_CATEGORIES[0], amount: '' }));
+      return;
+    }
+    const po = purchaseOrders.find((p) => p._id === poId || p.poNumber === poId);
+    if (po) {
+      const alreadyPaid = payments.filter((p) => p.type === 'outgoing' && p.poNo === po.poNumber).reduce((sum, p) => sum + (p.amount || 0), 0);
+      const remaining = Math.max(0, (po.amount || 0) - alreadyPaid);
+      setOutgoingForm((f) => ({
+        ...f,
+        poNo: po.poNumber || po._id,
+        vendorName: po.vendorName || po.vendorId?.name || '',
+        category: po.materialName || EXPENSE_CATEGORIES[0],
+        amount: remaining > 0 ? String(remaining) : String(po.amount || 0),
+        remarks: `Payment against PO ${po.poNumber} (${po.materialName || 'Materials'})`,
+      }));
+    }
+  };
+
+  const handleDeletePayment = (tx) => {
+    Alert.alert('Delete Payment Record', 'Are you sure you want to delete this payment record? This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await interiorApiClient.delete(`/projects/${projectId}/payments/${tx._id}`);
+            showToast('Payment record deleted successfully', 'success');
+            loadPayments();
+          } catch (e) {
+            showToast(e.message || 'Failed to delete payment', 'error');
+          }
+        },
+      },
+    ]);
+  };
+
+  const netBalance = allIncoming.reduce((s, p) => s + (p.amount || 0), 0) - allOutgoing.reduce((s, p) => s + (p.amount || 0), 0);
 
   const submitPayment = async (payload, onSuccess) => {
     setSubmitting(true);
@@ -207,8 +261,13 @@ export default function InteriorPaymentsScreen() {
             <Text style={s.cardMeta}>{tx.paymentMethod} • Ref: {tx.referenceNo}</Text>
             <Text style={s.cardMeta}>{formatDate(tx.paymentDate)}</Text>
           </View>
-          <View style={[s.statusPill, { backgroundColor: '#F0FDF4', alignSelf: 'flex-start', marginTop: 8 }]}>
-            <Text style={[s.statusPillText, { color: '#16A34A' }]}>{tx.incomingStatus || 'Completed'}</Text>
+          <View style={s.cardFooterRow}>
+            <View style={[s.statusPill, { backgroundColor: '#F0FDF4' }]}>
+              <Text style={[s.statusPillText, { color: '#16A34A' }]}>{tx.incomingStatus || 'Completed'}</Text>
+            </View>
+            <TouchableOpacity onPress={() => handleDeletePayment(tx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            </TouchableOpacity>
           </View>
         </View>
       ));
@@ -227,8 +286,13 @@ export default function InteriorPaymentsScreen() {
             <Text style={s.cardMeta}>{tx.paymentMethod} • Ref: {tx.referenceNo}</Text>
             <Text style={s.cardMeta}>{formatDate(tx.paymentDate)}</Text>
           </View>
-          <View style={[s.statusPill, { backgroundColor: tx.outgoingStatus === 'Paid' ? '#F0FDF4' : '#FFFBEB', alignSelf: 'flex-start', marginTop: 8 }]}>
-            <Text style={[s.statusPillText, { color: tx.outgoingStatus === 'Paid' ? '#16A34A' : '#D97706' }]}>{tx.outgoingStatus || 'Paid'}</Text>
+          <View style={s.cardFooterRow}>
+            <View style={[s.statusPill, { backgroundColor: tx.outgoingStatus === 'Paid' ? '#F0FDF4' : '#FFFBEB' }]}>
+              <Text style={[s.statusPillText, { color: tx.outgoingStatus === 'Paid' ? '#16A34A' : '#D97706' }]}>{tx.outgoingStatus || 'Paid'}</Text>
+            </View>
+            <TouchableOpacity onPress={() => handleDeletePayment(tx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            </TouchableOpacity>
           </View>
         </View>
       ));
@@ -246,8 +310,13 @@ export default function InteriorPaymentsScreen() {
         <View style={s.cardBottomRow}>
           <Text style={s.cardMeta}>{formatDate(dn.issueDate)}</Text>
         </View>
-        <View style={[s.statusPill, { backgroundColor: dn.debitNoteStatus === 'Settled' ? '#F0FDF4' : dn.debitNoteStatus === 'Adjusted' ? '#EFF6FF' : '#FFFBEB', alignSelf: 'flex-start', marginTop: 8 }]}>
-          <Text style={[s.statusPillText, { color: dn.debitNoteStatus === 'Settled' ? '#16A34A' : dn.debitNoteStatus === 'Adjusted' ? '#2563EB' : '#D97706' }]}>{dn.debitNoteStatus || 'Issued'}</Text>
+        <View style={s.cardFooterRow}>
+          <View style={[s.statusPill, { backgroundColor: dn.debitNoteStatus === 'Settled' ? '#F0FDF4' : dn.debitNoteStatus === 'Adjusted' ? '#EFF6FF' : '#FFFBEB' }]}>
+            <Text style={[s.statusPillText, { color: dn.debitNoteStatus === 'Settled' ? '#16A34A' : dn.debitNoteStatus === 'Adjusted' ? '#2563EB' : '#D97706' }]}>{dn.debitNoteStatus || 'Issued'}</Text>
+          </View>
+          <TouchableOpacity onPress={() => handleDeletePayment(dn)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="trash-outline" size={16} color="#EF4444" />
+          </TouchableOpacity>
         </View>
       </View>
     ));
@@ -273,32 +342,44 @@ export default function InteriorPaymentsScreen() {
           </View>
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-            <View style={s.summaryRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.summaryRow}>
               <View style={s.summaryCard}>
                 <Text style={s.summaryLabel}>Net Balance</Text>
                 <Text style={[s.summaryValue, { color: netBalance >= 0 ? '#16A34A' : '#DC2626' }]}>{formatAmount(Math.abs(netBalance))}</Text>
               </View>
               <View style={s.summaryCard}>
                 <Text style={s.summaryLabel}>Incoming</Text>
-                <Text style={[s.summaryValue, { color: '#16A34A' }]}>{formatAmount(incoming.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
+                <Text style={[s.summaryValue, { color: '#16A34A' }]}>{formatAmount(allIncoming.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
               </View>
               <View style={s.summaryCard}>
                 <Text style={s.summaryLabel}>Outgoing</Text>
-                <Text style={[s.summaryValue, { color: '#DC2626' }]}>{formatAmount(outgoing.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
+                <Text style={[s.summaryValue, { color: '#DC2626' }]}>{formatAmount(allOutgoing.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
               </View>
-            </View>
+              <View style={s.summaryCard}>
+                <Text style={s.summaryLabel}>Debit Notes</Text>
+                <Text style={[s.summaryValue, { color: '#D97706' }]}>{formatAmount(allDebitNotes.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
+              </View>
+            </ScrollView>
 
             <View style={s.tabRow}>
-              {CATEGORIES.map((c) => (
-                <TouchableOpacity
-                  key={c.key}
-                  style={[s.tabBtn, activeCategory === c.key && { backgroundColor: c.color }]}
-                  onPress={() => setActiveCategory(c.key)}
-                >
-                  <Ionicons name={c.icon} size={14} color={activeCategory === c.key ? '#FFFFFF' : c.color} />
-                  <Text style={[s.tabBtnText, activeCategory === c.key && { color: '#FFFFFF' }]}>{c.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {CATEGORIES.map((c) => {
+                const count = c.key === 'incoming' ? allIncoming.length : c.key === 'outgoing' ? allOutgoing.length : allDebitNotes.length;
+                return (
+                  <TouchableOpacity
+                    key={c.key}
+                    style={[s.tabBtn, activeCategory === c.key && { backgroundColor: c.color }]}
+                    onPress={() => setActiveCategory(c.key)}
+                  >
+                    <Ionicons name={c.icon} size={14} color={activeCategory === c.key ? '#FFFFFF' : c.color} />
+                    <Text style={[s.tabBtnText, activeCategory === c.key && { color: '#FFFFFF' }]}>{c.label} ({count})</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={s.searchRow}>
+              <Ionicons name="search" size={15} color="#94A3B8" style={{ marginRight: 8 }} />
+              <TextInput style={s.searchInput} placeholder="Search by reference, vendor, invoice..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
             </View>
 
             {renderList()}
@@ -371,6 +452,22 @@ export default function InteriorPaymentsScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
+              {purchaseOrders.length > 0 && (
+                <>
+                  <Text style={s.label}>Link Purchase Order (Optional)</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
+                    <TouchableOpacity style={[s.pill, !selectedPoId && s.pillActive]} onPress={() => handlePoSelect('')}>
+                      <Text style={[s.pillText, !selectedPoId && s.pillTextActive]}>Direct Payment (No PO)</Text>
+                    </TouchableOpacity>
+                    {purchaseOrders.map((po) => (
+                      <TouchableOpacity key={po._id} style={[s.pill, selectedPoId === po._id && s.pillActive]} onPress={() => handlePoSelect(po._id)}>
+                        <Text style={[s.pillText, selectedPoId === po._id && s.pillTextActive]} numberOfLines={1}>{po.poNumber} · {po.materialName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+
               <Text style={s.label}>Vendor / Contractor Name</Text>
               <TextInput style={s.input} placeholder="e.g. Royal Wood Suppliers" placeholderTextColor="#94A3B8" value={outgoingForm.vendorName} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, vendorName: v })} />
 
@@ -468,10 +565,15 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
   headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
 
-  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  summaryCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9' },
+  summaryRow: { gap: 8, marginBottom: 14 },
+  summaryCard: { width: 130, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9' },
   summaryLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8' },
   summaryValue: { fontSize: 14, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 4 },
+
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12, height: 40, marginBottom: 12 },
+  searchInput: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#0F172A' },
+
+  cardFooterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
 
   tabRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9' },

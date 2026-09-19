@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Linking,
   Alert,
   RefreshControl,
 } from 'react-native';
@@ -311,10 +310,11 @@ export default function InteriorFilemgtScreen() {
                             <TouchableOpacity
                               style={s.fileActionBtn}
                               onPress={() => {
-                                if (file.fileUrl || file.url) Linking.openURL(file.fileUrl || file.url);
+                                const fileUrl = file.fileUrl || file.url;
+                                if (fileUrl) router.push({ pathname: '/document-viewer', params: { url: fileUrl, name: file.name } });
                               }}
                             >
-                              <Ionicons name="open-outline" size={15} color="#2563EB" />
+                              <Ionicons name="eye-outline" size={15} color="#2563EB" />
                             </TouchableOpacity>
 
                             <TouchableOpacity

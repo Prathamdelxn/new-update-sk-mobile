@@ -36,7 +36,7 @@ const ROOM_PRESETS = [
   'Bathroom',
 ];
 
-const THEME_PRESETS = [
+const DESIGN_STYLE_PRESETS = [
   'Modern Minimalist',
   'Contemporary Luxury',
   'Scandinavian',
@@ -47,6 +47,69 @@ const THEME_PRESETS = [
   'Art Deco',
   'Japandi',
 ];
+
+const INTERIOR_TYPE_PRESETS = ['Residential', 'Commercial', 'Hospitality', 'Retail'];
+
+// Detail fields rendered as compact label/value rows (short values).
+const MEASURE_DETAIL_FIELDS = [
+  { key: 'roomDimensions', label: 'Room Dimensions (L × W)' },
+  { key: 'floorToCeilingHeight', label: 'Floor-to-Ceiling Height' },
+  { key: 'doorDimensions', label: 'Door Dimensions' },
+  { key: 'windowDimensions', label: 'Window Dimensions' },
+  { key: 'wallThickness', label: 'Wall Thickness' },
+  { key: 'columnBeamDimensions', label: 'Column / Beam Dimensions' },
+  { key: 'rooms', label: 'Target Configuration' },
+];
+
+// Note-style fields rendered as labeled paragraph boxes (longer free text).
+const MEASURE_NOTE_FIELDS = [
+  { key: 'electricalPoints', label: 'Existing Electrical Points', color: '#D97706' },
+  { key: 'plumbingPoints', label: 'Plumbing Points', color: '#0891B2' },
+  { key: 'acLocations', label: 'AC Locations & Piping', color: '#059669' },
+  { key: 'furnitureDimensions', label: 'Existing Furniture Dimensions', color: '#059669' },
+  { key: 'siteConstraints', label: 'Site Constraints & Limitations', color: '#E11D48' },
+  { key: 'notes', label: 'Additional Site Notes', color: '#7C3AED' },
+];
+
+const MEASURE_FORM_DEFAULT = {
+  carpetArea: '',
+  ceilingHeight: '',
+  roomDimensions: '',
+  floorToCeilingHeight: '',
+  rooms: '',
+  doorDimensions: '',
+  windowDimensions: '',
+  wallThickness: '',
+  columnBeamDimensions: '',
+  electricalPoints: '',
+  plumbingPoints: '',
+  acLocations: '',
+  furnitureDimensions: '',
+  siteConstraints: '',
+  notes: '',
+};
+
+const REQ_FORM_DEFAULT = {
+  roomName: 'Living Room',
+  interiorType: 'Residential',
+  designStyle: 'Contemporary Luxury',
+  description: '',
+  // Functional
+  roomUsage: '',
+  furnitureRequirements: '',
+  storage: '',
+  electricalPoints: '',
+  lightingRequirements: '',
+  plumbingRequirements: '',
+  circulation: '',
+  // Aesthetic
+  colours: '',
+  materials: '',
+  flooring: '',
+  ceiling: '',
+  wallFinishes: '',
+  furnitureStyle: '',
+};
 
 export default function InteriorSiteDetailsScreen() {
   const insets = useSafeAreaInsets();
@@ -61,24 +124,12 @@ export default function InteriorSiteDetailsScreen() {
   // Modals
   const [showMeasureModal, setShowMeasureModal] = useState(false);
   const [savingMeasurements, setSavingMeasurements] = useState(false);
-  const [measureForm, setMeasureForm] = useState({
-    carpetArea: '',
-    ceilingHeight: '',
-    rooms: '',
-    notes: '',
-  });
+  const [measureForm, setMeasureForm] = useState(MEASURE_FORM_DEFAULT);
   const [sitePhotosList, setSitePhotosList] = useState([]);
 
   const [showReqModal, setShowReqModal] = useState(false);
   const [savingReq, setSavingReq] = useState(false);
-  const [reqForm, setReqForm] = useState({
-    roomName: 'Living Room',
-    theme: 'Contemporary Luxury',
-    description: '',
-    materials: '',
-    lighting: '',
-    flooring: '',
-  });
+  const [reqForm, setReqForm] = useState(REQ_FORM_DEFAULT);
 
   // Lightbox
   const [lightboxPhoto, setLightboxPhoto] = useState(null);
@@ -99,11 +150,23 @@ export default function InteriorSiteDetailsScreen() {
 
       if (found) {
         setCustomer(found);
+        const sm = found.siteMeasurements || {};
         setMeasureForm({
-          carpetArea: found.siteMeasurements?.carpetArea ? String(found.siteMeasurements.carpetArea) : '',
-          ceilingHeight: found.siteMeasurements?.ceilingHeight ? String(found.siteMeasurements.ceilingHeight) : '',
-          rooms: found.siteMeasurements?.rooms || '',
-          notes: found.siteMeasurements?.notes || '',
+          carpetArea: sm.carpetArea ? String(sm.carpetArea) : '',
+          ceilingHeight: sm.ceilingHeight ? String(sm.ceilingHeight) : '',
+          roomDimensions: sm.roomDimensions || '',
+          floorToCeilingHeight: sm.floorToCeilingHeight || '',
+          rooms: sm.rooms || '',
+          doorDimensions: sm.doorDimensions || '',
+          windowDimensions: sm.windowDimensions || '',
+          wallThickness: sm.wallThickness || '',
+          columnBeamDimensions: sm.columnBeamDimensions || '',
+          electricalPoints: sm.electricalPoints || '',
+          plumbingPoints: sm.plumbingPoints || '',
+          acLocations: sm.acLocations || '',
+          furnitureDimensions: sm.furnitureDimensions || '',
+          siteConstraints: sm.siteConstraints || '',
+          notes: sm.notes || '',
         });
         setSitePhotosList(found.sitePhotos || []);
       } else {
@@ -168,7 +231,18 @@ export default function InteriorSiteDetailsScreen() {
         siteMeasurements: {
           carpetArea: parseFloat(measureForm.carpetArea) || 0,
           ceilingHeight: parseFloat(measureForm.ceilingHeight) || 0,
+          roomDimensions: measureForm.roomDimensions.trim(),
+          floorToCeilingHeight: measureForm.floorToCeilingHeight.trim(),
           rooms: measureForm.rooms.trim(),
+          doorDimensions: measureForm.doorDimensions.trim(),
+          windowDimensions: measureForm.windowDimensions.trim(),
+          wallThickness: measureForm.wallThickness.trim(),
+          columnBeamDimensions: measureForm.columnBeamDimensions.trim(),
+          electricalPoints: measureForm.electricalPoints.trim(),
+          plumbingPoints: measureForm.plumbingPoints.trim(),
+          acLocations: measureForm.acLocations.trim(),
+          furnitureDimensions: measureForm.furnitureDimensions.trim(),
+          siteConstraints: measureForm.siteConstraints.trim(),
           notes: measureForm.notes.trim(),
         },
         sitePhotos: sitePhotosList,
@@ -197,11 +271,22 @@ export default function InteriorSiteDetailsScreen() {
     try {
       const newReq = {
         roomName: reqForm.roomName.trim(),
-        theme: reqForm.theme,
+        interiorType: reqForm.interiorType.trim(),
+        designStyle: reqForm.designStyle,
         description: reqForm.description.trim(),
+        roomUsage: reqForm.roomUsage.trim(),
+        furnitureRequirements: reqForm.furnitureRequirements.trim(),
+        storage: reqForm.storage.trim(),
+        electricalPoints: reqForm.electricalPoints.trim(),
+        lightingRequirements: reqForm.lightingRequirements.trim(),
+        plumbingRequirements: reqForm.plumbingRequirements.trim(),
+        circulation: reqForm.circulation.trim(),
+        colours: reqForm.colours.trim(),
         materials: reqForm.materials.trim(),
-        lighting: reqForm.lighting.trim(),
         flooring: reqForm.flooring.trim(),
+        ceiling: reqForm.ceiling.trim(),
+        wallFinishes: reqForm.wallFinishes.trim(),
+        furnitureStyle: reqForm.furnitureStyle.trim(),
         createdAt: new Date().toISOString(),
       };
 
@@ -212,14 +297,7 @@ export default function InteriorSiteDetailsScreen() {
 
       showToast(`Added requirement for ${reqForm.roomName}!`, 'success');
       setShowReqModal(false);
-      setReqForm({
-        roomName: 'Living Room',
-        theme: 'Contemporary Luxury',
-        description: '',
-        materials: '',
-        lighting: '',
-        flooring: '',
-      });
+      setReqForm(REQ_FORM_DEFAULT);
       loadSiteData();
     } catch (e) {
       showToast(e.message || 'Failed to add requirement', 'error');
@@ -365,19 +443,19 @@ export default function InteriorSiteDetailsScreen() {
                       </View>
                     </View>
 
-                    {!!siteMeasurements.rooms && (
-                      <View style={s.measureDetailRow}>
-                        <Text style={s.measureDetailLabel}>Target Configuration:</Text>
-                        <Text style={s.measureDetailVal}>{siteMeasurements.rooms}</Text>
+                    {MEASURE_DETAIL_FIELDS.filter((f) => !!siteMeasurements[f.key]).map((f) => (
+                      <View key={f.key} style={s.measureDetailRow}>
+                        <Text style={s.measureDetailLabel}>{f.label}:</Text>
+                        <Text style={s.measureDetailVal}>{siteMeasurements[f.key]}</Text>
                       </View>
-                    )}
+                    ))}
 
-                    {!!siteMeasurements.notes && (
-                      <View style={s.measureNotesBox}>
-                        <Text style={s.measureNotesLabel}>Structural & Architectural Notes:</Text>
-                        <Text style={s.measureNotesText}>{siteMeasurements.notes}</Text>
+                    {MEASURE_NOTE_FIELDS.filter((f) => !!siteMeasurements[f.key]).map((f) => (
+                      <View key={f.key} style={[s.measureNotesBox, { borderLeftColor: f.color }]}>
+                        <Text style={[s.measureNotesLabel, { color: f.color }]}>{f.label}:</Text>
+                        <Text style={s.measureNotesText}>{siteMeasurements[f.key]}</Text>
                       </View>
-                    )}
+                    ))}
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -460,48 +538,76 @@ export default function InteriorSiteDetailsScreen() {
 
                 {hasRequirements ? (
                   <View style={{ gap: 10 }}>
-                    {requirements.map((req, idx) => (
-                      <View key={idx} style={s.reqCard}>
-                        <View style={s.reqTopRow}>
-                          <Text style={s.reqRoom}>{req.roomName || 'General Requirement'}</Text>
-                          {!!req.theme && (
-                            <View style={s.themeBadge}>
-                              <Text style={s.themeBadgeText}>{req.theme}</Text>
-                            </View>
-                          )}
-                          <TouchableOpacity
-                            onPress={() => handleDeleteRequirement(idx, req.roomName)}
-                            style={{ padding: 4 }}
-                          >
-                            <Ionicons name="trash-outline" size={14} color="#94A3B8" />
-                          </TouchableOpacity>
-                        </View>
+                    {requirements.map((req, idx) => {
+                      const functionalRows = [
+                        ['Usage', req.roomUsage],
+                        ['Furniture', req.furnitureRequirements],
+                        ['Storage', req.storage],
+                        ['Electrical', req.electricalPoints],
+                        ['Lighting', req.lightingRequirements],
+                        ['Plumbing', req.plumbingRequirements],
+                        ['Circulation', req.circulation],
+                      ].filter(([, v]) => !!v);
+                      const aestheticRows = [
+                        ['Colours', req.colours],
+                        ['Materials', req.materials],
+                        ['Flooring', req.flooring],
+                        ['Ceiling', req.ceiling],
+                        ['Wall Finishes', req.wallFinishes],
+                        ['Furniture Style', req.furnitureStyle],
+                      ].filter(([, v]) => !!v);
 
-                        {!!req.description && <Text style={s.reqDesc}>{req.description}</Text>}
+                      return (
+                        <View key={idx} style={s.reqCard}>
+                          <View style={s.reqTopRow}>
+                            <Text style={s.reqRoom}>{req.roomName || 'General Requirement'}</Text>
+                            {!!(req.designStyle || req.theme) && (
+                              <View style={s.themeBadge}>
+                                <Text style={s.themeBadgeText}>{req.designStyle || req.theme}</Text>
+                              </View>
+                            )}
+                            <TouchableOpacity
+                              onPress={() => handleDeleteRequirement(idx, req.roomName)}
+                              style={{ padding: 4 }}
+                            >
+                              <Ionicons name="trash-outline" size={14} color="#94A3B8" />
+                            </TouchableOpacity>
+                          </View>
 
-                        {/* Finishes & Scope Chips */}
-                        <View style={s.reqFinishesWrap}>
-                          {!!req.materials && (
-                            <View style={s.finishTag}>
-                              <Ionicons name="cube-outline" size={11} color="#475569" />
-                              <Text style={s.finishTagText}>{req.materials}</Text>
+                          {!!req.interiorType && (
+                            <View style={s.interiorTypeBadge}>
+                              <Text style={s.interiorTypeBadgeText}>{req.interiorType}</Text>
                             </View>
                           )}
-                          {!!req.lighting && (
-                            <View style={s.finishTag}>
-                              <Ionicons name="bulb-outline" size={11} color="#D97706" />
-                              <Text style={[s.finishTagText, { color: '#D97706' }]}>{req.lighting}</Text>
+
+                          {!!req.description && <Text style={s.reqDesc}>{req.description}</Text>}
+
+                          {functionalRows.length > 0 && (
+                            <View style={s.reqSubSection}>
+                              <Text style={s.reqSubSectionLabel}>Functional Requirements</Text>
+                              {functionalRows.map(([label, value]) => (
+                                <View key={label} style={s.reqFieldRow}>
+                                  <Text style={s.reqFieldLabel}>{label}: </Text>
+                                  <Text style={s.reqFieldValue}>{value}</Text>
+                                </View>
+                              ))}
                             </View>
                           )}
-                          {!!req.flooring && (
-                            <View style={s.finishTag}>
-                              <Ionicons name="grid-outline" size={11} color="#059669" />
-                              <Text style={[s.finishTagText, { color: '#059669' }]}>{req.flooring}</Text>
+
+                          {aestheticRows.length > 0 && (
+                            <View style={[s.reqSubSection, { backgroundColor: '#FAF5FF' }]}>
+                              <Text style={[s.reqSubSectionLabel, { color: '#7C3AED' }]}>Aesthetic Requirements</Text>
+                              {aestheticRows.map(([label, value]) => (
+                                <View key={label} style={s.reqFieldRow}>
+                                  <Text style={s.reqFieldLabel}>{label}: </Text>
+                                  <Text style={s.reqFieldValue}>{value}</Text>
+                                </View>
+                              ))}
                             </View>
                           )}
                         </View>
-                      </View>
-                    ))}
+                      );
+                    })}
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -538,6 +644,7 @@ export default function InteriorSiteDetailsScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={s.modalGroupLabel}>Room & Spatial Dimensions</Text>
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.label}>Carpet Area (Sq.Ft) *</Text>
@@ -563,6 +670,24 @@ export default function InteriorSiteDetailsScreen() {
                 </View>
               </View>
 
+              <Text style={s.label}>Room Dimensions (Length × Width)</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. 18ft x 14ft"
+                placeholderTextColor="#94A3B8"
+                value={measureForm.roomDimensions}
+                onChangeText={(t) => setMeasureForm((f) => ({ ...f, roomDimensions: t }))}
+              />
+
+              <Text style={s.label}>Floor-to-Ceiling Height</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. 10.2 ft"
+                placeholderTextColor="#94A3B8"
+                value={measureForm.floorToCeilingHeight}
+                onChangeText={(t) => setMeasureForm((f) => ({ ...f, floorToCeilingHeight: t }))}
+              />
+
               <Text style={s.label}>Configuration / Target Rooms</Text>
               <TextInput
                 style={s.input}
@@ -570,6 +695,95 @@ export default function InteriorSiteDetailsScreen() {
                 placeholderTextColor="#94A3B8"
                 value={measureForm.rooms}
                 onChangeText={(t) => setMeasureForm((f) => ({ ...f, rooms: t }))}
+              />
+
+              <Text style={s.modalGroupLabel}>Openings & Structural Specs</Text>
+              <Text style={s.label}>Door Dimensions</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Main door 4ft x 7ft"
+                placeholderTextColor="#94A3B8"
+                value={measureForm.doorDimensions}
+                onChangeText={(t) => setMeasureForm((f) => ({ ...f, doorDimensions: t }))}
+              />
+
+              <Text style={s.label}>Window Dimensions</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Living room window 6ft x 4ft"
+                placeholderTextColor="#94A3B8"
+                value={measureForm.windowDimensions}
+                onChangeText={(t) => setMeasureForm((f) => ({ ...f, windowDimensions: t }))}
+              />
+
+              <Text style={s.label}>Wall Thickness</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. 6 inches"
+                placeholderTextColor="#94A3B8"
+                value={measureForm.wallThickness}
+                onChangeText={(t) => setMeasureForm((f) => ({ ...f, wallThickness: t }))}
+              />
+
+              <Text style={s.label}>Column / Beam Dimensions</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. 9x9 inch column near entrance"
+                placeholderTextColor="#94A3B8"
+                value={measureForm.columnBeamDimensions}
+                onChangeText={(t) => setMeasureForm((f) => ({ ...f, columnBeamDimensions: t }))}
+              />
+
+              <Text style={s.modalGroupLabel}>MEP & Utility Services</Text>
+              <Text style={s.label}>Existing Electrical Points</Text>
+              <TextInput
+                style={[s.input, { height: 60, textAlignVertical: 'top' }]}
+                multiline
+                placeholder="e.g. 2 switchboards near entrance, main DB at foyer"
+                placeholderTextColor="#94A3B8"
+                value={measureForm.electricalPoints}
+                onChangeText={(t) => setMeasureForm((f) => ({ ...f, electricalPoints: t }))}
+              />
+
+              <Text style={s.label}>Plumbing Points</Text>
+              <TextInput
+                style={[s.input, { height: 60, textAlignVertical: 'top' }]}
+                multiline
+                placeholder="e.g. Kitchen sink inlet on north wall"
+                placeholderTextColor="#94A3B8"
+                value={measureForm.plumbingPoints}
+                onChangeText={(t) => setMeasureForm((f) => ({ ...f, plumbingPoints: t }))}
+              />
+
+              <Text style={s.label}>AC Locations & Piping</Text>
+              <TextInput
+                style={[s.input, { height: 60, textAlignVertical: 'top' }]}
+                multiline
+                placeholder="e.g. Split AC outdoor unit on balcony, copper piping along false ceiling"
+                placeholderTextColor="#94A3B8"
+                value={measureForm.acLocations}
+                onChangeText={(t) => setMeasureForm((f) => ({ ...f, acLocations: t }))}
+              />
+
+              <Text style={s.modalGroupLabel}>Furniture & Site Constraints</Text>
+              <Text style={s.label}>Existing Furniture Dimensions</Text>
+              <TextInput
+                style={[s.input, { height: 60, textAlignVertical: 'top' }]}
+                multiline
+                placeholder="e.g. Existing wardrobe 6ft to be retained"
+                placeholderTextColor="#94A3B8"
+                value={measureForm.furnitureDimensions}
+                onChangeText={(t) => setMeasureForm((f) => ({ ...f, furnitureDimensions: t }))}
+              />
+
+              <Text style={s.label}>Site Constraints & Limitations</Text>
+              <TextInput
+                style={[s.input, { height: 60, textAlignVertical: 'top' }]}
+                multiline
+                placeholder="e.g. Narrow staircase access, limited material lift window"
+                placeholderTextColor="#94A3B8"
+                value={measureForm.siteConstraints}
+                onChangeText={(t) => setMeasureForm((f) => ({ ...f, siteConstraints: t }))}
               />
 
               <Text style={s.label}>Structural / Survey Notes</Text>
@@ -637,7 +851,7 @@ export default function InteriorSiteDetailsScreen() {
             <View style={s.modalHeader}>
               <View>
                 <Text style={s.modalTitle}>Add Room Requirement</Text>
-                <Text style={s.modalSubtitle}>Architectural styling and finish requirements</Text>
+                <Text style={s.modalSubtitle}>Functional and aesthetic specs for room execution</Text>
               </View>
               <TouchableOpacity onPress={() => setShowReqModal(false)} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -669,53 +883,162 @@ export default function InteriorSiteDetailsScreen() {
                 onChangeText={(t) => setReqForm((f) => ({ ...f, roomName: t }))}
               />
 
-              <Text style={s.label}>Design Theme / Aesthetic</Text>
+              <Text style={s.label}>Interior Type</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
-                {THEME_PRESETS.map((th) => (
+                {INTERIOR_TYPE_PRESETS.map((it) => (
+                  <TouchableOpacity
+                    key={it}
+                    style={[s.presetChip, reqForm.interiorType === it && s.presetChipActive]}
+                    onPress={() => setReqForm((f) => ({ ...f, interiorType: it }))}
+                  >
+                    <Text style={[s.presetChipText, reqForm.interiorType === it && s.presetChipTextActive]}>
+                      {it}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <Text style={s.label}>Design Style / Theme</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
+                {DESIGN_STYLE_PRESETS.map((th) => (
                   <TouchableOpacity
                     key={th}
-                    style={[s.presetChip, reqForm.theme === th && s.presetChipActive]}
-                    onPress={() => setReqForm((f) => ({ ...f, theme: th }))}
+                    style={[s.presetChip, reqForm.designStyle === th && s.presetChipActive]}
+                    onPress={() => setReqForm((f) => ({ ...f, designStyle: th }))}
                   >
-                    <Text style={[s.presetChipText, reqForm.theme === th && s.presetChipTextActive]}>
+                    <Text style={[s.presetChipText, reqForm.designStyle === th && s.presetChipTextActive]}>
                       {th}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
 
-              <Text style={s.label}>Finishes & Materials Specification</Text>
+              <Text style={s.modalGroupLabel}>Functional Requirements</Text>
+
+              <Text style={s.label}>Room Usage</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. Smoked Oak veneer, Fluted charcoal panels, Brass accents"
+                placeholder="e.g. Primary bedroom for parents, needs reading nook"
+                placeholderTextColor="#94A3B8"
+                value={reqForm.roomUsage}
+                onChangeText={(t) => setReqForm((f) => ({ ...f, roomUsage: t }))}
+              />
+
+              <Text style={s.label}>Furniture Requirements</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. King bed, 2 bedside units, dresser"
+                placeholderTextColor="#94A3B8"
+                value={reqForm.furnitureRequirements}
+                onChangeText={(t) => setReqForm((f) => ({ ...f, furnitureRequirements: t }))}
+              />
+
+              <Text style={s.label}>Storage</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. 6-door floor-to-ceiling wardrobe"
+                placeholderTextColor="#94A3B8"
+                value={reqForm.storage}
+                onChangeText={(t) => setReqForm((f) => ({ ...f, storage: t }))}
+              />
+
+              <Text style={s.label}>Electrical Points</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. TV point, 2 bed-side 2-way switches"
+                placeholderTextColor="#94A3B8"
+                value={reqForm.electricalPoints}
+                onChangeText={(t) => setReqForm((f) => ({ ...f, electricalPoints: t }))}
+              />
+
+              <Text style={s.label}>Lighting Requirements</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Warm 3000K magnetic track lights"
+                placeholderTextColor="#94A3B8"
+                value={reqForm.lightingRequirements}
+                onChangeText={(t) => setReqForm((f) => ({ ...f, lightingRequirements: t }))}
+              />
+
+              <Text style={s.label}>Plumbing Requirements</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Attached bathroom, geyser point"
+                placeholderTextColor="#94A3B8"
+                value={reqForm.plumbingRequirements}
+                onChangeText={(t) => setReqForm((f) => ({ ...f, plumbingRequirements: t }))}
+              />
+
+              <Text style={s.label}>Circulation</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Clear 3ft walkway from door to bed"
+                placeholderTextColor="#94A3B8"
+                value={reqForm.circulation}
+                onChangeText={(t) => setReqForm((f) => ({ ...f, circulation: t }))}
+              />
+
+              <Text style={s.modalGroupLabel}>Aesthetic Requirements</Text>
+
+              <Text style={s.label}>Colours</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Muted sage green with warm oak accents"
+                placeholderTextColor="#94A3B8"
+                value={reqForm.colours}
+                onChangeText={(t) => setReqForm((f) => ({ ...f, colours: t }))}
+              />
+
+              <Text style={s.label}>Materials</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Smoked oak veneer, fluted charcoal panels, brass accents"
                 placeholderTextColor="#94A3B8"
                 value={reqForm.materials}
                 onChangeText={(t) => setReqForm((f) => ({ ...f, materials: t }))}
               />
 
-              <Text style={s.label}>Lighting & Electrical Points</Text>
+              <Text style={s.label}>Flooring</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. Warm 3000K magnetic track lights, 2 bed-side 2-way switches"
-                placeholderTextColor="#94A3B8"
-                value={reqForm.lighting}
-                onChangeText={(t) => setReqForm((f) => ({ ...f, lighting: t }))}
-              />
-
-              <Text style={s.label}>Flooring / Ceiling Preference</Text>
-              <TextInput
-                style={s.input}
-                placeholder="e.g. Herringbone wooden flooring, perimeter cove false ceiling"
+                placeholder="e.g. Herringbone wooden flooring"
                 placeholderTextColor="#94A3B8"
                 value={reqForm.flooring}
                 onChangeText={(t) => setReqForm((f) => ({ ...f, flooring: t }))}
+              />
+
+              <Text style={s.label}>Ceiling</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Perimeter cove false ceiling"
+                placeholderTextColor="#94A3B8"
+                value={reqForm.ceiling}
+                onChangeText={(t) => setReqForm((f) => ({ ...f, ceiling: t }))}
+              />
+
+              <Text style={s.label}>Wall Finishes</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Textured paint accent wall behind headboard"
+                placeholderTextColor="#94A3B8"
+                value={reqForm.wallFinishes}
+                onChangeText={(t) => setReqForm((f) => ({ ...f, wallFinishes: t }))}
+              />
+
+              <Text style={s.label}>Furniture Style</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Low-profile upholstered, matte finish"
+                placeholderTextColor="#94A3B8"
+                value={reqForm.furnitureStyle}
+                onChangeText={(t) => setReqForm((f) => ({ ...f, furnitureStyle: t }))}
               />
 
               <Text style={s.label}>Detailed Functional Brief</Text>
               <TextInput
                 style={[s.input, { height: 75, textAlignVertical: 'top' }]}
                 multiline
-                placeholder="e.g. Client requires king-size bed backrest with integrated reading lights and 6-door floor-to-ceiling wardrobe with tinted glass."
+                placeholder="e.g. Client requires king-size bed backrest with integrated reading lights."
                 placeholderTextColor="#94A3B8"
                 value={reqForm.description}
                 onChangeText={(t) => setReqForm((f) => ({ ...f, description: t }))}
@@ -888,9 +1211,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 8,
+    flexWrap: 'wrap',
   },
   measureDetailLabel: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  measureDetailVal: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  measureDetailVal: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A', flexShrink: 1 },
 
   measureNotesBox: {
     backgroundColor: '#F8FAFC',
@@ -941,27 +1265,21 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F1F5F9',
     padding: 14,
-    gap: 6,
+    gap: 8,
   },
   reqTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
   reqRoom: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1 },
   themeBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   themeBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#2563EB', textTransform: 'uppercase' },
+  interiorTypeBadge: { alignSelf: 'flex-start', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  interiorTypeBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#475569', textTransform: 'uppercase' },
   reqDesc: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#475569', lineHeight: 17 },
 
-  reqFinishesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-  finishTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  finishTagText: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#475569' },
+  reqSubSection: { backgroundColor: '#F0FDF4', borderRadius: 10, padding: 10, gap: 3 },
+  reqSubSectionLabel: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#059669', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 3 },
+  reqFieldRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  reqFieldLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B' },
+  reqFieldValue: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#0F172A', flexShrink: 1 },
 
   // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
@@ -978,6 +1296,18 @@ const s = StyleSheet.create({
   modalCloseBtn: { padding: 4 },
   modalTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
   modalSubtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  modalGroupLabel: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#7C3AED',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginTop: 18,
+    marginBottom: 4,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
 
   label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 8 },
   input: {

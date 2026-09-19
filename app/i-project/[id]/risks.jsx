@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +48,7 @@ export default function InteriorRisksScreen() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [editRiskId, setEditRiskId] = useState(null);
 
   const fetchRisks = useCallback(async () => {
     setLoading(true);
@@ -64,23 +65,68 @@ export default function InteriorRisksScreen() {
 
   useFocusEffect(useCallback(() => { fetchRisks(); }, [fetchRisks]));
 
-  const handleCreate = async () => {
+  const handleSubmitRisk = async () => {
     if (!form.description.trim()) {
       showToast('Please fill in the risk description', 'error');
       return;
     }
     setSubmitting(true);
     try {
-      await interiorApiClient.post(`/projects/${projectId}/risks`, form);
-      showToast('Risk logged successfully!', 'success');
-      setIsModalOpen(false);
-      setForm(emptyForm);
+      if (editRiskId) {
+        await interiorApiClient.put(`/projects/${projectId}/risks`, { riskId: editRiskId, ...form });
+        showToast('Risk updated successfully!', 'success');
+      } else {
+        await interiorApiClient.post(`/projects/${projectId}/risks`, form);
+        showToast('Risk logged successfully!', 'success');
+      }
+      closeModal();
       fetchRisks();
     } catch (e) {
-      showToast(e.message || 'Failed to log risk', 'error');
+      showToast(e.message || (editRiskId ? 'Failed to update risk' : 'Failed to log risk'), 'error');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const openCreateModal = () => {
+    setEditRiskId(null);
+    setForm(emptyForm);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (risk) => {
+    setEditRiskId(risk._id);
+    setForm({
+      description: risk.description || '',
+      category: risk.category || 'site_execution',
+      probability: risk.probability || 'medium',
+      impact: risk.impact || 'medium',
+      mitigationPlan: risk.mitigationPlan || '',
+    });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditRiskId(null);
+    setForm(emptyForm);
+  };
+
+  const handleDeleteRisk = (risk) => {
+    Alert.alert('Delete Risk', 'Are you sure you want to delete this logged risk?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await interiorApiClient.delete(`/projects/${projectId}/risks?riskId=${risk._id}`);
+            showToast('Risk deleted successfully', 'delete');
+            fetchRisks();
+          } catch (e) {
+            showToast(e.message || 'Failed to delete risk', 'error');
+          }
+        },
+      },
+    ]);
   };
 
   const matrixCount = (p, i) => risks.filter((r) => r.probability === p && r.impact === i).length;
@@ -142,8 +188,16 @@ export default function InteriorRisksScreen() {
                       <View style={s.categoryTag}>
                         <Text style={s.categoryTagText}>{String(risk.category).replace('_', ' ')}</Text>
                       </View>
-                      <View style={[s.scoreBadge, { backgroundColor: sc.bg }]}>
-                        <Text style={[s.scoreBadgeText, { color: sc.color }]}>Score {risk.score} ({risk.probability} × {risk.impact})</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View style={[s.scoreBadge, { backgroundColor: sc.bg }]}>
+                          <Text style={[s.scoreBadgeText, { color: sc.color }]}>Score {risk.score} ({risk.probability} × {risk.impact})</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => openEditModal(risk)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                          <Ionicons name="pencil-outline" size={14} color="#94A3B8" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDeleteRisk(risk)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                          <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                        </TouchableOpacity>
                       </View>
                     </View>
                     <Text style={s.riskDesc}>{risk.description}</Text>
@@ -161,17 +215,17 @@ export default function InteriorRisksScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={() => setIsModalOpen(true)}>
+        <TouchableOpacity style={s.fab} onPress={openCreateModal}>
           <Ionicons name="add" size={26} color="#FFFFFF" />
         </TouchableOpacity>
       </SafeAreaView>
 
-      <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={() => setIsModalOpen(false)}>
+      <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={closeModal}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Log Project Risk</Text>
-              <TouchableOpacity onPress={() => setIsModalOpen(false)}>
+              <Text style={s.modalTitle}>{editRiskId ? 'Edit Project Risk' : 'Log Project Risk'}</Text>
+              <TouchableOpacity onPress={closeModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
@@ -218,8 +272,8 @@ export default function InteriorRisksScreen() {
                 multiline
               />
 
-              <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleCreate} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Log Risk</Text>}
+              <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmitRisk} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editRiskId ? 'Save Changes' : 'Log Risk'}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

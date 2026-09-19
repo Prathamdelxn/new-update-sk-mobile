@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 // Mirrors InteriorProjectBanner's category nav from sky-lite-web.
 export const CATEGORIES = [
   { name: 'General', icon: '📋', items: ['Site Details', 'File Management', 'Team & Members'] },
-  { name: 'Execution', icon: '📐', items: ['WBS Hierarchy', 'Tasks (Kanban)', 'Milestones', 'DPR Log', 'Weekly Reports', 'MOM'] },
+  { name: 'Execution', icon: '📐', items: ['WBS Hierarchy', 'Tasks (Kanban)', 'Milestones', 'DPR Log', 'Weekly Reports', 'MOM', 'Timeline (Gantt)'] },
   { name: 'Commercials', icon: '💰', items: ['BOQ Estimator', 'Change Requests', 'Variation Orders', 'Procurement', 'Purchase Orders', 'Vendors', 'Payments', 'Project Quotation'] },
   { name: 'Quality & Safety', icon: '🔍', items: ['Snags Logger', 'NCR Register', 'Risks Matrix'] },
   { name: 'Site Assets', icon: '📂', items: ['CAD Drawings', 'RFIs Tracker', 'Utility Checks', 'Site Photos', 'Project Handover'] },
@@ -39,6 +39,7 @@ export default function CategoryNav({ projectId, activeItem, comingSoon }) {
       case 'Site Photos': return go('photos');
       case 'CAD Drawings': return go('drawings');
       case 'Project Handover': return go('handover');
+      case 'Timeline (Gantt)': return go('timeline');
       case 'Change Requests': return go('change-requests');
       case 'Variation Orders': return go('variation-orders');
       case 'BOQ Estimator': return go('boq');

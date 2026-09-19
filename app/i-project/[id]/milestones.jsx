@@ -173,6 +173,26 @@ export default function InteriorMilestonesScreen() {
           </View>
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+            {milestones.length > 0 && (
+              <View style={s.ganttCard}>
+                <Text style={s.ganttTitle}>Visual Timeline</Text>
+                <View style={s.ganttLine}>
+                  {milestones.map((m) => {
+                    const dotColor = m.status === 'achieved' ? '#10B981' : m.status === 'delayed' ? '#EF4444' : '#3B82F6';
+                    return (
+                      <View key={m._id} style={s.ganttRow}>
+                        <View style={[s.ganttDot, { borderColor: dotColor, backgroundColor: m.status === 'achieved' ? dotColor : '#FFFFFF' }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.ganttName} numberOfLines={1}>{m.name}</Text>
+                          <Text style={s.ganttDate}>{formatDate(m.dueDate)}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
             {milestones.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="flag-outline" size={40} color="#CBD5E1" />
@@ -203,7 +223,18 @@ export default function InteriorMilestonesScreen() {
 
                     {linkedTasks.length > 0 && (
                       <View style={s.linkedTasksBox}>
-                        <Text style={s.linkedTasksLabel}>LINKED TASKS ({completedCount}/{linkedTasks.length})</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={s.linkedTasksLabel}>LINKED TASKS ({completedCount}/{linkedTasks.length})</Text>
+                          <Text style={s.linkedTasksPct}>
+                            {m.progress !== undefined ? m.progress : Math.round((completedCount / linkedTasks.length) * 100)}%
+                          </Text>
+                        </View>
+                        <View style={s.progressTrack}>
+                          <View style={[s.progressFill, {
+                            width: `${m.progress !== undefined ? m.progress : Math.round((completedCount / linkedTasks.length) * 100)}%`,
+                            backgroundColor: m.status === 'achieved' || completedCount === linkedTasks.length ? '#16A34A' : '#2563EB',
+                          }]} />
+                        </View>
                         {linkedTasks.map((task) => (
                           <View key={task._id} style={s.linkedTaskRow}>
                             <Text style={[s.linkedTaskName, task.status === 'completed' && s.linkedTaskNameDone]} numberOfLines={1}>
@@ -237,11 +268,9 @@ export default function InteriorMilestonesScreen() {
                       </View>
                       {m.status !== 'achieved' && (
                         <View style={{ flexDirection: 'row', gap: 8 }}>
-                          {linkedTasks.length === 0 && (
-                            <TouchableOpacity style={s.actionBtn} onPress={() => markDone(m)}>
-                              <Text style={s.actionBtnText}>Mark Done</Text>
-                            </TouchableOpacity>
-                          )}
+                          <TouchableOpacity style={s.actionBtn} onPress={() => markDone(m)}>
+                            <Text style={s.actionBtnText}>Mark Done</Text>
+                          </TouchableOpacity>
                           <TouchableOpacity style={[s.actionBtn, s.actionBtnDanger]} onPress={() => openDelay(m)}>
                             <Text style={[s.actionBtnText, { color: '#DC2626' }]}>Log Delay</Text>
                           </TouchableOpacity>
@@ -375,6 +404,9 @@ const s = StyleSheet.create({
 
   linkedTasksBox: { borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 10, gap: 6 },
   linkedTasksLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3 },
+  linkedTasksPct: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  progressTrack: { height: 5, borderRadius: 3, backgroundColor: '#F1F5F9', overflow: 'hidden', marginBottom: 4 },
+  progressFill: { height: '100%', borderRadius: 3 },
   linkedTaskRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, gap: 8 },
   linkedTaskName: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1 },
   linkedTaskNameDone: { color: '#94A3B8', textDecorationLine: 'line-through' },
@@ -391,6 +423,14 @@ const s = StyleSheet.create({
   actionBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' },
   actionBtnDanger: { borderColor: '#FECACA' },
   actionBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#334155' },
+
+  ganttCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 4 },
+  ganttTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 10 },
+  ganttLine: { borderLeftWidth: 2, borderLeftColor: '#E2E8F0', marginLeft: 5, gap: 14, paddingLeft: 14 },
+  ganttRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  ganttDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, marginLeft: -19, marginTop: 2 },
+  ganttName: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  ganttDate: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
 
   fab: {
     position: 'absolute', right: 20, bottom: 30,

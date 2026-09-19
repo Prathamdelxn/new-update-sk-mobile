@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,6 +54,7 @@ export default function InteriorSnagsScreen() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [editSnagId, setEditSnagId] = useState(null);
 
   const fetchSnags = useCallback(async () => {
     setLoading(true);
@@ -70,28 +71,73 @@ export default function InteriorSnagsScreen() {
 
   useFocusEffect(useCallback(() => { fetchSnags(); }, [fetchSnags]));
 
-  const handleCreate = async () => {
+  const handleSubmitSnag = async () => {
     if (!form.description.trim() || !form.location.trim()) {
       showToast('Please fill in description and location', 'error');
       return;
     }
     setSubmitting(true);
     try {
-      await interiorApiClient.post(`/projects/${projectId}/snags`, {
+      const payload = {
         description: form.description,
         location: form.location,
         priority: form.priority,
         dueDate: form.dueDate || undefined,
-      });
-      showToast('Snag logged successfully!', 'success');
-      setIsModalOpen(false);
-      setForm(emptyForm);
+      };
+      if (editSnagId) {
+        await interiorApiClient.put(`/projects/${projectId}/snags`, { snagId: editSnagId, ...payload });
+        showToast('Snag updated successfully!', 'success');
+      } else {
+        await interiorApiClient.post(`/projects/${projectId}/snags`, payload);
+        showToast('Snag logged successfully!', 'success');
+      }
+      closeModal();
       fetchSnags();
     } catch (e) {
-      showToast(e.message || 'Failed to log snag', 'error');
+      showToast(e.message || (editSnagId ? 'Failed to update snag' : 'Failed to log snag'), 'error');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const openCreateModal = () => {
+    setEditSnagId(null);
+    setForm(emptyForm);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (snag) => {
+    setEditSnagId(snag._id);
+    setForm({
+      description: snag.description || '',
+      location: snag.location || '',
+      priority: snag.priority || 'medium',
+      dueDate: snag.dueDate ? new Date(snag.dueDate).toISOString().split('T')[0] : '',
+    });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditSnagId(null);
+    setForm(emptyForm);
+  };
+
+  const handleDeleteSnag = (snag) => {
+    Alert.alert('Delete Snag', 'Are you sure you want to delete this snag? This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await interiorApiClient.delete(`/projects/${projectId}/snags?snagId=${snag._id}`);
+            showToast('Snag deleted successfully', 'delete');
+            fetchSnags();
+          } catch (e) {
+            showToast(e.message || 'Failed to delete snag', 'error');
+          }
+        },
+      },
+    ]);
   };
 
   const toggleStatus = async (snag) => {
@@ -142,13 +188,19 @@ export default function InteriorSnagsScreen() {
                         <Ionicons name="location-outline" size={13} color="#3B82F6" />
                         <Text style={s.locationText} numberOfLines={1}>{snag.location}</Text>
                       </View>
-                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <View style={[s.pill, { backgroundColor: priority.bg }]}>
                           <Text style={[s.pillText, { color: priority.color }]}>{snag.priority}</Text>
                         </View>
                         <View style={[s.pill, { backgroundColor: status.bg }]}>
                           <Text style={[s.pillText, { color: status.color }]}>{snag.status}</Text>
                         </View>
+                        <TouchableOpacity onPress={() => openEditModal(snag)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                          <Ionicons name="pencil-outline" size={13} color="#94A3B8" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDeleteSnag(snag)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                          <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                        </TouchableOpacity>
                       </View>
                     </View>
 
@@ -171,17 +223,17 @@ export default function InteriorSnagsScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={() => setIsModalOpen(true)}>
+        <TouchableOpacity style={s.fab} onPress={openCreateModal}>
           <Ionicons name="add" size={26} color="#FFFFFF" />
         </TouchableOpacity>
       </SafeAreaView>
 
-      <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={() => setIsModalOpen(false)}>
+      <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={closeModal}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Log Punch List Snag</Text>
-              <TouchableOpacity onPress={() => setIsModalOpen(false)}>
+              <Text style={s.modalTitle}>{editSnagId ? 'Edit Punch List Snag' : 'Log Punch List Snag'}</Text>
+              <TouchableOpacity onPress={closeModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
@@ -205,8 +257,8 @@ export default function InteriorSnagsScreen() {
               <Text style={s.label}>Target Resolve Date</Text>
               <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={form.dueDate} onChangeText={(v) => setForm({ ...form, dueDate: v })} />
 
-              <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleCreate} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Log Snag</Text>}
+              <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmitSnag} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editSnagId ? 'Save Changes' : 'Log Snag'}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

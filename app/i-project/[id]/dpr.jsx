@@ -48,6 +48,8 @@ export default function InteriorDprScreen() {
 
   const [project, setProject] = useState(null);
   const [dprs, setDprs] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [moms, setMoms] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Form State
@@ -59,26 +61,21 @@ export default function InteriorDprScreen() {
   const [weather, setWeather] = useState('Sunny');
   const [siteInstructions, setSiteInstructions] = useState('');
 
-  // 1. Labour Reports
+  // 1. Labour Reports (auto-populated from live project tasks on form open, see populateFromLiveProject)
   const [labourReports, setLabourReports] = useState([
-    { agencyActivity: 'Carpentry - Wardrobe Framing', skilled: '3', unskilled: '1', currentWork: 'Living room TV unit framing & carcass', statusAsPerBarChart: '80%' },
-    { agencyActivity: 'Electrical - Conduit Piping', skilled: '2', unskilled: '1', currentWork: 'Master bedroom wall chasing & pipe pull', statusAsPerBarChart: 'On Track' },
+    { agencyActivity: '', skilled: '1', unskilled: '0', currentWork: '', statusAsPerBarChart: 'In Progress' },
   ]);
 
   // 2. Material Receipts (Inward Deliveries)
-  const [materialReceipts, setMaterialReceipts] = useState([
-    { supplierName: 'Sri Balaji Plywoods', challanNo: 'DC-9042', receiptNo: 'MR-108', materialDetails: '18mm Century Marine Ply (710 grade)', uom: 'Sheets', qty: '25' },
-  ]);
+  const [materialReceipts, setMaterialReceipts] = useState([]);
 
-  // 3. Tomorrow's Planning
+  // 3. Tomorrow's Planning (auto-populated from live upcoming tasks)
   const [tomorrowPlanning, setTomorrowPlanning] = useState([
-    { agencyActivity: 'Carpentry - Lamination Work', skilled: '2', unskilled: '1', targetedWorks: 'Start laminate pressing for wardrobe shutters', remarkConcern: 'Require adhesive delivery by 10 AM' },
+    { agencyActivity: '', skilled: '1', unskilled: '0', targetedWorks: '', remarkConcern: '' },
   ]);
 
   // 4. Material Requirements (Requisitions)
-  const [materialRequirements, setMaterialRequirements] = useState([
-    { materialDescription: 'Fevicol Marine Adhesive (50kg)', uom: 'Can', qty: '2' },
-  ]);
+  const [materialRequirements, setMaterialRequirements] = useState([]);
 
   // View / Inspection Modal
   const [viewingDpr, setViewingDpr] = useState(null);
@@ -90,12 +87,16 @@ export default function InteriorDprScreen() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [projRes, dprRes] = await Promise.allSettled([
+      const [projRes, dprRes, taskRes, momRes] = await Promise.allSettled([
         interiorApiClient.get(`/projects/${projectId}`),
         interiorApiClient.get(`/projects/${projectId}/dpr`),
+        interiorApiClient.get(`/projects/${projectId}/tasks`),
+        interiorApiClient.get(`/projects/${projectId}/mom`),
       ]);
       setProject(projRes.status === 'fulfilled' && projRes.value?.success ? projRes.value.data : null);
       setDprs(dprRes.status === 'fulfilled' && dprRes.value?.success ? dprRes.value.data || [] : []);
+      setTasks(taskRes.status === 'fulfilled' && taskRes.value?.success ? taskRes.value.data || [] : []);
+      setMoms(momRes.status === 'fulfilled' && momRes.value?.success ? momRes.value.data || [] : []);
     } catch (e) {
       console.error('Failed to load DPRs', e);
       showToast('Failed to fetch DPR history', 'error');
@@ -103,6 +104,61 @@ export default function InteriorDprScreen() {
       setLoading(false);
     }
   }, [projectId, showToast]);
+
+  // Mirrors web's populateFromLiveProject: pre-fills the create form from
+  // real ongoing tasks and the latest MOM instead of leaving it blank, so
+  // the site engineer edits real data rather than typing everything from
+  // scratch.
+  const populateFromLiveProject = useCallback((liveTasks, liveMoms) => {
+    const activeTasks = (liveTasks || []).filter((t) => t.status === 'in_progress' || t.status === 'todo');
+    const liveLabour = activeTasks.length > 0
+      ? activeTasks.map((t) => {
+          const trade = t.packageId?.trade || t.packageId?.name || 'General Trade';
+          const subtaskCount = t.subtasks?.length || 0;
+          const completedSubtasks = t.subtasks?.filter((s) => s.completed).length || 0;
+          const ongoingWork = subtaskCount > 0
+            ? `${completedSubtasks}/${subtaskCount} steps done (${t.subtasks.map((s) => s.title).slice(0, 2).join(', ')})`
+            : t.description || t.name;
+          return {
+            agencyActivity: `${trade} - ${t.name}`,
+            skilled: String(Math.max(1, t.assignees?.length || 1)),
+            unskilled: '1',
+            currentWork: ongoingWork,
+            statusAsPerBarChart: `${t.progress || 0}% (${t.status === 'in_progress' ? 'In Progress' : 'Scheduled'})`,
+          };
+        })
+      : [{ agencyActivity: '', skilled: '1', unskilled: '0', currentWork: '', statusAsPerBarChart: 'In Progress' }];
+
+    const upcomingTasks = (liveTasks || []).filter((t) => t.status === 'todo' || (t.status === 'in_progress' && (t.progress || 0) < 100));
+    const liveTomorrow = upcomingTasks.length > 0
+      ? upcomingTasks.slice(0, 4).map((t) => ({
+          agencyActivity: `${t.packageId?.trade || 'Site Trade'} - ${t.name}`,
+          skilled: String(Math.max(1, t.assignees?.length || 1)),
+          unskilled: '1',
+          targetedWorks: `Continue execution for ${t.name}`,
+          remarkConcern: 'Materials and site clearances verified',
+        }))
+      : [{ agencyActivity: '', skilled: '1', unskilled: '0', targetedWorks: '', remarkConcern: '' }];
+
+    setLabourReports(liveLabour);
+    setTomorrowPlanning(liveTomorrow);
+
+    if (liveMoms && liveMoms.length > 0) {
+      const latestMom = liveMoms[0];
+      const actionPoints = latestMom.actionItems?.length
+        ? '\nAction Points: ' + latestMom.actionItems.map((a) => `• ${a.description} [${a.status || 'open'}]`).join('; ')
+        : '';
+      setSiteInstructions(
+        `Meeting: ${latestMom.title} (${new Date(latestMom.date).toLocaleDateString('en-IN')})\nAgenda: ${latestMom.agenda || 'Site Coordination'}\nDirectives: ${latestMom.notes || 'Execution as per drawings.'}${actionPoints}`
+      );
+    }
+  }, []);
+
+  const openCreateForm = () => {
+    resetForm();
+    populateFromLiveProject(tasks, moms);
+    setIsFormOpen(true);
+  };
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
@@ -511,7 +567,7 @@ export default function InteriorDprScreen() {
         )}
 
         {/* --- FLOATING LOG DPR BUTTON --- */}
-        <TouchableOpacity style={s.fab} onPress={() => setIsFormOpen(true)}>
+        <TouchableOpacity style={s.fab} onPress={openCreateForm}>
           <Ionicons name="add" size={26} color="#FFFFFF" />
         </TouchableOpacity>
       </SafeAreaView>
