@@ -5,11 +5,12 @@ import { useRouter } from 'expo-router';
 
 // Mirrors InteriorProjectBanner's category nav from sky-lite-web.
 export const CATEGORIES = [
-  { name: 'General', icon: '📋', items: ['Site Details', 'File Management', 'Team & Members'] },
-  { name: 'Execution', icon: '📐', items: ['WBS Hierarchy', 'Tasks (Kanban)', 'Milestones', 'DPR Log', 'Weekly Reports', 'MOM', 'Timeline (Gantt)'] },
-  { name: 'Commercials', icon: '💰', items: ['BOQ Estimator', 'Change Requests', 'Variation Orders', 'Procurement', 'Purchase Orders', 'Vendors', 'Payments', 'Project Quotation'] },
-  { name: 'Quality & Safety', icon: '🔍', items: ['Snags Logger', 'NCR Register', 'Risks Matrix'] },
-  { name: 'Site Assets', icon: '📂', items: ['CAD Drawings', 'RFIs Tracker', 'Utility Checks', 'Site Photos', 'Project Handover'] },
+  { name: 'General', icon: '📋', items: ['Site Details', 'File Management', 'Project Quotation', 'Team & Members'] },
+  { name: 'Site Assets', icon: '📂', items: ['CAD Drawings', 'RFIs Tracker'] },
+  { name: 'Execution', icon: '📐', items: ['WBS Hierarchy', 'Milestones', 'Tasks (Kanban)', 'DPR Log', 'Weekly Reports', 'MOM', 'Timeline (Gantt)'] },
+  { name: 'Commercials', icon: '💰', items: ['BOQ Estimator', 'Variation Orders', 'Procurement', 'Vendors', 'Payments'] },
+  { name: 'Quality & Safety', icon: '🔍', items: ['Snags Logger', 'Risks Matrix'] },
+  { name: 'Handover', icon: '🔑', items: ['Project Handover'] },
 ];
 
 export default function CategoryNav({ projectId, activeItem, comingSoon }) {
@@ -26,21 +27,16 @@ export default function CategoryNav({ projectId, activeItem, comingSoon }) {
       case 'Snags Logger': return go('snags');
       case 'Risks Matrix': return go('risks');
       case 'RFIs Tracker': return go('rfis');
-      case 'NCR Register': return go('ncrs');
       case 'Team & Members': return go('members');
       case 'WBS Hierarchy': return go('wbs');
-      case 'Procurement':
-      case 'Purchase Orders': return go('procurement');
+      case 'Procurement': return go('procurement');
       case 'Vendors': return go('vendors');
       case 'DPR Log': return go('dpr');
       case 'Weekly Reports': return go('weekly-reports');
       case 'MOM': return go('mom');
-      case 'Utility Checks': return go('utilities');
-      case 'Site Photos': return go('photos');
       case 'CAD Drawings': return go('drawings');
       case 'Project Handover': return go('handover');
       case 'Timeline (Gantt)': return go('timeline');
-      case 'Change Requests': return go('change-requests');
       case 'Variation Orders': return go('variation-orders');
       case 'BOQ Estimator': return go('boq');
       case 'Payments': return go('payments');

@@ -749,6 +749,8 @@ export default function Lead360Screen() {
   };
 
   const handleConvertToProject = async (quoteIndex) => {
+    if (isLost) return showToast('This lead is marked Lost and cannot be converted to a project.', 'info');
+    if (isConverted) return showToast('This lead has already been converted to a project.', 'info');
     Alert.alert(
       'Convert to Project',
       'Are you sure you want to convert this Lead into an active Execution Project?',
@@ -990,7 +992,7 @@ export default function Lead360Screen() {
                     {t.label}
                   </Text>
                   {isFollowUpTab && activePendingFollowUp && (
-                    <View style={{ backgroundColor: hasOverdueFollowUp ? '#DC2626' : '#D97706', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, marginLeft: 4 }}>
+                    <View style={{ backgroundColor: hasOverdueFollowUp ? '#DC2626' : '#2563EB', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, marginLeft: 4 }}>
                       <Text style={{ color: '#FFFFFF', fontSize: 9.5, fontFamily: 'Inter-Bold' }}>
                         {hasOverdueFollowUp ? 'Overdue' : '1'}
                       </Text>
@@ -1223,15 +1225,6 @@ export default function Lead360Screen() {
                           </TouchableOpacity>
                         )}
                       </View>
-
-                      <TouchableOpacity
-                        style={s.stageLostActionBtn}
-                        onPress={() => setShowLostModal(true)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
-                        <Text style={s.stageLostActionBtnText}>Mark as Lost</Text>
-                      </TouchableOpacity>
                     </View>
                     )}
 
@@ -1251,12 +1244,12 @@ export default function Lead360Screen() {
                       return (
                       <View style={[s.card, isOverdue
                         ? { borderColor: '#FCA5A5', backgroundColor: '#FFF5F5' }
-                        : { borderColor: '#FDE68A', backgroundColor: '#FFFDF5' }
+                        : { borderColor: '#BFDBFE', backgroundColor: '#F0F7FF' }
                       ]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isOverdue ? '#DC2626' : '#D97706' }} />
-                            <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: isOverdue ? '#991B1B' : '#92400E' }}>
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isOverdue ? '#DC2626' : '#2563EB' }} />
+                            <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: isOverdue ? '#991B1B' : '#1D4ED8' }}>
                               {isOverdue ? 'Overdue Follow-up' : 'Current Active Follow-up'}
                             </Text>
                           </View>
@@ -1268,21 +1261,21 @@ export default function Lead360Screen() {
                               </View>
                             )}
                             {!isOverdue && (
-                              <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#FDE68A' }}>
-                                <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#B45309', textTransform: 'uppercase' }}>Pending</Text>
+                              <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE' }}>
+                                <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#1D4ED8', textTransform: 'uppercase' }}>Pending</Text>
                               </View>
                             )}
                           </View>
                         </View>
 
-                        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#FEF08A', gap: 10 }}>
+                        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#DBEAFE', gap: 10 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                              <View style={[s.actionIconBox, { backgroundColor: '#FFFBEB' }]}>
+                              <View style={[s.actionIconBox, { backgroundColor: '#EFF6FF' }]}>
                                 <Ionicons
                                   name={activePendingFollowUp.type === 'WhatsApp' ? 'logo-whatsapp' : activePendingFollowUp.type === 'Meeting' ? 'people-outline' : 'call-outline'}
                                   size={16}
-                                  color="#D97706"
+                                  color="#2563EB"
                                 />
                               </View>
                               <View style={{ flex: 1 }}>
@@ -1754,16 +1747,6 @@ export default function Lead360Screen() {
                           <Text style={s.actionBtnText}>Complete Phase & Pass to Requirements</Text>
                         </TouchableOpacity>
                       )}
-                      {!isReadOnly && (
-                        <TouchableOpacity
-                          style={s.stageLostActionBtn}
-                          onPress={() => setShowLostModal(true)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
-                          <Text style={s.stageLostActionBtnText}>Mark as Lost</Text>
-                        </TouchableOpacity>
-                      )}
                     </View>
                   </View>
                 );
@@ -1925,16 +1908,6 @@ export default function Lead360Screen() {
                         <Text style={s.actionBtnText}>Complete Phase & Pass to Drawing</Text>
                       </TouchableOpacity>
                     )}
-                    {!isReadOnly && (
-                      <TouchableOpacity
-                        style={s.stageLostActionBtn}
-                        onPress={() => setShowLostModal(true)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
-                        <Text style={s.stageLostActionBtnText}>Mark as Lost</Text>
-                      </TouchableOpacity>
-                    )}
                   </View>
                 </View>
               );
@@ -2071,16 +2044,6 @@ export default function Lead360Screen() {
                       {lead.status === 'Under Drawing' && (
                         <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#0284C7', marginTop: 0 }]} onPress={() => setShowSendBoqModal(true)}>
                           <Text style={s.actionBtnText}>Complete Phase & Pass to BOQ Estimation</Text>
-                        </TouchableOpacity>
-                      )}
-                      {!isReadOnly && (
-                        <TouchableOpacity
-                          style={s.stageLostActionBtn}
-                          onPress={() => setShowLostModal(true)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
-                          <Text style={s.stageLostActionBtnText}>Mark as Lost</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -2263,7 +2226,7 @@ export default function Lead360Screen() {
                           {cats.map((cat) => (
                             <View key={cat.name} style={s.catChip}>
                               <Ionicons name="pricetag-outline" size={11} color="#4F46E5" />
-                              <Text style={s.catChipText}>{cat.name}</Text>
+                              <Text style={s.catChipText} numberOfLines={1} ellipsizeMode="tail">{cat.name}</Text>
                               <Text style={s.catChipCount}>({cat.count})</Text>
                             </View>
                           ))}
@@ -2279,14 +2242,14 @@ export default function Lead360Screen() {
 
                       {(lead.boqs[activeBoqIdx]?.items || []).map((it, idx) => (
                         <View key={idx} style={s.boqItemRow}>
-                          <View style={{ flex: 1 }}>
+                          <View style={{ flex: 1, marginRight: 10 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                               <View style={s.catBadgeSmall}>
-                                <Text style={s.catBadgeSmallText}>{it.category || 'Item'}</Text>
+                                <Text style={s.catBadgeSmallText} numberOfLines={1} ellipsizeMode="tail">{it.category || 'Item'}</Text>
                               </View>
-                              <Text style={s.itemNameText}>{it.itemName}</Text>
+                              <Text style={s.itemNameText} numberOfLines={1} ellipsizeMode="tail">{it.itemName || 'Unnamed Item'}</Text>
                             </View>
-                            {!!it.description && <Text style={s.itemDescText}>{it.description}</Text>}
+                            {!!it.description && <Text style={s.itemDescText} numberOfLines={2} ellipsizeMode="tail">{it.description}</Text>}
                             <Text style={s.itemQtyRateText}>
                               {it.quantity} {it.unit} × ₹{Math.round(Number(it.rate || it.unitRate || 0)).toLocaleString('en-IN')}
                             </Text>
@@ -2312,16 +2275,6 @@ export default function Lead360Screen() {
                       {lead.status === 'Under BOQ Creation' && (
                         <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 0 }]} onPress={() => setShowSendQuoteModal(true)}>
                           <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
-                        </TouchableOpacity>
-                      )}
-                      {!isReadOnly && (
-                        <TouchableOpacity
-                          style={s.stageLostActionBtn}
-                          onPress={() => setShowLostModal(true)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
-                          <Text style={s.stageLostActionBtnText}>Mark as Lost</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -2367,16 +2320,6 @@ export default function Lead360Screen() {
                       <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#E11D48' }]} onPress={openQuoteModal}>
                         <Text style={s.actionBtnText}>Generate Quotation</Text>
                       </TouchableOpacity>
-                      {!isReadOnly && (
-                        <TouchableOpacity
-                          style={[s.stageLostActionBtn, { marginTop: 8, width: '100%' }]}
-                          onPress={() => setShowLostModal(true)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
-                          <Text style={s.stageLostActionBtnText}>Mark as Lost</Text>
-                        </TouchableOpacity>
-                      )}
                     </View>
                   );
                 }
@@ -2549,17 +2492,25 @@ export default function Lead360Screen() {
                               <Ionicons name="checkmark-circle" size={20} color="#15803D" />
                               <View style={{ flex: 1 }}>
                                 <Text style={s.quoteAcceptedTitle}>Quotation Accepted</Text>
-                                <Text style={s.quoteAcceptedSubtitle}>Client approved this proposal. Ready to initialize project execution.</Text>
+                                <Text style={s.quoteAcceptedSubtitle}>
+                                  {isLost
+                                    ? 'This lead was later marked Lost and can no longer be converted.'
+                                    : isConverted
+                                    ? 'This lead has already been converted to a project.'
+                                    : 'Client approved this proposal. Ready to initialize project execution.'}
+                                </Text>
                               </View>
                             </View>
-                            <TouchableOpacity
-                              style={s.quoteConvertBtn}
-                              onPress={() => handleConvertToProject(activeQuoteIdx)}
-                              activeOpacity={0.8}
-                            >
-                              <Ionicons name="rocket-outline" size={18} color="#FFFFFF" />
-                              <Text style={s.quoteConvertBtnText}>Convert to Project</Text>
-                            </TouchableOpacity>
+                            {!isReadOnly && (
+                              <TouchableOpacity
+                                style={s.quoteConvertBtn}
+                                onPress={() => handleConvertToProject(activeQuoteIdx)}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons name="rocket-outline" size={18} color="#FFFFFF" />
+                                <Text style={s.quoteConvertBtnText}>Convert to Project</Text>
+                              </TouchableOpacity>
+                            )}
                           </View>
                         ) : currentQuote.status === 'Rejected' ? (
                           <View style={{ marginTop: 16, gap: 10 }}>
@@ -2599,14 +2550,6 @@ export default function Lead360Screen() {
                                 <Text style={{ fontSize: 12, fontWeight: '700', color: '#B91C1C' }}>Mark Rejected</Text>
                               </TouchableOpacity>
                             </View>
-                            <TouchableOpacity
-                              style={s.stageLostActionBtn}
-                              onPress={() => setShowLostModal(true)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
-                              <Text style={s.stageLostActionBtnText}>Mark as Lost</Text>
-                            </TouchableOpacity>
                           </View>
                         ) : null}
                       </View>
@@ -4206,11 +4149,13 @@ const s = StyleSheet.create({
     backgroundColor: '#EEF2FF',
     borderWidth: 1,
     borderColor: '#E0E7FF',
+    maxWidth: 160,
   },
   catChipText: {
     fontSize: 11,
     fontFamily: 'Inter-Bold',
     color: '#4F46E5',
+    flexShrink: 1,
   },
   catChipCount: {
     fontSize: 10,
@@ -4302,7 +4247,7 @@ const s = StyleSheet.create({
   },
   boqItemRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
@@ -4313,6 +4258,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    maxWidth: 110,
   },
   catBadgeSmallText: {
     fontSize: 9,
@@ -4325,6 +4271,7 @@ const s = StyleSheet.create({
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
     flex: 1,
+    flexShrink: 1,
   },
   itemDescText: {
     fontSize: 11,
@@ -4343,6 +4290,7 @@ const s = StyleSheet.create({
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
     marginLeft: 8,
+    flexShrink: 0,
   },
   overBudgetBanner: {
     flexDirection: 'row',

@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, StatusBar, ActivityIndicator, RefreshControl,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,6 +53,8 @@ export default function InteriorProjectsScreen() {
   const [form, setForm] = useState(emptyForm);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   // Android's DateTimePicker is an imperative dialog that dismisses itself —
   // rendering the declarative <DateTimePicker> component there too causes a
@@ -121,8 +123,54 @@ export default function InteriorProjectsScreen() {
   });
 
   const openCreate = () => {
+    setEditingProjectId(null);
     setForm(emptyForm);
     setIsModalVisible(true);
+  };
+
+  const openEdit = (project) => {
+    const id = project.id || project._id;
+    setEditingProjectId(id);
+    setForm({
+      name: project.name || '',
+      client: project.client || '',
+      type: project.type || 'General',
+      startDate: project.startDate ? new Date(project.startDate) : null,
+      endDate: project.endDate ? new Date(project.endDate) : null,
+      budgetAmount: (project.budget?.amount ?? project.budget ?? project.totalBudget ?? '').toString(),
+      description: project.description || '',
+      city: project.location?.city || '',
+      address: project.location?.address || '',
+      templateId: project.templateId || '',
+    });
+    setIsModalVisible(true);
+  };
+
+  const handleDeleteProject = (project) => {
+    const id = project.id || project._id;
+    Alert.alert(
+      'Delete Project',
+      `Are you sure you want to delete "${project.name}"? All linked tasks, milestones, and reports will be soft-deleted.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingId(id);
+            try {
+              await interiorApiClient.delete(`/projects/${id}`);
+              showToast('Project deleted successfully', 'success');
+              loadProjects();
+            } catch (e) {
+              showToast(e.message || 'Failed to delete project', 'error');
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCreateProject = async () => {
@@ -143,13 +191,19 @@ export default function InteriorProjectsScreen() {
         description: form.description,
         templateId: form.templateId || undefined,
       };
-      await interiorApiClient.post('/projects', payload);
-      showToast('Project created successfully!', 'success');
+      if (editingProjectId) {
+        await interiorApiClient.put(`/projects/${editingProjectId}`, payload);
+        showToast('Project updated successfully!', 'success');
+      } else {
+        await interiorApiClient.post('/projects', payload);
+        showToast('Project created successfully!', 'success');
+      }
       setIsModalVisible(false);
+      setEditingProjectId(null);
       setForm(emptyForm);
       loadProjects();
     } catch (e) {
-      showToast(e.message || 'Failed to create project', 'error');
+      showToast(e.message || 'Failed to save project', 'error');
     } finally {
       setCreateLoading(false);
     }
@@ -213,7 +267,7 @@ export default function InteriorProjectsScreen() {
                   const health = HEALTH_META[project.health] || HEALTH_META['on-track'];
                   const id = project.id || project._id;
                   return (
-                    <TouchableOpacity key={id} style={s.projectCard} onPress={() => openProject(project)}>
+                    <TouchableOpacity key={id} style={s.projectCard} onPress={() => openProject(project)} activeOpacity={0.85}>
                       <View style={s.projectTopRow}>
                         <View style={s.projectIconBox}>
                           <Ionicons name="grid-outline" size={16} color="#2563EB" />
@@ -225,6 +279,21 @@ export default function InteriorProjectsScreen() {
                         <View style={[s.statusBadge, { backgroundColor: health.bg }]}>
                           <Text style={[s.statusBadgeText, { color: health.color }]}>{health.label}</Text>
                         </View>
+                        <TouchableOpacity style={s.cardIconBtn} onPress={() => openEdit(project)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Ionicons name="pencil-outline" size={15} color="#2563EB" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={s.cardIconBtn}
+                          onPress={() => handleDeleteProject(project)}
+                          disabled={deletingId === id}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          {deletingId === id ? (
+                            <ActivityIndicator size="small" color="#DC2626" />
+                          ) : (
+                            <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                          )}
+                        </TouchableOpacity>
                       </View>
 
                       <View style={s.progressRow}>
@@ -257,7 +326,7 @@ export default function InteriorProjectsScreen() {
         </TouchableOpacity>
       </SafeAreaView>
 
-      {/* New Project Modal */}
+      {/* New / Edit Project Modal */}
       <Modal animationType="fade" transparent visible={isModalVisible} onRequestClose={() => setIsModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <View style={s.modalOverlay}>
@@ -266,10 +335,10 @@ export default function InteriorProjectsScreen() {
             <View style={s.modalContent}>
               <View style={s.modalHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.modalTitle}>Create New Project</Text>
-                  <Text style={s.modalSubtitle}>Define your project parameters</Text>
+                  <Text style={s.modalTitle}>{editingProjectId ? 'Edit Project' : 'Create New Project'}</Text>
+                  <Text style={s.modalSubtitle}>{editingProjectId ? 'Update project parameters' : 'Define your project parameters'}</Text>
                 </View>
-                <TouchableOpacity onPress={() => setIsModalVisible(false)} style={s.modalBackBtn}>
+                <TouchableOpacity onPress={() => { setIsModalVisible(false); setEditingProjectId(null); }} style={s.modalBackBtn}>
                   <Ionicons name="close" size={22} color="#0F172A" />
                 </TouchableOpacity>
               </View>
@@ -356,7 +425,7 @@ export default function InteriorProjectsScreen() {
                 <FormField label="Description" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} placeholder="Specify fit-out details..." multiline />
 
                 <TouchableOpacity style={[s.createCatBtn, createLoading && { opacity: 0.6 }]} onPress={handleCreateProject} disabled={createLoading} activeOpacity={0.85}>
-                  {createLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.createCatBtnText}>Create Project</Text>}
+                  {createLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.createCatBtnText}>{editingProjectId ? 'Save Changes' : 'Create Project'}</Text>}
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -409,6 +478,7 @@ const s = StyleSheet.create({
   projectSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
   statusBadge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
   statusBadgeText: { fontSize: 10, fontFamily: 'Inter-Bold' },
+  cardIconBtn: { width: 28, height: 28, borderRadius: 9, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
 
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   progressTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: '#F1F5F9', overflow: 'hidden' },
