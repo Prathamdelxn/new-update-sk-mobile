@@ -285,12 +285,24 @@ export default function InteriorVariationOrdersScreen() {
               <>
                 <View style={s.modalHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.modalTitle}>{detailVo.voNumber}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <Text style={s.modalTitle}>{detailVo.voNumber}</Text>
+                      <View style={[s.typeTag, { backgroundColor: (TYPE_COLOR[detailVo.type] || '#7C3AED') + '1A' }]}>
+                        <Text style={[s.typeTagText, { color: TYPE_COLOR[detailVo.type] || '#7C3AED' }]}>{String(detailVo.type).replace('_', ' ')}</Text>
+                      </View>
+                    </View>
                     <Text style={s.headerSub}>Category: {detailVo.category}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => setDetailVo(null)}>
-                    <Ionicons name="close" size={22} color="#64748B" />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View style={[s.statusBadge, { backgroundColor: (STATUS_META[detailVo.status] || { bg: '#FFFBEB' }).bg }]}>
+                      <Text style={[s.statusBadgeText, { color: (STATUS_META[detailVo.status] || { color: '#D97706' }).color }]}>
+                        {String(detailVo.status).replace('_', ' ')}
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setDetailVo(null)}>
+                      <Ionicons name="close" size={22} color="#64748B" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false}>

@@ -9,6 +9,54 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 
+// Reusable dropdown select field (replaces horizontal chip-scroll / stacked
+// option lists for single-choice fields like Threat Category / Probability / Impact).
+function SelectDropdown({ value, options, onChange, placeholder = 'Select...', inputStyle }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <View>
+      <TouchableOpacity style={[inputStyle, ddStyles.row]} onPress={() => setOpen((v) => !v)}>
+        <Text style={[ddStyles.text, !selected && ddStyles.placeholder]} numberOfLines={1}>
+          {selected ? selected.label : placeholder}
+        </Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
+      </TouchableOpacity>
+      {open && (
+        <View style={ddStyles.menu}>
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
+            {options.map((o, idx) => {
+              const active = o.value === value;
+              return (
+                <TouchableOpacity
+                  key={`${o.value}-${idx}`}
+                  style={[ddStyles.menuItem, active && ddStyles.menuItemActive]}
+                  onPress={() => { onChange(o.value); setOpen(false); }}
+                >
+                  <Text style={[ddStyles.menuItemText, active && ddStyles.menuItemTextActive]} numberOfLines={1}>{o.label}</Text>
+                  {active && <Ionicons name="checkmark" size={14} color="#2563EB" />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const ddStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  placeholder: { color: '#94A3B8' },
+  menu: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, overflow: 'hidden' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  menuItemActive: { backgroundColor: '#EFF6FF' },
+  menuItemText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
+  menuItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
+});
+
 const CATEGORIES = [
   { value: 'design', label: 'Design Mismatch' },
   { value: 'procurement', label: 'Procurement & Sourcing' },
@@ -235,30 +283,34 @@ export default function InteriorRisksScreen() {
               <TextInput style={s.input} placeholder="e.g. Delayed HVAC supply might slip ceiling layout" placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} />
 
               <Text style={s.label}>Threat Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
-                {CATEGORIES.map((c) => (
-                  <TouchableOpacity key={c.value} style={[s.chip, form.category === c.value && s.chipActive]} onPress={() => setForm({ ...form, category: c.value })}>
-                    <Text style={[s.chipText, form.category === c.value && s.chipTextActive]}>{c.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <SelectDropdown
+                value={form.category}
+                options={CATEGORIES}
+                onChange={(v) => setForm({ ...form, category: v })}
+                placeholder="Select threat category"
+                inputStyle={s.input}
+              />
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.label}>Probability</Text>
-                  {LEVELS.map((l) => (
-                    <TouchableOpacity key={l.value} style={[s.levelOption, form.probability === l.value && s.levelOptionActive]} onPress={() => setForm({ ...form, probability: l.value })}>
-                      <Text style={[s.levelOptionText, form.probability === l.value && s.levelOptionTextActive]}>{l.label}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  <SelectDropdown
+                    value={form.probability}
+                    options={LEVELS}
+                    onChange={(v) => setForm({ ...form, probability: v })}
+                    placeholder="Select probability"
+                    inputStyle={s.input}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.label}>Impact Level</Text>
-                  {LEVELS.map((l) => (
-                    <TouchableOpacity key={l.value} style={[s.levelOption, form.impact === l.value && s.levelOptionActive]} onPress={() => setForm({ ...form, impact: l.value })}>
-                      <Text style={[s.levelOptionText, form.impact === l.value && s.levelOptionTextActive]}>{l.label}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  <SelectDropdown
+                    value={form.impact}
+                    options={LEVELS}
+                    onChange={(v) => setForm({ ...form, impact: v })}
+                    placeholder="Select impact level"
+                    inputStyle={s.input}
+                  />
                 </View>
               </View>
 
@@ -334,16 +386,6 @@ const s = StyleSheet.create({
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
-
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
-  chipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  chipText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  chipTextActive: { color: '#2563EB' },
-
-  levelOption: { paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', marginBottom: 6 },
-  levelOptionActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  levelOptionText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  levelOptionTextActive: { color: '#FFFFFF' },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },
   saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },

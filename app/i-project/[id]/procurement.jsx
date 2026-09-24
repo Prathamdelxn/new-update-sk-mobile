@@ -18,10 +18,61 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import interiorApiClient from '../../services/interiorApiClient';
 
+// Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
+function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
+  const [showIosPicker, setShowIosPicker] = useState(false);
+
+  const open = () => {
+    const base = value ? new Date(value) : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, d) => {
+          if (event.type === 'set' && d) onChange(d.toISOString().split('T')[0]);
+        },
+      });
+    } else {
+      setShowIosPicker(true);
+    }
+  };
+
+  return (
+    <>
+      <TouchableOpacity style={[inputStyle, dfStyles.row]} onPress={open}>
+        <Text style={[dfStyles.text, !value && dfStyles.placeholder]} numberOfLines={1}>
+          {value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : placeholder}
+        </Text>
+        <Ionicons name="calendar-outline" size={16} color="#64748B" />
+      </TouchableOpacity>
+      {Platform.OS === 'ios' && showIosPicker && (
+        <DateTimePicker
+          value={value ? new Date(value) : new Date()}
+          mode="date"
+          display="spinner"
+          onChange={(e, d) => {
+            setShowIosPicker(false);
+            if (d) onChange(d.toISOString().split('T')[0]);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+const dfStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  placeholder: { color: '#94A3B8' },
+});
+
+// Full status metadata — used for PO badge styling and the manual "Current Pipeline
+// Stage" override picker in the PO Detail modal (a superset of the visible tabs below).
 const PIPELINES = [
   { key: 'requested', label: 'Requested', icon: 'clipboard-outline', color: '#64748B' },
   { key: 'pending', label: 'Planned PO', icon: 'time-outline', color: '#64748B' },
@@ -31,6 +82,16 @@ const PIPELINES = [
   { key: 'partially_delivered', label: 'Partially Delivered', icon: 'git-compare-outline', color: '#F97316' },
   { key: 'delivered', label: 'Delivered', icon: 'checkmark-circle-outline', color: '#16A34A' },
   { key: 'rejected', label: 'Cancelled', icon: 'close-circle-outline', color: '#DC2626' },
+];
+
+// The pipeline tab bar — matches web's exact 6 tabs (no "All", no "Cancelled").
+const PIPELINE_TABS = [
+  { key: 'requested', label: 'Material Request', icon: 'clipboard-outline', color: '#64748B' },
+  { key: 'pending', label: 'Purchase Order', icon: 'time-outline', color: '#64748B' },
+  { key: 'approved', label: 'Approved PO', icon: 'cart-outline', color: '#2563EB' },
+  { key: 'dispatched', label: 'In Transit', icon: 'car-outline', color: '#4F46E5' },
+  { key: 'partially_delivered', label: 'Partial Delivery', icon: 'git-compare-outline', color: '#F97316' },
+  { key: 'delivered', label: 'Delivered', icon: 'checkmark-circle-outline', color: '#16A34A' },
 ];
 
 const PAYMENT_METHODS = ['Bank Transfer', 'UPI', 'RTGS/NEFT', 'Cheque', 'Cash'];
@@ -49,7 +110,7 @@ function formatCost(amount) {
   return `₹${Math.round(amount || 0).toLocaleString('en-IN')}`;
 }
 
-const emptyForm = { vendorName: '', deliveryDate: '', origin: 'requested' };
+const emptyForm = { vendorName: '', deliveryDate: '' };
 const emptyItem = { name: '', quantity: '1', unit: 'nos', unitPrice: '0' };
 
 export default function InteriorProcurementScreen() {
@@ -60,7 +121,7 @@ export default function InteriorProcurementScreen() {
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState('procurement'); // 'procurement' | 'inventory'
-  const [selectedPipeline, setSelectedPipeline] = useState('all');
+  const [selectedPipeline, setSelectedPipeline] = useState('requested');
   const [pos, setPos] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -166,9 +227,9 @@ export default function InteriorProcurementScreen() {
         vendorName: form.vendorName.trim() || 'Unassigned',
         items: poItems,
         deliveryDate: form.deliveryDate || undefined,
-        status: form.origin,
+        status: selectedPipeline === 'requested' ? 'requested' : 'pending',
       });
-      showToast('Purchase Order created successfully!', 'success');
+      showToast(selectedPipeline === 'requested' ? 'Material request created successfully!' : 'Purchase Order created successfully!', 'success');
       setIsAddOpen(false);
       setForm(emptyForm);
       setPoItems([]);
@@ -530,7 +591,6 @@ export default function InteriorProcurementScreen() {
   };
 
   const filteredPos = useMemo(() => {
-    if (selectedPipeline === 'all') return pos;
     return pos.filter((p) => p.status === selectedPipeline);
   }, [pos, selectedPipeline]);
 
@@ -582,13 +642,7 @@ export default function InteriorProcurementScreen() {
 
         {activeTab === 'procurement' && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pipelineRow}>
-            <TouchableOpacity
-              style={[s.pipelineChip, selectedPipeline === 'all' && s.pipelineChipActive]}
-              onPress={() => setSelectedPipeline('all')}
-            >
-              <Text style={[s.pipelineChipText, selectedPipeline === 'all' && s.pipelineChipTextActive]}>All ({pos.length})</Text>
-            </TouchableOpacity>
-            {PIPELINES.map((p) => {
+            {PIPELINE_TABS.map((p) => {
               const count = pos.filter((po) => po.status === p.key).length;
               return (
                 <TouchableOpacity
@@ -596,7 +650,11 @@ export default function InteriorProcurementScreen() {
                   style={[s.pipelineChip, selectedPipeline === p.key && s.pipelineChipActive]}
                   onPress={() => setSelectedPipeline(p.key)}
                 >
-                  <Text style={[s.pipelineChipText, selectedPipeline === p.key && s.pipelineChipTextActive]}>
+                  <Text
+                    style={[s.pipelineChipText, selectedPipeline === p.key && s.pipelineChipTextActive]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
                     {p.label} ({count})
                   </Text>
                 </TouchableOpacity>
@@ -780,6 +838,8 @@ export default function InteriorProcurementScreen() {
         )}
 
         {/* --- FLOATING ACTION BUTTON --- */}
+        {/* Matches web: PO creation only offered from the Requested / Pending tabs */}
+        {(activeTab !== 'procurement' || ['requested', 'pending'].includes(selectedPipeline)) && (
         <TouchableOpacity
           style={s.fab}
           onPress={() => {
@@ -792,6 +852,7 @@ export default function InteriorProcurementScreen() {
         >
           <Ionicons name="add" size={26} color="#FFFFFF" />
         </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* ========================================================================= */}
@@ -802,7 +863,7 @@ export default function InteriorProcurementScreen() {
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>New Purchase Order</Text>
+                <Text style={s.modalTitle}>{selectedPipeline === 'requested' ? 'New Material Request' : 'New Purchase Order'}</Text>
                 <Text style={s.modalSubtitle}>Order materials, hardware & fit-out supplies</Text>
               </View>
               <TouchableOpacity onPress={() => setIsAddOpen(false)} style={s.modalCloseBtn}>
@@ -811,41 +872,24 @@ export default function InteriorProcurementScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Type</Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                <TouchableOpacity
-                  style={[s.originOption, form.origin === 'requested' && s.originOptionActive]}
-                  onPress={() => setForm((f) => ({ ...f, origin: 'requested' }))}
-                >
-                  <Text style={[s.originOptionTitle, form.origin === 'requested' && s.originOptionTitleActive]}>Site Material Request</Text>
-                  <Text style={s.originOptionSub}>Needs procurement review & approval</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[s.originOption, form.origin === 'pending' && s.originOptionActive]}
-                  onPress={() => setForm((f) => ({ ...f, origin: 'pending' }))}
-                >
-                  <Text style={[s.originOptionTitle, form.origin === 'pending' && s.originOptionTitleActive]}>Direct Purchase Order</Text>
-                  <Text style={s.originOptionSub}>Already planned, pending approval</Text>
-                </TouchableOpacity>
-              </View>
+              {/* Vendor is assigned later via "Approve & Select Vendor" — a
+                  fresh Material Request has no vendor yet, matching web,
+                  which only asks for it once creating an actual Purchase Order. */}
+              {selectedPipeline !== 'requested' && (
+                <>
+                  <Text style={s.label}>Vendor / Supplier Name</Text>
+                  <TextInput
+                    style={s.input}
+                    placeholder="e.g. Century Ply & Hardware Hub (optional if unassigned)"
+                    placeholderTextColor="#94A3B8"
+                    value={form.vendorName}
+                    onChangeText={(t) => setForm((f) => ({ ...f, vendorName: t }))}
+                  />
+                </>
+              )}
 
-              <Text style={s.label}>Vendor / Supplier Name</Text>
-              <TextInput
-                style={s.input}
-                placeholder="e.g. Century Ply & Hardware Hub (optional if unassigned)"
-                placeholderTextColor="#94A3B8"
-                value={form.vendorName}
-                onChangeText={(t) => setForm((f) => ({ ...f, vendorName: t }))}
-              />
-
-              <Text style={s.label}>Expected Delivery Date</Text>
-              <TextInput
-                style={s.input}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#94A3B8"
-                value={form.deliveryDate}
-                onChangeText={(t) => setForm((f) => ({ ...f, deliveryDate: t }))}
-              />
+              <Text style={s.label}>{selectedPipeline === 'requested' ? 'Target Delivery Date' : 'Expected Delivery Date'}</Text>
+              <DateField value={form.deliveryDate} onChange={(v) => setForm((f) => ({ ...f, deliveryDate: v }))} inputStyle={s.input} />
 
               <Text style={[s.label, { marginTop: 14 }]}>Line Items ({poItems.length})</Text>
               {poItems.map((item, idx) => (
@@ -907,7 +951,7 @@ export default function InteriorProcurementScreen() {
                 onPress={handleCreatePo}
                 disabled={creating}
               >
-                {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Create Purchase Order</Text>}
+                {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{selectedPipeline === 'requested' ? 'Create Material Request' : 'Create Purchase Order'}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1524,11 +1568,18 @@ const s = StyleSheet.create({
   tabSwitchText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   tabSwitchTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
-  pipelineRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 6 },
+  pipelineRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, gap: 6 },
   pipelineChip: {
-    paddingHorizontal: 12,
+    flexShrink: 0,
+    flexGrow: 0,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 30,
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: 10,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -1813,14 +1864,6 @@ const s = StyleSheet.create({
   },
   poTotalLabel: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
   poTotalVal: { fontSize: 15, fontFamily: 'Inter-Black', color: '#16A34A' },
-
-  originOption: {
-    flex: 1, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 10, backgroundColor: '#F8FAFC',
-  },
-  originOptionActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  originOptionTitle: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155' },
-  originOptionTitleActive: { color: '#2563EB' },
-  originOptionSub: { fontSize: 9.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
   photoPickerBoxSm: {
     alignItems: 'center', justifyContent: 'center', gap: 4,

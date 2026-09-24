@@ -12,6 +12,9 @@ import interiorApiClient from '../services/interiorApiClient';
 import interiorCrmService from '../services/interiorCrmService';
 import { parseMaxBudget } from '../utils/format';
 import * as ImagePicker from 'expo-image-picker';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { WebView } from 'react-native-webview';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import BoqBuilderModal from '../components/crm/BoqBuilderModal';
 import LogSiteVisitModal from '../components/crm/LogSiteVisitModal';
@@ -35,6 +38,49 @@ function userLabel(u) {
   if (!u) return 'User';
   const name = u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || 'User';
   return `${name}${u.role?.name || u.role ? ` (${u.role?.name || u.role})` : ''}`;
+}
+
+// Handover notes from the "Pass to X" modals are built as
+// "note | Role: Name | Session/Scheduled for: date" — split that back out into
+// a clean note line + separate labeled meta lines instead of one run-on string.
+const BRIEF_META_PREFIXES = ['assigned:', 'architect:', 'designer:', 'estimator:', 'sales executive:', 'scheduled for:', 'session:'];
+function parseBriefNote(raw) {
+  const segments = (raw || '').split(' | ').map((s) => s.trim()).filter(Boolean);
+  const metaLines = [];
+  const noteParts = [];
+  segments.forEach((seg) => {
+    const lower = seg.toLowerCase();
+    const prefix = BRIEF_META_PREFIXES.find((p) => lower.startsWith(p));
+    if (prefix) {
+      const isDate = prefix === 'scheduled for:' || prefix === 'session:';
+      metaLines.push({
+        icon: isDate ? 'calendar-outline' : 'person-outline',
+        text: isDate ? `Scheduled for ${seg.slice(prefix.length).trim()}` : seg,
+      });
+    } else {
+      noteParts.push(seg);
+    }
+  });
+  return { note: noteParts.join(' '), metaLines };
+}
+
+function BriefNoteBody({ raw, textStyle, metaTextStyle }) {
+  const { note, metaLines } = parseBriefNote(raw);
+  return (
+    <View style={{ gap: 4 }}>
+      {!!note && <Text style={textStyle}>{note}</Text>}
+      {metaLines.length > 0 && (
+        <View style={{ gap: 3, marginTop: note ? 2 : 0 }}>
+          {metaLines.map((m, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Ionicons name={m.icon} size={11} color="#64748B" />
+              <Text style={metaTextStyle}>{m.text}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
 }
 
 const STAGES = [
@@ -166,7 +212,7 @@ export default function Lead360Screen() {
   // Reschedule Follow-up Modal State
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [reschedulingId, setReschedulingId] = useState(null);
-  const [rescheduleForm, setRescheduleForm] = useState({ type: 'Phone Call', scheduledDate: null, remarks: '' });
+  const [rescheduleForm, setRescheduleForm] = useState({ type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' });
   const [showRescheduleDatePicker, setShowRescheduleDatePicker] = useState(false);
   const [submittingReschedule, setSubmittingReschedule] = useState(false);
 
@@ -190,6 +236,11 @@ export default function Lead360Screen() {
   const [quoteDiscount, setQuoteDiscount] = useState('0');
   const [quoteNotes, setQuoteNotes] = useState('');
 
+  // Quotation Document Preview / Email / Download State
+  const [showQuoteDocModal, setShowQuoteDocModal] = useState(false);
+  const [sendingQuoteEmail, setSendingQuoteEmail] = useState(false);
+  const [downloadingQuotePdf, setDownloadingQuotePdf] = useState(false);
+
   const isConverted = lead?.status === 'Won' || lead?.status === 'Converted' || !!lead?.linkedProject;
   const isLost = lead?.status === 'Lost';
   const isReadOnly = isConverted || isLost;
@@ -209,18 +260,15 @@ export default function Lead360Screen() {
 
     switch (tabId) {
       case 'site': {
-        const hasCompletedFollowUp = activities.some(
-          (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && a.status?.toLowerCase() === 'completed'
-        );
-        const isUnlocked = hasCompletedFollowUp || currentStage >= 1 || !!lead?.siteMeasurements || (lead?.sitePhotos && lead.sitePhotos.length > 0);
+        // Matches web exactly: only a real stage advance (via the Pass-to-Site-Visit
+        // assignment form) or existing site data unlocks this tab — merely completing
+        // a follow-up does NOT, since that form is what actually assigns the visit.
+        const isUnlocked = currentStage >= 1 || !!lead?.siteMeasurements || (lead?.sitePhotos && lead.sitePhotos.length > 0);
         return {
           isLocked: !isUnlocked,
           requiredStage: 'Under Site Visit',
           stageTitle: 'Site Visit',
-          reason: hasCompletedFollowUp
-            ? 'Advance lead to Site Visit to begin physical site measurements.'
-            : 'Complete the initial follow-up before passing to the Site Visit stage.',
-          needsFollowUp: !hasCompletedFollowUp,
+          reason: 'Complete the initial follow-up before passing to the Site Visit stage.',
         };
       }
       case 'requirements': {
@@ -429,12 +477,15 @@ export default function Lead360Screen() {
       type: act.type || 'Phone Call',
       scheduledDate: act.scheduledDate ? new Date(act.scheduledDate) : new Date(),
       remarks: act.remarks || '',
+      assignedSalesExecutive: act.user?._id || act.user?.id || act.user || lead?.assignedSalesExecutive || '',
     });
     setShowRescheduleModal(true);
   };
 
   const handleRescheduleFollowUp = async () => {
     if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (!rescheduleForm.scheduledDate) return showToast('Follow-up date & time is required', 'error');
+    if (!rescheduleForm.assignedSalesExecutive) return showToast('Please assign a member before rescheduling', 'error');
     if (!rescheduleForm.remarks.trim()) return showToast('Notes are required', 'error');
     if (!reschedulingId) return;
     setSubmittingReschedule(true);
@@ -449,6 +500,10 @@ export default function Lead360Screen() {
           : new Date().toISOString(),
         remarks: rescheduleForm.remarks.trim(),
         status: 'Pending',
+        user: rescheduleForm.assignedSalesExecutive,
+      });
+      await interiorApiClient.patch(`/crm/customers/${id}`, {
+        assignedSalesExecutive: rescheduleForm.assignedSalesExecutive,
       });
       showToast('Follow-up rescheduled successfully!', 'success');
       setShowRescheduleModal(false);
@@ -488,22 +543,23 @@ export default function Lead360Screen() {
 
   const handleScheduleFollowUp = async () => {
     if (isReadOnly) return showToast('This lead is read-only.', 'info');
-    if (!followUpForm.remarks.trim()) return showToast('Notes are required', 'error');
+    if (!followUpForm.scheduledDate) return showToast('Follow-up date & time is required', 'error');
+    if (!followUpForm.assignedSalesExecutive) return showToast('Please assign a member before scheduling', 'error');
+    if (!followUpForm.remarks.trim()) return showToast('Follow-up goal / notes are required', 'error');
     setSubmittingAct(true);
     try {
       await interiorApiClient.post('/crm/activities', {
         customer: id,
         type: followUpForm.type,
         status: 'Pending',
-        scheduledDate: followUpForm.scheduledDate ? followUpForm.scheduledDate.toISOString() : new Date().toISOString(),
+        scheduledDate: followUpForm.scheduledDate.toISOString(),
         remarks: followUpForm.remarks.trim(),
+        user: followUpForm.assignedSalesExecutive,
       });
-      if (followUpForm.assignedSalesExecutive) {
-        await interiorApiClient.patch(`/crm/customers/${id}`, {
-          assignedSalesExecutive: followUpForm.assignedSalesExecutive,
-          status: lead?.status === 'New Lead' ? 'Contacted' : lead?.status,
-        });
-      }
+      await interiorApiClient.patch(`/crm/customers/${id}`, {
+        assignedSalesExecutive: followUpForm.assignedSalesExecutive,
+        status: lead?.status === 'New Lead' ? 'Contacted' : lead?.status,
+      });
       showToast('Follow-up scheduled successfully!', 'success');
       setShowFollowUpModal(false);
       setFollowUpForm({ type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' });
@@ -748,6 +804,155 @@ export default function Lead360Screen() {
     );
   };
 
+  // Builds the printable A4 quotation document (mirrors the web QuotationPreview layout)
+  const buildQuotationHtml = (targetLead, quote) => {
+    const items = quote?.items || [];
+    const rowsHtml = items.map((item) => {
+      const qty = Number(item.quantity) || 0;
+      const unitPrice = Number(item.unitPrice || item.rate || 0);
+      const total = Number(item.total) || qty * unitPrice;
+      return `
+        <tr>
+          <td class="desc">${item.description || 'Line Item'}</td>
+          <td class="center">${qty}</td>
+          <td class="right">₹${Math.round(unitPrice).toLocaleString('en-IN')}</td>
+          <td class="right bold">₹${Math.round(total).toLocaleString('en-IN')}</td>
+        </tr>`;
+    }).join('');
+
+    const subtotal = Number(quote?.subtotal) || items.reduce((acc, it) => acc + (Number(it.total) || (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)), 0);
+    const taxPercentage = Number(quote?.taxPercentage ?? 18);
+    const tax = Number(quote?.tax) || Math.round(subtotal * (taxPercentage / 100));
+    const discount = Number(quote?.discount) || 0;
+    const grandTotal = Number(quote?.grandTotal) || Math.max(0, subtotal + tax - discount);
+    const notes = quote?.notes || '1. Quotation is valid for 15 days.\n2. 50% advance payment required to commence work.\n3. Goods once sold will not be taken back.';
+    const createdDate = quote?.createdAt ? new Date(quote.createdAt).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+
+    return `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            * { box-sizing: border-box; }
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #0F172A; padding: 32px; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #E0E7FF; padding-bottom: 24px; margin-bottom: 28px; }
+            .header h1 { font-size: 30px; color: #312E81; margin: 0; letter-spacing: -0.5px; }
+            .header .ver { font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+            .company { text-align: right; }
+            .company h2 { font-size: 20px; margin: 0; color: #0F172A; }
+            .company p { font-size: 12px; color: #64748B; margin: 2px 0; }
+            .meta { display: flex; justify-content: space-between; margin-bottom: 32px; gap: 16px; }
+            .meta .label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+            .meta .name { font-size: 16px; font-weight: 700; }
+            .meta p { font-size: 13px; color: #475569; margin: 2px 0; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+            thead tr { border-bottom: 2px solid #0F172A; }
+            th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 10px 4px; color: #0F172A; }
+            th.center, td.center { text-align: center; }
+            th.right, td.right { text-align: right; }
+            td { padding: 12px 4px; font-size: 13px; border-bottom: 1px solid #F1F5F9; color: #334155; }
+            td.desc { font-weight: 600; color: #1E293B; }
+            td.bold { font-weight: 700; color: #0F172A; }
+            .totals { display: flex; justify-content: flex-end; border-top: 1px solid #E2E8F0; padding-top: 20px; }
+            .totals-box { width: 260px; }
+            .totals-box .row { display: flex; justify-content: space-between; font-size: 13px; color: #475569; margin-bottom: 8px; }
+            .totals-box .grand { display: flex; justify-content: space-between; font-size: 20px; font-weight: 800; color: #312E81; border-top: 2px solid #E0E7FF; padding-top: 10px; margin-top: 6px; }
+            .terms { margin-top: 40px; padding-top: 20px; border-top: 1px solid #F1F5F9; }
+            .terms .label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+            .terms p { font-size: 11px; color: #64748B; white-space: pre-wrap; line-height: 1.6; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>QUOTATION</h1>
+              <p class="ver">Version ${quote?.version || 1}</p>
+            </div>
+            <div class="company">
+              <h2>SKY INTERIOR</h2>
+              <p>123 Design Avenue, Tech Park</p>
+              <p>contact@skyinterior.com</p>
+              <p>+91 98765 43210</p>
+            </div>
+          </div>
+          <div class="meta">
+            <div>
+              <p class="label">Prepared For</p>
+              <p class="name">${targetLead?.name || ''}</p>
+              <p>${targetLead?.mobileNumber || ''}</p>
+              ${targetLead?.email ? `<p>${targetLead.email}</p>` : ''}
+            </div>
+            <div style="text-align:right;">
+              <p class="label">Details</p>
+              <p><strong>Date:</strong> ${createdDate}</p>
+              <p><strong>Lead ID:</strong> ${targetLead?.leadNumber || 'LD-XXXX'}</p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="center">Qty</th>
+                <th class="right">Unit Price</th>
+                <th class="right">Total</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+          <div class="totals">
+            <div class="totals-box">
+              <div class="row"><span>Subtotal</span><span>₹${Math.round(subtotal).toLocaleString('en-IN')}</span></div>
+              <div class="row"><span>Tax (${taxPercentage}%)</span><span>₹${Math.round(tax).toLocaleString('en-IN')}</span></div>
+              ${discount > 0 ? `<div class="row"><span>Discount</span><span>- ₹${Math.round(discount).toLocaleString('en-IN')}</span></div>` : ''}
+              <div class="grand"><span>Grand Total</span><span>₹${Math.round(grandTotal).toLocaleString('en-IN')}</span></div>
+            </div>
+          </div>
+          <div class="terms">
+            <p class="label">Terms & Conditions</p>
+            <p>${notes}</p>
+          </div>
+        </body>
+      </html>`;
+  };
+
+  const handleSendQuotationEmail = async () => {
+    if (!lead?.email) {
+      Alert.alert('Email Required', 'This lead has no email address on file. Add one from Edit Lead before sending.');
+      return;
+    }
+    if (!currentQuote) return;
+    setSendingQuoteEmail(true);
+    try {
+      await interiorCrmService.sendQuotationEmail(id, {
+        quotation: currentQuote,
+        recipientEmail: lead.email,
+      });
+      showToast(`Quotation emailed to ${lead.email}!`, 'success');
+    } catch (e) {
+      showToast(e.message || 'Failed to send quotation email', 'error');
+    } finally {
+      setSendingQuoteEmail(false);
+    }
+  };
+
+  const handleDownloadQuotationPdf = async () => {
+    if (!currentQuote) return;
+    setDownloadingQuotePdf(true);
+    try {
+      const html = buildQuotationHtml(lead, currentQuote);
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `Quotation v${currentQuote.version}` });
+      } else {
+        showToast('Sharing is not available on this device.', 'error');
+      }
+    } catch (e) {
+      showToast(e.message || 'Failed to generate quotation PDF', 'error');
+    } finally {
+      setDownloadingQuotePdf(false);
+    }
+  };
+
   const handleConvertToProject = async (quoteIndex) => {
     if (isLost) return showToast('This lead is marked Lost and cannot be converted to a project.', 'info');
     if (isConverted) return showToast('This lead has already been converted to a project.', 'info');
@@ -957,7 +1162,7 @@ export default function Lead360Screen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabRow}>
           {(() => {
             const followUpActs = activities.filter(
-              (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit'
+              (a) => a.type !== 'Status Change' && a.type !== 'Site Visit' && (a.remarks || a.scheduledDate || a.status === 'Pending')
             );
             const activePendingFollowUp = followUpActs.find((a) => a.status?.toLowerCase() === 'pending');
             const hasOverdueFollowUp = activePendingFollowUp && activePendingFollowUp.scheduledDate && new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now();
@@ -1014,25 +1219,37 @@ export default function Lead360Screen() {
                 <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', letterSpacing: 0.3 }}>
                   LEAD DETAILS
                 </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   {!isReadOnly && (
                     <TouchableOpacity
-                      style={[s.editLeadBtn, { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }]}
+                      style={s.headerIconBtn}
                       onPress={() => setShowLostModal(true)}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="close-circle-outline" size={13} color="#DC2626" />
-                      <Text style={[s.editLeadBtnText, { color: '#DC2626' }]}>Mark Lost</Text>
+                      <Ionicons name="sad-outline" size={16} color="#DC2626" />
                     </TouchableOpacity>
                   )}
                   {!isReadOnly && (
                     <TouchableOpacity
-                      style={s.editLeadBtn}
+                      style={[s.headerIconBtn, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}
                       onPress={openEditModal}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="pencil" size={13} color="#2563EB" />
-                      <Text style={s.editLeadBtnText}>Edit Details</Text>
+                      <Ionicons name="pencil" size={15} color="#334155" />
+                    </TouchableOpacity>
+                  )}
+                  {!isConverted && (
+                    <TouchableOpacity
+                      style={s.headerIconBtn}
+                      onPress={handleDeleteLead}
+                      disabled={deletingLead}
+                      activeOpacity={0.7}
+                    >
+                      {deletingLead ? (
+                        <ActivityIndicator size="small" color="#DC2626" />
+                      ) : (
+                        <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                      )}
                     </TouchableOpacity>
                   )}
                 </View>
@@ -1153,7 +1370,40 @@ export default function Lead360Screen() {
                               {new Date(act.scheduledDate || act.createdAt).toLocaleDateString()}
                             </Text>
                           </View>
-                          <Text style={s.actRemarks}>{act.remarks}</Text>
+                          {act.type === 'Site Visit' ? (
+                            (() => {
+                              // Site Visit activity remarks are built as
+                              // "note | Assigned: X | Scheduled for: Y" — split that
+                              // back out into readable labeled lines instead of one run-on string.
+                              const segments = (act.remarks || '').split(' | ').map((s) => s.trim()).filter(Boolean);
+                              const assignedSeg = segments.find((s) => s.toLowerCase().startsWith('assigned:'));
+                              const scheduledSeg = segments.find((s) => s.toLowerCase().startsWith('scheduled for:'));
+                              const noteSeg = segments.filter((s) => s !== assignedSeg && s !== scheduledSeg).join(' ');
+                              return (
+                                <View style={{ gap: 4 }}>
+                                  {!!noteSeg && <Text style={s.actRemarks}>{noteSeg}</Text>}
+                                  {(!!assignedSeg || !!scheduledSeg) && (
+                                    <View style={{ gap: 3, marginTop: 2 }}>
+                                      {!!assignedSeg && (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                                          <Ionicons name="person-outline" size={11} color="#64748B" />
+                                          <Text style={s.actMetaLine}>{assignedSeg.replace(/^assigned:\s*/i, '')}</Text>
+                                        </View>
+                                      )}
+                                      {!!scheduledSeg && (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                                          <Ionicons name="calendar-outline" size={11} color="#64748B" />
+                                          <Text style={s.actMetaLine}>Scheduled for {scheduledSeg.replace(/^scheduled for:\s*/i, '')}</Text>
+                                        </View>
+                                      )}
+                                    </View>
+                                  )}
+                                </View>
+                              );
+                            })()
+                          ) : (
+                            <Text style={s.actRemarks}>{act.remarks}</Text>
+                          )}
                           <Text style={s.actAuthor}>Logged by {userName}</Text>
                         </View>
                       </View>
@@ -1169,11 +1419,26 @@ export default function Lead360Screen() {
             <View style={{ gap: 16 }}>
               {(() => {
                 const followUpActs = activities.filter(
-                  (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit'
+                  (a) => a.type !== 'Status Change' && a.type !== 'Site Visit' && (a.remarks || a.scheduledDate || a.status === 'Pending')
                 );
                 // In Web flow: Exactly 1 pending follow-up is active until it is marked as done
                 const activePendingFollowUp = followUpActs.find((a) => a.status?.toLowerCase() === 'pending');
-                const completedFollowUps = followUpActs.filter((a) => a.status?.toLowerCase() === 'completed');
+                const completedFollowUps = followUpActs
+                  .filter((a) => a.status?.toLowerCase() === 'completed')
+                  .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime());
+
+                // Matches web's InteriorLeadFollowUpsTab exactly: site visit can only be
+                // offered while the lead is still pre-site-visit and has no quotations yet.
+                const isInitialPhase = ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(lead?.status || '');
+                const hasSiteVisitStarted =
+                  !isInitialPhase ||
+                  lead?.status === 'Under Site Visit' ||
+                  lead?.status === 'Measurement Done' ||
+                  Boolean(lead?.siteMeasurements) ||
+                  (Array.isArray(lead?.sitePhotos) && lead.sitePhotos.length > 0) ||
+                  Boolean(lead?.linkedProject);
+                const canSendToSiteVisit = !isConverted && !hasSiteVisitStarted && (!lead?.quotations || lead.quotations.length === 0);
+                const isActiveOverdue = !!(activePendingFollowUp?.scheduledDate && new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now());
 
                 return (
                   <>
@@ -1182,14 +1447,29 @@ export default function Lead360Screen() {
                     <View style={{ gap: 8 }}>
                       <View style={{ flexDirection: 'row', gap: 10 }}>
                         {activePendingFollowUp ? (
-                          <TouchableOpacity
-                            style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#16A34A', paddingVertical: 12 }]}
-                            onPress={() => handleCompleteFollowUp(activePendingFollowUp._id)}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
-                            <Text style={s.saveBtnText}>Mark Done</Text>
-                          </TouchableOpacity>
+                          canSendToSiteVisit ? (
+                            !isActiveOverdue && (
+                              <TouchableOpacity
+                                style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#7C3AED', paddingVertical: 12 }]}
+                                onPress={() => setShowSendSiteModal(true)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name="location-outline" size={15} color="#FFFFFF" />
+                                <Text style={s.saveBtnText}>Complete & Send to Site Visit </Text>
+                              </TouchableOpacity>
+                              // Matches web: once overdue, only Reschedule is offered — no
+                              // way to complete/advance until the follow-up date is fixed.
+                            )
+                          ) : (
+                            <TouchableOpacity
+                              style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#16A34A', paddingVertical: 12 }]}
+                              onPress={() => handleCompleteFollowUp(activePendingFollowUp._id)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
+                              <Text style={s.saveBtnText}>Mark Done</Text>
+                            </TouchableOpacity>
+                          )
                         ) : completedFollowUps.length === 0 ? (
                           <TouchableOpacity
                             style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#2563EB', paddingVertical: 12 }]}
@@ -1199,31 +1479,16 @@ export default function Lead360Screen() {
                             <Ionicons name="calendar-outline" size={15} color="#FFFFFF" />
                             <Text style={s.saveBtnText}>Schedule Follow-up</Text>
                           </TouchableOpacity>
-                        ) : null}
-
-                        {['New Lead', 'Contacted', 'Meeting Scheduled'].includes(lead.status) && (
+                        ) : canSendToSiteVisit ? (
                           <TouchableOpacity
-                            style={[
-                              s.saveBtn,
-                              { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#7C3AED', paddingVertical: 12 },
-                              completedFollowUps.length === 0 && { opacity: 0.6 }
-                            ]}
-                            onPress={() => {
-                              if (completedFollowUps.length === 0) {
-                                Alert.alert(
-                                  'Follow-up Required',
-                                  'Please complete the follow-up before passing to the Site Visit stage.'
-                                );
-                                return;
-                              }
-                              setShowSendSiteModal(true);
-                            }}
+                            style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#7C3AED', paddingVertical: 12 }]}
+                            onPress={() => setShowSendSiteModal(true)}
                             activeOpacity={0.7}
                           >
                             <Ionicons name="location-outline" size={15} color="#FFFFFF" />
                             <Text style={s.saveBtnText}>Pass to Site Visit</Text>
                           </TouchableOpacity>
-                        )}
+                        ) : null}
                       </View>
                     </View>
                     )}
@@ -1289,28 +1554,20 @@ export default function Lead360Screen() {
                                 </Text>
                               </View>
                             </View>
+                          </View>
 
-                            {!isReadOnly && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          {!isReadOnly && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
                               <TouchableOpacity
-                                style={s.rescheduleBtn}
+                                style={[s.rescheduleBtn, { flex: 1, justifyContent: 'center' }]}
                                 onPress={() => openRescheduleModal(activePendingFollowUp)}
                                 activeOpacity={0.7}
                               >
                                 <Ionicons name="calendar-outline" size={13} color="#7C3AED" />
                                 <Text style={s.rescheduleBtnText}>Reschedule</Text>
                               </TouchableOpacity>
-                              <TouchableOpacity
-                                style={{ backgroundColor: '#16A34A', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                                onPress={() => handleCompleteFollowUp(activePendingFollowUp._id)}
-                                activeOpacity={0.7}
-                              >
-                                <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-                                <Text style={{ color: '#FFFFFF', fontSize: 11.5, fontFamily: 'Inter-Bold' }}>Done</Text>
-                              </TouchableOpacity>
                             </View>
-                            )}
-                          </View>
+                          )}
 
                           {!!activePendingFollowUp.remarks && (
                             <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#475569', backgroundColor: '#F8FAFC', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
@@ -1470,6 +1727,25 @@ export default function Lead360Screen() {
               {(() => {
                 const lock = getTabLockState('site');
                 const siteVisitActs = activities.filter((a) => a.type === 'Site Visit');
+                const latestSiteVisitAct = [...siteVisitActs].sort(
+                  (a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime()
+                )[0];
+                const siteVisitScheduledDate = lead?.siteVisitScheduledDate || latestSiteVisitAct?.scheduledDate;
+                const isSiteVisitOverdue = Boolean(
+                  !lead?.siteMeasurements && siteVisitScheduledDate && new Date(siteVisitScheduledDate).getTime() < Date.now()
+                );
+                // Resolve who the site visit is assigned to — checks the lead's own
+                // assignment first, then falls back to whoever the activity was logged for.
+                const siteAssignedId = (() => {
+                  const la = lead?.assignedSalesExecutive;
+                  const laId = typeof la === 'object' && la !== null ? (la._id || la.id) : la;
+                  if (laId) return laId;
+                  const au = latestSiteVisitAct?.user;
+                  return typeof au === 'object' && au !== null ? (au._id || au.id) : au;
+                })();
+                const siteAssignedName = siteAssignedId
+                  ? userLabel(users.find((u) => (u._id || u.id) === siteAssignedId) || {}).split(' (')[0]
+                  : null;
                 if (lock.isLocked) {
                   return (
                     <View style={s.lockedCard}>
@@ -1487,11 +1763,11 @@ export default function Lead360Screen() {
                         <TouchableOpacity
                           style={[s.unlockActionBtn, { backgroundColor: '#7C3AED' }]}
                           onPress={() => {
-                            const hasCompletedFollowUp = activities.some(
-                              (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && a.status?.toLowerCase() === 'completed'
+                            const hasLoggedFollowUp = activities.some(
+                              (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && ['completed', 'pending'].includes(a.status?.toLowerCase())
                             );
-                            if (!hasCompletedFollowUp) {
-                              Alert.alert('Follow-up Required', 'Please complete the follow-up before passing to the Site Visit stage.');
+                            if (!hasLoggedFollowUp) {
+                              Alert.alert('Follow-up Required', 'Please log a follow-up before passing to the Site Visit stage.');
                               setActiveTab('follow_ups');
                               return;
                             }
@@ -1507,30 +1783,64 @@ export default function Lead360Screen() {
 
                 if (!lead.siteMeasurements) {
                   return (
-                    <View style={s.emptyCard}>
-                      <Ionicons name="location-outline" size={40} color="#7C3AED" />
-                      <Text style={s.emptyCardTitle}>No Site Measurements</Text>
-                      <Text style={s.emptySubText}>Capture area, height, and site photos.</Text>
-                      {!!lead.remarks && (
-                        <View style={s.siteVisitBriefingCard}>
-                          <View style={s.siteVisitBriefingIconBox}>
-                            <Ionicons name="document-text-outline" size={15} color="#7C3AED" />
+                    <View style={{ gap: 14 }}>
+                      {isSiteVisitOverdue && (
+                        <View style={s.siteOverdueBanner}>
+                          <View style={s.siteOverdueIconBox}>
+                            <Ionicons name="warning" size={20} color="#DC2626" />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={s.siteVisitBriefingLabel}>SITE VISIT BRIEFING NOTE</Text>
-                            <Text style={s.siteVisitBriefingText}>{lead.remarks}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <Text style={s.siteOverdueTitle}>Site Visit Schedule Overdue</Text>
+                            </View>
+                            <Text style={s.siteOverdueSub}>
+                              The scheduled site visit for {new Date(siteVisitScheduledDate).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} has passed without measurements being logged.
+                            </Text>
+                            {!isReadOnly && (
+                              <TouchableOpacity
+                                style={s.siteOverdueRescheduleBtn}
+                                onPress={() => openRescheduleSiteVisit(latestSiteVisitAct || { scheduledDate: siteVisitScheduledDate })}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
+                                <Text style={s.siteOverdueRescheduleBtnText}>Reschedule Site Visit</Text>
+                              </TouchableOpacity>
+                            )}
                           </View>
                         </View>
                       )}
-                      <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowSiteModal(true)}>
-                        <Text style={s.actionBtnText}>Log Site Visit</Text>
-                      </TouchableOpacity>
-                      {siteVisitActs.length > 0 && (
-                        <TouchableOpacity style={[s.smallBtn, { marginTop: 8 }]} onPress={() => setShowSiteHistoryModal(true)}>
-                          <Ionicons name="time-outline" size={13} color="#7C3AED" />
-                          <Text style={s.smallBtnText}>View History ({siteVisitActs.length})</Text>
+
+                      <View style={s.emptyCard}>
+                        <Ionicons name="location-outline" size={40} color="#7C3AED" />
+                        <Text style={s.emptyCardTitle}>No Site Measurements</Text>
+                        <Text style={s.emptySubText}>Capture area, height, and site photos.</Text>
+                        {(!!lead.remarks || !!siteAssignedName) && (
+                          <View style={s.siteVisitBriefingCard}>
+                            <View style={s.siteVisitBriefingIconBox}>
+                              <Ionicons name="document-text-outline" size={15} color="#7C3AED" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.siteVisitBriefingLabel}>SITE VISIT BRIEFING NOTE</Text>
+                              <Text style={s.siteVisitBriefingText}>{lead.remarks || 'No specific instructions entered.'}</Text>
+                              {!!siteAssignedName && (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
+                                  <Ionicons name="person-outline" size={11} color="#64748B" />
+                                  <Text style={s.actMetaLine}>Assigned: {siteAssignedName}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        )}
+                        <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowSiteModal(true)}>
+                          <Text style={s.actionBtnText}>Log Site Visit</Text>
                         </TouchableOpacity>
-                      )}
+                        {siteVisitActs.length > 0 && (
+                          <TouchableOpacity style={[s.smallBtn, { marginTop: 8 }]} onPress={() => setShowSiteHistoryModal(true)}>
+                            <Ionicons name="time-outline" size={13} color="#7C3AED" />
+                            <Text style={s.smallBtnText}>View History ({siteVisitActs.length})</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                   );
                 }
@@ -1538,14 +1848,20 @@ export default function Lead360Screen() {
                 return (
                   <View style={{ gap: 16 }}>
                     {/* Site Visit Briefing Note (from scheduling) */}
-                    {!!lead.remarks && (
+                    {(!!lead.remarks || !!siteAssignedName) && (
                       <View style={s.siteVisitBriefingCard}>
                         <View style={s.siteVisitBriefingIconBox}>
                           <Ionicons name="document-text-outline" size={15} color="#7C3AED" />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={s.siteVisitBriefingLabel}>SITE VISIT BRIEFING NOTE</Text>
-                          <Text style={s.siteVisitBriefingText}>{lead.remarks}</Text>
+                          <Text style={s.siteVisitBriefingText}>{lead.remarks || 'No specific instructions entered.'}</Text>
+                          {!!siteAssignedName && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
+                              <Ionicons name="person-outline" size={11} color="#64748B" />
+                              <Text style={s.actMetaLine}>Assigned: {siteAssignedName}</Text>
+                            </View>
+                          )}
                         </View>
                       </View>
                     )}
@@ -1764,6 +2080,12 @@ export default function Lead360Screen() {
                 ) || activities.find((a) => a.type === 'Requirement Gathering')
                   || activities.find((a) => a.type === 'Status Change' && a.remarks?.toLowerCase().includes('requirement'));
                 const reqNote = reqActivity?.remarks || '';
+                const pendingReqActEarly = activities
+                  .filter((a) => a.type === 'Requirement Gathering' && a.status === 'Pending')
+                  .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime())[0];
+                const isReqOverdue = Boolean(
+                  pendingReqActEarly?.scheduledDate && new Date(pendingReqActEarly.scheduledDate).getTime() < Date.now()
+                );
                 if (lock.isLocked) {
                   return (
                     <View style={s.lockedCard}>
@@ -1788,33 +2110,63 @@ export default function Lead360Screen() {
 
                 if (!lead.requirements || lead.requirements.length === 0) {
                   return (
-                    <View style={s.emptyCard}>
-                      <Ionicons name="create-outline" size={40} color="#059669" />
-                      <Text style={s.emptyCardTitle}>No Requirements Recorded</Text>
-                      <Text style={s.emptySubText}>Add room-by-room themes and specifications.</Text>
-                      {!!reqNote && (
-                        <View style={s.briefingCardGreen}>
-                          <View style={s.briefingIconBoxGreen}>
-                            <Ionicons name="chatbubble-ellipses-outline" size={15} color="#059669" />
+                    <View style={{ gap: 14 }}>
+                      {isReqOverdue && (
+                        <View style={s.siteOverdueBanner}>
+                          <View style={s.siteOverdueIconBox}>
+                            <Ionicons name="warning" size={20} color="#DC2626" />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={s.briefingLabelGreen}>REQUIREMENT HANDOVER & SCOPE NOTES</Text>
-                            <Text style={s.briefingTextGreen}>{reqNote}</Text>
+                            <Text style={s.siteOverdueTitle}>Requirements Session Overdue</Text>
+                            <Text style={s.siteOverdueSub}>
+                              The scheduled session for {new Date(pendingReqActEarly.scheduledDate).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} has passed without requirements being logged.
+                            </Text>
+                            {!isReadOnly && (
+                              <TouchableOpacity
+                                style={s.siteOverdueRescheduleBtn}
+                                onPress={() => openRescheduleRequirements(pendingReqActEarly)}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
+                                <Text style={s.siteOverdueRescheduleBtnText}>Reschedule Session</Text>
+                              </TouchableOpacity>
+                            )}
                           </View>
                         </View>
                       )}
-                      {!isReadOnly && (
-                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
-                          <Text style={s.actionBtnText}>Log Requirement</Text>
-                        </TouchableOpacity>
-                      )}
+
+                      <View style={s.emptyCard}>
+                        <Ionicons name="create-outline" size={40} color="#059669" />
+                        <Text style={s.emptyCardTitle}>No Requirements Recorded</Text>
+                        <Text style={s.emptySubText}>Add room-by-room themes and specifications.</Text>
+                        {!!reqNote && (
+                          <View style={s.briefingCardGreen}>
+                            <View style={s.briefingIconBoxGreen}>
+                              <Ionicons name="chatbubble-ellipses-outline" size={15} color="#059669" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.briefingLabelGreen}>REQUIREMENT HANDOVER & SCOPE NOTES</Text>
+                              <BriefNoteBody raw={reqNote} textStyle={s.briefingTextGreen} metaTextStyle={s.actMetaLine} />
+                            </View>
+                          </View>
+                        )}
+                        {!isReadOnly && (
+                          <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
+                            <Text style={s.actionBtnText}>Log Requirement</Text>
+                          </TouchableOpacity>
+                        )}
+                        {!isReadOnly && pendingReqActEarly && !isReqOverdue && (
+                          <TouchableOpacity style={[s.smallBtn, { marginTop: 8 }]} onPress={() => openRescheduleRequirements(pendingReqActEarly)}>
+                            <Ionicons name="time-outline" size={13} color="#4F46E5" />
+                            <Text style={s.smallBtnText}>Reschedule Session</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                   );
                 }
 
-                const pendingReqAct = activities
-                  .filter((a) => a.type === 'Requirement Gathering' && a.status === 'Pending')
-                  .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime())[0];
+                const pendingReqAct = pendingReqActEarly;
 
                 return (
                   <View style={{ gap: 12 }}>
@@ -1825,7 +2177,7 @@ export default function Lead360Screen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={s.briefingLabelGreen}>REQUIREMENT HANDOVER & SCOPE NOTES</Text>
-                        <Text style={s.briefingTextGreen}>{reqNote}</Text>
+                        <BriefNoteBody raw={reqNote} textStyle={s.briefingTextGreen} metaTextStyle={s.actMetaLine} />
                       </View>
                     </View>
                   )}
@@ -1961,7 +2313,7 @@ export default function Lead360Screen() {
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={s.briefingLabelBlue}>DESIGN BRIEF & LAYER GUIDELINES</Text>
-                            <Text style={s.briefingTextBlue}>{drawingNote}</Text>
+                            <BriefNoteBody raw={drawingNote} textStyle={s.briefingTextBlue} metaTextStyle={s.actMetaLine} />
                           </View>
                         </View>
                       )}
@@ -1987,7 +2339,7 @@ export default function Lead360Screen() {
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={s.briefingLabelBlue}>DESIGN BRIEF & LAYER GUIDELINES</Text>
-                          <Text style={s.briefingTextBlue}>{drawingNote}</Text>
+                          <BriefNoteBody raw={drawingNote} textStyle={s.briefingTextBlue} metaTextStyle={s.actMetaLine} />
                         </View>
                       </View>
                     )}
@@ -2178,6 +2530,14 @@ export default function Lead360Screen() {
                       )}
                     </View>
 
+                    {/* Primary action — placed right below the header so it's reachable
+                        without scrolling past the full line-items list. */}
+                    {!boqIsLocked && lead.status === 'Under BOQ Creation' && (
+                      <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 0 }]} onPress={() => setShowSendQuoteModal(true)}>
+                        <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
+                      </TouchableOpacity>
+                    )}
+
                     {/* Versions Tabs if multiple */}
                     {lead.boqs.length > 1 && (
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -2270,14 +2630,6 @@ export default function Lead360Screen() {
                         <Text style={s.quoteNotesBody}>{activeBoq.notes}</Text>
                       </View>
                     )}
-
-                    <View style={{ gap: 8, marginTop: 8 }}>
-                      {lead.status === 'Under BOQ Creation' && (
-                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 0 }]} onPress={() => setShowSendQuoteModal(true)}>
-                          <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
                   </View>
                 );
               })()}
@@ -2392,6 +2744,65 @@ export default function Lead360Screen() {
                           </View>
                         </View>
 
+                        {/* Document Actions: Preview / Email / Download */}
+                        <View style={s.quoteDocActionsRow}>
+                          <TouchableOpacity
+                            style={s.quoteDocActionBtn}
+                            onPress={() => setShowQuoteDocModal(true)}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="document-text-outline" size={14} color="#4F46E5" />
+                            <Text style={s.quoteDocActionText}>Preview</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={s.quoteDocActionBtn}
+                            onPress={handleSendQuotationEmail}
+                            disabled={sendingQuoteEmail}
+                            activeOpacity={0.8}
+                          >
+                            {sendingQuoteEmail ? (
+                              <ActivityIndicator size="small" color="#4F46E5" />
+                            ) : (
+                              <>
+                                <Ionicons name="mail-outline" size={14} color="#4F46E5" />
+                                <Text style={s.quoteDocActionText}>Send Email</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={s.quoteDocActionBtn}
+                            onPress={handleDownloadQuotationPdf}
+                            disabled={downloadingQuotePdf}
+                            activeOpacity={0.8}
+                          >
+                            {downloadingQuotePdf ? (
+                              <ActivityIndicator size="small" color="#4F46E5" />
+                            ) : (
+                              <>
+                                <Ionicons name="download-outline" size={14} color="#4F46E5" />
+                                <Text style={s.quoteDocActionText}>Download</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Prepared For / Details Meta */}
+                        <View style={s.quoteMetaRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.quoteMetaLabel}>PREPARED FOR</Text>
+                            <Text style={s.quoteMetaName}>{lead.name}</Text>
+                            <Text style={s.quoteMetaSub}>{lead.mobileNumber}</Text>
+                            {!!lead.email && <Text style={s.quoteMetaSub}>{lead.email}</Text>}
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={s.quoteMetaLabel}>DETAILS</Text>
+                            <Text style={s.quoteMetaSub}>
+                              Date: {currentQuote.createdAt ? new Date(currentQuote.createdAt).toLocaleDateString('en-IN') : 'N/A'}
+                            </Text>
+                            <Text style={s.quoteMetaSub}>Lead ID: {lead.leadNumber || 'LD-XXXX'}</Text>
+                          </View>
+                        </View>
+
                         {/* Items Section: Horizontally Scrollable 4-Column Table */}
                         <View style={s.quoteTable}>
                           <ScrollView
@@ -2474,16 +2885,16 @@ export default function Lead360Screen() {
                           );
                         })()}
 
-                        {/* Notes / Terms if present */}
-                        {!!currentQuote.notes && (
-                          <View style={s.quoteNotesBox}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                              <Ionicons name="document-text-outline" size={13} color="#64748B" />
-                              <Text style={s.quoteNotesHeader}>TERMS & CLIENT NOTES</Text>
-                            </View>
-                            <Text style={s.quoteNotesBody}>{currentQuote.notes}</Text>
+                        {/* Notes / Terms (falls back to default terms, matching web) */}
+                        <View style={s.quoteNotesBox}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <Ionicons name="document-text-outline" size={13} color="#64748B" />
+                            <Text style={s.quoteNotesHeader}>TERMS & CLIENT NOTES</Text>
                           </View>
-                        )}
+                          <Text style={s.quoteNotesBody}>
+                            {currentQuote.notes || '1. Quotation is valid for 15 days.\n2. 50% advance payment required to commence work.\n3. Goods once sold will not be taken back.'}
+                          </Text>
+                        </View>
 
                         {/* Actions */}
                         {currentQuote.status === 'Accepted' ? (
@@ -2832,14 +3243,8 @@ export default function Lead360Screen() {
                 />
               )}
 
-              <Text style={s.label}>Assign Member</Text>
+              <Text style={s.label}>Assign Member *</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                <TouchableOpacity
-                  style={[s.optionChip, !followUpForm.assignedSalesExecutive && s.optionChipActive]}
-                  onPress={() => setFollowUpForm({ ...followUpForm, assignedSalesExecutive: '' })}
-                >
-                  <Text style={[s.optionChipText, !followUpForm.assignedSalesExecutive && s.optionChipTextActive]}>Keep Current</Text>
-                </TouchableOpacity>
                 {users.map((u) => {
                   const uId = u._id || u.id;
                   const active = followUpForm.assignedSalesExecutive === uId;
@@ -2936,6 +3341,23 @@ export default function Lead360Screen() {
                 />
               )}
 
+              <Text style={s.label}>Assign Member *</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                {users.map((u) => {
+                  const uId = u._id || u.id;
+                  const active = rescheduleForm.assignedSalesExecutive === uId;
+                  return (
+                    <TouchableOpacity
+                      key={uId}
+                      style={[s.optionChip, active && s.optionChipActive]}
+                      onPress={() => setRescheduleForm({ ...rescheduleForm, assignedSalesExecutive: uId })}
+                    >
+                      <Text style={[s.optionChipText, active && s.optionChipTextActive]}>{userLabel(u)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               <Text style={s.label}>Updated Notes / Goal *</Text>
               <TextInput
                 style={[s.input, { height: 80 }]}
@@ -3020,68 +3442,73 @@ export default function Lead360Screen() {
                   const itemTotal = itemQty * itemPrice;
 
                   return (
-                    <View key={idx} style={s.quoteItemRowWeb}>
-                      {/* Trash Button */}
-                      <TouchableOpacity
-                        style={s.quoteTrashBtn}
-                        onPress={() => {
-                          if (quoteItems.length > 1) {
-                            setQuoteItems(quoteItems.filter((_, i) => i !== idx));
-                          } else {
-                            setQuoteItems([{ description: '', quantity: '1', unitPrice: '' }]);
-                          }
-                        }}
-                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      >
-                        <Ionicons name="trash-outline" size={16} color="#F87171" />
-                      </TouchableOpacity>
+                    <View key={idx} style={s.quoteItemCard}>
+                      {/* Row 1: Description + Trash */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <TextInput
+                          style={[s.quoteDescInput, { flex: 1 }]}
+                          placeholder="e.g. Modular Kitchen - Acrylic Finish"
+                          placeholderTextColor="#94A3B8"
+                          value={item.description}
+                          onChangeText={(v) => {
+                            const copy = [...quoteItems];
+                            copy[idx].description = v;
+                            setQuoteItems(copy);
+                          }}
+                        />
+                        <TouchableOpacity
+                          style={s.quoteTrashBtn}
+                          onPress={() => {
+                            if (quoteItems.length > 1) {
+                              setQuoteItems(quoteItems.filter((_, i) => i !== idx));
+                            } else {
+                              setQuoteItems([{ description: '', quantity: '1', unitPrice: '' }]);
+                            }
+                          }}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#F87171" />
+                        </TouchableOpacity>
+                      </View>
 
-                      {/* Description */}
-                      <TextInput
-                        style={s.quoteDescInput}
-                        placeholder="e.g. Modular Kitchen - Acrylic Finish"
-                        placeholderTextColor="#94A3B8"
-                        value={item.description}
-                        onChangeText={(v) => {
-                          const copy = [...quoteItems];
-                          copy[idx].description = v;
-                          setQuoteItems(copy);
-                        }}
-                      />
-
-                      {/* Quantity */}
-                      <TextInput
-                        style={s.quoteQtyInput}
-                        placeholder="1"
-                        placeholderTextColor="#94A3B8"
-                        keyboardType="numeric"
-                        value={item.quantity}
-                        onChangeText={(v) => {
-                          const copy = [...quoteItems];
-                          copy[idx].quantity = v;
-                          setQuoteItems(copy);
-                        }}
-                      />
-
-                      {/* Rate */}
-                      <TextInput
-                        style={s.quoteRateInput}
-                        placeholder="0"
-                        placeholderTextColor="#94A3B8"
-                        keyboardType="numeric"
-                        value={item.unitPrice}
-                        onChangeText={(v) => {
-                          const copy = [...quoteItems];
-                          copy[idx].unitPrice = v;
-                          setQuoteItems(copy);
-                        }}
-                      />
-
-                      {/* Line Item Total */}
-                      <View style={s.quoteRowTotalBox}>
-                        <Text style={s.quoteRowTotalText} numberOfLines={1}>
-                          ₹{Math.round(itemTotal).toLocaleString('en-IN')}
-                        </Text>
+                      {/* Row 2: Qty / Rate / Total — each with its own labeled, roomy box */}
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginTop: 8 }}>
+                        <View style={{ width: 56 }}>
+                          <Text style={s.quoteFieldLabel}>QTY</Text>
+                          <TextInput
+                            style={s.quoteQtyInput}
+                            placeholder="1"
+                            placeholderTextColor="#94A3B8"
+                            keyboardType="numeric"
+                            value={item.quantity}
+                            onChangeText={(v) => {
+                              const copy = [...quoteItems];
+                              copy[idx].quantity = v;
+                              setQuoteItems(copy);
+                            }}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.quoteFieldLabel}>RATE (₹)</Text>
+                          <TextInput
+                            style={s.quoteRateInput}
+                            placeholder="0"
+                            placeholderTextColor="#94A3B8"
+                            keyboardType="numeric"
+                            value={item.unitPrice}
+                            onChangeText={(v) => {
+                              const copy = [...quoteItems];
+                              copy[idx].unitPrice = v;
+                              setQuoteItems(copy);
+                            }}
+                          />
+                        </View>
+                        <View style={s.quoteRowTotalBox}>
+                          <Text style={s.quoteFieldLabel}>TOTAL</Text>
+                          <Text style={s.quoteRowTotalText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                            ₹{Math.round(itemTotal).toLocaleString('en-IN')}
+                          </Text>
+                        </View>
                       </View>
                     </View>
                   );
@@ -3226,7 +3653,7 @@ export default function Lead360Screen() {
         users={users}
         initialData={sendSiteInitialData}
         isFollowUpCompleted={activities.some(
-          (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && a.status?.toLowerCase() === 'completed'
+          (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && ['completed', 'pending'].includes(a.status?.toLowerCase())
         )}
         onSuccess={() => {
           showToast(sendSiteInitialData ? 'Site visit rescheduled successfully!' : 'Passed to Site Visit phase!', 'success');
@@ -3293,6 +3720,54 @@ export default function Lead360Screen() {
           router.push('/(tabs)/crm');
         }}
       />
+
+      {/* 8. Quotation Document Preview Modal */}
+      <Modal
+        visible={showQuoteDocModal}
+        animationType="slide"
+        onRequestClose={() => setShowQuoteDocModal(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F5F9' }}>
+          <View style={s.quoteDocHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.quoteDocHeaderTitle}>Quotation Document</Text>
+              <Text style={s.quoteDocHeaderSub}>
+                {currentQuote ? `Version ${currentQuote.version} · ${currentQuote.status || 'Sent'}` : ''}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={handleSendQuotationEmail}
+              disabled={sendingQuoteEmail}
+              style={s.quoteDocHeaderBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {sendingQuoteEmail ? <ActivityIndicator size="small" color="#4F46E5" /> : <Ionicons name="mail-outline" size={18} color="#4F46E5" />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDownloadQuotationPdf}
+              disabled={downloadingQuotePdf}
+              style={s.quoteDocHeaderBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {downloadingQuotePdf ? <ActivityIndicator size="small" color="#4F46E5" /> : <Ionicons name="download-outline" size={18} color="#4F46E5" />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowQuoteDocModal(false)}
+              style={s.quoteDocHeaderBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={20} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+          {currentQuote && (
+            <WebView
+              originWhitelist={['*']}
+              source={{ html: buildQuotationHtml(lead, currentQuote) }}
+              style={{ flex: 1, backgroundColor: '#F1F5F9' }}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
@@ -3375,21 +3850,15 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
-  editLeadBtn: {
-    flexDirection: 'row',
+  headerIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  editLeadBtnText: {
-    fontSize: 11.5,
-    fontFamily: 'Inter-Bold',
-    color: '#2563EB',
+    borderColor: '#FECACA',
   },
   headerGreeting: {
     fontSize: 11,
@@ -3562,6 +4031,7 @@ const s = StyleSheet.create({
   actType: { fontSize: 11, fontWeight: '800', color: '#334155' },
   actTime: { fontSize: 10, color: '#94A3B8' },
   actRemarks: { fontSize: 12, color: '#475569', marginTop: 4 },
+  actMetaLine: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' },
   actAuthor: { fontSize: 10, color: '#64748B', marginTop: 6, fontWeight: '600' },
   emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', gap: 8 },
   emptyCardTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
@@ -3584,7 +4054,57 @@ const s = StyleSheet.create({
   versionChipText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
   versionChipTextActive: { color: '#FFFFFF' },
   addVersionBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: '#FFF1F2', justifyContent: 'center' },
+  // Quotation Document Preview Modal
+  quoteDocHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  quoteDocHeaderTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  quoteDocHeaderSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  quoteDocHeaderBtn: {
+    width: 34, height: 34, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0',
+  },
   // Quotation Tab Layout Styles
+  quoteDocActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  quoteDocActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
+    borderRadius: 10,
+    paddingVertical: 9,
+  },
+  quoteDocActionText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#4F46E5' },
+  quoteMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    gap: 12,
+  },
+  quoteMetaLabel: { fontSize: 9.5, fontFamily: 'Inter-ExtraBold', color: '#94A3B8', letterSpacing: 0.3, marginBottom: 4 },
+  quoteMetaName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  quoteMetaSub: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 1 },
   quoteTable: {
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -3799,20 +4319,27 @@ const s = StyleSheet.create({
     gap: 8,
     marginTop: 4,
   },
-  quoteItemRowWeb: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  quoteItemCard: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    padding: 8,
   },
   quoteTrashBtn: {
     width: 28,
-    height: 36,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  quoteFieldLabel: {
+    fontSize: 9,
+    fontFamily: 'Inter-Bold',
+    color: '#94A3B8',
+    letterSpacing: 0.3,
+    marginBottom: 3,
+  },
   quoteDescInput: {
-    flex: 1,
-    minWidth: 90,
     height: 38,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -3824,7 +4351,6 @@ const s = StyleSheet.create({
     color: '#0F172A',
   },
   quoteQtyInput: {
-    width: 42,
     height: 38,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -3837,7 +4363,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 4,
   },
   quoteRateInput: {
-    width: 58,
     height: 38,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -3847,16 +4372,17 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter-SemiBold',
     color: '#0F172A',
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
   },
   quoteRowTotalBox: {
-    minWidth: 48,
+    flex: 1,
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingRight: 2,
+    paddingBottom: 2,
   },
   quoteRowTotalText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -4292,6 +4818,55 @@ const s = StyleSheet.create({
     marginLeft: 8,
     flexShrink: 0,
   },
+  siteOverdueBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: 'rgba(220,38,38,0.3)',
+    borderRadius: 18,
+    padding: 14,
+  },
+  siteOverdueIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(220,38,38,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  siteOverdueTitle: {
+    fontSize: 13.5,
+    fontFamily: 'Inter-ExtraBold',
+    color: '#7F1D1D',
+  },
+  siteOverdueSub: {
+    fontSize: 11.5,
+    fontFamily: 'Inter-Medium',
+    color: '#991B1B',
+    marginTop: 3,
+    lineHeight: 16,
+  },
+  siteOverdueRescheduleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  siteOverdueRescheduleBtnText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#FFFFFF',
+  },
   overBudgetBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -4424,12 +4999,13 @@ const s = StyleSheet.create({
   rescheduleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     backgroundColor: '#F3E8FF',
     borderWidth: 1,
     borderColor: '#DDD6FE',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 8,
     borderRadius: 8,
   },
   rescheduleBtnText: {

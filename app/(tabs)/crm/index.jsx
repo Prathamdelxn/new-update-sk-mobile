@@ -357,6 +357,20 @@ export default function CRMScreen() {
                   const meta = STAGE_META[lead.status] || STAGE_META['Lost'];
                   const isLost = lead.status === 'Lost';
 
+                  const isQuotationsTab = activeFlowTab === 'quotations';
+                  const latestQuote = isQuotationsTab && lead.quotations && lead.quotations.length > 0
+                    ? lead.quotations[lead.quotations.length - 1]
+                    : null;
+                  const quoteBadge = isQuotationsTab
+                    ? (lead.status === 'Won' || lead.status === 'Converted')
+                      ? { label: 'Converted', color: '#16A34A', bg: '#F0FDF4' }
+                      : (latestQuote?.status === 'Accepted' || lead.status === 'Booking Pending')
+                      ? { label: 'Approved', color: '#16A34A', bg: '#F0FDF4' }
+                      : latestQuote?.status === 'Rejected'
+                      ? { label: 'Rejected', color: '#E11D48', bg: '#FFF1F2' }
+                      : { label: 'Pending', color: '#4F46E5', bg: '#EEF2FF' }
+                    : null;
+
                   return (
                     <TouchableOpacity 
                       key={lead._id} 
@@ -393,6 +407,22 @@ export default function CRMScreen() {
                         </View>
                       </View>
 
+                      {/* Quotation Info (Quotations tab only) */}
+                      {isQuotationsTab && (
+                        <View style={s.quoteInfoRow}>
+                          {latestQuote ? (
+                            <>
+                              <Text style={s.quoteInfoTotal} numberOfLines={1}>
+                                Grand Total: ₹{(latestQuote.grandTotal || 0).toLocaleString('en-IN')}
+                              </Text>
+                              <Text style={s.quoteInfoVersion}>v{latestQuote.version}</Text>
+                            </>
+                          ) : (
+                            <Text style={s.quoteInfoEmpty}>No quotation generated</Text>
+                          )}
+                        </View>
+                      )}
+
                       {/* Lost Reason Pill */}
                       {isLost && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF1F2', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginTop: 4, borderWidth: 1, borderColor: '#FECACA' }}>
@@ -404,8 +434,10 @@ export default function CRMScreen() {
                       )}
 
                       <View style={s.leadBottomRow}>
-                        <View style={[s.stageBadge, { backgroundColor: meta.bg }]}>
-                          <Text style={[s.stageBadgeText, { color: meta.color }]}>{lead.status}</Text>
+                        <View style={[s.stageBadge, { backgroundColor: isQuotationsTab ? quoteBadge.bg : meta.bg }]}>
+                          <Text style={[s.stageBadgeText, { color: isQuotationsTab ? quoteBadge.color : meta.color }]}>
+                            {isQuotationsTab ? quoteBadge.label : lead.status}
+                          </Text>
                         </View>
                         <Text style={s.leadDate} numberOfLines={1}>{lead.leadSource || 'N/A'}</Text>
                       </View>
@@ -671,6 +703,15 @@ const s = StyleSheet.create({
   leadName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
   leadNumber: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' },
   leadSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+
+  quoteInfoRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9',
+    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
+  },
+  quoteInfoTotal: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#16A34A', flexShrink: 1 },
+  quoteInfoVersion: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#64748B', marginLeft: 8 },
+  quoteInfoEmpty: { fontSize: 11, fontFamily: 'Inter-MediumItalic', color: '#94A3B8' },
 
   leadBottomRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

@@ -6,8 +6,99 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+
+// Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
+function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
+  const [showIosPicker, setShowIosPicker] = useState(false);
+
+  const open = () => {
+    const base = value ? new Date(value) : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, d) => {
+          if (event.type === 'set' && d) onChange(d.toISOString().split('T')[0]);
+        },
+      });
+    } else {
+      setShowIosPicker(true);
+    }
+  };
+
+  return (
+    <>
+      <TouchableOpacity style={[inputStyle, ctrlStyles.row]} onPress={open}>
+        <Text style={[ctrlStyles.text, !value && ctrlStyles.placeholder]} numberOfLines={1}>
+          {value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : placeholder}
+        </Text>
+        <Ionicons name="calendar-outline" size={16} color="#64748B" />
+      </TouchableOpacity>
+      {Platform.OS === 'ios' && showIosPicker && (
+        <DateTimePicker
+          value={value ? new Date(value) : new Date()}
+          mode="date"
+          display="spinner"
+          onChange={(e, d) => {
+            setShowIosPicker(false);
+            if (d) onChange(d.toISOString().split('T')[0]);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+// Reusable dropdown select field (replaces horizontal chip-scroll pickers for
+// single-choice fields like Contract Milestone / Payment Mode).
+function SelectDropdown({ value, options, onChange, placeholder = 'Select...', inputStyle }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <View>
+      <TouchableOpacity style={[inputStyle, ctrlStyles.row]} onPress={() => setOpen((v) => !v)}>
+        <Text style={[ctrlStyles.text, !selected && ctrlStyles.placeholder]} numberOfLines={1}>
+          {selected ? selected.label : placeholder}
+        </Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
+      </TouchableOpacity>
+      {open && (
+        <View style={ctrlStyles.menu}>
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
+            {options.map((o, idx) => {
+              const active = o.value === value;
+              return (
+                <TouchableOpacity
+                  key={`${o.value}-${idx}`}
+                  style={[ctrlStyles.menuItem, active && ctrlStyles.menuItemActive]}
+                  onPress={() => { onChange(o.value); setOpen(false); }}
+                >
+                  <Text style={[ctrlStyles.menuItemText, active && ctrlStyles.menuItemTextActive]} numberOfLines={1}>{o.label}</Text>
+                  {active && <Ionicons name="checkmark" size={14} color="#2563EB" />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const ctrlStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  placeholder: { color: '#94A3B8' },
+  menu: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, overflow: 'hidden' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  menuItemActive: { backgroundColor: '#EFF6FF' },
+  menuItemText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
+  menuItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
+});
 
 const CATEGORIES = [
   { key: 'incoming', label: 'Incoming', icon: 'arrow-down-circle-outline', color: '#16A34A' },
@@ -404,28 +495,28 @@ export default function InteriorPaymentsScreen() {
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={s.label}>Contract Milestone</Text>
-              <View style={s.pillWrap}>
-                {MILESTONE_OPTIONS.map((m) => (
-                  <TouchableOpacity key={m} style={[s.pill, incomingForm.milestoneName === m && s.pillActive]} onPress={() => setIncomingForm({ ...incomingForm, milestoneName: m })}>
-                    <Text style={[s.pillText, incomingForm.milestoneName === m && s.pillTextActive]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <SelectDropdown
+                value={incomingForm.milestoneName}
+                options={MILESTONE_OPTIONS.map((m) => ({ value: m, label: m }))}
+                onChange={(v) => setIncomingForm({ ...incomingForm, milestoneName: v })}
+                placeholder="Select milestone"
+                inputStyle={s.input}
+              />
 
               <Text style={s.label}>Amount (₹)</Text>
               <TextInput style={s.input} placeholder="e.g. 250000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={incomingForm.amount} onChangeText={(v) => setIncomingForm({ ...incomingForm, amount: v })} />
 
               <Text style={s.label}>Payment Date</Text>
-              <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={incomingForm.paymentDate} onChangeText={(v) => setIncomingForm({ ...incomingForm, paymentDate: v })} />
+              <DateField value={incomingForm.paymentDate} onChange={(v) => setIncomingForm({ ...incomingForm, paymentDate: v })} inputStyle={s.input} />
 
               <Text style={s.label}>Payment Mode</Text>
-              <View style={s.pillWrap}>
-                {PAYMENT_METHODS.map((m) => (
-                  <TouchableOpacity key={m} style={[s.pill, incomingForm.paymentMethod === m && s.pillActive]} onPress={() => setIncomingForm({ ...incomingForm, paymentMethod: m })}>
-                    <Text style={[s.pillText, incomingForm.paymentMethod === m && s.pillTextActive]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <SelectDropdown
+                value={incomingForm.paymentMethod}
+                options={PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
+                onChange={(v) => setIncomingForm({ ...incomingForm, paymentMethod: v })}
+                placeholder="Select payment mode"
+                inputStyle={s.input}
+              />
 
               <Text style={s.label}>Ref / UTR Number</Text>
               <TextInput style={s.input} placeholder="e.g. HDFC10928301" placeholderTextColor="#94A3B8" value={incomingForm.referenceNo} onChangeText={(v) => setIncomingForm({ ...incomingForm, referenceNo: v })} />
@@ -484,16 +575,16 @@ export default function InteriorPaymentsScreen() {
               <TextInput style={s.input} placeholder="e.g. 150000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={outgoingForm.amount} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, amount: v })} />
 
               <Text style={s.label}>Payment Date</Text>
-              <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={outgoingForm.paymentDate} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, paymentDate: v })} />
+              <DateField value={outgoingForm.paymentDate} onChange={(v) => setOutgoingForm({ ...outgoingForm, paymentDate: v })} inputStyle={s.input} />
 
               <Text style={s.label}>Payment Mode</Text>
-              <View style={s.pillWrap}>
-                {PAYMENT_METHODS.map((m) => (
-                  <TouchableOpacity key={m} style={[s.pill, outgoingForm.paymentMethod === m && s.pillActive]} onPress={() => setOutgoingForm({ ...outgoingForm, paymentMethod: m })}>
-                    <Text style={[s.pillText, outgoingForm.paymentMethod === m && s.pillTextActive]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <SelectDropdown
+                value={outgoingForm.paymentMethod}
+                options={PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
+                onChange={(v) => setOutgoingForm({ ...outgoingForm, paymentMethod: v })}
+                placeholder="Select payment mode"
+                inputStyle={s.input}
+              />
 
               <Text style={s.label}>Ref / UTR Number</Text>
               <TextInput style={s.input} placeholder="e.g. UTR-9812401" placeholderTextColor="#94A3B8" value={outgoingForm.referenceNo} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, referenceNo: v })} />

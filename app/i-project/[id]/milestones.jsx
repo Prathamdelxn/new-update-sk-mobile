@@ -6,6 +6,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 
@@ -22,6 +23,54 @@ function formatDate(d) {
 
 const emptyForm = { name: '', dueDate: '' };
 const emptyDelayForm = { reason: '', impactDays: '7', newDate: '' };
+
+// Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
+function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
+  const [showIosPicker, setShowIosPicker] = useState(false);
+
+  const open = () => {
+    const base = value ? new Date(value) : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, d) => {
+          if (event.type === 'set' && d) onChange(d.toISOString().split('T')[0]);
+        },
+      });
+    } else {
+      setShowIosPicker(true);
+    }
+  };
+
+  return (
+    <>
+      <TouchableOpacity style={[inputStyle, dfStyles.row]} onPress={open}>
+        <Text style={[dfStyles.text, !value && dfStyles.placeholder]} numberOfLines={1}>
+          {value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : placeholder}
+        </Text>
+        <Ionicons name="calendar-outline" size={16} color="#64748B" />
+      </TouchableOpacity>
+      {Platform.OS === 'ios' && showIosPicker && (
+        <DateTimePicker
+          value={value ? new Date(value) : new Date()}
+          mode="date"
+          display="spinner"
+          onChange={(e, d) => {
+            setShowIosPicker(false);
+            if (d) onChange(d.toISOString().split('T')[0]);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+const dfStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  placeholder: { color: '#94A3B8' },
+});
 
 export default function InteriorMilestonesScreen() {
   const insets = useSafeAreaInsets();
@@ -306,7 +355,7 @@ export default function InteriorMilestonesScreen() {
               <TextInput style={s.input} placeholder="e.g. Mechanical Inspection Checkoff" placeholderTextColor="#94A3B8" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
 
               <Text style={s.label}>Target Due Date *</Text>
-              <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={form.dueDate} onChangeText={(v) => setForm({ ...form, dueDate: v })} />
+              <DateField value={form.dueDate} onChange={(v) => setForm({ ...form, dueDate: v })} inputStyle={s.input} />
 
               <Text style={s.label}>Link Tasks (all must be completed to achieve milestone)</Text>
               {tasks.length === 0 ? (
@@ -366,7 +415,7 @@ export default function InteriorMilestonesScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.label}>New Target Date *</Text>
-                      <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={delayForm.newDate} onChangeText={(v) => setDelayForm({ ...delayForm, newDate: v })} />
+                      <DateField value={delayForm.newDate} onChange={(v) => setDelayForm({ ...delayForm, newDate: v })} inputStyle={s.input} />
                     </View>
                   </View>
 

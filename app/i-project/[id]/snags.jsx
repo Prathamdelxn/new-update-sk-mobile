@@ -1,13 +1,63 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
+  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+
+// Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
+function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
+  const [showIosPicker, setShowIosPicker] = useState(false);
+
+  const open = () => {
+    const base = value ? new Date(value) : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, d) => {
+          if (event.type === 'set' && d) onChange(d.toISOString().split('T')[0]);
+        },
+      });
+    } else {
+      setShowIosPicker(true);
+    }
+  };
+
+  return (
+    <>
+      <TouchableOpacity style={[inputStyle, dfStyles.row]} onPress={open}>
+        <Text style={[dfStyles.text, !value && dfStyles.placeholder]} numberOfLines={1}>
+          {value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : placeholder}
+        </Text>
+        <Ionicons name="calendar-outline" size={16} color="#64748B" />
+      </TouchableOpacity>
+      {Platform.OS === 'ios' && showIosPicker && (
+        <DateTimePicker
+          value={value ? new Date(value) : new Date()}
+          mode="date"
+          display="spinner"
+          onChange={(e, d) => {
+            setShowIosPicker(false);
+            if (d) onChange(d.toISOString().split('T')[0]);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+const dfStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  placeholder: { color: '#94A3B8' },
+});
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 const PRIORITY_META = {
@@ -41,7 +91,7 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-const emptyForm = { description: '', location: '', priority: 'medium', dueDate: '' };
+const emptyForm = { description: '', location: '', priority: 'medium', dueDate: '', photos: [] };
 
 export default function InteriorSnagsScreen() {
   const insets = useSafeAreaInsets();
@@ -55,6 +105,7 @@ export default function InteriorSnagsScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [editSnagId, setEditSnagId] = useState(null);
+  const [lightboxPhoto, setLightboxPhoto] = useState(null);
 
   const fetchSnags = useCallback(async () => {
     setLoading(true);
@@ -83,6 +134,7 @@ export default function InteriorSnagsScreen() {
         location: form.location,
         priority: form.priority,
         dueDate: form.dueDate || undefined,
+        photos: form.photos,
       };
       if (editSnagId) {
         await interiorApiClient.put(`/projects/${projectId}/snags`, { snagId: editSnagId, ...payload });
@@ -113,6 +165,7 @@ export default function InteriorSnagsScreen() {
       location: snag.location || '',
       priority: snag.priority || 'medium',
       dueDate: snag.dueDate ? new Date(snag.dueDate).toISOString().split('T')[0] : '',
+      photos: snag.photos || [],
     });
     setIsModalOpen(true);
   };
@@ -122,6 +175,33 @@ export default function InteriorSnagsScreen() {
     setEditSnagId(null);
     setForm(emptyForm);
   };
+
+  const handlePickPhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        showToast('Camera roll permission is required to attach photos', 'error');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.7,
+        base64: true,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        const dataUri = asset.base64
+          ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+          : asset.uri;
+        setForm((f) => ({ ...f, photos: [...f.photos, dataUri] }));
+      }
+    } catch (e) {
+      showToast(e.message || 'Failed to attach photo', 'error');
+    }
+  };
+
+  const removePhoto = (idx) => setForm((f) => ({ ...f, photos: f.photos.filter((_, i) => i !== idx) }));
 
   const handleDeleteSnag = (snag) => {
     Alert.alert('Delete Snag', 'Are you sure you want to delete this snag? This cannot be undone.', [
@@ -206,6 +286,16 @@ export default function InteriorSnagsScreen() {
 
                     <Text style={s.snagDesc}>{snag.description}</Text>
 
+                    {snag.photos && snag.photos.length > 0 && (
+                      <View style={s.photoRow}>
+                        {snag.photos.map((photo, idx) => (
+                          <TouchableOpacity key={idx} style={s.photoThumb} onPress={() => setLightboxPhoto(photo)}>
+                            <Image source={{ uri: photo }} style={s.photoThumbImg} />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+
                     <View style={s.snagBottomRow}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <Ionicons name="calendar-outline" size={12} color="#94A3B8" />
@@ -255,7 +345,33 @@ export default function InteriorSnagsScreen() {
               </View>
 
               <Text style={s.label}>Target Resolve Date</Text>
-              <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={form.dueDate} onChangeText={(v) => setForm({ ...form, dueDate: v })} />
+              <DateField value={form.dueDate} onChange={(v) => setForm({ ...form, dueDate: v })} inputStyle={s.input} />
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 8 }}>
+                <Text style={[s.label, { marginTop: 0 }]}>Attachments ({form.photos.length})</Text>
+                <TouchableOpacity style={s.addPhotoBtn} onPress={handlePickPhoto}>
+                  <Ionicons name="camera" size={13} color="#2563EB" />
+                  <Text style={s.addPhotoBtnText}>+ Add Photo</Text>
+                </TouchableOpacity>
+              </View>
+
+              {form.photos.length > 0 ? (
+                <View style={s.modalPhotoGrid}>
+                  {form.photos.map((uri, idx) => (
+                    <View key={idx} style={s.modalPhotoThumb}>
+                      <Image source={{ uri }} style={s.modalPhotoImg} />
+                      <TouchableOpacity style={s.removePhotoBtn} onPress={() => removePhoto(idx)}>
+                        <Ionicons name="close" size={12} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <TouchableOpacity style={s.photoPickerBox} onPress={handlePickPhoto}>
+                  <Ionicons name="images-outline" size={22} color="#94A3B8" />
+                  <Text style={s.photoPickerBoxText}>Tap to attach defect photos from device</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmitSnag} disabled={submitting}>
                 {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editSnagId ? 'Save Changes' : 'Log Snag'}</Text>}
@@ -263,6 +379,23 @@ export default function InteriorSnagsScreen() {
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Full Screen Photo Lightbox */}
+      <Modal visible={!!lightboxPhoto} transparent animationType="fade" onRequestClose={() => setLightboxPhoto(null)}>
+        <View style={s.lightboxOverlay}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={s.lightboxHeader}>
+              <Text style={s.lightboxTitle}>Snag Photo</Text>
+              <TouchableOpacity style={s.lightboxCloseBtn} onPress={() => setLightboxPhoto(null)}>
+                <Ionicons name="close" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            <View style={s.lightboxBody}>
+              {lightboxPhoto && <Image source={{ uri: lightboxPhoto }} style={s.lightboxImage} resizeMode="contain" />}
+            </View>
+          </SafeAreaView>
+        </View>
       </Modal>
     </View>
   );
@@ -321,4 +454,31 @@ const s = StyleSheet.create({
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },
   saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+
+  photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  photoThumb: { width: 52, height: 52, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#F1F5F9' },
+  photoThumbImg: { width: '100%', height: '100%' },
+
+  addPhotoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  addPhotoBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' },
+
+  modalPhotoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 4 },
+  modalPhotoThumb: { width: 65, height: 65, borderRadius: 10, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: '#E2E8F0' },
+  modalPhotoImg: { width: '100%', height: '100%' },
+  removePhotoBtn: {
+    position: 'absolute', top: 2, right: 2, backgroundColor: '#DC2626',
+    borderRadius: 999, width: 18, height: 18, justifyContent: 'center', alignItems: 'center',
+  },
+  photoPickerBox: {
+    borderWidth: 1.5, borderColor: '#E2E8F0', borderStyle: 'dashed', borderRadius: 12,
+    padding: 16, alignItems: 'center', gap: 4, backgroundColor: '#F8FAFC', marginVertical: 4,
+  },
+  photoPickerBoxText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+
+  lightboxOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)' },
+  lightboxHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  lightboxTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  lightboxCloseBtn: { padding: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.2)' },
+  lightboxBody: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 10 },
+  lightboxImage: { width: '100%', height: '100%' },
 });

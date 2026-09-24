@@ -589,60 +589,68 @@ export default function InteriorDprScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Date & Weather Row */}
-            <View style={s.topInputRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.inputLabel}>Report Date</Text>
-                <TextInput
-                  style={s.textInput}
-                  value={dprDate}
-                  onChangeText={setDprDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#94A3B8"
-                />
+            {/* Subtab Content — the whole body (date/weather, tab selector, and
+                tab content) lives inside one ScrollView with no flex:1 override,
+                matching the pattern every other modal in this app uses. A
+                flex:1 ScrollView sharing a maxHeight-only parent with other
+                fixed siblings gets measured as if unbounded, so the sheet
+                visually clips at maxHeight without the ScrollView ever
+                realizing it needs to scroll — cutting off the bottom of the
+                form. Folding everything into one scrollable region avoids
+                that ambiguous layout pass entirely. */}
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* Date & Weather Row */}
+              <View style={s.topInputRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.inputLabel}>Report Date</Text>
+                  <TextInput
+                    style={s.textInput}
+                    value={dprDate}
+                    onChangeText={setDprDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor="#94A3B8"
+                  />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={s.inputLabel}>Weather Condition</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 4 }}>
+                    {WEATHER_OPTIONS.map((w) => (
+                      <TouchableOpacity
+                        key={w.label}
+                        style={[s.weatherChip, weather === w.label && s.weatherChipActive]}
+                        onPress={() => setWeather(w.label)}
+                      >
+                        <Ionicons name={w.icon} size={11} color={weather === w.label ? '#FFFFFF' : '#64748B'} />
+                        <Text style={[s.weatherChipText, weather === w.label && s.weatherChipTextActive]}>
+                          {w.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
               </View>
 
-              <View style={{ flex: 1 }}>
-                <Text style={s.inputLabel}>Weather Condition</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 4 }}>
-                  {WEATHER_OPTIONS.map((w) => (
-                    <TouchableOpacity
-                      key={w.label}
-                      style={[s.weatherChip, weather === w.label && s.weatherChipActive]}
-                      onPress={() => setWeather(w.label)}
-                    >
-                      <Ionicons name={w.icon} size={11} color={weather === w.label ? '#FFFFFF' : '#64748B'} />
-                      <Text style={[s.weatherChipText, weather === w.label && s.weatherChipTextActive]}>
-                        {w.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+              {/* Form Subtabs */}
+              <View style={s.formTabRow}>
+                {[
+                  { id: 'labour', label: '1. Labour', icon: 'people-outline' },
+                  { id: 'receipts', label: '2. Inward', icon: 'cube-outline' },
+                  { id: 'tomorrow', label: '3. Tomorrow', icon: 'calendar-outline' },
+                  { id: 'requirements', label: '4. Requisitions', icon: 'cart-outline' },
+                ].map((tab) => (
+                  <TouchableOpacity
+                    key={tab.id}
+                    style={[s.formTabItem, activeFormTab === tab.id && s.formTabItemActive]}
+                    onPress={() => setActiveFormTab(tab.id)}
+                  >
+                    <Text style={[s.formTabItemText, activeFormTab === tab.id && s.formTabItemTextActive]}>
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            </View>
 
-            {/* Form Subtabs */}
-            <View style={s.formTabRow}>
-              {[
-                { id: 'labour', label: '1. Labour', icon: 'people-outline' },
-                { id: 'receipts', label: '2. Inward', icon: 'cube-outline' },
-                { id: 'tomorrow', label: '3. Tomorrow', icon: 'calendar-outline' },
-                { id: 'requirements', label: '4. Requisitions', icon: 'cart-outline' },
-              ].map((tab) => (
-                <TouchableOpacity
-                  key={tab.id}
-                  style={[s.formTabItem, activeFormTab === tab.id && s.formTabItemActive]}
-                  onPress={() => setActiveFormTab(tab.id)}
-                >
-                  <Text style={[s.formTabItemText, activeFormTab === tab.id && s.formTabItemTextActive]}>
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Subtab Content */}
-            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, marginTop: 10 }}>
               {/* TAB 1: LABOUR */}
               {activeFormTab === 'labour' && (
                 <View style={{ gap: 10 }}>

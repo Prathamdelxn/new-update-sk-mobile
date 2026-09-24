@@ -7,6 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 
@@ -58,6 +59,96 @@ function toISODateInput(d) {
   if (!d) return '';
   return new Date(d).toISOString().split('T')[0];
 }
+
+// Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
+function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
+  const [showIosPicker, setShowIosPicker] = useState(false);
+
+  const open = () => {
+    const base = value ? new Date(value) : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, d) => {
+          if (event.type === 'set' && d) onChange(d.toISOString().split('T')[0]);
+        },
+      });
+    } else {
+      setShowIosPicker(true);
+    }
+  };
+
+  return (
+    <>
+      <TouchableOpacity style={[inputStyle, ctrlStyles.row]} onPress={open}>
+        <Text style={[ctrlStyles.text, !value && ctrlStyles.placeholder]} numberOfLines={1}>
+          {value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : placeholder}
+        </Text>
+        <Ionicons name="calendar-outline" size={16} color="#64748B" />
+      </TouchableOpacity>
+      {Platform.OS === 'ios' && showIosPicker && (
+        <DateTimePicker
+          value={value ? new Date(value) : new Date()}
+          mode="date"
+          display="spinner"
+          onChange={(e, d) => {
+            setShowIosPicker(false);
+            if (d) onChange(d.toISOString().split('T')[0]);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+// Reusable dropdown select field (replaces horizontal chip-scroll pickers for
+// single-choice fields like WBS Target Package / Assignee).
+function SelectDropdown({ value, options, onChange, placeholder = 'Select...', inputStyle }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <View>
+      <TouchableOpacity style={[inputStyle, ctrlStyles.row]} onPress={() => setOpen((v) => !v)}>
+        <Text style={[ctrlStyles.text, !selected && ctrlStyles.placeholder]} numberOfLines={1}>
+          {selected ? selected.label : placeholder}
+        </Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
+      </TouchableOpacity>
+      {open && (
+        <View style={ctrlStyles.menu}>
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
+            {options.map((o, idx) => {
+              const active = o.value === value;
+              return (
+                <TouchableOpacity
+                  key={`${o.value}-${idx}`}
+                  style={[ctrlStyles.menuItem, active && ctrlStyles.menuItemActive]}
+                  onPress={() => { onChange(o.value); setOpen(false); }}
+                >
+                  <Text style={[ctrlStyles.menuItemText, active && ctrlStyles.menuItemTextActive]} numberOfLines={1}>{o.label}</Text>
+                  {active && <Ionicons name="checkmark" size={14} color="#2563EB" />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const ctrlStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  placeholder: { color: '#94A3B8' },
+  menu: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, overflow: 'hidden' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  menuItemActive: { backgroundColor: '#EFF6FF' },
+  menuItemText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
+  menuItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
+});
 
 export default function InteriorTasksScreen() {
   const insets = useSafeAreaInsets();
@@ -685,13 +776,13 @@ export default function InteriorTasksScreen() {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
-                  {wbsPackages.map((pkg) => (
-                    <TouchableOpacity key={pkg.id} style={[s.chip, form.packageId === pkg.id && s.chipActive]} onPress={() => setForm({ ...form, packageId: pkg.id })}>
-                      <Text style={[s.chipText, form.packageId === pkg.id && s.chipTextActive]}>{pkg.name} ({pkg.trade})</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <SelectDropdown
+                  value={form.packageId}
+                  options={wbsPackages.map((pkg) => ({ value: pkg.id, label: `${pkg.name} (${pkg.trade})` }))}
+                  onChange={(v) => setForm({ ...form, packageId: v })}
+                  placeholder="Select WBS package"
+                  inputStyle={s.input}
+                />
               )}
 
               <Text style={s.label}>Task Name *</Text>
@@ -723,28 +814,22 @@ export default function InteriorTasksScreen() {
               </View>
 
               <Text style={s.label}>Assignee</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
-                <TouchableOpacity style={[s.chip, !form.assigneeId && s.chipActive]} onPress={() => setForm({ ...form, assigneeId: '' })}>
-                  <Text style={[s.chipText, !form.assigneeId && s.chipTextActive]}>Unassigned</Text>
-                </TouchableOpacity>
-                {members.map((m) => {
-                  const uid = m.userId?._id || m._id;
-                  return (
-                    <TouchableOpacity key={uid} style={[s.chip, form.assigneeId === uid && s.chipActive]} onPress={() => setForm({ ...form, assigneeId: uid })}>
-                      <Text style={[s.chipText, form.assigneeId === uid && s.chipTextActive]}>{memberName(m)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              <SelectDropdown
+                value={form.assigneeId}
+                options={[{ value: '', label: 'Unassigned' }, ...members.map((m) => ({ value: m.userId?._id || m._id, label: memberName(m) }))]}
+                onChange={(v) => setForm({ ...form, assigneeId: v })}
+                placeholder="Select assignee"
+                inputStyle={s.input}
+              />
 
-              <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.label}>Start Date</Text>
-                  <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={form.startDate} onChangeText={(v) => setForm({ ...form, startDate: v })} />
+                  <DateField value={form.startDate} onChange={(v) => setForm({ ...form, startDate: v })} inputStyle={s.input} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.label}>End Date</Text>
-                  <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={form.endDate} onChangeText={(v) => setForm({ ...form, endDate: v })} />
+                  <DateField value={form.endDate} onChange={(v) => setForm({ ...form, endDate: v })} inputStyle={s.input} />
                 </View>
               </View>
 
@@ -935,13 +1020,13 @@ export default function InteriorTasksScreen() {
                   <TextInput style={s.input} value={editForm.name} onChangeText={(v) => setEditForm({ ...editForm, name: v })} />
 
                   <Text style={s.label}>WBS Package</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
-                    {wbsPackages.map((pkg) => (
-                      <TouchableOpacity key={pkg.id} style={[s.chip, editForm.packageId === pkg.id && s.chipActive]} onPress={() => setEditForm({ ...editForm, packageId: pkg.id })}>
-                        <Text style={[s.chipText, editForm.packageId === pkg.id && s.chipTextActive]}>{pkg.name} ({pkg.trade})</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  <SelectDropdown
+                    value={editForm.packageId}
+                    options={wbsPackages.map((pkg) => ({ value: pkg.id, label: `${pkg.name} (${pkg.trade})` }))}
+                    onChange={(v) => setEditForm({ ...editForm, packageId: v })}
+                    placeholder="Select WBS package"
+                    inputStyle={s.input}
+                  />
 
                   <Text style={s.label}>Description</Text>
                   <TextInput style={[s.input, { height: 70, textAlignVertical: 'top', paddingTop: 12 }]} multiline value={editForm.description} onChangeText={(v) => setEditForm({ ...editForm, description: v })} />
@@ -956,28 +1041,22 @@ export default function InteriorTasksScreen() {
                   </View>
 
                   <Text style={s.label}>Assignee</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
-                    <TouchableOpacity style={[s.chip, !editForm.assigneeId && s.chipActive]} onPress={() => setEditForm({ ...editForm, assigneeId: '' })}>
-                      <Text style={[s.chipText, !editForm.assigneeId && s.chipTextActive]}>Unassigned</Text>
-                    </TouchableOpacity>
-                    {members.map((m) => {
-                      const uid = m.userId?._id || m._id;
-                      return (
-                        <TouchableOpacity key={uid} style={[s.chip, editForm.assigneeId === uid && s.chipActive]} onPress={() => setEditForm({ ...editForm, assigneeId: uid })}>
-                          <Text style={[s.chipText, editForm.assigneeId === uid && s.chipTextActive]}>{memberName(m)}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
+                  <SelectDropdown
+                    value={editForm.assigneeId}
+                    options={[{ value: '', label: 'Unassigned' }, ...members.map((m) => ({ value: m.userId?._id || m._id, label: memberName(m) }))]}
+                    onChange={(v) => setEditForm({ ...editForm, assigneeId: v })}
+                    placeholder="Select assignee"
+                    inputStyle={s.input}
+                  />
 
-                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.label}>Start Date</Text>
-                      <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={editForm.startDate} onChangeText={(v) => setEditForm({ ...editForm, startDate: v })} />
+                      <DateField value={editForm.startDate} onChange={(v) => setEditForm({ ...editForm, startDate: v })} inputStyle={s.input} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.label}>End Date</Text>
-                      <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={editForm.endDate} onChangeText={(v) => setEditForm({ ...editForm, endDate: v })} />
+                      <DateField value={editForm.endDate} onChange={(v) => setEditForm({ ...editForm, endDate: v })} inputStyle={s.input} />
                     </View>
                   </View>
 

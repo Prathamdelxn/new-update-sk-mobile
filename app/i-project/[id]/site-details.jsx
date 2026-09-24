@@ -50,26 +50,48 @@ const DESIGN_STYLE_PRESETS = [
 
 const INTERIOR_TYPE_PRESETS = ['Residential', 'Commercial', 'Hospitality', 'Retail'];
 
-// Detail fields rendered as compact label/value rows (short values).
-const MEASURE_DETAIL_FIELDS = [
-  { key: 'roomDimensions', label: 'Room Dimensions (L × W)' },
-  { key: 'floorToCeilingHeight', label: 'Floor-to-Ceiling Height' },
-  { key: 'doorDimensions', label: 'Door Dimensions' },
-  { key: 'windowDimensions', label: 'Window Dimensions' },
-  { key: 'wallThickness', label: 'Wall Thickness' },
-  { key: 'columnBeamDimensions', label: 'Column / Beam Dimensions' },
-  { key: 'rooms', label: 'Target Configuration' },
+// Site Measurements are split into 4 cards, mirroring the web layout exactly
+// (Room & Spatial Dimensions / Openings & Structural Specs / MEP & Utility
+// Services / Furniture & Site Constraints) instead of one mixed field list.
+const SPATIAL_EXTRA_FIELDS = [
+  { key: 'roomDimensions', label: 'Room Dimensions (Length × Width)', fallback: 'Not recorded' },
+  { key: 'floorToCeilingHeight', label: 'Floor-to-Ceiling Height', fallback: 'Not recorded' },
+  { key: 'rooms', label: 'Rooms to Design', fallback: 'Not specified' },
 ];
 
-// Note-style fields rendered as labeled paragraph boxes (longer free text).
-const MEASURE_NOTE_FIELDS = [
-  { key: 'electricalPoints', label: 'Existing Electrical Points', color: '#D97706' },
-  { key: 'plumbingPoints', label: 'Plumbing Points', color: '#0891B2' },
-  { key: 'acLocations', label: 'AC Locations & Piping', color: '#059669' },
-  { key: 'furnitureDimensions', label: 'Existing Furniture Dimensions', color: '#059669' },
-  { key: 'siteConstraints', label: 'Site Constraints & Limitations', color: '#E11D48' },
-  { key: 'notes', label: 'Additional Site Notes', color: '#7C3AED' },
+const STRUCTURAL_FIELDS = [
+  { key: 'doorDimensions', label: 'Door Dimensions', fallback: 'Not recorded' },
+  { key: 'windowDimensions', label: 'Window Dimensions', fallback: 'Not recorded' },
+  { key: 'wallThickness', label: 'Wall Thickness', fallback: 'Not recorded' },
+  { key: 'columnBeamDimensions', label: 'Column / Beam Dimensions', fallback: 'Not recorded' },
 ];
+
+const MEP_FIELDS = [
+  { key: 'electricalPoints', label: 'Existing Electrical Points', icon: 'flash-outline', color: '#D97706', fallback: 'No electrical notes recorded' },
+  { key: 'plumbingPoints', label: 'Plumbing Points', icon: 'water-outline', color: '#0891B2', fallback: 'No plumbing points recorded' },
+  { key: 'acLocations', label: 'AC Locations & Piping', icon: 'snow-outline', color: '#059669', fallback: 'No AC locations recorded' },
+];
+
+const CONSTRAINT_FIELDS = [
+  { key: 'furnitureDimensions', label: 'Existing Furniture Dimensions', icon: 'bed-outline', color: '#059669', bg: '#F8FAFC', fallback: 'No furniture dimensions recorded' },
+  { key: 'siteConstraints', label: 'Site Constraints & Limitations', icon: 'warning-outline', color: '#E11D48', bg: '#FFF1F2', fallback: 'None reported' },
+  { key: 'notes', label: 'Additional Site Notes', icon: 'document-text-outline', color: '#7C3AED', bg: '#FAF5FF', fallback: 'No notes added' },
+];
+
+function FieldTile({ label, value }) {
+  return (
+    <View style={fieldTileStyles.box}>
+      <Text style={fieldTileStyles.label}>{label}</Text>
+      <Text style={fieldTileStyles.value}>{value}</Text>
+    </View>
+  );
+}
+
+const fieldTileStyles = StyleSheet.create({
+  box: { backgroundColor: '#F8FAFC', borderRadius: 10, padding: 10, marginTop: 8 },
+  label: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 3 },
+  value: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+});
 
 const MEASURE_FORM_DEFAULT = {
   carpetArea: '',
@@ -187,7 +209,7 @@ export default function InteriorSiteDetailsScreen() {
   const siteMeasurements = customer?.siteMeasurements;
   const sitePhotos = useMemo(() => customer?.sitePhotos || [], [customer]);
   const hasRequirements = requirements.length > 0;
-  const hasMeasurements = !!siteMeasurements && (!!siteMeasurements.carpetArea || !!siteMeasurements.ceilingHeight);
+  const hasMeasurements = !!siteMeasurements;
   const hasPhotos = sitePhotos.length > 0;
 
   // Handle Photo Picker
@@ -340,7 +362,14 @@ export default function InteriorSiteDetailsScreen() {
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Site Details & Specs</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={s.headerTitle}>Site Details & Specs</Text>
+              {!!customer?.leadNumber && (
+                <View style={s.leadBadge}>
+                  <Text style={s.leadBadgeText}>Lead: {customer.leadNumber}</Text>
+                </View>
+              )}
+            </View>
             <Text style={s.headerSub}>Survey measurements, room briefs & site photo records</Text>
           </View>
         </View>
@@ -369,28 +398,34 @@ export default function InteriorSiteDetailsScreen() {
         </View>
 
         {/* --- FILTER TABS --- */}
-        <View style={s.tabSegmentRow}>
-          {[
-            { id: 'all', label: 'All Specs', icon: 'grid-outline' },
-            { id: 'measurements', label: 'Measurements', icon: 'resize-outline' },
-            { id: 'requirements', label: 'Rooms Brief', icon: 'list-outline' },
-            { id: 'photos', label: 'Photos', icon: 'images-outline' },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              style={[s.tabItem, activeTab === tab.id && s.tabItemActive]}
-              onPress={() => setActiveTab(tab.id)}
-            >
-              <Ionicons
-                name={tab.icon}
-                size={13}
-                color={activeTab === tab.id ? '#2563EB' : '#64748B'}
-              />
-              <Text style={[s.tabItemText, activeTab === tab.id && s.tabItemTextActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={s.tabSegmentWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabSegmentRow}>
+            {[
+              { id: 'all', label: 'All Specs', icon: 'grid-outline' },
+              { id: 'measurements', label: 'Measurements', icon: 'resize-outline' },
+              { id: 'requirements', label: 'Rooms Brief', icon: 'list-outline' },
+              { id: 'photos', label: 'Photos', icon: 'images-outline' },
+            ].map((tab) => (
+              <TouchableOpacity
+                key={tab.id}
+                style={[s.tabItem, activeTab === tab.id && s.tabItemActive]}
+                onPress={() => setActiveTab(tab.id)}
+              >
+                <Ionicons
+                  name={tab.icon}
+                  size={13}
+                  color={activeTab === tab.id ? '#2563EB' : '#64748B'}
+                />
+                <Text
+                  style={[s.tabItemText, activeTab === tab.id && s.tabItemTextActive]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {loading ? (
@@ -426,36 +461,118 @@ export default function InteriorSiteDetailsScreen() {
                   </TouchableOpacity>
                 </View>
 
+                {(customer?.remarks || siteMeasurements?.notes || customer?.siteVisitScheduledDate) && (
+                  <View style={s.briefingBox}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="document-text-outline" size={13} color="#7C3AED" />
+                        <Text style={s.briefingLabel}>Site Visit Briefing & Notes</Text>
+                      </View>
+                      {!!customer?.siteVisitScheduledDate && (
+                        <View style={s.briefingDateBadge}>
+                          <Text style={s.briefingDateText}>
+                            Scheduled: {new Date(customer.siteVisitScheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    {!!(customer?.remarks || siteMeasurements?.notes) && (
+                      <Text style={s.briefingText}>{customer.remarks || siteMeasurements?.notes}</Text>
+                    )}
+                  </View>
+                )}
+
                 {hasMeasurements ? (
-                  <View style={s.measureCard}>
-                    <View style={s.measureGrid}>
-                      <View style={s.measureTile}>
-                        <Text style={s.tileLabel}>Carpet Area</Text>
-                        <Text style={s.tileValue}>
-                          {siteMeasurements.carpetArea || 0} <Text style={s.tileUnit}>Sq.Ft</Text>
-                        </Text>
+                  <View style={{ gap: 12 }}>
+                    {/* Card 1: Room & Spatial Dimensions */}
+                    <View style={s.measureCard}>
+                      <View style={s.measureCardHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="expand-outline" size={15} color="#7C3AED" />
+                          <Text style={s.measureCardTitle}>Room & Spatial Dimensions</Text>
+                        </View>
+                        <View style={[s.measureCardTag, { backgroundColor: '#F5F3FF' }]}>
+                          <Text style={[s.measureCardTagText, { color: '#7C3AED' }]}>Spatial</Text>
+                        </View>
                       </View>
-                      <View style={s.measureTile}>
-                        <Text style={s.tileLabel}>Ceiling Height</Text>
-                        <Text style={s.tileValue}>
-                          {siteMeasurements.ceilingHeight || 0} <Text style={s.tileUnit}>Ft</Text>
-                        </Text>
+                      <View style={s.measureGrid}>
+                        <View style={s.measureTile}>
+                          <Text style={s.tileLabel}>Carpet Area</Text>
+                          <Text style={s.tileValue}>
+                            {siteMeasurements.carpetArea || '—'} <Text style={s.tileUnit}>Sq.Ft</Text>
+                          </Text>
+                        </View>
+                        <View style={s.measureTile}>
+                          <Text style={s.tileLabel}>Ceiling Height</Text>
+                          <Text style={s.tileValue}>
+                            {siteMeasurements.ceilingHeight || '—'} <Text style={s.tileUnit}>Ft</Text>
+                          </Text>
+                        </View>
                       </View>
+                      {SPATIAL_EXTRA_FIELDS.map((f) => (
+                        <FieldTile key={f.key} label={f.label} value={siteMeasurements[f.key] || f.fallback} />
+                      ))}
                     </View>
 
-                    {MEASURE_DETAIL_FIELDS.filter((f) => !!siteMeasurements[f.key]).map((f) => (
-                      <View key={f.key} style={s.measureDetailRow}>
-                        <Text style={s.measureDetailLabel}>{f.label}:</Text>
-                        <Text style={s.measureDetailVal}>{siteMeasurements[f.key]}</Text>
+                    {/* Card 2: Openings & Structural Specs */}
+                    <View style={s.measureCard}>
+                      <View style={s.measureCardHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="scan-outline" size={15} color="#2563EB" />
+                          <Text style={s.measureCardTitle}>Openings & Structural Specs</Text>
+                        </View>
+                        <View style={[s.measureCardTag, { backgroundColor: '#DBEAFE' }]}>
+                          <Text style={[s.measureCardTagText, { color: '#2563EB' }]}>Structure</Text>
+                        </View>
                       </View>
-                    ))}
+                      {STRUCTURAL_FIELDS.map((f) => (
+                        <FieldTile key={f.key} label={f.label} value={siteMeasurements[f.key] || f.fallback} />
+                      ))}
+                    </View>
 
-                    {MEASURE_NOTE_FIELDS.filter((f) => !!siteMeasurements[f.key]).map((f) => (
-                      <View key={f.key} style={[s.measureNotesBox, { borderLeftColor: f.color }]}>
-                        <Text style={[s.measureNotesLabel, { color: f.color }]}>{f.label}:</Text>
-                        <Text style={s.measureNotesText}>{siteMeasurements[f.key]}</Text>
+                    {/* Card 3: MEP & Utility Services */}
+                    <View style={s.measureCard}>
+                      <View style={s.measureCardHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="flash-outline" size={15} color="#D97706" />
+                          <Text style={s.measureCardTitle}>MEP & Utility Services</Text>
+                        </View>
+                        <View style={[s.measureCardTag, { backgroundColor: '#FEF3C7' }]}>
+                          <Text style={[s.measureCardTagText, { color: '#D97706' }]}>MEP</Text>
+                        </View>
                       </View>
-                    ))}
+                      {MEP_FIELDS.map((f) => (
+                        <View key={f.key} style={s.mepBox}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+                            <Ionicons name={f.icon} size={11} color={f.color} />
+                            <Text style={[s.mepLabel, { color: f.color }]}>{f.label}</Text>
+                          </View>
+                          <Text style={s.mepValue}>{siteMeasurements[f.key] || f.fallback}</Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* Card 4: Furniture & Site Constraints */}
+                    <View style={s.measureCard}>
+                      <View style={s.measureCardHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="bed-outline" size={15} color="#059669" />
+                          <Text style={s.measureCardTitle}>Furniture & Site Constraints</Text>
+                        </View>
+                        <View style={[s.measureCardTag, { backgroundColor: '#D1FAE5' }]}>
+                          <Text style={[s.measureCardTagText, { color: '#059669' }]}>Conditions</Text>
+                        </View>
+                      </View>
+                      {CONSTRAINT_FIELDS.map((f) => (
+                        <View key={f.key} style={[s.mepBox, { backgroundColor: f.bg }]}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+                            <Ionicons name={f.icon} size={11} color={f.color} />
+                            <Text style={[s.mepLabel, { color: f.color }]}>{f.label}</Text>
+                          </View>
+                          <Text style={s.mepValue}>{siteMeasurements[f.key] || f.fallback}</Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -534,6 +651,41 @@ export default function InteriorSiteDetailsScreen() {
                     <Ionicons name="add" size={14} color="#2563EB" />
                     <Text style={s.sectionEditBtnText}>Add Room</Text>
                   </TouchableOpacity>
+                </View>
+
+                {/* Budget & Overview Highlights */}
+                <View style={s.reqHighlightsRow}>
+                  <View style={s.reqHighlightTile}>
+                    <View style={[s.reqHighlightIconBox, { backgroundColor: '#FEF3C7' }]}>
+                      <Ionicons name="cash-outline" size={16} color="#D97706" />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.reqHighlightLabel}>Estimated Budget</Text>
+                      <Text style={s.reqHighlightValue} numberOfLines={1}>{customer?.budgetRange || 'Not recorded'}</Text>
+                    </View>
+                  </View>
+                  <View style={s.reqHighlightTile}>
+                    <View style={[s.reqHighlightIconBox, { backgroundColor: '#DBEAFE' }]}>
+                      <Ionicons name="layers-outline" size={16} color="#2563EB" />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.reqHighlightLabel}>Interior Type</Text>
+                      <Text style={s.reqHighlightValue} numberOfLines={1}>
+                        {requirements[0]?.interiorType || customer?.propertyType || 'Residential'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={s.reqHighlightTile}>
+                    <View style={[s.reqHighlightIconBox, { backgroundColor: '#F5F3FF' }]}>
+                      <Ionicons name="color-palette-outline" size={16} color="#7C3AED" />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.reqHighlightLabel}>Primary Theme</Text>
+                      <Text style={s.reqHighlightValue} numberOfLines={1}>
+                        {requirements.find((r) => r.designStyle)?.designStyle || requirements[0]?.theme || 'Custom Spec'}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
 
                 {hasRequirements ? (
@@ -1120,6 +1272,67 @@ const s = StyleSheet.create({
   backBtn: { padding: 6, borderRadius: 8, backgroundColor: '#F8FAFC' },
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
   headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  leadBadge: {
+    backgroundColor: '#F5F3FF',
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  leadBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#7C3AED' },
+
+  briefingBox: {
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1,
+    borderColor: '#EDE9FE',
+    borderRadius: 14,
+    padding: 12,
+    gap: 8,
+  },
+  briefingLabel: { fontSize: 10.5, fontFamily: 'Inter-ExtraBold', color: '#7C3AED', textTransform: 'uppercase', letterSpacing: 0.4 },
+  briefingDateBadge: {
+    backgroundColor: '#F5F3FF',
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  briefingDateText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#7C3AED' },
+  briefingText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#334155',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EDE9FE',
+    borderRadius: 10,
+    padding: 10,
+    lineHeight: 17,
+  },
+
+  reqHighlightsRow: { flexDirection: 'row', gap: 8 },
+  reqHighlightTile: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 10,
+  },
+  reqHighlightIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reqHighlightLabel: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase' },
+  reqHighlightValue: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 1 },
 
   kpiRow: {
     flexDirection: 'row',
@@ -1139,21 +1352,24 @@ const s = StyleSheet.create({
   kpiLabel: { fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#94A3B8', textTransform: 'uppercase', marginTop: 1 },
   kpiDivider: { width: 1, height: 24, backgroundColor: '#F1F5F9' },
 
-  tabSegmentRow: {
-    flexDirection: 'row',
+  tabSegmentWrap: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  tabSegmentRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     gap: 6,
   },
   tabItem: {
-    flex: 1,
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 9,
     backgroundColor: '#F8FAFC',
@@ -1195,36 +1411,34 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F1F5F9',
     padding: 14,
-    gap: 10,
   },
+  measureCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  measureCardTitle: { fontSize: 12, fontFamily: 'Inter-ExtraBold', color: '#0F172A', textTransform: 'uppercase', letterSpacing: 0.3 },
+  measureCardTag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  measureCardTagText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
+
   measureGrid: { flexDirection: 'row', gap: 10 },
   measureTile: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12 },
   tileLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.3 },
   tileValue: { fontSize: 16, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 4 },
   tileUnit: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
-  measureDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  measureDetailLabel: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  measureDetailVal: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A', flexShrink: 1 },
-
-  measureNotesBox: {
+  mepBox: {
     backgroundColor: '#F8FAFC',
     borderRadius: 10,
     padding: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#7C3AED',
+    marginTop: 8,
   },
-  measureNotesLabel: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#7C3AED', textTransform: 'uppercase' },
-  measureNotesText: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#475569', marginTop: 3, lineHeight: 16 },
+  mepLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase', letterSpacing: 0.3 },
+  mepValue: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 16 },
 
   emptyPromptBox: {
     borderWidth: 1.5,

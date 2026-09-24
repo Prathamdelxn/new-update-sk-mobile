@@ -391,8 +391,10 @@ export default function InteriorDrawingsScreen() {
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Drawings & Blueprints</Text>
-            <Text style={s.headerSub}>Architectural 2D CAD layouts & 3D visual concepts</Text>
+            <Text style={s.headerTitle} numberOfLines={1}>Drawings & Blueprints</Text>
+            <Text style={s.headerSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+              Architectural 2D CAD layouts & 3D visual concepts
+            </Text>
           </View>
         </View>
 
@@ -402,28 +404,36 @@ export default function InteriorDrawingsScreen() {
             style={[s.categoryTab, activeCategory === '2D' && s.categoryTabActive]}
             onPress={() => setActiveCategory('2D')}
           >
-            <Ionicons
-              name="layers-outline"
-              size={15}
-              color={activeCategory === '2D' ? '#2563EB' : '#64748B'}
-            />
-            <Text style={[s.categoryTabText, activeCategory === '2D' && s.categoryTabTextActive]}>
-              2D Working Drawings ({count2D})
+            <Text
+              style={[s.categoryTabText, activeCategory === '2D' && s.categoryTabTextActive]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              2D Drawings
             </Text>
+            <View style={[s.categoryTabCount, activeCategory === '2D' && s.categoryTabCountActive]}>
+              <Text style={[s.categoryTabCountText, activeCategory === '2D' && s.categoryTabCountTextActive]}>
+                {count2D}
+              </Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[s.categoryTab, activeCategory === '3D' && s.categoryTabActive]}
             onPress={() => setActiveCategory('3D')}
           >
-            <Ionicons
-              name="cube-outline"
-              size={15}
-              color={activeCategory === '3D' ? '#7C3AED' : '#64748B'}
-            />
-            <Text style={[s.categoryTabText, activeCategory === '3D' && s.categoryTabTextActive]}>
-              3D Concepts & Renders ({count3D})
+            <Text
+              style={[s.categoryTabText, activeCategory === '3D' && s.categoryTabTextActive]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              3D Renders
             </Text>
+            <View style={[s.categoryTabCount, activeCategory === '3D' && s.categoryTabCountActive]}>
+              <Text style={[s.categoryTabCountText, activeCategory === '3D' && s.categoryTabCountTextActive]}>
+                {count3D}
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -487,7 +497,11 @@ export default function InteriorDrawingsScreen() {
               style={[s.filterChip, selectedStatus === st.id && s.filterChipActive]}
               onPress={() => setSelectedStatus(st.id)}
             >
-              <Text style={[s.filterChipText, selectedStatus === st.id && s.filterChipTextActive]}>
+              <Text
+                style={[s.filterChipText, selectedStatus === st.id && s.filterChipTextActive]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {st.label}
               </Text>
             </TouchableOpacity>
@@ -660,7 +674,7 @@ export default function InteriorDrawingsScreen() {
                       )}
 
                       <TouchableOpacity
-                        style={[s.actionBtn, { borderColor: '#F1F5F9', marginLeft: 'auto' }]}
+                        style={[s.actionBtn, { borderColor: '#F1F5F9' }]}
                         onPress={() => handleDeleteDrawing(dwg)}
                       >
                         <Ionicons name="trash-outline" size={14} color="#94A3B8" />
@@ -887,7 +901,7 @@ const s = StyleSheet.create({
     gap: 12,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
@@ -897,24 +911,26 @@ const s = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
   categorySegmentRow: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
-    gap: 8,
+    gap: 10,
   },
   categoryTab: {
     flex: 1,
+    minHeight: 38,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 7,
     paddingVertical: 9,
+    paddingHorizontal: 10,
     borderRadius: 10,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
@@ -925,13 +941,38 @@ const s = StyleSheet.create({
     borderColor: '#2563EB',
   },
   categoryTabText: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
+    flexShrink: 1,
   },
   categoryTabTextActive: {
     color: '#2563EB',
     fontFamily: 'Inter-Bold',
+  },
+  categoryTabCount: {
+    minWidth: 22,
+    paddingHorizontal: 6,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  categoryTabCountActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  categoryTabCountText: {
+    fontSize: 10.5,
+    fontFamily: 'Inter-Bold',
+    color: '#64748B',
+  },
+  categoryTabCountTextActive: {
+    color: '#FFFFFF',
   },
 
   statsBanner: {
@@ -940,8 +981,8 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
-    marginTop: 10,
-    paddingVertical: 10,
+    marginTop: 8,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 14,
     borderWidth: 1,
@@ -954,7 +995,7 @@ const s = StyleSheet.create({
 
   searchRow: {
     paddingHorizontal: 16,
-    marginTop: 10,
+    marginTop: 8,
   },
   searchInputBox: {
     flexDirection: 'row',
@@ -964,7 +1005,7 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
     borderRadius: 12,
     paddingHorizontal: 12,
-    height: 40,
+    height: 38,
     gap: 8,
   },
   searchInput: {
@@ -975,14 +1016,23 @@ const s = StyleSheet.create({
   },
 
   statusChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 6,
     gap: 6,
   },
   filterChip: {
-    paddingHorizontal: 12,
+    flexShrink: 0,
+    flexGrow: 0,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 30,
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: 10,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',

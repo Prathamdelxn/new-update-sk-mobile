@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, ScrollView, Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import interiorCrmService from '../../services/interiorCrmService';
 
 function userLabel(u) {
@@ -85,36 +86,6 @@ function PreviousScheduleBox({ color, phaseLabel, scheduledDate, assignedLabel, 
   );
 }
 
-// TAT (turnaround time) quick-date presets — adds N days to today and fills scheduledDate
-function TatPresets({ color, scheduledDate, onPick }) {
-  const presets = [
-    { label: '+1 Day', days: 1 },
-    { label: '+2 Days', days: 2 },
-    { label: '+3 Days', days: 3 },
-    { label: '+5 Days', days: 5 },
-    { label: '+1 Week', days: 7 },
-  ];
-  return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-      <Text style={s.tatLabel}>Quick TAT:</Text>
-      {presets.map((p) => {
-        const target = new Date(Date.now() + p.days * 24 * 60 * 60 * 1000);
-        const formatted = toDateInputStr(target);
-        const active = scheduledDate === formatted;
-        return (
-          <TouchableOpacity
-            key={p.label}
-            style={[s.tatChip, active && { backgroundColor: color, borderColor: color }]}
-            onPress={() => onPick(formatted)}
-          >
-            <Text style={[s.tatChipText, active && { color: '#FFFFFF' }]}>{p.label}</Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. Send To Site Visit Modal
 // ─────────────────────────────────────────────────────────────────────────────
@@ -124,6 +95,33 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
   const [scheduledDate, setScheduledDate] = useState(() => toDateInputStr(new Date()));
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Date-only comparison (this field has no time component) so "today" is never
+  // mistaken for a past date — matches web's warning-not-block treatment exactly.
+  const isDateInPast = (() => {
+    if (!scheduledDate) return false;
+    const picked = new Date(scheduledDate);
+    picked.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return picked.getTime() < today.getTime();
+  })();
+
+  const openDatePicker = () => {
+    const base = scheduledDate ? new Date(scheduledDate) : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, d) => {
+          if (event.type === 'set' && d) setScheduledDate(toDateInputStr(d));
+        },
+      });
+    } else {
+      setShowDatePicker(true);
+    }
+  };
 
   const isRescheduling = Boolean(initialData?.scheduledDate || initialData?.assignedSalesExecutive);
 
@@ -256,15 +254,34 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
           </View>
         )}
 
-        <Text style={s.label}>Target Visit Date *</Text>
-        <TatPresets color="#7C3AED" scheduledDate={scheduledDate} onPick={setScheduledDate} />
-        <TextInput
-          style={s.input}
-          value={scheduledDate}
-          onChangeText={setScheduledDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#94A3B8"
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={s.label}>Target Visit Date *</Text>
+          {isDateInPast && (
+            <View style={s.pastDateBadge}>
+              <Text style={s.pastDateBadgeText}>Past date</Text>
+            </View>
+          )}
+        </View>
+        <TouchableOpacity
+          style={[s.input, s.dateInputRow, isDateInPast && s.dateInputPast]}
+          onPress={openDatePicker}
+        >
+          <Text style={{ color: scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+            {scheduledDate ? fmtScheduleDisplay(scheduledDate) : 'Select date'}
+          </Text>
+          <Ionicons name="calendar-outline" size={16} color={isDateInPast ? '#D97706' : '#7C3AED'} />
+        </TouchableOpacity>
+        {Platform.OS === 'ios' && showDatePicker && (
+          <DateTimePicker
+            value={scheduledDate ? new Date(scheduledDate) : new Date()}
+            mode="date"
+            display="spinner"
+            onChange={(e, d) => {
+              setShowDatePicker(false);
+              if (d) setScheduledDate(toDateInputStr(d));
+            }}
+          />
+        )}
 
         <Text style={s.label}>Visit Instructions / Notes</Text>
         <TextInput
@@ -302,8 +319,33 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
   const [scheduledDate, setScheduledDate] = useState(() => toDateInputStr(new Date()));
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const isRescheduling = Boolean(initialData?.scheduledDate || initialData?.assignedMember);
+
+  const isDateInPast = (() => {
+    if (!scheduledDate) return false;
+    const picked = new Date(scheduledDate);
+    picked.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return picked.getTime() < today.getTime();
+  })();
+
+  const openDatePicker = () => {
+    const base = scheduledDate ? new Date(scheduledDate) : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, d) => {
+          if (event.type === 'set' && d) setScheduledDate(toDateInputStr(d));
+        },
+      });
+    } else {
+      setShowDatePicker(true);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -410,15 +452,34 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
           </View>
         )}
 
-        <Text style={s.label}>Session Target Date *</Text>
-        <TatPresets color="#4F46E5" scheduledDate={scheduledDate} onPick={setScheduledDate} />
-        <TextInput
-          style={s.input}
-          value={scheduledDate}
-          onChangeText={setScheduledDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#94A3B8"
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={s.label}>Session Target Date *</Text>
+          {isDateInPast && (
+            <View style={s.pastDateBadge}>
+              <Text style={s.pastDateBadgeText}>Past date</Text>
+            </View>
+          )}
+        </View>
+        <TouchableOpacity
+          style={[s.input, s.dateInputRow, isDateInPast && s.dateInputPast]}
+          onPress={openDatePicker}
+        >
+          <Text style={{ color: scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+            {scheduledDate ? fmtScheduleDisplay(scheduledDate) : 'Select date'}
+          </Text>
+          <Ionicons name="calendar-outline" size={16} color={isDateInPast ? '#D97706' : '#4F46E5'} />
+        </TouchableOpacity>
+        {Platform.OS === 'ios' && showDatePicker && (
+          <DateTimePicker
+            value={scheduledDate ? new Date(scheduledDate) : new Date()}
+            mode="date"
+            display="spinner"
+            onChange={(e, d) => {
+              setShowDatePicker(false);
+              if (d) setScheduledDate(toDateInputStr(d));
+            }}
+          />
+        )}
 
         <Text style={s.label}>Client Brief / Onboarding Remarks</Text>
         <TextInput
@@ -456,8 +517,33 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
   const [scheduledDate, setScheduledDate] = useState(() => toDateInputStr(new Date()));
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const isRescheduling = Boolean(initialData?.scheduledDate || initialData?.assignedDesigner);
+
+  const isDateInPast = (() => {
+    if (!scheduledDate) return false;
+    const picked = new Date(scheduledDate);
+    picked.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return picked.getTime() < today.getTime();
+  })();
+
+  const openDatePicker = () => {
+    const base = scheduledDate ? new Date(scheduledDate) : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, d) => {
+          if (event.type === 'set' && d) setScheduledDate(toDateInputStr(d));
+        },
+      });
+    } else {
+      setShowDatePicker(true);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -565,15 +651,34 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
           </View>
         )}
 
-        <Text style={s.label}>Delivery Deadline *</Text>
-        <TatPresets color="#0284C7" scheduledDate={scheduledDate} onPick={setScheduledDate} />
-        <TextInput
-          style={s.input}
-          value={scheduledDate}
-          onChangeText={setScheduledDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#94A3B8"
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={s.label}>Delivery Deadline *</Text>
+          {isDateInPast && (
+            <View style={s.pastDateBadge}>
+              <Text style={s.pastDateBadgeText}>Past date</Text>
+            </View>
+          )}
+        </View>
+        <TouchableOpacity
+          style={[s.input, s.dateInputRow, isDateInPast && s.dateInputPast]}
+          onPress={openDatePicker}
+        >
+          <Text style={{ color: scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+            {scheduledDate ? fmtScheduleDisplay(scheduledDate) : 'Select date'}
+          </Text>
+          <Ionicons name="calendar-outline" size={16} color={isDateInPast ? '#D97706' : '#0284C7'} />
+        </TouchableOpacity>
+        {Platform.OS === 'ios' && showDatePicker && (
+          <DateTimePicker
+            value={scheduledDate ? new Date(scheduledDate) : new Date()}
+            mode="date"
+            display="spinner"
+            onChange={(e, d) => {
+              setShowDatePicker(false);
+              if (d) setScheduledDate(toDateInputStr(d));
+            }}
+          />
+        )}
 
         <Text style={s.label}>Drafting Scope & Deliverables</Text>
         <TextInput
@@ -966,6 +1071,26 @@ const s = StyleSheet.create({
     marginBottom: 6,
     marginTop: 6,
   },
+  dateInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateInputPast: {
+    borderColor: 'rgba(217,119,6,0.6)',
+    backgroundColor: '#FFFBEB',
+  },
+  pastDateBadge: {
+    backgroundColor: 'rgba(217,119,6,0.12)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  pastDateBadgeText: {
+    fontSize: 9.5,
+    fontFamily: 'Inter-Bold',
+    color: '#B45309',
+  },
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
@@ -1057,26 +1182,5 @@ const s = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     marginTop: 6,
-  },
-  tatLabel: {
-    fontSize: 10,
-    fontFamily: 'Inter-Bold',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    marginRight: 2,
-    alignSelf: 'center',
-  },
-  tatChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  tatChipText: {
-    fontSize: 10.5,
-    fontFamily: 'Inter-SemiBold',
-    color: '#475569',
   },
 });

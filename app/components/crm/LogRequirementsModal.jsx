@@ -170,7 +170,7 @@ export default function LogRequirementsModal({
         customer: customerId,
         type: 'Requirement Gathering',
         status: 'Completed',
-        remarks: `Logged detailed functional & aesthetic requirements for ${sanitizedRequirements.length} rooms.`,
+        remarks: `Logged detailed functional & aesthetic requirements for ${sanitizedRequirements.length} room${sanitizedRequirements.length === 1 ? '' : 's'}.`,
         completedDate: new Date()
       });
 
