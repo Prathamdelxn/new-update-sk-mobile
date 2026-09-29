@@ -53,7 +53,6 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [attendanceActive, setAttendanceActive] = useState(false);
-  const [seeding, setSeeding] = useState(false);
   const isAdmin = user?.role?.name === 'Admin' || user?.role === 'Admin';
   const isInteriorUser = user?.organization?.industryType === 'interior';
 
@@ -79,19 +78,6 @@ export default function DashboardScreen() {
       setRefreshing(false);
     }
   }, [queryClient]);
-
-  const handleSeedInteriorData = useCallback(async () => {
-    try {
-      setSeeding(true);
-      const res = await interiorApiClient.post('/dashboard/seed');
-      if (res?.success) await fetchInteriorDashboard();
-    } catch (e) {
-      console.error('Interior seed error', e);
-    } finally {
-      setSeeding(false);
-    }
-  }, [fetchInteriorDashboard]);
-
   const fetchDashboard = useCallback(async (isRefresh = false) => {
     // Interior sessions carry an interior-os JWT, not a construction one —
     // calling the construction API with it 401s and triggers the global
@@ -212,18 +198,9 @@ export default function DashboardScreen() {
               <View style={[s.card, { alignItems: 'center', paddingVertical: 40, marginTop: 12 }]}>
                 <Text style={{ fontSize: 32, marginBottom: 12 }}>🏢</Text>
                 <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 6 }}>No Active Projects</Text>
-                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', marginBottom: 20 }}>
-                  Your workspace is empty. Generate a demo portfolio to explore the dashboard.
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' }}>
+                  There are currently no active projects found in your workspace.
                 </Text>
-                <TouchableOpacity
-                  style={[s.loginButton, { paddingHorizontal: 24, borderRadius: 14, opacity: seeding ? 0.7 : 1 }]}
-                  onPress={handleSeedInteriorData}
-                  disabled={seeding}
-                >
-                  {seeding ? <ActivityIndicator color="#fff" size="small" /> : (
-                    <Text style={s.loginButtonText}>Seed Demo Portfolio Data</Text>
-                  )}
-                </TouchableOpacity>
               </View>
             ) : (
               <>

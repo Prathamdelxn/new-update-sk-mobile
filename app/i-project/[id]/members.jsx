@@ -18,7 +18,15 @@ const ROLE_META = {
   client_representative: { label: 'Client Rep', color: '#4F46E5', bg: '#EEF2FF' },
   viewer: { label: 'Viewer', color: '#64748B', bg: '#F8FAFC' },
 };
-const ALL_ROLES = ['viewer', 'sub_contractor', 'designer', 'quantity_surveyor', 'site_engineer', 'client_representative', 'project_manager'];
+const ALL_ROLES = [
+  'project_manager',
+  'site_engineer',
+  'quantity_surveyor',
+  'designer',
+  'sub_contractor',
+  'client_representative',
+  'viewer',
+];
 
 const PROJECT_MODULES = [
   { module: 'projects', label: 'Project Config' },
@@ -254,12 +262,6 @@ export default function InteriorMembersScreen() {
     showToast(`Applied default permissions for ${ROLE_META[role]?.label || role}`, 'success');
   };
 
-  const handleResetToDefaults = () => {
-    const defaults = DEFAULT_ROLE_PERMISSIONS[editedRole] || [];
-    setEditedPermissions(defaults);
-    showToast(`Reset to ${ROLE_META[editedRole]?.label || editedRole} defaults`, 'success');
-  };
-
   const savePermissions = async () => {
     if (!permMember) return;
     setSavingPerms(true);
@@ -419,10 +421,10 @@ export default function InteriorMembersScreen() {
             )}
 
             <Text style={[s.label, { marginTop: 14 }]}>Project Role</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 4 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
               {ALL_ROLES.map((r) => (
                 <TouchableOpacity key={r} style={[s.chip, addMemberRole === r && s.chipActive]} onPress={() => setAddMemberRole(r)}>
-                  <Text style={[s.chipText, addMemberRole === r && s.chipTextActive]}>{ROLE_META[r].label}</Text>
+                  <Text style={[s.chipText, addMemberRole === r && s.chipTextActive]}>{ROLE_META[r]?.label || r}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -468,10 +470,10 @@ export default function InteriorMembersScreen() {
               <TextInput style={s.input} placeholder="At least 8 characters" placeholderTextColor="#94A3B8" secureTextEntry value={inviteForm.password} onChangeText={(v) => setInviteForm({ ...inviteForm, password: v })} />
 
               <Text style={s.label}>Project Role *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 4 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
                 {ALL_ROLES.map((r) => (
                   <TouchableOpacity key={r} style={[s.chip, inviteForm.projectRole === r && s.chipActive]} onPress={() => setInviteForm({ ...inviteForm, projectRole: r })}>
-                    <Text style={[s.chipText, inviteForm.projectRole === r && s.chipTextActive]}>{ROLE_META[r].label}</Text>
+                    <Text style={[s.chipText, inviteForm.projectRole === r && s.chipTextActive]}>{ROLE_META[r]?.label || r}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -499,7 +501,7 @@ export default function InteriorMembersScreen() {
       {/* Permissions Modal */}
       <Modal visible={!!permMember} animationType="slide" transparent onRequestClose={closePermissions}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
-          <View style={[s.modalCard, { maxHeight: '90%' }]}>
+          <View style={[s.modalCard, { height: '88%', maxHeight: '90%' }]}>
             {permMember && (
               <>
                 <View style={s.modalHeader}>
@@ -517,24 +519,18 @@ export default function InteriorMembersScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={s.label}>Project Role</Text>
-                  <TouchableOpacity style={s.resetDefaultsBtn} onPress={handleResetToDefaults}>
-                    <Ionicons name="refresh-outline" size={12} color="#64748B" />
-                    <Text style={s.resetDefaultsBtnText}>Reset to Defaults</Text>
-                  </TouchableOpacity>
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 4 }}>
+                <Text style={s.label}>Project Role</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
                   {ALL_ROLES.map((r) => (
                     <TouchableOpacity key={r} style={[s.chip, editedRole === r && s.chipActive]} onPress={() => handleRoleChange(r)}>
-                      <Text style={[s.chipText, editedRole === r && s.chipTextActive]}>{ROLE_META[r].label}</Text>
+                      <Text style={[s.chipText, editedRole === r && s.chipTextActive]}>{ROLE_META[r]?.label || r}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
                 {editedRole !== permMember.projectRole && <Text style={s.roleChangedTag}>Role changed</Text>}
 
                 <Text style={[s.label, { marginTop: 14 }]}>Module Permissions</Text>
-                <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, marginBottom: 8 }}>
                   {PROJECT_MODULES.map((mod) => {
                     const activeCount = PERMISSION_ACTIONS.filter((a) => hasAction(mod.module, a)).length;
                     const expanded = expandedModule === mod.module;
@@ -627,12 +623,6 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
   },
 
-  resetDefaultsBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#F8FAFC', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8,
-  },
-  resetDefaultsBtnText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B' },
-
   searchRow2: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
     borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12, height: 40,
@@ -655,10 +645,24 @@ const s = StyleSheet.create({
   },
   hintText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginBottom: 4 },
 
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 34,
+    flexShrink: 0,
+  },
   chipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  chipText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  chipTextActive: { color: '#2563EB' },
+  chipText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B', includeFontPadding: false },
+  chipTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
+  roleScroll: { flexGrow: 0, flexShrink: 0, marginVertical: 4 },
+  roleScrollContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, paddingRight: 10 },
 
   roleChangedTag: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#D97706', backgroundColor: '#FFFBEB', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginTop: 6 },
 

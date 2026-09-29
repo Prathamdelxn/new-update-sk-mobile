@@ -217,11 +217,6 @@ export default function InteriorDrawingsScreen() {
   // Stats Counters
   const count2D = useMemo(() => drawings.filter((d) => inferType(d) === '2D').length, [drawings]);
   const count3D = useMemo(() => drawings.filter((d) => inferType(d) === '3D').length, [drawings]);
-  const approvedCount = useMemo(() => drawings.filter((d) => d.status === 'approved').length, [drawings]);
-  const underReviewCount = useMemo(
-    () => drawings.filter((d) => ['under_review', 'submitted', 'draft'].includes(d.status)).length,
-    [drawings]
-  );
 
   // Filtered List
   const filteredDrawings = useMemo(() => {
@@ -266,7 +261,13 @@ export default function InteriorDrawingsScreen() {
 
   const handlePickCreateFile = async () => {
     const asset = await pickFile();
-    if (asset) setSelectedFile(asset);
+    if (asset) {
+      setSelectedFile(asset);
+      if (!title.trim() && asset.name) {
+        const cleanTitle = asset.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        setTitle(cleanTitle);
+      }
+    }
   };
 
   const handlePickRevFile = async () => {
@@ -392,9 +393,7 @@ export default function InteriorDrawingsScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle} numberOfLines={1}>Drawings & Blueprints</Text>
-            <Text style={s.headerSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
-              Architectural 2D CAD layouts & 3D visual concepts
-            </Text>
+            <Text style={s.headerSub}>Manage 2D Working Plans and 3D Models.</Text>
           </View>
         </View>
 
@@ -437,34 +436,6 @@ export default function InteriorDrawingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* --- KPI STATS BANNER --- */}
-        <View style={s.statsBanner}>
-          <View style={s.statItem}>
-            <Text style={s.statNumber}>{drawings.length}</Text>
-            <Text style={s.statLabel}>Total</Text>
-          </View>
-          <View style={s.statDivider} />
-          <View style={s.statItem}>
-            <Text style={[s.statNumber, { color: '#2563EB' }]}>{count2D}</Text>
-            <Text style={s.statLabel}>2D Plans</Text>
-          </View>
-          <View style={s.statDivider} />
-          <View style={s.statItem}>
-            <Text style={[s.statNumber, { color: '#7C3AED' }]}>{count3D}</Text>
-            <Text style={s.statLabel}>3D Renders</Text>
-          </View>
-          <View style={s.statDivider} />
-          <View style={s.statItem}>
-            <Text style={[s.statNumber, { color: '#16A34A' }]}>{approvedCount}</Text>
-            <Text style={s.statLabel}>Approved</Text>
-          </View>
-          <View style={s.statDivider} />
-          <View style={s.statItem}>
-            <Text style={[s.statNumber, { color: '#D97706' }]}>{underReviewCount}</Text>
-            <Text style={s.statLabel}>Review</Text>
-          </View>
-        </View>
-
         {/* --- SEARCH & STATUS FILTER ROW --- */}
         <View style={s.searchRow}>
           <View style={s.searchInputBox}>
@@ -485,7 +456,12 @@ export default function InteriorDrawingsScreen() {
         </View>
 
         {/* --- STATUS FILTER CHIPS --- */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.statusChipsRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, flexShrink: 0 }}
+          contentContainerStyle={s.statusChipsRow}
+        >
           {[
             { id: 'all', label: 'All Status' },
             { id: 'approved', label: 'Approved ✓' },
@@ -514,7 +490,11 @@ export default function InteriorDrawingsScreen() {
             <ActivityIndicator size="large" color="#2563EB" />
           </View>
         ) : (
-          <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={s.scroll}
+            showsVerticalScrollIndicator={false}
+          >
             {filteredDrawings.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons
@@ -708,9 +688,9 @@ export default function InteriorDrawingsScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <View>
-                <Text style={s.modalTitle}>Register Blueprint / Drawing</Text>
-                <Text style={s.modalSubtitle}>Upload working CAD drawings, specifications or renders</Text>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={s.modalTitle}>2D Drawings & 3D Models Management</Text>
+                <Text style={s.modalSubtitle}>Upload CAD (.dwg, .dxf), 3D Models (.skp, .obj, .fbx, .blend, .rvt), Renders & PDFs.</Text>
               </View>
               <TouchableOpacity onPress={closeCreate} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -748,30 +728,6 @@ export default function InteriorDrawingsScreen() {
                 </TouchableOpacity>
               </View>
 
-              <Text style={s.label}>Drawing Title *</Text>
-              <TextInput
-                style={s.input}
-                placeholder="e.g. Master Bedroom False Ceiling & Lighting Grid"
-                placeholderTextColor="#94A3B8"
-                value={title}
-                onChangeText={setTitle}
-              />
-
-              <Text style={s.label}>Engineering Discipline</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
-                {DISCIPLINE_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[s.disciplineChip, discipline === opt.value && s.disciplineChipActive]}
-                    onPress={() => setDiscipline(opt.value)}
-                  >
-                    <Text style={[s.disciplineChipText, discipline === opt.value && s.disciplineChipTextActive]}>
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
               <Text style={s.label}>Drawing Document File (PDF, Image, CAD, SKP) *</Text>
               <TouchableOpacity style={s.uploadBox} onPress={handlePickCreateFile}>
                 <Ionicons name="cloud-upload-outline" size={26} color="#2563EB" />
@@ -781,6 +737,15 @@ export default function InteriorDrawingsScreen() {
                 <Text style={s.uploadBoxSub}>Supports PDF, DWG, SKP, PNG, JPG</Text>
               </TouchableOpacity>
 
+              <Text style={s.label}>Drawing Title *</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Master Bedroom False Ceiling & Lighting Grid"
+                placeholderTextColor="#94A3B8"
+                value={title}
+                onChangeText={setTitle}
+              />
+
               <TouchableOpacity
                 style={[s.saveBtn, submitting && { opacity: 0.7 }]}
                 onPress={handleSubmitDrawing}
@@ -789,7 +754,7 @@ export default function InteriorDrawingsScreen() {
                 {submitting ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={s.saveBtnText}>Register & Upload Blueprint</Text>
+                  <Text style={s.saveBtnText}>Upload Drawing / Model</Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -896,6 +861,7 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 10, gap: 10 },
 
   header: {
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -904,6 +870,7 @@ const s = StyleSheet.create({
     paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+    zIndex: 10,
   },
   backBtn: {
     padding: 6,
@@ -911,9 +878,10 @@ const s = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  headerSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
   categorySegmentRow: {
+    flexShrink: 0,
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
@@ -921,6 +889,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     gap: 10,
+    zIndex: 9,
   },
   categoryTab: {
     flex: 1,
@@ -975,27 +944,10 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  statsBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  statItem: { alignItems: 'center', flex: 1 },
-  statNumber: { fontSize: 14, fontFamily: 'Inter-Black', color: '#0F172A' },
-  statLabel: { fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#94A3B8', textTransform: 'uppercase', marginTop: 1 },
-  statDivider: { width: 1, height: 24, backgroundColor: '#F1F5F9' },
-
   searchRow: {
+    flexShrink: 0,
     paddingHorizontal: 16,
-    marginTop: 8,
+    marginTop: 10,
   },
   searchInputBox: {
     flexDirection: 'row',

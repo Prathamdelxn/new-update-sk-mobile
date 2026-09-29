@@ -24,7 +24,17 @@ const PRIORITY_META = {
   high: { label: 'High', color: '#D97706', bg: '#FFFBEB' },
   critical: { label: 'Critical', color: '#DC2626', bg: '#FEF2F2' },
 };
-const TRADES = ['civil', 'interior', 'mep', 'electrical', 'hvac', 'phe', 'fire_fighting', 'elv', 'other'];
+const TRADES = [
+  { value: 'interior', label: 'Interior' },
+  { value: 'civil', label: 'Civil' },
+  { value: 'electrical', label: 'Electrical' },
+  { value: 'mep', label: 'MEP' },
+  { value: 'hvac', label: 'HVAC' },
+  { value: 'phe', label: 'PHE' },
+  { value: 'fire_fighting', label: 'Fire Fighting' },
+  { value: 'elv', label: 'ELV' },
+  { value: 'other', label: 'Other' },
+];
 
 const emptyForm = { name: '', packageId: '', priority: 'medium', startDate: '', endDate: '', assigneeId: '', milestoneId: '', description: '', dependencies: [], initialSubtasks: [] };
 const emptyEdit = { packageId: '', name: '', description: '', priority: 'medium', status: 'todo', assigneeId: '', startDate: '', endDate: '', progress: 0, dependencies: [], subtasks: [] };
@@ -607,7 +617,12 @@ export default function InteriorTasksScreen() {
         </View>
 
         {/* KPI strip */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.kpiRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={s.kpiScroll}
+          contentContainerStyle={s.kpiRow}
+        >
           <View style={s.kpiTile}><Text style={s.kpiNum}>{metrics.total}</Text><Text style={s.kpiLbl}>Total</Text></View>
           <View style={s.kpiTile}><Text style={[s.kpiNum, { color: '#2563EB' }]}>{metrics.todo}</Text><Text style={s.kpiLbl}>To Do</Text></View>
           <View style={s.kpiTile}><Text style={[s.kpiNum, { color: '#D97706' }]}>{metrics.inProgress}</Text><Text style={s.kpiLbl}>In Progress</Text></View>
@@ -638,7 +653,7 @@ export default function InteriorTasksScreen() {
         {showFilters && (
           <View style={s.filterPanel}>
             <Text style={s.filterLabel}>Priority</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
               <TouchableOpacity style={[s.chipSm, filterPriority === 'all' && s.chipSmActive]} onPress={() => setFilterPriority('all')}>
                 <Text style={[s.chipSmText, filterPriority === 'all' && s.chipSmTextActive]}>All</Text>
               </TouchableOpacity>
@@ -649,7 +664,7 @@ export default function InteriorTasksScreen() {
               ))}
             </ScrollView>
             <Text style={s.filterLabel}>Assignee</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 4 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 6, marginBottom: 4 }}>
               <TouchableOpacity style={[s.chipSm, filterAssignee === 'all' && s.chipSmActive]} onPress={() => setFilterAssignee('all')}>
                 <Text style={[s.chipSmText, filterAssignee === 'all' && s.chipSmTextActive]}>All</Text>
               </TouchableOpacity>
@@ -666,7 +681,12 @@ export default function InteriorTasksScreen() {
         )}
 
         {viewMode === 'board' && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.columnTabs}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={s.columnTabsScroll}
+            contentContainerStyle={s.columnTabs}
+          >
             {COLUMNS.map((col) => {
               const count = filteredTasks.filter((t) => t.status === col.id).length;
               const active = activeColumn === col.id;
@@ -684,7 +704,7 @@ export default function InteriorTasksScreen() {
         {loading ? (
           <View style={s.center}><ActivityIndicator size="large" color="#2563EB" /></View>
         ) : viewMode === 'board' ? (
-          <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+          <ScrollView style={s.mainScroll} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             {colTasks.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="checkbox-outline" size={40} color="#CBD5E1" />
@@ -696,7 +716,7 @@ export default function InteriorTasksScreen() {
             <View style={{ height: 100 }} />
           </ScrollView>
         ) : (
-          <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+          <ScrollView style={s.mainScroll} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             {tasksByPackage.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="layers-outline" size={40} color="#CBD5E1" />
@@ -757,10 +777,10 @@ export default function InteriorTasksScreen() {
               {showInlinePkgForm ? (
                 <View style={s.inlinePkgBox}>
                   <TextInput style={s.input} placeholder="Package Name (e.g. Electrical)" placeholderTextColor="#94A3B8" value={inlinePkg.name} onChangeText={(v) => setInlinePkg({ ...inlinePkg, name: v })} />
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginTop: 8, marginBottom: 8 }}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 6, marginTop: 8, marginBottom: 8 }}>
                     {TRADES.map((t) => (
-                      <TouchableOpacity key={t} style={[s.chipSm, inlinePkg.trade === t && s.chipSmActive]} onPress={() => setInlinePkg({ ...inlinePkg, trade: t })}>
-                        <Text style={[s.chipSmText, inlinePkg.trade === t && s.chipSmTextActive]}>{t}</Text>
+                      <TouchableOpacity key={t.value} style={[s.chipSm, inlinePkg.trade === t.value && s.chipSmActive]} onPress={() => setInlinePkg({ ...inlinePkg, trade: t.value })}>
+                        <Text style={[s.chipSmText, inlinePkg.trade === t.value && s.chipSmTextActive]}>{t.label}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -1233,18 +1253,20 @@ const s = StyleSheet.create({
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  mainScroll: { flex: 1 },
   scroll: { paddingHorizontal: 20, paddingTop: 14, gap: 12 },
 
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexShrink: 0 },
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
   headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
 
-  kpiRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  kpiTile: { backgroundColor: '#F8FAFC', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#F1F5F9', minWidth: 72, alignItems: 'center' },
+  kpiScroll: { flexGrow: 0, flexShrink: 0 },
+  kpiRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  kpiTile: { backgroundColor: '#F8FAFC', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: '#F1F5F9', minWidth: 72, alignItems: 'center', justifyContent: 'center' },
   kpiNum: { fontSize: 16, fontFamily: 'Inter-Black', color: '#0F172A' },
   kpiLbl: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', marginTop: 1 },
 
-  controlBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 10, backgroundColor: '#FFFFFF' },
+  controlBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 10, backgroundColor: '#FFFFFF', flexShrink: 0 },
   viewSwitch: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 10, padding: 3 },
   viewSwitchBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
   viewSwitchBtnActive: { backgroundColor: '#FFFFFF' },
@@ -1252,18 +1274,19 @@ const s = StyleSheet.create({
   viewSwitchTextActive: { color: '#0F172A' },
   filterToggleBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
 
-  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, flexShrink: 0 },
   searchInput: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#0F172A', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
 
-  filterPanel: { backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  filterPanel: { backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexShrink: 0 },
   filterLabel: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 6 },
   chipSm: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   chipSmActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
   chipSmText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize' },
   chipSmTextActive: { color: '#2563EB' },
 
-  columnTabs: { gap: 8, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  colTab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9', backgroundColor: '#F8FAFC' },
+  columnTabsScroll: { flexGrow: 0, flexShrink: 0 },
+  columnTabs: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  colTab: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9', backgroundColor: '#F8FAFC' },
   colDot: { width: 7, height: 7, borderRadius: 4 },
   colTabText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#64748B' },
   colCountBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 },
