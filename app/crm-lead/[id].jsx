@@ -7,10 +7,13 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../context/ToastContext';
 import interiorApiClient from '../services/interiorApiClient';
 import interiorCrmService from '../services/interiorCrmService';
+import { queryKeys, invalidateCrmQueries, invalidateProjectQueries, useQuerySetter } from '../context/QueryProvider';
 import { parseMaxBudget } from '../utils/format';
+import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../utils/crmValidation';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -20,6 +23,11 @@ import BoqBuilderModal from '../components/crm/BoqBuilderModal';
 import LogSiteVisitModal from '../components/crm/LogSiteVisitModal';
 import LogRequirementsModal from '../components/crm/LogRequirementsModal';
 import UploadDesignModal from '../components/crm/UploadDesignModal';
+import SendDrawingForApprovalModal from '../components/crm/SendDrawingForApprovalModal';
+import DrawingApprovalModal from '../components/crm/DrawingApprovalModal';
+import UploadRevisionModal from '../components/crm/UploadRevisionModal';
+import CrmShareModal from '../components/crm/CrmShareModal';
+import { WEB_APP_URL } from '../config';
 import MarkLostModal from '../components/crm/MarkLostModal';
 import SiteVisitHistoryModal from '../components/crm/SiteVisitHistoryModal';
 import {
@@ -162,10 +170,36 @@ export default function Lead360Screen() {
     Alert.alert(title, valText, buttons);
   };
 
-  const [lead, setLead] = useState(null);
-  const [activities, setActivities] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  // Lead, activities and users are cached per lead (see QueryProvider), so
+  // re-opening a lead shows it instantly instead of re-fetching everything.
+  const leadQuery = useQuery({
+    queryKey: queryKeys.crmLead(id),
+    queryFn: () => interiorCrmService.getCustomerById(id).then((cust) => cust || null),
+    enabled: !!id,
+  });
+  const activitiesQuery = useQuery({
+    queryKey: queryKeys.crmLeadActivities(id),
+    queryFn: async () => {
+      const actList = await interiorCrmService.getActivities(id);
+      return Array.isArray(actList) ? actList : [];
+    },
+    enabled: !!id,
+  });
+  const usersQuery = useQuery({
+    queryKey: queryKeys.crmUsers,
+    queryFn: async () => {
+      const list = await interiorCrmService.getUsers();
+      return Array.isArray(list) ? list : [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+  const lead = leadQuery.data ?? null;
+  const activities = activitiesQuery.data ?? [];
+  const users = usersQuery.data ?? [];
+  const setLead = useQuerySetter(queryKeys.crmLead(id));
+  const setActivities = useQuerySetter(queryKeys.crmLeadActivities(id));
+  const loading = leadQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState(tab || 'overview');
   const [activeQuoteIdx, setActiveQuoteIdx] = useState(0);
@@ -196,6 +230,8 @@ export default function Lead360Screen() {
   const [showEditLeadSourceDropdown, setShowEditLeadSourceDropdown] = useState(false);
   const [showEditAssignDropdown, setShowEditAssignDropdown] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', mobileNumber: '', email: '', leadSource: 'Phone Call', propertyType: 'Flat', projectLocation: '', assignedSalesExecutive: '' });
+  const [editFormErrors, setEditFormErrors] = useState({});
+  const [editFormTouched, setEditFormTouched] = useState({});
   const [submittingEdit, setSubmittingEdit] = useState(false);
   const [deletingLead, setDeletingLead] = useState(false);
 
@@ -229,6 +265,14 @@ export default function Lead360Screen() {
   const [showDesignModal, setShowDesignModal] = useState(false);
   const [designForm, setDesignForm] = useState({ name: '', fileType: 'image', url: '' });
 
+  // Drawing Two-Step Approval Workflow State
+  const [sendApprovalDrawing, setSendApprovalDrawing] = useState(null);
+  const [approvalModalDrawing, setApprovalModalDrawing] = useState(null);
+  const [approvalModalAction, setApprovalModalAction] = useState('approve');
+  const [revisionDrawing, setRevisionDrawing] = useState(null);
+  const [approvingDrawingId, setApprovingDrawingId] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+
   // Quotation Builder Modal State
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [quoteItems, setQuoteItems] = useState([{ description: '', quantity: '1', unitPrice: '' }]);
@@ -244,6 +288,10 @@ export default function Lead360Screen() {
   const isConverted = lead?.status === 'Won' || lead?.status === 'Converted' || !!lead?.linkedProject;
   const isLost = lead?.status === 'Lost';
   const isReadOnly = isConverted || isLost;
+  // A follow-up left "Pending" must stop being flagged Overdue once the lead
+  // has actually moved past the initial contact phase — otherwise it stays
+  // permanently red even though the lead progressed through later stages.
+  const isLeadProgressed = !['New Lead', 'Contacted', 'Meeting Scheduled'].includes(lead?.status) || isConverted || !!lead?.linkedProject;
 
   const getTabLockState = (tabId) => {
     if (isConverted) return { isLocked: false, requiredStage: '', stageTitle: '', reason: '' };
@@ -312,31 +360,21 @@ export default function Lead360Screen() {
     }
   };
 
+  // Called after every mutation and on pull-to-refresh. Invalidating all CRM
+  // queries also refreshes the lead list, pipeline and follow-ups for this change.
   const fetchData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
+    if (isRefresh) setRefreshing(true);
     try {
-      // 1. Fetch lead
-      const cust = await interiorCrmService.getCustomerById(id);
-      if (cust) setLead(cust);
-
-      // 2. Fetch activities
-      const actList = await interiorCrmService.getActivities(id);
-      setActivities(Array.isArray(actList) ? actList : []);
-
-      // 3. Fetch users
-      const userList = await interiorCrmService.getUsers();
-      setUsers(Array.isArray(userList) ? userList : []);
-    } catch (e) {
-      showToast(e.message || 'Failed to load lead details', 'error');
+      await invalidateCrmQueries(queryClient);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, [id]);
+  }, [queryClient]);
 
+  const loadError = leadQuery.error || activitiesQuery.error;
   useEffect(() => {
-    if (id) fetchData();
-  }, [id, fetchData]);
+    if (loadError) showToast(loadError.message || 'Failed to load lead details', 'error');
+  }, [loadError]);
 
   useEffect(() => {
     if (tab) setActiveTab(tab);
@@ -484,7 +522,8 @@ export default function Lead360Screen() {
 
   const handleRescheduleFollowUp = async () => {
     if (isReadOnly) return showToast('This lead is read-only.', 'info');
-    if (!rescheduleForm.scheduledDate) return showToast('Follow-up date & time is required', 'error');
+    const rescheduleDateError = validateFutureDate(rescheduleForm.scheduledDate, 'Follow-up date & time');
+    if (rescheduleDateError) return showToast(rescheduleDateError, 'error');
     if (!rescheduleForm.assignedSalesExecutive) return showToast('Please assign a member before rescheduling', 'error');
     if (!rescheduleForm.remarks.trim()) return showToast('Notes are required', 'error');
     if (!reschedulingId) return;
@@ -543,7 +582,8 @@ export default function Lead360Screen() {
 
   const handleScheduleFollowUp = async () => {
     if (isReadOnly) return showToast('This lead is read-only.', 'info');
-    if (!followUpForm.scheduledDate) return showToast('Follow-up date & time is required', 'error');
+    const followUpDateError = validateFutureDate(followUpForm.scheduledDate, 'Follow-up date & time');
+    if (followUpDateError) return showToast(followUpDateError, 'error');
     if (!followUpForm.assignedSalesExecutive) return showToast('Please assign a member before scheduling', 'error');
     if (!followUpForm.remarks.trim()) return showToast('Follow-up goal / notes are required', 'error');
     setSubmittingAct(true);
@@ -661,6 +701,64 @@ export default function Lead360Screen() {
     } finally {
       setSubmittingAct(false);
     }
+  };
+
+  // Drawing status is authoritative on `status` (top-level field the backend
+  // actually keeps in sync on every approve/reject/send/version call) — the
+  // legacy `approvalStatus` field is only ever set on send-for-approval, so
+  // it can go stale and must not be trusted as the source of truth.
+  const DRAWING_STATUS_META = {
+    draft: { label: 'Draft', color: '#64748B', bg: '#F1F5F9' },
+    pending_internal_approval: { label: 'Pending Approval', color: '#D97706', bg: '#FFFBEB' },
+    internally_approved: { label: 'Approved', color: '#16A34A', bg: '#F0FDF4' },
+    client_approved: { label: 'Client Approved', color: '#16A34A', bg: '#F0FDF4' },
+    internally_rejected: { label: 'Rejected', color: '#DC2626', bg: '#FEF2F2' },
+    client_changes_requested: { label: 'Client Revision', color: '#DC2626', bg: '#FEF2F2' },
+  };
+  const getDrawingStatus = (f) => f?.status || 'draft';
+  const isDrawingPendingForBoq = (f) => {
+    const status = getDrawingStatus(f);
+    return status === 'draft' || status === 'pending_internal_approval' || status === 'internally_rejected' || status === 'client_changes_requested';
+  };
+
+  const handleDirectApproveDrawing = async (drawing) => {
+    const drawingId = drawing._id || drawing.id;
+    setApprovingDrawingId(drawingId);
+    try {
+      await interiorCrmService.approveDrawing(id, drawingId, {
+        action: 'approve',
+        versionNumber: drawing.currentVersion || 1,
+      });
+      showToast('Drawing approved and published to client portal!', 'success');
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to approve drawing', 'error');
+    } finally {
+      setApprovingDrawingId(null);
+    }
+  };
+
+  const handleDeleteDrawingFile = (drawing) => {
+    Alert.alert(
+      'Delete Drawing',
+      `Are you sure you want to delete "${drawing.title || drawing.name}"? This removes all its versions and cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await interiorCrmService.deleteDrawing(id, drawing._id || drawing.id);
+              showToast('Drawing deleted successfully', 'success');
+              fetchData();
+            } catch (e) {
+              showToast(e.message || 'Failed to delete drawing', 'error');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSaveQuotation = async () => {
@@ -967,6 +1065,8 @@ export default function Lead360Screen() {
           onPress: async () => {
             try {
               await interiorApiClient.post(`/crm/customers/${id}/convert`, { quotationIndex: quoteIndex });
+              invalidateCrmQueries(queryClient);
+              invalidateProjectQueries(queryClient);
               showToast('🎉 Successfully converted to Project!', 'success');
               router.push('/(tabs)/crm');
             } catch (e) {
@@ -991,14 +1091,47 @@ export default function Lead360Screen() {
       projectLocation: lead?.projectLocation || '',
       assignedSalesExecutive: currExecId,
     });
+    setEditFormErrors({});
+    setEditFormTouched({});
     setShowEditLeadSourceDropdown(false);
     setShowEditAssignDropdown(false);
     setShowEditModal(true);
   };
 
+  // Project location is optional on edit (unlike create) so leads saved
+  // before this field existed don't get blocked from being edited.
+  const validateEditField = (field, value) => {
+    switch (field) {
+      case 'name': return validateName(value);
+      case 'mobileNumber': return validateMobileNumber(value);
+      case 'email': return validateEmail(value);
+      case 'leadSource': return validateLeadSource(value);
+      case 'propertyType': return validatePropertyType(value);
+      case 'projectLocation': return validateProjectLocation(value, false);
+      default: return null;
+    }
+  };
+
+  const handleEditFieldChange = (field, value) => {
+    setEditForm((f) => ({ ...f, [field]: value }));
+    if (editFormTouched[field] || editFormErrors[field]) {
+      setEditFormErrors((prev) => ({ ...prev, [field]: validateEditField(field, value) }));
+    }
+  };
+
+  const handleEditFieldBlur = (field) => {
+    setEditFormTouched((prev) => ({ ...prev, [field]: true }));
+    setEditFormErrors((prev) => ({ ...prev, [field]: validateEditField(field, editForm[field]) }));
+  };
+
   const handleEditSubmit = async () => {
-    if (!editForm.name.trim() || !editForm.mobileNumber.trim()) {
-      showToast('Name and Mobile Number are required', 'error');
+    const fields = ['name', 'mobileNumber', 'email', 'leadSource', 'propertyType', 'projectLocation'];
+    const nextErrors = {};
+    fields.forEach((f) => { nextErrors[f] = validateEditField(f, editForm[f]); });
+    setEditFormErrors(nextErrors);
+    setEditFormTouched(fields.reduce((acc, f) => ({ ...acc, [f]: true }), {}));
+    if (Object.values(nextErrors).some(Boolean)) {
+      showToast('Please fix the validation errors before saving', 'error');
       return;
     }
     setSubmittingEdit(true);
@@ -1056,6 +1189,8 @@ export default function Lead360Screen() {
             setDeletingLead(true);
             try {
               await interiorApiClient.delete(`/crm/customers/${id}`);
+              queryClient.removeQueries({ queryKey: queryKeys.crmLead(id) });
+              invalidateCrmQueries(queryClient);
               showToast('Lead deleted successfully', 'delete');
               router.replace('/(tabs)/crm');
             } catch (e) {
@@ -1165,7 +1300,7 @@ export default function Lead360Screen() {
               (a) => a.type !== 'Status Change' && a.type !== 'Site Visit' && (a.remarks || a.scheduledDate || a.status === 'Pending')
             );
             const activePendingFollowUp = followUpActs.find((a) => a.status?.toLowerCase() === 'pending');
-            const hasOverdueFollowUp = activePendingFollowUp && activePendingFollowUp.scheduledDate && new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now();
+            const hasOverdueFollowUp = !isLeadProgressed && activePendingFollowUp && activePendingFollowUp.scheduledDate && new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now();
 
             return TABS.map((t) => {
               const active = activeTab === t.id;
@@ -1226,7 +1361,7 @@ export default function Lead360Screen() {
                       onPress={() => setShowLostModal(true)}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="sad-outline" size={16} color="#DC2626" />
+                      <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
                     </TouchableOpacity>
                   )}
                   {!isReadOnly && (
@@ -1438,7 +1573,7 @@ export default function Lead360Screen() {
                   (Array.isArray(lead?.sitePhotos) && lead.sitePhotos.length > 0) ||
                   Boolean(lead?.linkedProject);
                 const canSendToSiteVisit = !isConverted && !hasSiteVisitStarted && (!lead?.quotations || lead.quotations.length === 0);
-                const isActiveOverdue = !!(activePendingFollowUp?.scheduledDate && new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now());
+                const isActiveOverdue = !isLeadProgressed && !!(activePendingFollowUp?.scheduledDate && new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now());
 
                 return (
                   <>
@@ -1495,7 +1630,7 @@ export default function Lead360Screen() {
 
                     {/* Active Scheduled Follow-up Card */}
                     {activePendingFollowUp && (() => {
-                      const isOverdue = activePendingFollowUp.scheduledDate &&
+                      const isOverdue = !isLeadProgressed && activePendingFollowUp.scheduledDate &&
                         new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now();
                       const overdueMs = isOverdue
                         ? Date.now() - new Date(activePendingFollowUp.scheduledDate).getTime() : 0;
@@ -2357,47 +2492,177 @@ export default function Lead360Screen() {
                         </TouchableOpacity>
                       )}
                     </View>
-                    {lead.designFiles.map((file, idx) => (
-                      <TouchableOpacity key={idx} style={[s.fileCard, { flexDirection: 'column', padding: 0, overflow: 'hidden' }]} onPress={() => file.url && Linking.openURL(file.url)} activeOpacity={0.8}>
-                        {/* Thumbnail for image files */}
-                        {file.fileType === 'image' && file.url ? (
-                          <Image source={{ uri: file.url }} style={{ width: '100%', height: 160, resizeMode: 'cover', backgroundColor: '#E2E8F0' }} />
-                        ) : (
-                          <View style={{ width: '100%', height: 80, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons
-                              name={file.fileType === 'pdf' ? 'document-text-outline' : file.fileType === '3d-model' ? 'cube-outline' : file.fileType === 'cad' ? 'git-branch-outline' : 'document-outline'}
-                              size={36}
-                              color="#2563EB"
-                            />
-                            <Text style={{ fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#2563EB', marginTop: 4, textTransform: 'uppercase' }}>
-                              {file.fileType || 'File'}
-                            </Text>
-                          </View>
+
+                    {/* Client Share Portal Ribbon */}
+                    <View style={s.shareRibbon}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={s.shareRibbonIconBox}>
+                          <Ionicons name="globe-outline" size={16} color="#7C3AED" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.shareRibbonTitle}>Client View-Only Portal</Text>
+                          <Text style={s.shareRibbonSub}>
+                            {lead.shareSettings?.isPublic ? 'Active — approved drawings are visible to the client' : 'Not generated yet'}
+                          </Text>
+                        </View>
+                        <View style={[s.shareRibbonBadge, { backgroundColor: lead.shareSettings?.isPublic ? '#DCFCE7' : '#F1F5F9' }]}>
+                          <Text style={[s.shareRibbonBadgeText, { color: lead.shareSettings?.isPublic ? '#16A34A' : '#64748B' }]}>
+                            {lead.shareSettings?.isPublic ? 'Active' : 'Inactive'}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                        {lead.shareSettings?.isPublic && lead.shareSettings?.shareToken && (
+                          <TouchableOpacity
+                            style={s.shareRibbonBtnOutline}
+                            onPress={() => Linking.openURL(`${WEB_APP_URL}/share/drawing/${lead.shareSettings.shareToken}`)}
+                          >
+                            <Ionicons name="eye-outline" size={13} color="#7C3AED" />
+                            <Text style={s.shareRibbonBtnOutlineText}>Preview Portal</Text>
+                          </TouchableOpacity>
                         )}
-                        {/* File info row */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', padding: 10 }}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={s.fileName} numberOfLines={1}>{file.name}</Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                              {file.category && (
-                                <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                  <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#4F46E5', textTransform: 'uppercase' }}>{file.category}</Text>
+                        <TouchableOpacity style={s.shareRibbonBtn} onPress={() => setShowShareModal(true)}>
+                          <Ionicons name="link-outline" size={13} color="#FFFFFF" />
+                          <Text style={s.shareRibbonBtnText}>{lead.shareSettings?.isPublic ? 'Manage / Copy Link' : 'Generate Share Link'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {lead.designFiles.map((file, idx) => {
+                      const status = getDrawingStatus(file);
+                      const statusMeta = DRAWING_STATUS_META[status] || DRAWING_STATUS_META.draft;
+                      const isApprovingThis = approvingDrawingId === (file._id || file.id || idx);
+                      return (
+                        <View key={file._id || file.id || idx} style={[s.fileCard, { flexDirection: 'column', padding: 0, overflow: 'hidden' }]}>
+                          <TouchableOpacity onPress={() => file.url && Linking.openURL(file.url)} activeOpacity={0.8}>
+                            {/* Thumbnail for image files */}
+                            {file.fileType === 'image' && file.url ? (
+                              <Image source={{ uri: file.url }} style={{ width: '100%', height: 160, resizeMode: 'cover', backgroundColor: '#E2E8F0' }} />
+                            ) : (
+                              <View style={{ width: '100%', height: 80, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
+                                <Ionicons
+                                  name={file.fileType === 'pdf' ? 'document-text-outline' : file.fileType === '3d-model' ? 'cube-outline' : file.fileType === 'cad' ? 'git-branch-outline' : 'document-outline'}
+                                  size={36}
+                                  color="#2563EB"
+                                />
+                                <Text style={{ fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#2563EB', marginTop: 4, textTransform: 'uppercase' }}>
+                                  {file.fileType || 'File'}
+                                </Text>
+                              </View>
+                            )}
+
+                            {/* Overlay: category + version badge (top-left), status pill (top-right) */}
+                            <View style={{ position: 'absolute', top: 8, left: 8, flexDirection: 'row', gap: 6 }}>
+                              {!!file.category && (
+                                <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
+                                  <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' }}>{file.category}</Text>
+                                </View>
+                              )}
+                              <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
+                                <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>v{file.currentVersion || 1}</Text>
+                              </View>
+                            </View>
+                            <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: statusMeta.bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                              <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: statusMeta.color }}>{statusMeta.label}</Text>
+                            </View>
+                          </TouchableOpacity>
+
+                          {/* File info */}
+                          <View style={{ padding: 10, gap: 6 }}>
+                            <Text style={s.fileName} numberOfLines={1}>{file.title || file.name}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              {!!file.roomTag && (
+                                <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                  <Text style={{ fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>{file.roomTag}</Text>
                                 </View>
                               )}
                               <Text style={s.fileSub}>{new Date(file.uploadedAt).toLocaleDateString()}</Text>
+                              {!!file.assignedReviewerName && (status === 'pending_internal_approval') && (
+                                <Text style={s.fileSub}>• Assigned: {file.assignedReviewerName}</Text>
+                              )}
                             </View>
+
+                            {(status === 'internally_rejected' || status === 'client_changes_requested') && !!file.rejectionReason && (
+                              <View style={{ backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 8, padding: 8 }}>
+                                <Text style={{ fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#DC2626' }}>REJECTION REASON</Text>
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{file.rejectionReason}</Text>
+                              </View>
+                            )}
+                            {!!file.clientFeedback && (
+                              <View style={{ backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 8, padding: 8 }}>
+                                <Text style={{ fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#B45309' }}>CLIENT FEEDBACK</Text>
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{file.clientFeedback}</Text>
+                              </View>
+                            )}
+
+                            {!isReadOnly && (
+                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+                                {status === 'draft' && (
+                                  <TouchableOpacity style={s.smallBtn} onPress={() => setSendApprovalDrawing(file)}>
+                                    <Ionicons name="paper-plane-outline" size={13} color="#0284C7" />
+                                    <Text style={[s.smallBtnText, { color: '#0284C7' }]}>Send for Approval</Text>
+                                  </TouchableOpacity>
+                                )}
+                                {status === 'pending_internal_approval' && (
+                                  <>
+                                    <TouchableOpacity
+                                      style={[s.smallBtn, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
+                                      onPress={() => handleDirectApproveDrawing(file)}
+                                      disabled={isApprovingThis}
+                                    >
+                                      {isApprovingThis ? <ActivityIndicator size="small" color="#16A34A" /> : (
+                                        <>
+                                          <Ionicons name="checkmark-circle-outline" size={13} color="#16A34A" />
+                                          <Text style={[s.smallBtnText, { color: '#16A34A' }]}>Approve</Text>
+                                        </>
+                                      )}
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      style={[s.smallBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
+                                      onPress={() => { setApprovalModalAction('reject'); setApprovalModalDrawing(file); }}
+                                    >
+                                      <Ionicons name="close-circle-outline" size={13} color="#DC2626" />
+                                      <Text style={[s.smallBtnText, { color: '#DC2626' }]}>Reject</Text>
+                                    </TouchableOpacity>
+                                  </>
+                                )}
+                                {(status === 'internally_rejected' || status === 'client_changes_requested') && (
+                                  <TouchableOpacity style={[s.smallBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => setRevisionDrawing(file)}>
+                                    <Ionicons name="add-circle-outline" size={13} color="#2563EB" />
+                                    <Text style={[s.smallBtnText, { color: '#2563EB' }]}>+ Revision</Text>
+                                  </TouchableOpacity>
+                                )}
+                                <TouchableOpacity style={[s.smallBtn, { marginLeft: 'auto' }]} onPress={() => handleDeleteDrawingFile(file)}>
+                                  <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                                </TouchableOpacity>
+                              </View>
+                            )}
                           </View>
-                          <Ionicons name="open-outline" size={16} color="#64748B" />
                         </View>
-                      </TouchableOpacity>
-                    ))}
-                    
+                      );
+                    })}
+
                     <View style={{ gap: 8, marginTop: 8 }}>
-                      {lead.status === 'Under Drawing' && (
-                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#0284C7', marginTop: 0 }]} onPress={() => setShowSendBoqModal(true)}>
-                          <Text style={s.actionBtnText}>Complete Phase & Pass to BOQ Estimation</Text>
-                        </TouchableOpacity>
-                      )}
+                      {lead.status === 'Under Drawing' && (() => {
+                        const pendingCount = lead.designFiles.filter(isDrawingPendingForBoq).length;
+                        return pendingCount > 0 ? (
+                          <View style={{ gap: 6 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, padding: 10 }}>
+                              <Ionicons name="alert-circle" size={14} color="#B45309" />
+                              <Text style={{ flex: 1, fontSize: 11, fontFamily: 'Inter-Medium', color: '#92400E' }}>
+                                Cannot pass to BOQ — {pendingCount} drawing{pendingCount === 1 ? '' : 's'} pending approval.
+                              </Text>
+                            </View>
+                            <TouchableOpacity disabled style={[s.actionBtnPrimary, { backgroundColor: '#CBD5E1', marginTop: 0 }]}>
+                              <Text style={s.actionBtnText}>Drawings Pending Approval</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#0284C7', marginTop: 0 }]} onPress={() => setShowSendBoqModal(true)}>
+                            <Text style={s.actionBtnText}>Complete Phase & Pass to BOQ Estimation</Text>
+                          </TouchableOpacity>
+                        );
+                      })()}
                     </View>
                   </View>
                 );
@@ -2465,8 +2730,9 @@ export default function Lead360Screen() {
                 const boqMaxBudget = parseMaxBudget(lead?.budgetRange || lead?.estimatedBudget || lead?.budget);
                 const boqIsOverBudget = Boolean(boqMaxBudget && boqMaxBudget > 0 && estimatedTotal > boqMaxBudget);
                 const boqExcessPct = boqIsOverBudget ? ((estimatedTotal - boqMaxBudget) / boqMaxBudget) * 100 : 0;
+                const ACCEPTED_QUOTE_STATUSES = ['accepted', 'approved', 'converted', 'signed & accepted'];
                 const isQuotationApproved = Boolean(
-                  (lead.quotations && lead.quotations.some((q) => q.status === 'Accepted')) ||
+                  (lead.quotations && lead.quotations.some((q) => ACCEPTED_QUOTE_STATUSES.includes(String(q.status || '').toLowerCase()))) ||
                   ['Booking Pending', 'Won', 'Converted'].includes(lead.status) ||
                   lead.linkedProject
                 );
@@ -3033,13 +3299,43 @@ export default function Lead360Screen() {
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={s.label}>Full Name *</Text>
-              <TextInput style={s.input} placeholder="e.g. John Doe" placeholderTextColor="#94A3B8" value={editForm.name} onChangeText={(v) => setEditForm({ ...editForm, name: v })} />
+              <TextInput
+                style={[s.input, editFormErrors.name && s.inputError]}
+                placeholder="e.g. John Doe"
+                placeholderTextColor="#94A3B8"
+                value={editForm.name}
+                maxLength={50}
+                onChangeText={(v) => handleEditFieldChange('name', v)}
+                onBlur={() => handleEditFieldBlur('name')}
+              />
+              {!!editFormErrors.name && <Text style={s.fieldErrorText}>{editFormErrors.name}</Text>}
 
               <Text style={s.label}>Mobile Number *</Text>
-              <TextInput style={s.input} placeholder="+91 9876543210" placeholderTextColor="#94A3B8" keyboardType="phone-pad" value={editForm.mobileNumber} onChangeText={(v) => setEditForm({ ...editForm, mobileNumber: v })} />
+              <TextInput
+                style={[s.input, editFormErrors.mobileNumber && s.inputError]}
+                placeholder="+91 9876543210"
+                placeholderTextColor="#94A3B8"
+                keyboardType="phone-pad"
+                value={editForm.mobileNumber}
+                maxLength={16}
+                onChangeText={(v) => handleEditFieldChange('mobileNumber', v)}
+                onBlur={() => handleEditFieldBlur('mobileNumber')}
+              />
+              {!!editFormErrors.mobileNumber && <Text style={s.fieldErrorText}>{editFormErrors.mobileNumber}</Text>}
 
               <Text style={s.label}>Email Address</Text>
-              <TextInput style={s.input} placeholder="john@example.com" placeholderTextColor="#94A3B8" keyboardType="email-address" autoCapitalize="none" value={editForm.email} onChangeText={(v) => setEditForm({ ...editForm, email: v })} />
+              <TextInput
+                style={[s.input, editFormErrors.email && s.inputError]}
+                placeholder="john@example.com"
+                placeholderTextColor="#94A3B8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={editForm.email}
+                maxLength={100}
+                onChangeText={(v) => handleEditFieldChange('email', v)}
+                onBlur={() => handleEditFieldBlur('email')}
+              />
+              {!!editFormErrors.email && <Text style={s.fieldErrorText}>{editFormErrors.email}</Text>}
 
               <Text style={s.label}>Lead Source</Text>
               <TouchableOpacity
@@ -3068,7 +3364,7 @@ export default function Lead360Screen() {
                             idx === LEAD_SOURCES.length - 1 && { borderBottomWidth: 0 }
                           ]}
                           onPress={() => {
-                            setEditForm({ ...editForm, leadSource: opt });
+                            handleEditFieldChange('leadSource', opt);
                             setShowEditLeadSourceDropdown(false);
                           }}
                         >
@@ -3084,7 +3380,7 @@ export default function Lead360Screen() {
               <Text style={s.label}>Property Type</Text>
               <View style={s.chipOptions}>
                 {['Flat', 'Villa', 'Office', 'Shop', 'Other'].map((opt) => (
-                  <TouchableOpacity key={opt} style={[s.optionChip, editForm.propertyType === opt && s.optionChipActive]} onPress={() => setEditForm({ ...editForm, propertyType: opt })}>
+                  <TouchableOpacity key={opt} style={[s.optionChip, editForm.propertyType === opt && s.optionChipActive]} onPress={() => handleEditFieldChange('propertyType', opt)}>
                     <Text style={[s.optionChipText, editForm.propertyType === opt && s.optionChipTextActive]}>{opt}</Text>
                   </TouchableOpacity>
                 ))}
@@ -3153,7 +3449,16 @@ export default function Lead360Screen() {
               )}
 
               <Text style={s.label}>Project Location</Text>
-              <TextInput style={s.input} placeholder="e.g. Hiranandani Estate, Thane" placeholderTextColor="#94A3B8" value={editForm.projectLocation} onChangeText={(v) => setEditForm({ ...editForm, projectLocation: v })} />
+              <TextInput
+                style={[s.input, editFormErrors.projectLocation && s.inputError]}
+                placeholder="e.g. Hiranandani Estate, Thane"
+                placeholderTextColor="#94A3B8"
+                value={editForm.projectLocation}
+                maxLength={150}
+                onChangeText={(v) => handleEditFieldChange('projectLocation', v)}
+                onBlur={() => handleEditFieldBlur('projectLocation')}
+              />
+              {!!editFormErrors.projectLocation && <Text style={s.fieldErrorText}>{editFormErrors.projectLocation}</Text>}
 
               <TouchableOpacity style={s.submitBtn} onPress={handleEditSubmit} disabled={submittingEdit}>
                 <Text style={s.submitBtnText}>{submittingEdit ? 'Saving...' : 'Save Changes'}</Text>
@@ -3400,11 +3705,58 @@ export default function Lead360Screen() {
         onClose={() => setShowDesignModal(false)}
         customerId={id}
         existingDesigns={lead?.designFiles}
+        users={users}
+        requirements={lead?.requirements}
         isReadOnly={isReadOnly}
         onSuccess={() => {
           showToast('Design file uploaded successfully!', 'success');
           fetchData();
         }}
+      />
+
+      {/* 6b. Drawing Two-Step Approval Workflow Modals */}
+      <SendDrawingForApprovalModal
+        isOpen={!!sendApprovalDrawing}
+        onClose={() => setSendApprovalDrawing(null)}
+        customerId={id}
+        drawing={sendApprovalDrawing}
+        users={users}
+        onSuccess={() => {
+          showToast('Drawing sent for internal approval!', 'success');
+          fetchData();
+        }}
+      />
+
+      <DrawingApprovalModal
+        isOpen={!!approvalModalDrawing}
+        onClose={() => setApprovalModalDrawing(null)}
+        customerId={id}
+        drawing={approvalModalDrawing}
+        initialAction={approvalModalAction}
+        onSuccess={(action) => {
+          showToast(action === 'approve' ? 'Drawing approved and published to client portal!' : 'Drawing rejected.', 'success');
+          fetchData();
+        }}
+      />
+
+      <UploadRevisionModal
+        isOpen={!!revisionDrawing}
+        onClose={() => setRevisionDrawing(null)}
+        customerId={id}
+        drawing={revisionDrawing}
+        users={users}
+        onSuccess={() => {
+          showToast('Revision uploaded and sent for review!', 'success');
+          fetchData();
+        }}
+      />
+
+      <CrmShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        customerId={id}
+        lead={lead}
+        onSuccess={() => fetchData()}
       />
 
       {/* 7. Quotation Builder Modal (Matches Web Exactly) */}
@@ -3635,7 +3987,7 @@ export default function Lead360Screen() {
         editingBoqIndex={editingBoqIdx}
         budgetRange={lead?.budgetRange}
         isReadOnly={isReadOnly || Boolean(
-          (lead?.quotations && lead.quotations.some((q) => q.status === 'Accepted')) ||
+          (lead?.quotations && lead.quotations.some((q) => ['accepted', 'approved', 'converted', 'signed & accepted'].includes(String(q.status || '').toLowerCase()))) ||
           ['Booking Pending', 'Won', 'Converted'].includes(lead?.status) ||
           lead?.linkedProject
         )}
@@ -3693,6 +4045,7 @@ export default function Lead360Screen() {
         onClose={() => setShowSendBoqModal(false)}
         customerId={id}
         users={users}
+        lead={lead}
         onSuccess={() => {
           showToast('Passed to BOQ Estimation phase!', 'success');
           fetchData();
@@ -3992,6 +4345,17 @@ const s = StyleSheet.create({
   cardSubText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
   smallBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#EFF6FF', borderRadius: 8 },
   smallBtnText: { fontSize: 11, fontWeight: '700', color: '#2563EB' },
+
+  shareRibbon: { backgroundColor: '#FAF5FF', borderWidth: 1, borderColor: '#E9D5FF', borderRadius: 14, padding: 12 },
+  shareRibbonIconBox: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center' },
+  shareRibbonTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  shareRibbonSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#7C3AED', marginTop: 1 },
+  shareRibbonBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  shareRibbonBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
+  shareRibbonBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: '#7C3AED', borderRadius: 10, paddingVertical: 9 },
+  shareRibbonBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  shareRibbonBtnOutline: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E9D5FF', borderRadius: 10, paddingVertical: 9 },
+  shareRibbonBtnOutlineText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#7C3AED' },
   emptySubText: { fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', marginVertical: 12 },
   followUpCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#E2E8F0', marginTop: 10 },
   dateInput: {
@@ -4268,6 +4632,8 @@ const s = StyleSheet.create({
   stageOptionText: { fontSize: 13, color: '#334155' },
   label: { fontSize: 11, fontWeight: '700', color: '#64748B', uppercase: true, marginTop: 4 },
   input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 13, color: '#0F172A', marginBottom: 6 },
+  inputError: { borderColor: '#DC2626' },
+  fieldErrorText: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#DC2626', marginTop: -4, marginBottom: 6 },
   chipOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   optionChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#F1F5F9' },
   optionChipActive: { backgroundColor: '#2563EB' },

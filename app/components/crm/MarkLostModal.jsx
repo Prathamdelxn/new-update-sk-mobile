@@ -87,7 +87,7 @@ export default function MarkLostModal({
           <View style={s.modalHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View style={s.iconBox}>
-                <Ionicons name="sad-outline" size={24} color="#E11D48" />
+                <Ionicons name="close-circle-outline" size={24} color="#E11D48" />
               </View>
               <View>
                 <Text style={s.modalTitle}>Mark as Lost</Text>

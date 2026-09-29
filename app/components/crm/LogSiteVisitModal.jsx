@@ -194,9 +194,13 @@ export default function LogSiteVisitModal({
 
       await interiorCrmService.updateCustomer(customerId, updatePayload);
 
+      // Logged as 'Site Survey' (not 'Site Visit') so this completion record
+      // doesn't get mistaken for a scheduled Site Visit appointment — matches
+      // web's dedup fix so "distinct schedule count" logic isn't polluted by
+      // measurement-completion entries.
       await interiorCrmService.createActivity({
         customer: customerId,
-        type: 'Site Visit',
+        type: 'Site Survey',
         status: 'Completed',
         remarks: 'Recorded spatial dimensions, openings, structural elements, MEP points, and site photos.',
         completedDate: new Date()

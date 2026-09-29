@@ -6,13 +6,16 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import HeaderNotification from '../../components/HeaderNotification';
 import interiorApiClient from '../../services/interiorApiClient';
 import interiorCrmService from '../../services/interiorCrmService';
 import CrmFlowTabs from '../../components/crm/CrmFlowTabs';
+import { queryKeys, invalidateCrmQueries, useRefreshOnFocus } from '../../context/QueryProvider';
+import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../../utils/crmValidation';
 
 const FOLLOWUP_TYPES = ['Phone Call', 'WhatsApp', 'Meeting', 'Office Visit', 'Site Visit'];
 
@@ -41,10 +44,22 @@ const STAGE_META = {
 };
 
 const LEAD_SOURCES = ['Phone Call', 'Walk-in', 'Referral', 'Existing Customer', 'Builder Reference', 'Architect Reference', 'Society Reference', 'Social Media', 'Other'];
-const INTERIOR_TYPES = ['Residential', 'Commercial', 'Office', 'Restaurant', 'Retail', 'Other'];
 const PROPERTY_TYPES = ['Flat', 'Villa', 'Office', 'Shop', 'Other'];
 
-const emptyForm = { name: '', mobileNumber: '', email: '', leadSource: 'Phone Call', interiorType: 'Residential', propertyType: 'Flat', projectLocation: '' };
+const emptyForm = { name: '', mobileNumber: '', email: '', leadSource: 'Phone Call', propertyType: 'Flat', projectLocation: '' };
+
+// Matches web's crmValidation.ts field map for the 6-field Create Lead form.
+function validateLeadField(field, value) {
+  switch (field) {
+    case 'name': return validateName(value);
+    case 'mobileNumber': return validateMobileNumber(value);
+    case 'email': return validateEmail(value);
+    case 'leadSource': return validateLeadSource(value);
+    case 'propertyType': return validatePropertyType(value);
+    case 'projectLocation': return validateProjectLocation(value);
+    default: return null;
+  }
+}
 const emptyFollowUpForm = { type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' };
 
 export default function CRMScreen() {
@@ -52,45 +67,51 @@ export default function CRMScreen() {
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
 
-  const [leads, setLeads] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const leadsQuery = useQuery({
+    queryKey: queryKeys.crmLeads,
+    queryFn: async () => {
+      const list = await interiorCrmService.getCustomers({ all: true });
+      return Array.isArray(list) ? list : [];
+    },
+  });
+  const usersQuery = useQuery({
+    queryKey: queryKeys.crmUsers,
+    queryFn: async () => {
+      const list = await interiorCrmService.getUsers();
+      return Array.isArray(list) ? list : [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+  const leads = leadsQuery.data ?? [];
+  const users = usersQuery.data ?? [];
+  const loading = leadsQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFlowTab, setActiveFlowTab] = useState('leads');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [formErrors, setFormErrors] = useState({});
+  const [formTouched, setFormTouched] = useState({});
 
   const [followUpLead, setFollowUpLead] = useState(null);
   const [followUpForm, setFollowUpForm] = useState(emptyFollowUpForm);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [schedulingFollowUp, setSchedulingFollowUp] = useState(false);
 
+  // Leads are cached (see QueryProvider) — reopening the tab shows them instantly.
+  // Called after mutations and on pull-to-refresh to force fresh data.
   const loadLeads = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
+    if (isRefresh) setRefreshing(true);
     try {
-      const list = await interiorCrmService.getCustomers();
-      setLeads(Array.isArray(list) ? list : []);
-    } catch (e) {
-      console.error('Failed to load leads', e);
-      setLeads([]);
+      await invalidateCrmQueries(queryClient);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [queryClient]);
 
-  const loadUsers = useCallback(async () => {
-    try {
-      const list = await interiorCrmService.getUsers();
-      setUsers(Array.isArray(list) ? list : []);
-    } catch (e) {
-      setUsers([]);
-    }
-  }, []);
-
-  useFocusEffect(useCallback(() => { loadLeads(); loadUsers(); }, [loadLeads, loadUsers]));
+  useRefreshOnFocus([queryKeys.crmLeads, queryKeys.crmUsers]);
 
   const flowCounts = {
     leads: leads.filter((l) => l.status !== 'Lost').length,
@@ -135,18 +156,44 @@ export default function CRMScreen() {
     return true;
   });
 
+  const handleLeadFieldChange = (field, value) => {
+    setForm((f) => ({ ...f, [field]: value }));
+    if (formTouched[field] || formErrors[field]) {
+      setFormErrors((prev) => ({ ...prev, [field]: validateLeadField(field, value) }));
+    }
+  };
+
+  const handleLeadFieldBlur = (field) => {
+    setFormTouched((prev) => ({ ...prev, [field]: true }));
+    setFormErrors((prev) => ({ ...prev, [field]: validateLeadField(field, form[field]) }));
+  };
+
   const handleAddLead = async () => {
-    if (!form.name.trim() || !form.mobileNumber.trim()) {
-      showToast('Name and Mobile Number are required', 'error');
+    const fields = ['name', 'mobileNumber', 'email', 'leadSource', 'propertyType', 'projectLocation'];
+    const nextErrors = {};
+    fields.forEach((f) => { nextErrors[f] = validateLeadField(f, form[f]); });
+    setFormErrors(nextErrors);
+    setFormTouched(fields.reduce((acc, f) => ({ ...acc, [f]: true }), {}));
+    if (Object.values(nextErrors).some(Boolean)) {
+      showToast('Please fix the validation errors before creating the lead', 'error');
       return;
     }
+
     setCreateLoading(true);
     try {
-      const res = await interiorApiClient.post('/crm/customers', form);
+      const res = await interiorApiClient.post('/crm/customers', {
+        ...form,
+        name: form.name.trim(),
+        mobileNumber: form.mobileNumber.trim(),
+        email: form.email.trim(),
+        projectLocation: form.projectLocation.trim(),
+      });
       showToast('Lead created successfully!', 'success');
       const createdLead = res?.data || res?.customer || res;
       const createdId = createdLead?._id || createdLead?.id;
       setForm(emptyForm);
+      setFormErrors({});
+      setFormTouched({});
       setIsModalVisible(false);
       loadLeads();
       if (createdId) {
@@ -160,6 +207,13 @@ export default function CRMScreen() {
     } finally {
       setCreateLoading(false);
     }
+  };
+
+  const closeAddLeadModal = () => {
+    setIsModalVisible(false);
+    setForm(emptyForm);
+    setFormErrors({});
+    setFormTouched({});
   };
 
   const openFollowUpModal = (lead) => {
@@ -218,7 +272,8 @@ export default function CRMScreen() {
   };
 
   const handleScheduleFollowUp = async () => {
-    if (!followUpForm.scheduledDate) return showToast('Date is required', 'error');
+    const dateError = validateFutureDate(followUpForm.scheduledDate, 'Follow-up date');
+    if (dateError) return showToast(dateError, 'error');
     if (!followUpForm.remarks.trim()) return showToast('Remarks are required', 'error');
 
     setSchedulingFollowUp(true);
@@ -361,10 +416,11 @@ export default function CRMScreen() {
                   const latestQuote = isQuotationsTab && lead.quotations && lead.quotations.length > 0
                     ? lead.quotations[lead.quotations.length - 1]
                     : null;
+                  const isAcceptedQuoteStatus = (status) => ['accepted', 'approved', 'converted', 'signed & accepted'].includes(String(status || '').toLowerCase());
                   const quoteBadge = isQuotationsTab
                     ? (lead.status === 'Won' || lead.status === 'Converted')
                       ? { label: 'Converted', color: '#16A34A', bg: '#F0FDF4' }
-                      : (latestQuote?.status === 'Accepted' || lead.status === 'Booking Pending')
+                      : (isAcceptedQuoteStatus(latestQuote?.status) || lead.status === 'Booking Pending')
                       ? { label: 'Approved', color: '#16A34A', bg: '#F0FDF4' }
                       : latestQuote?.status === 'Rejected'
                       ? { label: 'Rejected', color: '#E11D48', bg: '#FFF1F2' }
@@ -458,46 +514,99 @@ export default function CRMScreen() {
       </SafeAreaView>
 
       {/* Add Lead Modal */}
-      <Modal visible={isModalVisible} animationType="slide" transparent onRequestClose={() => setIsModalVisible(false)}>
+      <Modal visible={isModalVisible} animationType="slide" transparent onRequestClose={closeAddLeadModal}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>Add New Lead</Text>
-              <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+              <TouchableOpacity onPress={closeAddLeadModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-              <Text style={s.label}>Full Name *</Text>
-              <TextInput style={s.input} placeholder="e.g. John Doe" placeholderTextColor="#94A3B8" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={s.label}>Full Name *</Text>
+                <Text style={s.charCount}>{form.name.length}/50</Text>
+              </View>
+              <TextInput
+                style={[s.input, formErrors.name && s.inputError]}
+                placeholder="e.g. John Doe"
+                placeholderTextColor="#94A3B8"
+                value={form.name}
+                maxLength={50}
+                onChangeText={(v) => handleLeadFieldChange('name', v)}
+                onBlur={() => handleLeadFieldBlur('name')}
+              />
+              {!!formErrors.name && <Text style={s.fieldErrorText}>{formErrors.name}</Text>}
 
-              <Text style={s.label}>Mobile Number *</Text>
-              <TextInput style={s.input} placeholder="+91 9876543210" placeholderTextColor="#94A3B8" value={form.mobileNumber} onChangeText={(v) => setForm({ ...form, mobileNumber: v })} keyboardType="phone-pad" />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+                <Text style={s.label}>Mobile Number *</Text>
+                <Text style={s.charCount}>10-15 digits</Text>
+              </View>
+              <TextInput
+                style={[s.input, formErrors.mobileNumber && s.inputError]}
+                placeholder="+91 9876543210"
+                placeholderTextColor="#94A3B8"
+                value={form.mobileNumber}
+                maxLength={16}
+                onChangeText={(v) => handleLeadFieldChange('mobileNumber', v)}
+                onBlur={() => handleLeadFieldBlur('mobileNumber')}
+                keyboardType="phone-pad"
+              />
+              {!!formErrors.mobileNumber && <Text style={s.fieldErrorText}>{formErrors.mobileNumber}</Text>}
 
-              <Text style={s.label}>Email Address</Text>
-              <TextInput style={s.input} placeholder="john@example.com" placeholderTextColor="#94A3B8" value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} keyboardType="email-address" autoCapitalize="none" />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+                <Text style={s.label}>Email Address</Text>
+                <Text style={s.charCount}>Optional (max 100)</Text>
+              </View>
+              <TextInput
+                style={[s.input, formErrors.email && s.inputError]}
+                placeholder="john@example.com"
+                placeholderTextColor="#94A3B8"
+                value={form.email}
+                maxLength={100}
+                onChangeText={(v) => handleLeadFieldChange('email', v)}
+                onBlur={() => handleLeadFieldBlur('email')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              {!!formErrors.email && <Text style={s.fieldErrorText}>{formErrors.email}</Text>}
 
-              <Text style={s.label}>Lead Source</Text>
+              <Text style={[s.label, { marginTop: 12 }]}>Lead Source</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                 {LEAD_SOURCES.map((opt) => (
-                  <TouchableOpacity key={opt} style={[s.optionChip, form.leadSource === opt && s.optionChipActive]} onPress={() => setForm({ ...form, leadSource: opt })}>
+                  <TouchableOpacity key={opt} style={[s.optionChip, form.leadSource === opt && s.optionChipActive]} onPress={() => handleLeadFieldChange('leadSource', opt)}>
                     <Text style={[s.optionChipText, form.leadSource === opt && s.optionChipTextActive]}>{opt}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+              {!!formErrors.leadSource && <Text style={s.fieldErrorText}>{formErrors.leadSource}</Text>}
 
               <Text style={s.label}>Property Type</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                 {PROPERTY_TYPES.map((opt) => (
-                  <TouchableOpacity key={opt} style={[s.optionChip, form.propertyType === opt && s.optionChipActive]} onPress={() => setForm({ ...form, propertyType: opt })}>
+                  <TouchableOpacity key={opt} style={[s.optionChip, form.propertyType === opt && s.optionChipActive]} onPress={() => handleLeadFieldChange('propertyType', opt)}>
                     <Text style={[s.optionChipText, form.propertyType === opt && s.optionChipTextActive]}>{opt}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+              {!!formErrors.propertyType && <Text style={s.fieldErrorText}>{formErrors.propertyType}</Text>}
 
-              <Text style={s.label}>Project Location</Text>
-              <TextInput style={s.input} placeholder="e.g. Hiranandani Estate, Thane" placeholderTextColor="#94A3B8" value={form.projectLocation} onChangeText={(v) => setForm({ ...form, projectLocation: v })} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={s.label}>Project Location *</Text>
+                <Text style={s.charCount}>{form.projectLocation.length}/150</Text>
+              </View>
+              <TextInput
+                style={[s.input, formErrors.projectLocation && s.inputError]}
+                placeholder="e.g. Hiranandani Estate, Thane"
+                placeholderTextColor="#94A3B8"
+                value={form.projectLocation}
+                maxLength={150}
+                onChangeText={(v) => handleLeadFieldChange('projectLocation', v)}
+                onBlur={() => handleLeadFieldBlur('projectLocation')}
+              />
+              {!!formErrors.projectLocation && <Text style={s.fieldErrorText}>{formErrors.projectLocation}</Text>}
 
               <TouchableOpacity style={[s.saveBtn, createLoading && { opacity: 0.7 }]} onPress={handleAddLead} disabled={createLoading}>
                 {createLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
@@ -749,10 +858,13 @@ const s = StyleSheet.create({
   modalSubtitle: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
   label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 12 },
+  charCount: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#94A3B8' },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
+  inputError: { borderColor: '#DC2626' },
+  fieldErrorText: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#DC2626', marginTop: 4 },
   dateInput: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

@@ -98,7 +98,8 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Date-only comparison (this field has no time component) so "today" is never
-  // mistaken for a past date — matches web's warning-not-block treatment exactly.
+  // mistaken for a past date. Matches web's validateFutureDate — a past date now
+  // blocks submission, it's not just a warning badge.
   const isDateInPast = (() => {
     if (!scheduledDate) return false;
     const picked = new Date(scheduledDate);
@@ -114,6 +115,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
       DateTimePickerAndroid.open({
         value: base,
         mode: 'date',
+        minimumDate: new Date(),
         onChange: (event, d) => {
           if (event.type === 'set' && d) setScheduledDate(toDateInputStr(d));
         },
@@ -128,7 +130,11 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
   useEffect(() => {
     if (isOpen) {
       setAssignedExecutive(initialData?.assignedSalesExecutive || '');
-      setScheduledDate(initialData?.scheduledDate ? toDateInputStr(initialData.scheduledDate) : toDateInputStr(new Date()));
+      // A stale past reschedule date is blanked (forces a fresh pick) instead
+      // of being shown as if it were still valid — matches web.
+      const initialDate = initialData?.scheduledDate ? new Date(initialData.scheduledDate) : null;
+      const isInitialPast = initialDate && initialDate.setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
+      setScheduledDate(initialData?.scheduledDate && !isInitialPast ? toDateInputStr(initialData.scheduledDate) : toDateInputStr(new Date()));
       setRemarks(initialData?.remarks || '');
       setShowExecutiveDropdown(false);
     }
@@ -149,6 +155,10 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
     }
     if (!scheduledDate) {
       Alert.alert('Date Required', 'Please select a target visit date.');
+      return;
+    }
+    if (isDateInPast) {
+      Alert.alert('Invalid Date', 'Target visit date cannot be in the past.');
       return;
     }
 
@@ -338,6 +348,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
       DateTimePickerAndroid.open({
         value: base,
         mode: 'date',
+        minimumDate: new Date(),
         onChange: (event, d) => {
           if (event.type === 'set' && d) setScheduledDate(toDateInputStr(d));
         },
@@ -350,7 +361,11 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
   useEffect(() => {
     if (isOpen) {
       setAssignedDesigner(initialData?.assignedMember || '');
-      setScheduledDate(initialData?.scheduledDate ? toDateInputStr(initialData.scheduledDate) : toDateInputStr(new Date()));
+      // A stale past reschedule date is blanked (forces a fresh pick) instead
+      // of being shown as if it were still valid — matches web.
+      const initialDate = initialData?.scheduledDate ? new Date(initialData.scheduledDate) : null;
+      const isInitialPast = initialDate && initialDate.setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
+      setScheduledDate(initialData?.scheduledDate && !isInitialPast ? toDateInputStr(initialData.scheduledDate) : toDateInputStr(new Date()));
       setRemarks(initialData?.remarks || '');
       setShowDropdown(false);
     }
@@ -367,6 +382,10 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
     }
     if (!scheduledDate) {
       Alert.alert('Date Required', 'Please select a session date.');
+      return;
+    }
+    if (isDateInPast) {
+      Alert.alert('Invalid Date', 'Session target date cannot be in the past.');
       return;
     }
 
@@ -514,41 +533,17 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
 export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, users = [], initialData = null }) {
   const [assignedArchitect, setAssignedArchitect] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState(() => toDateInputStr(new Date()));
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const isRescheduling = Boolean(initialData?.scheduledDate || initialData?.assignedDesigner);
-
-  const isDateInPast = (() => {
-    if (!scheduledDate) return false;
-    const picked = new Date(scheduledDate);
-    picked.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return picked.getTime() < today.getTime();
-  })();
-
-  const openDatePicker = () => {
-    const base = scheduledDate ? new Date(scheduledDate) : new Date();
-    if (Platform.OS === 'android') {
-      DateTimePickerAndroid.open({
-        value: base,
-        mode: 'date',
-        onChange: (event, d) => {
-          if (event.type === 'set' && d) setScheduledDate(toDateInputStr(d));
-        },
-      });
-    } else {
-      setShowDatePicker(true);
-    }
-  };
+  // Matches web: the delivery-deadline date field was removed entirely from
+  // this stage transition — only the designer assignment and a handover
+  // brief remain. Reassigning a designer no longer involves rescheduling.
+  const isRescheduling = Boolean(initialData?.assignedDesigner);
 
   useEffect(() => {
     if (isOpen) {
       setAssignedArchitect(initialData?.assignedDesigner || '');
-      setScheduledDate(initialData?.scheduledDate ? toDateInputStr(initialData.scheduledDate) : toDateInputStr(new Date()));
       setRemarks(initialData?.remarks || '');
       setShowDropdown(false);
     }
@@ -563,28 +558,25 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
       Alert.alert('Assignee Required', 'Please select a draftsperson or architect before commissioning drawings.');
       return;
     }
-    if (!scheduledDate) {
-      Alert.alert('Date Required', 'Please select a delivery deadline.');
-      return;
-    }
 
     setSubmitting(true);
     try {
+      const trimmedNotes = remarks.trim();
       await interiorCrmService.updateCustomer(customerId, {
         status: 'Under Drawing',
         assignedTo: assignedArchitect,
         designerAssigned: assignedArchitect,
-        drawingScheduledDate: new Date(scheduledDate).toISOString(),
+        drawingHandoverNotes: trimmedNotes || undefined,
       });
       const assignedUser = users.find((u) => (u._id || u.id) === assignedArchitect);
       const assignNote = assignedUser ? `Architect: ${userLabel(assignedUser)}` : '';
-      const finalRemarks = [remarks.trim(), assignNote].filter(Boolean).join(' | ') || 'Lead passed to 2D/3D Drawing phase and assigned to designer.';
+      const finalRemarks = [trimmedNotes, assignNote].filter(Boolean).join(' | ') || 'Lead passed to 2D/3D Drawing phase and assigned to designer.';
 
       await interiorCrmService.createActivity({
         customer: customerId,
         type: '2D/3D Drawing',
         status: 'Pending',
-        scheduledDate,
+        scheduledDate: new Date().toISOString(),
         remarks: finalRemarks,
         user: assignedArchitect || undefined,
       });
@@ -604,15 +596,14 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
       onClose={onClose}
       icon="pencil-outline"
       iconColor="#0284C7"
-      title={isRescheduling ? 'Reschedule Drawing Delivery' : 'Pass to Drawing & Layout'}
-      subtitle={isRescheduling ? 'Update drawing delivery date & assigned designer' : 'Commission 2D CAD floor plans and 3D visual concepts'}
+      title={isRescheduling ? 'Reassign Drawing Designer' : 'Pass to Drawing & Layout'}
+      subtitle={isRescheduling ? 'Update assigned designer / architect' : 'Commission 2D CAD floor plans and 3D visual concepts'}
     >
       <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         {isRescheduling && (
           <PreviousScheduleBox
             color="#0284C7"
             phaseLabel="Drawing Phase"
-            scheduledDate={initialData?.scheduledDate}
             assignedLabel={previousAssignedUser}
             remarks={initialData?.remarks}
           />
@@ -651,36 +642,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
           </View>
         )}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={s.label}>Delivery Deadline *</Text>
-          {isDateInPast && (
-            <View style={s.pastDateBadge}>
-              <Text style={s.pastDateBadgeText}>Past date</Text>
-            </View>
-          )}
-        </View>
-        <TouchableOpacity
-          style={[s.input, s.dateInputRow, isDateInPast && s.dateInputPast]}
-          onPress={openDatePicker}
-        >
-          <Text style={{ color: scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
-            {scheduledDate ? fmtScheduleDisplay(scheduledDate) : 'Select date'}
-          </Text>
-          <Ionicons name="calendar-outline" size={16} color={isDateInPast ? '#D97706' : '#0284C7'} />
-        </TouchableOpacity>
-        {Platform.OS === 'ios' && showDatePicker && (
-          <DateTimePicker
-            value={scheduledDate ? new Date(scheduledDate) : new Date()}
-            mode="date"
-            display="spinner"
-            onChange={(e, d) => {
-              setShowDatePicker(false);
-              if (d) setScheduledDate(toDateInputStr(d));
-            }}
-          />
-        )}
-
-        <Text style={s.label}>Drafting Scope & Deliverables</Text>
+        <Text style={s.label}>Drawing Brief & Handover Notes</Text>
         <TextInput
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
           multiline
@@ -699,7 +661,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={s.actionBtnText}>{isRescheduling ? 'Reschedule Delivery' : 'Commission Drawings'}</Text>
+            <Text style={s.actionBtnText}>{isRescheduling ? 'Confirm Reassign' : 'Pass to Drawing'}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -710,13 +672,25 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. Send To BOQ Modal
 // ─────────────────────────────────────────────────────────────────────────────
-export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users = [] }) {
+export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users = [], lead = null }) {
   const [assignedEstimator, setAssignedEstimator] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Drawing status is authoritative on the top-level `status` field (kept in
+  // sync by every send/approve/reject/version backend call).
+  const pendingDrawings = (lead?.designFiles || []).filter((f) => {
+    const status = f?.status || 'draft';
+    return status === 'draft' || status === 'pending_internal_approval' || status === 'internally_rejected' || status === 'client_changes_requested';
+  });
+  const isBoqBlocked = pendingDrawings.length > 0;
+
   const handleSubmit = async () => {
+    if (isBoqBlocked) {
+      Alert.alert('Drawings Pending Approval', `${pendingDrawings.length} drawing(s) must be internally approved before passing to BOQ.`);
+      return;
+    }
     if (!assignedEstimator) {
       Alert.alert('Assignee Required', 'Please select a quantity surveyor or estimator before moving to BOQ.');
       return;
@@ -759,10 +733,20 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
       subtitle="Generate itemized bill of quantities and cost sheets"
     >
       <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+        {isBoqBlocked && (
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, padding: 10, marginBottom: 10 }}>
+            <Ionicons name="alert-circle" size={16} color="#B45309" style={{ marginTop: 1 }} />
+            <Text style={{ flex: 1, fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#92400E' }}>
+              Cannot pass to BOQ — {pendingDrawings.length} drawing{pendingDrawings.length === 1 ? '' : 's'} pending approval. Approve all drawings first.
+            </Text>
+          </View>
+        )}
+
         <Text style={s.label}>Assign Quantity Surveyor / Estimator *</Text>
         <TouchableOpacity
            style={s.input}
-           onPress={() => setShowDropdown(!showDropdown)}
+           onPress={() => !isBoqBlocked && setShowDropdown(!showDropdown)}
+           disabled={isBoqBlocked}
         >
           <Text style={{ color: assignedEstimator ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
             {assignedEstimator ? userLabel(users.find(u => (u._id || u.id) === assignedEstimator) || {}) : "Select Estimator *"}
@@ -797,6 +781,7 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
           multiline
           numberOfLines={2}
+          editable={!isBoqBlocked}
           value={remarks}
           onChangeText={setRemarks}
           placeholder="Target budget under 15 Lakhs, premium fittings..."
@@ -804,14 +789,14 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
         />
 
         <TouchableOpacity
-          style={[s.actionBtn, { backgroundColor: '#059669' }, submitting && { opacity: 0.6 }]}
+          style={[s.actionBtn, { backgroundColor: isBoqBlocked ? '#CBD5E1' : '#059669' }, submitting && { opacity: 0.6 }]}
           onPress={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || isBoqBlocked}
         >
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={s.actionBtnText}>Pass to BOQ Phase</Text>
+            <Text style={s.actionBtnText}>{isBoqBlocked ? 'Drawings Pending Approval' : 'Pass to BOQ Phase'}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

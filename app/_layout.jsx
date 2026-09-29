@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { SocketProvider } from './context/SocketContext';
 import { SuperAdminProvider } from './context/SuperAdminContext';
+import { QueryProvider } from './context/QueryProvider';
 import i18n from '../i18n';
 import * as SecureStore from 'expo-secure-store';
 import * as Updates from 'expo-updates';
@@ -111,16 +112,18 @@ export default function RootLayout() {
   }
 
   return (
-    <SuperAdminProvider>
-      <AuthProvider>
-        <SocketProvider>
-          <ToastProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              {/* All screens will appear here automatically */}
-            </Stack>
-          </ToastProvider>
-        </SocketProvider>
-      </AuthProvider>
-    </SuperAdminProvider>
+    <QueryProvider>
+      <SuperAdminProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <ToastProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                {/* All screens will appear here automatically */}
+              </Stack>
+            </ToastProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </SuperAdminProvider>
+    </QueryProvider>
   );
 }

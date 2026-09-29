@@ -1,10 +1,26 @@
 import * as SecureStore from 'expo-secure-store';
+import { queryClient } from '../context/QueryProvider';
 
 // Dedicated client for the separate interior-os backend. `userToken` is
 // shared with the construction flow (AuthContext normalizes both sessions
 // under the same SecureStore keys) but requests here always go to the
 // interior-os host, never the construction API.
 const INTERIOR_API_BASE_URL = `${(process.env.EXPO_PUBLIC_INTERIOR_API_URL || '').replace(/\/+$/, '')}/api/v1`;
+
+// After a successful write, mark the cached screens it affects as stale (no
+// immediate refetch). They refresh in the background the next time they are
+// opened/focused, so cached data is reused until something actually changes —
+// this covers every screen, including the project sub-screens (tasks, DPR, ...).
+function markCachedDataStale(path) {
+  const isCrm = path.startsWith('/crm');
+  const prefixes = isCrm
+    ? ['crm-', 'interior-dashboard', ...(path.includes('/convert') ? ['interior-'] : [])]
+    : ['interior-', 'crm-won-projects'];
+  queryClient.invalidateQueries({
+    predicate: (q) => typeof q.queryKey[0] === 'string' && prefixes.some((p) => q.queryKey[0].startsWith(p)),
+    refetchType: 'none',
+  });
+}
 
 async function request(path, { method = 'GET', body, params } = {}) {
   const token = await SecureStore.getItemAsync('userToken');
@@ -36,6 +52,7 @@ async function request(path, { method = 'GET', body, params } = {}) {
     throw error;
   }
 
+  if (method !== 'GET') markCachedDataStale(path);
   return data;
 }
 
@@ -67,6 +84,7 @@ async function requestForm(path, fields) {
     error.data = data;
     throw error;
   }
+  markCachedDataStale(path);
   return data;
 }
 

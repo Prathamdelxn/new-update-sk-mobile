@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useRef, useCallback, useMemo } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter, useSegments } from 'expo-router';
+import { queryClient } from './QueryProvider';
 
 const AuthContext = createContext({
   user: null,
@@ -286,6 +287,8 @@ export const AuthProvider = ({ children }) => {
       await SecureStore.deleteItemAsync('userToken');
       await SecureStore.deleteItemAsync('refreshToken');
       await SecureStore.deleteItemAsync('userData');
+      // Drop cached org data so the next login never sees the previous user's leads/projects
+      queryClient.clear();
       setToken(null);
       setUser(null);
       router.replace('/auth/login');

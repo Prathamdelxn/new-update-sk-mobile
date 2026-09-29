@@ -2,9 +2,11 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import interiorCrmService from './services/interiorCrmService';
 import interiorApiClient from './services/interiorApiClient';
+import { queryKeys, useRefreshOnFocus } from './context/QueryProvider';
 
 // Currency formatter using unicode rupee symbol
 function formatBudget(amount) {
@@ -24,34 +26,35 @@ export default function CrmWonProjectsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.crmWonProjects,
+    queryFn: async () => {
+      try {
+        // Fetch interior projects (converted from CRM leads)
+        const res = await interiorApiClient.get('/i-projects');
+        return res?.success && res?.data ? res.data : Array.isArray(res) ? res : [];
+      } catch (e) {
+        // Fallback to /projects if /i-projects is not available
+        const res2 = await interiorApiClient.get('/projects');
+        return res2?.success && res2?.data ? res2.data : Array.isArray(res2) ? res2 : [];
+      }
+    },
+  });
+  const projects = projectsQuery.data ?? [];
+  const loading = projectsQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
+    if (isRefresh) setRefreshing(true);
     try {
-      // Fetch interior projects (converted from CRM leads)
-      const res = await interiorApiClient.get('/i-projects');
-      const list = res?.success && res?.data ? res.data : Array.isArray(res) ? res : [];
-      setProjects(list);
-    } catch (e) {
-      // Fallback to /projects if /i-projects is not available
-      try {
-        const res2 = await interiorApiClient.get('/projects');
-        const list2 = res2?.success && res2?.data ? res2.data : Array.isArray(res2) ? res2 : [];
-        setProjects(list2);
-      } catch {
-        console.error('Failed to load projects', e);
-        setProjects([]);
-      }
+      await queryClient.invalidateQueries({ queryKey: queryKeys.crmWonProjects });
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [queryClient]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useRefreshOnFocus([queryKeys.crmWonProjects]);
 
   return (
     <View style={s.outerContainer}>

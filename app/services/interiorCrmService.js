@@ -26,6 +26,28 @@ export const interiorCrmService = {
     return interiorApiClient.post(`/crm/customers/${id}/send-quotation-email`, data);
   },
 
+  // Drawing two-step approval workflow
+  sendDrawingForApproval: async (customerId, drawingId, data) => {
+    return interiorApiClient.post(`/crm/customers/${customerId}/drawings/${drawingId}/send-for-approval`, data);
+  },
+  approveDrawing: async (customerId, drawingId, data) => {
+    return interiorApiClient.post(`/crm/customers/${customerId}/drawings/${drawingId}/approve`, data);
+  },
+  uploadDrawingVersion: async (customerId, drawingId, data) => {
+    return interiorApiClient.post(`/crm/customers/${customerId}/drawings/${drawingId}/version`, data);
+  },
+  deleteDrawing: async (customerId, drawingId) => {
+    return interiorApiClient.delete(`/crm/customers/${customerId}/drawings/${drawingId}`);
+  },
+
+  // Public client share link for approved drawings
+  generateShareLink: async (customerId, data) => {
+    return interiorApiClient.post(`/crm/customers/${customerId}/share`, data);
+  },
+  revokeShareLink: async (customerId) => {
+    return interiorApiClient.delete(`/crm/customers/${customerId}/share`);
+  },
+
   // Activities
   getActivities: async (params) => {
     const query = typeof params === 'string' ? { customerId: params } : params;

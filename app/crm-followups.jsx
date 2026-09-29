@@ -13,10 +13,12 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from './context/ToastContext';
 import interiorApiClient from './services/interiorApiClient';
 import interiorCrmService from './services/interiorCrmService';
+import { queryKeys, invalidateCrmQueries, useRefreshOnFocus, useQuerySetter } from './context/QueryProvider';
 
 function displayUserName(u) {
   if (!u) return '';
@@ -26,61 +28,71 @@ function displayUserName(u) {
   return u.name || 'Assigned';
 }
 
+// Loads activities and keeps one row per lead (pending first, then newest),
+// matching the web follow-ups flow. Used as the cached query function.
+async function fetchFollowUps() {
+  const res = await interiorCrmService.getActivities();
+  const list = res?.success && res?.data ? res.data : Array.isArray(res) ? res : [];
+
+  // Sort so pending activities take precedence, then newest created/scheduled
+  const sorted = [...list].sort((a, b) => {
+    const aPending = a.status?.toLowerCase() === 'pending' ? 1 : 0;
+    const bPending = b.status?.toLowerCase() === 'pending' ? 1 : 0;
+    if (aPending !== bPending) return bPending - aPending;
+    return new Date(b.createdAt || b.scheduledDate || 0) - new Date(a.createdAt || a.scheduledDate || 0);
+  });
+
+  // Filter and deduplicate per customer (strictly 1 row per lead in follow-ups, matching web flow)
+  const seen = new Set();
+  const deduped = [];
+
+  for (const act of sorted) {
+    if (!act.customer) continue;
+    const custId = act.customer._id || act.customer.id;
+    if (!custId) continue;
+    if (act.customer.status === 'Lost') continue;
+    if (act.type === 'Site Visit' || act.type === 'Status Change' || act.type === 'System Update') continue;
+
+    if (!seen.has(custId)) {
+      seen.add(custId);
+      deduped.push(act);
+    }
+  }
+
+  return deduped;
+}
+
 export default function CrmFollowUpsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { showToast } = useToast();
 
-  const [allActivities, setAllActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const followUpsQuery = useQuery({
+    queryKey: queryKeys.crmFollowUps,
+    queryFn: fetchFollowUps,
+  });
+  const allActivities = followUpsQuery.data ?? [];
+  const setAllActivities = useQuerySetter(queryKeys.crmFollowUps);
+  const loading = followUpsQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'pending' | 'completed'
   const [searchTerm, setSearchTerm] = useState('');
   const [completingId, setCompletingId] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
+  // Follow-ups are cached (see QueryProvider). Called after mutations and on
+  // pull-to-refresh to force fresh data across all CRM screens.
   const loadFollowUps = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
+    if (isRefresh) setRefreshing(true);
     try {
-      const res = await interiorCrmService.getActivities();
-      const list = res?.success && res?.data ? res.data : Array.isArray(res) ? res : [];
-
-      // Sort so pending activities take precedence, then newest created/scheduled
-      const sorted = [...list].sort((a, b) => {
-        const aPending = a.status?.toLowerCase() === 'pending' ? 1 : 0;
-        const bPending = b.status?.toLowerCase() === 'pending' ? 1 : 0;
-        if (aPending !== bPending) return bPending - aPending;
-        return new Date(b.createdAt || b.scheduledDate || 0) - new Date(a.createdAt || a.scheduledDate || 0);
-      });
-
-      // Filter and deduplicate per customer (strictly 1 row per lead in follow-ups, matching web flow)
-      const seen = new Set();
-      const deduped = [];
-
-      for (const act of sorted) {
-        if (!act.customer) continue;
-        const custId = act.customer._id || act.customer.id;
-        if (!custId) continue;
-        if (act.customer.status === 'Lost') continue;
-        if (act.type === 'Site Visit' || act.type === 'Status Change' || act.type === 'System Update') continue;
-
-        if (!seen.has(custId)) {
-          seen.add(custId);
-          deduped.push(act);
-        }
-      }
-
-      setAllActivities(deduped);
-    } catch (e) {
-      console.error('Failed to load follow-ups', e);
-      setAllActivities([]);
+      await invalidateCrmQueries(queryClient);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [queryClient]);
 
-  useFocusEffect(useCallback(() => { loadFollowUps(); }, [loadFollowUps]));
+  useRefreshOnFocus([queryKeys.crmFollowUps]);
 
   const handleCompleteActivity = async (activityId) => {
     if (!activityId) return;

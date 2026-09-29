@@ -11,6 +11,8 @@ import { BarChart, PieChart, LineChart } from 'react-native-gifted-charts';
 import { useAuth } from '../../context/AuthContext';
 import HeaderNotification from '../../components/HeaderNotification';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys, useRefreshOnFocus } from '../../context/QueryProvider';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -51,25 +53,32 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [attendanceActive, setAttendanceActive] = useState(false);
-  const [interiorData, setInteriorData] = useState(null);
   const [seeding, setSeeding] = useState(false);
   const isAdmin = user?.role?.name === 'Admin' || user?.role === 'Admin';
   const isInteriorUser = user?.organization?.industryType === 'interior';
 
+  // Interior dashboard is cached (see QueryProvider): switching back to this
+  // tab reuses loaded data and only refetches once it is stale or changed.
+  const queryClient = useQueryClient();
+  const interiorQuery = useQuery({
+    queryKey: queryKeys.interiorDashboard,
+    queryFn: async () => {
+      const res = await interiorApiClient.get('/dashboard');
+      return res?.success && res?.data ? res.data : null;
+    },
+    enabled: isInteriorUser,
+  });
+  const interiorData = interiorQuery.data ?? null;
+  useRefreshOnFocus(isInteriorUser ? [queryKeys.interiorDashboard] : []);
+
   const fetchInteriorDashboard = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
-    else setLoading(true);
     try {
-      const res = await interiorApiClient.get('/dashboard');
-      setInteriorData(res?.success && res?.data ? res.data : null);
-    } catch (e) {
-      console.error('Interior dashboard fetch error', e);
-      setInteriorData(null);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.interiorDashboard });
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [queryClient]);
 
   const handleSeedInteriorData = useCallback(async () => {
     try {
@@ -87,8 +96,11 @@ export default function DashboardScreen() {
     // Interior sessions carry an interior-os JWT, not a construction one —
     // calling the construction API with it 401s and triggers the global
     // auto-logout interceptor, bouncing the user back to login.
+    // The interior dashboard loads through its cached query; only an explicit
+    // refresh forces a refetch.
     if (isInteriorUser) {
-      return fetchInteriorDashboard(isRefresh);
+      if (isRefresh) return fetchInteriorDashboard(true);
+      return;
     }
 
     // Do not call construction API if user object is not yet loaded
@@ -117,7 +129,7 @@ export default function DashboardScreen() {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  if (loading) {
+  if (isInteriorUser ? interiorQuery.isPending : loading) {
     return (
       <View style={s.outerContainer}>
         <StatusBar barStyle="dark-content" backgroundColor="#DBEAFE" translucent={false} />

@@ -6,10 +6,12 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import HeaderNotification from '../../components/HeaderNotification';
+import { queryKeys, invalidateProjectQueries, useRefreshOnFocus } from '../../context/QueryProvider';
 import interiorApiClient from '../../services/interiorApiClient';
 
 const HEALTH_META = {
@@ -64,9 +66,25 @@ export default function InteriorProjectsScreen() {
   const router = useRouter();
   const { showToast } = useToast();
 
-  const [projects, setProjects] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.interiorProjects,
+    queryFn: async () => {
+      const res = await interiorApiClient.get('/projects');
+      return res?.success && res?.data ? res.data : [];
+    },
+  });
+  const templatesQuery = useQuery({
+    queryKey: queryKeys.interiorTemplates,
+    queryFn: async () => {
+      const res = await interiorApiClient.get('/templates');
+      return res?.success && res?.data?.templates ? res.data.templates : [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+  const projects = projectsQuery.data ?? [];
+  const templates = templatesQuery.data ?? [];
+  const loading = projectsQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -115,30 +133,18 @@ export default function InteriorProjectsScreen() {
     }
   };
 
+  // Projects are cached (see QueryProvider) — reopening the tab shows them instantly.
+  // Called after create/edit/delete and on pull-to-refresh to force fresh data.
   const loadProjects = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
+    if (isRefresh) setRefreshing(true);
     try {
-      const res = await interiorApiClient.get('/projects');
-      setProjects(res?.success && res?.data ? res.data : []);
-    } catch (e) {
-      console.error('Failed to load interior projects', e);
-      setProjects([]);
+      await invalidateProjectQueries(queryClient);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [queryClient]);
 
-  const loadTemplates = useCallback(async () => {
-    try {
-      const res = await interiorApiClient.get('/templates');
-      setTemplates(res?.success && res?.data?.templates ? res.data.templates : []);
-    } catch (e) {
-      setTemplates([]);
-    }
-  }, []);
-
-  useFocusEffect(useCallback(() => { loadProjects(); loadTemplates(); }, [loadProjects, loadTemplates]));
+  useRefreshOnFocus([queryKeys.interiorProjects, queryKeys.interiorTemplates]);
 
   const filteredProjects = projects.filter((p) => {
     const q = searchQuery.toLowerCase();
@@ -263,7 +269,7 @@ export default function InteriorProjectsScreen() {
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <View style={{ flex: 1 }}>
             <Text style={s.headerGreeting}>Workspace</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={s.pageTitle}>Interior Projects</Text>
               <View style={s.totalBadge}>
                 <Text style={s.totalBadgeText}>{projects.length} Total</Text>

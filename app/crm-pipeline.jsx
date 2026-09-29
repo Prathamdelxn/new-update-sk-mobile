@@ -2,8 +2,10 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import interiorCrmService from './services/interiorCrmService';
+import { queryKeys, invalidateCrmQueries, useRefreshOnFocus } from './context/QueryProvider';
 
 const STAGES = [
   {
@@ -51,25 +53,29 @@ export default function CrmPipelineScreen() {
   const [activeStage, setActiveStage] = useState(
     STAGES.some((s) => s.key === params.stage) ? params.stage : 'site_visits'
   );
-  const [leads, setLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  // Shares the CRM tab's cached lead list, so opening the pipeline is instant.
+  const leadsQuery = useQuery({
+    queryKey: queryKeys.crmLeads,
+    queryFn: async () => {
+      const list = await interiorCrmService.getCustomers({ all: true });
+      return Array.isArray(list) ? list : [];
+    },
+  });
+  const leads = leadsQuery.data ?? [];
+  const loading = leadsQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
+    if (isRefresh) setRefreshing(true);
     try {
-      const list = await interiorCrmService.getCustomers();
-      setLeads(Array.isArray(list) ? list : []);
-    } catch (e) {
-      console.error('Failed to load leads', e);
-      setLeads([]);
+      await invalidateCrmQueries(queryClient);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [queryClient]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useRefreshOnFocus([queryKeys.crmLeads]);
 
   const stage = STAGES.find((s) => s.key === activeStage);
   const filtered = leads.filter(

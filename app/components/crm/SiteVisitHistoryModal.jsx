@@ -31,13 +31,36 @@ export default function SiteVisitHistoryModal({
   onReschedule,
   isReadOnly = false,
 }) {
-  const siteVisits = activities
-    .filter((a) => a.type === 'Site Visit' && (a.scheduledDate || a.remarks || a.status))
-    .sort((a, b) => {
-      const timeA = new Date(a.scheduledDate || a.createdAt).getTime();
-      const timeB = new Date(b.scheduledDate || b.createdAt).getTime();
-      return timeB - timeA;
-    });
+  // Only true scheduled Site Visit appointments — excludes measurement-
+  // completion logs (which should be typed 'Site Survey', but older records
+  // predating that fix may still say 'Site Visit' with these remarks) and
+  // dedupes entries scheduled within the same minute. Matches web exactly.
+  const siteVisits = (() => {
+    const list = activities
+      .filter((a) => {
+        if (a.type !== 'Site Visit' || !a.scheduledDate) return false;
+        const remarks = (a.remarks || '').toLowerCase();
+        return !remarks.includes('recorded full measurements')
+          && !remarks.includes('updated site measurements')
+          && !remarks.includes('completed site visit survey');
+      })
+      .sort((a, b) => {
+        const timeA = new Date(a.scheduledDate || a.createdAt).getTime();
+        const timeB = new Date(b.scheduledDate || b.createdAt).getTime();
+        return timeB - timeA;
+      });
+
+    const seen = new Set();
+    const distinct = [];
+    for (const a of list) {
+      const timeKey = new Date(a.scheduledDate).toISOString().slice(0, 16);
+      if (!seen.has(timeKey)) {
+        seen.add(timeKey);
+        distinct.push(a);
+      }
+    }
+    return distinct;
+  })();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
