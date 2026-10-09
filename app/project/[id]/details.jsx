@@ -594,7 +594,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
       <Modal visible={showHistoryModal} animationType="slide" transparent onRequestClose={() => setShowHistoryModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setShowHistoryModal(false)} />
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { minHeight: 320 }]}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>Budget Lifecycle</Text>
@@ -609,14 +609,34 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.histList} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+            {/* Current Active Budget Summary Banner */}
+            <View style={styles.baseBudgetPill}>
+              <Ionicons name="wallet-outline" size={18} color="#2563EB" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' }}>
+                  Current Active Budget
+                </Text>
+                <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' }}>
+                  {project?.currency || '$'} {formatCurrency(currentBudget)}
+                </Text>
+              </View>
+              {pendingRequests.length > 0 && (
+                <View style={{ backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA' }}>
+                  <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#DC2626' }}>
+                    {pendingRequests.length} PENDING
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <ScrollView style={styles.histList} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
               {project?.budgetHistory?.slice().reverse().map((item, idx) => {
                 const isPending = item.approvalStatus === 'Pending';
                 const isApproved = item.approvalStatus === 'Approved';
                 const isRejected = item.approvalStatus === 'Rejected';
 
                 return (
-                  <View key={idx} style={[styles.histItem, isPending && { borderColor: '#FDE68A', backgroundColor: '#FFFDF5' }]}>
+                  <View key={item._id || idx} style={[styles.histItem, isPending && { borderColor: '#FDE68A', backgroundColor: '#FFFDF5' }]}>
                     <View style={styles.histTop}>
                       <Text style={styles.histAmt}>
                         {project?.currency || '$'} {formatCompact(item.amount)}
@@ -638,7 +658,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                       </View>
                     </View>
 
-                    <Text style={styles.histReason}>{item.reason}</Text>
+                    <Text style={styles.histReason}>{item.reason || 'No description provided'}</Text>
 
                     {isPending && canApproveBudget && (
                       <View style={styles.histActionRow}>
@@ -661,7 +681,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
 
                     <View style={styles.histFooter}>
                       <Text style={styles.histMeta}>
-                        Updated by {item.updatedByName || 'System'} • {new Date(item.timestamp).toLocaleDateString()}
+                        Updated by {item.updatedByName || 'System'} • {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Recorded'}
                       </Text>
                     </View>
                   </View>
@@ -669,10 +689,23 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               })}
 
               {(!project?.budgetHistory || project.budgetHistory.length === 0) && (
-                <View style={{ padding: 40, alignItems: 'center' }}>
-                  <Text style={{ color: '#94A3B8', fontSize: 13, fontFamily: 'Inter-Medium' }}>
-                    No budget lifecycle updates recorded.
-                  </Text>
+                <View style={styles.histItem}>
+                  <View style={styles.histTop}>
+                    <Text style={styles.histAmt}>
+                      {project?.currency || '$'} {formatCompact(project?.budget || 0)}
+                    </Text>
+                    <View style={[styles.histStatus, { backgroundColor: '#DCFCE7' }]}>
+                      <Text style={[styles.histStatusText, { color: '#15803D' }]}>
+                        Approved
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.histReason}>Baseline project budget set upon creation.</Text>
+                  <View style={styles.histFooter}>
+                    <Text style={styles.histMeta}>
+                      Created by {project?.createdBy?.name || 'Project Admin'} • {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : 'Initial'}
+                    </Text>
+                  </View>
                 </View>
               )}
             </ScrollView>
@@ -879,7 +912,7 @@ const styles = StyleSheet.create({
   },
 
   // History styles
-  histList: { flex: 1, maxHeight: 400 },
+  histList: { maxHeight: 480, flexGrow: 0 },
   histItem: { padding: 16, borderRadius: 20, backgroundColor: '#F8FAFF', marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0' },
   histTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   histAmt: { fontSize: 18, fontFamily: 'Inter-Bold', color: '#2563EB' },
