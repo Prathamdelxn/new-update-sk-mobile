@@ -90,25 +90,52 @@ export default function MilestoneTaskDetail() {
 
   const fetchProjectMembers = useCallback(async () => {
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/projects/${projectId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const proj = await response.json();
-      
-      if (response.ok && proj) {
-        setProject(proj);
-        // Filter users based on project permissions
-        const eligibleMembers = (proj.members || []).filter(m => {
-          if (!m.user) return false;
-          const permissions = m.role?.permissions || [];
-          const isAdminUser = m.user.role?.name === 'Admin' || permissions.includes('*');
-          const canComplete = permissions.includes('tasks:complete');
-          
-          return isAdminUser || canComplete;
-        }).map(m => m.user); // extract user objects
+      const [projRes, usersRes] = await Promise.all([
+        fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/projects/${projectId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(() => null),
+        fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/users`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(() => null)
+      ]);
 
-        setProjectMembers(eligibleMembers);
+      const proj = projRes && projRes.ok ? await projRes.json() : null;
+      const usersData = usersRes && usersRes.ok ? await usersRes.json() : [];
+
+      if (proj) {
+        setProject(proj);
       }
+
+      const userMap = new Map();
+
+      // 1. From Project document's members
+      const projMembersList = proj?.members || [];
+      projMembersList.forEach(m => {
+        const u = m.user && typeof m.user === 'object' ? m.user : (m._id ? m : null);
+        if (u && (u._id || u.id)) {
+          const id = u._id || u.id;
+          const name = u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'Member';
+          const roleName = m.role?.name || u.role?.name || 'Project Member';
+          userMap.set(id, { _id: id, name, role: { name: roleName } });
+        }
+      });
+
+      // 2. From /users (all organization users)
+      const rawAllUsers = Array.isArray(usersData)
+        ? usersData
+        : (usersData.users || usersData.data || []);
+      rawAllUsers.forEach(u => {
+        if (u && (u._id || u.id)) {
+          const id = u._id || u.id;
+          const name = u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'User';
+          const roleName = u.role?.name || 'Member';
+          if (!userMap.has(id)) {
+            userMap.set(id, { _id: id, name, role: { name: roleName } });
+          }
+        }
+      });
+
+      setProjectMembers(Array.from(userMap.values()));
     } catch (e) {
       console.error('Error fetching project members:', e);
     }
@@ -362,7 +389,8 @@ export default function MilestoneTaskDetail() {
     const task = milestone.tasks[taskIndex];
 
     // Assignment Check: Only the assignee or an Admin can complete the task
-    const isAssignee = task.assignedTo === (user._id || user.id);
+    const assignedId = task.assignedTo?._id || task.assignedTo;
+    const isAssignee = assignedId === (user._id || user.id);
     if (task.assignedTo && !isAssignee && !isAdmin) {
       setConfirmModal({
         visible: true,
@@ -676,7 +704,8 @@ export default function MilestoneTaskDetail() {
         </View>
 
         {milestone.tasks?.map((task, index) => {
-          const assignee = projectMembers.find(m => (m._id || m) === task.assignedTo);
+          const assignedId = task.assignedTo?._id || task.assignedTo;
+          const assignee = projectMembers.find(m => (m._id || m) === assignedId) || (task.assignedTo?.name ? task.assignedTo : null);
 
           return (
             <TouchableOpacity
@@ -699,11 +728,24 @@ export default function MilestoneTaskDetail() {
                   )}
 
                   <View style={styles.taskMeta}>
-                    {assignee && (
+                    {assignee ? (
                       <View style={styles.metaBadge}>
                         <Feather name="user" size={10} color="#64748B" />
                         <Text style={styles.metaText} numberOfLines={1}>{assignee.name || 'User'}</Text>
                       </View>
+                    ) : (
+                      (canUpdateTask || canAssignTask) && !task.isCompleted && (
+                        <TouchableOpacity
+                          style={[styles.metaBadge, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', borderWidth: 1 }]}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleEditTask(index);
+                          }}
+                        >
+                          <Feather name="user-plus" size={10} color="#2563EB" />
+                          <Text style={[styles.metaText, { color: '#2563EB', fontFamily: 'Inter-SemiBold' }]}>Assign</Text>
+                        </TouchableOpacity>
+                      )
                     )}
                     {(task.startDate || task.endDate) && (
                       <View style={styles.metaBadge}>
@@ -1065,10 +1107,18 @@ export default function MilestoneTaskDetail() {
                         <Ionicons name="close" size={20} color="#64748B" />
                       </TouchableOpacity>
                     </View>
-                    <Text style={styles.assignModalSub}>Only users with task completion permissions are listed.</Text>
+                    <Text style={styles.assignModalSub}>Select an existing team member to assign this task.</Text>
                     
                     <ScrollView style={styles.memberList} showsVerticalScrollIndicator={false}>
-                      {projectMembers.map((member) => (
+                      {projectMembers.length === 0 ? (
+                        <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
+                          <Feather name="users" size={36} color="#CBD5E1" />
+                          <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 10 }}>
+                            No team members found
+                          </Text>
+                        </View>
+                      ) : (
+                        projectMembers.map((member) => (
                         <TouchableOpacity
                           key={member._id}
                           style={[
@@ -1093,7 +1143,8 @@ export default function MilestoneTaskDetail() {
                             <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
                           )}
                         </TouchableOpacity>
-                      ))}
+                      ))
+                    )}
                     </ScrollView>
                   </AdaptiveGlass>
                 </View>
