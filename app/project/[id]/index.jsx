@@ -249,7 +249,7 @@ export default function FullWorkspacePreview() {
             ref={scrollRef}
             style={styles.contentScroll}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: insets.bottom + 60 }}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
             refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />}
           >
             <>

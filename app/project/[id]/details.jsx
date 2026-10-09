@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, Alert, Linking, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, Alert, Linking, Platform, KeyboardAvoidingView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AdaptiveGlass from '../../components/AdaptiveGlass';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -344,9 +344,32 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
         </View>
 
         {/* Bento Card 5: Coordination Team */}
+        {/* Bento Card 5: Coordination Team */}
         <AdaptiveGlass intensity={20} tint="light" style={[styles.bentoCard, styles.bentoWide]}>
           <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
-            <Text style={[styles.bentoLabel, {marginBottom: 0}]}>{t('coordinationTeam').toUpperCase()}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={[styles.bentoLabel, {marginBottom: 0}]}>{t('coordinationTeam').toUpperCase()}</Text>
+              {(() => {
+                const nonCreatorMembers = (project?.members || []).filter(m => {
+                  if (!m) return false;
+                  const u = (m.user && typeof m.user === 'object') ? m.user : m;
+                  const memberEmail = u?.email;
+                  const creatorEmail = project?.createdBy?.email;
+                  const memberId = u?._id || u?.id || (typeof m.user === 'string' ? m.user : null);
+                  const creatorId = project?.createdBy?._id || project?.createdBy?.id;
+                  if (creatorId && memberId && String(creatorId) === String(memberId)) return false;
+                  if (creatorEmail && memberEmail && creatorEmail.toLowerCase() === memberEmail.toLowerCase()) return false;
+                  return true;
+                });
+                return (
+                  <View style={styles.memberCountBadge}>
+                    <Text style={styles.memberCountBadgeText}>
+                      {1 + nonCreatorMembers.length}
+                    </Text>
+                  </View>
+                );
+              })()}
+            </View>
             {canApproveBudget && (
               <TouchableOpacity onPress={handleOpenAddMember} style={styles.addMemberBtnSmall}>
                 <Ionicons name="add" size={16} color="#3B82F6" />
@@ -355,9 +378,10 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
             )}
           </View>
           <View style={styles.teamStack}>
+            {/* Project Creator / Admin */}
             <View style={styles.tMember}>
               <View style={styles.circleAvatar}>
-                <Text style={styles.cAvText}>{(project?.createdBy?.name || 'S').charAt(0)}</Text>
+                <Text style={styles.cAvText}>{(project?.createdBy?.name || 'S').charAt(0).toUpperCase()}</Text>
               </View>
               <View style={styles.tInfo}>
                 <Text style={styles.tName}>{project?.createdBy?.name || t('manager')}</Text>
@@ -365,20 +389,53 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 <Text style={styles.tRole}>{project?.createdBy?.email || t('adminCreator')}</Text>
               </View>
             </View>
-            {project?.members
-              ?.filter(m => m.user?.email !== project?.createdBy?.email)
-              .filter(m => !m.user)
-              .map((m, i) => (
-              <View key={i} style={styles.tMember}>
-                <View style={[styles.circleAvatar, { backgroundColor: '#F1F5F9' }]}>
-                  <Text style={[styles.cAvText, { color: '#64748B' }]}>{m.user?.name?.charAt(0) || 'U'}</Text>
-                </View>
-                <View style={styles.tInfo}>
-                  <Text style={styles.tName}>{m.user?.name || t('user')}</Text>
-                  <Text style={styles.tRole}>{m.role?.name || m.user?.email}</Text>
-                </View>
-              </View>
-            ))}
+
+            {/* Other Assigned Project Members */}
+            {(() => {
+              const assignedMembers = (project?.members || []).filter(m => {
+                if (!m) return false;
+                const u = (m.user && typeof m.user === 'object') ? m.user : m;
+                const memberEmail = u?.email;
+                const creatorEmail = project?.createdBy?.email;
+                const memberId = u?._id || u?.id || (typeof m.user === 'string' ? m.user : null);
+                const creatorId = project?.createdBy?._id || project?.createdBy?.id;
+                if (creatorId && memberId && String(creatorId) === String(memberId)) return false;
+                if (creatorEmail && memberEmail && creatorEmail.toLowerCase() === memberEmail.toLowerCase()) return false;
+                return true;
+              });
+
+              if (assignedMembers.length === 0) {
+                return (
+                  <View style={styles.emptyMembersBox}>
+                    <Ionicons name="people-outline" size={16} color="#94A3B8" />
+                    <Text style={styles.emptyMembersText}>No additional team members assigned yet</Text>
+                  </View>
+                );
+              }
+
+              return assignedMembers.map((m, i) => {
+                const u = (m.user && typeof m.user === 'object') ? m.user : m;
+                const name = u?.name || m?.name || 'Team Member';
+                const roleName = m.role?.name || (typeof m.role === 'string' ? m.role : null) || u?.role?.name || (typeof u?.role === 'string' ? u?.role : null) || 'Member';
+                const email = u?.email || m?.email || '';
+                const initial = (name || 'U').charAt(0).toUpperCase();
+
+                return (
+                  <View key={m._id || u?._id || i} style={styles.tMember}>
+                    <View style={[styles.circleAvatar, { backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#DBEAFE' }]}>
+                      <Text style={[styles.cAvText, { color: '#2563EB' }]}>{initial}</Text>
+                    </View>
+                    <View style={styles.tInfo}>
+                      <Text style={styles.tName}>{name}</Text>
+                      <Text style={[styles.tRole, { color: '#2563EB', fontFamily: 'Inter-SemiBold', fontSize: 10, marginTop: 2, marginBottom: 1 }]}>
+                        {roleName}
+                      </Text>
+                      {!!email && <Text style={styles.tRole}>{email}</Text>}
+                    </View>
+                  </View>
+                );
+              });
+            })()}
           </View>
         </AdaptiveGlass>
 
@@ -427,21 +484,38 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
       </View>
 
       {/* ── Request Budget Modal ── */}
-      <Modal visible={showRequestModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.modalDismiss} onPress={() => setShowRequestModal(false)} />
+      <Modal visible={showRequestModal} animationType="slide" transparent onRequestClose={() => setShowRequestModal(false)}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setShowRequestModal(false)} />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Request Budget Change</Text>
-              <TouchableOpacity onPress={() => setShowRequestModal(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Request Budget Change</Text>
+                <Text style={styles.modalSubSmall}>Propose budget modification for approval</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.modalCloseBtn}
+                onPress={() => setShowRequestModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalSub}>
-                Current Base Budget: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{project?.currency || '$'} {formatCurrency(currentBudget)}</Text>
-              </Text>
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              <View style={styles.baseBudgetPill}>
+                <Ionicons name="information-circle-outline" size={16} color="#2563EB" />
+                <Text style={styles.modalSub}>
+                  Current Base Budget: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{project?.currency || '$'} {formatCurrency(currentBudget)}</Text>
+                </Text>
+              </View>
 
               <Text style={styles.inputLabel}>New Proposed Budget Amount ({project?.currency || '$'})</Text>
               <TextInput
@@ -466,7 +540,10 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
 
               {/* Approver Selection */}
               {isLoadingApprovers ? (
-                <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 12 }} />
+                <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color="#3B82F6" />
+                  <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>Loading approvers...</Text>
+                </View>
               ) : budgetApprovers.length > 0 && (
                 <View style={{ marginBottom: 16 }}>
                   <Text style={styles.inputLabel}>Assign Approver</Text>
@@ -510,25 +587,29 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Budget History & Approval Modal ── */}
-      <Modal visible={showHistoryModal} animationType="slide" transparent>
+      <Modal visible={showHistoryModal} animationType="slide" transparent onRequestClose={() => setShowHistoryModal(false)}>
         <View style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.modalDismiss} onPress={() => setShowHistoryModal(false)} />
+          <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setShowHistoryModal(false)} />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>Budget Lifecycle</Text>
                 <Text style={styles.modalSubSmall}>Historical log & pending requests</Text>
               </View>
-              <TouchableOpacity onPress={() => setShowHistoryModal(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+              <TouchableOpacity 
+                style={styles.modalCloseBtn}
+                onPress={() => setShowHistoryModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.histList} showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.histList} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
               {project?.budgetHistory?.slice().reverse().map((item, idx) => {
                 const isPending = item.approvalStatus === 'Pending';
                 const isApproved = item.approvalStatus === 'Approved';
@@ -675,13 +756,58 @@ const styles = StyleSheet.create({
   },
   
   // Modals
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
-  modalDismiss: { flex: 1 },
-  modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '85%', backgroundColor: '#FFF' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalDismiss: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalContent: {
+    width: '100%',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    maxHeight: '88%',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  baseBudgetPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
   modalTitle: { fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  modalSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginBottom: 16 },
-  modalSubSmall: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  modalSub: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#1E40AF' },
+  modalSubSmall: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
   
   inputLabel: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
   input: {
@@ -789,4 +915,35 @@ const styles = StyleSheet.create({
   
   addMemberBtnSmall: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   addMemberBtnText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#3B82F6', marginLeft: 4 },
+  
+  memberCountBadge: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  memberCountBadgeText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#2563EB',
+  },
+  emptyMembersBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+  },
+  emptyMembersText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#94A3B8',
+  },
 });
