@@ -66,7 +66,7 @@ export default function FullWorkspacePreview() {
 
   const isInterior = project?.projectType === 'Interior';
 
-  const isSurveyPending = project?.needSiteSurvey || (project?.status === 'Site Survey' && project?.surveyStatus !== 'Approved');
+  const isSurveyPending = !isInterior && (project?.status === 'Site Survey' || (project?.status === 'Initialized' && project?.needSiteSurvey)) && project?.surveyStatus !== 'Approved';
   const restrictedTabs = ['Drawings', 'Rooms', 'FFE', 'BOQ', 'Budget', 'Milestone', 'Audit', 'Material', 'Transactions', 'Risk', 'Snags', 'Handover', 'Attendance', 'Reports'];
   const isRestrictedTab = isSurveyPending && restrictedTabs.includes(visibleTab);
   const TABS = (() => {
