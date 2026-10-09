@@ -284,7 +284,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setAnnotations(await res.json());
-    } catch (e) {}
+    } catch (e) { }
   }, [activeId, token]);
 
   const openAnnotateModal = useCallback((item) => {
@@ -323,7 +323,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
         headers: { Authorization: `Bearer ${token}` },
       });
       setAnnotations(prev => prev.filter(a => a._id !== annotationId));
-    } catch (e) {}
+    } catch (e) { }
   }, [activeId, token]);
 
   const myApprovalEntry = (version) =>
@@ -458,15 +458,67 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
     try {
       setIsLoadingApprovers(true);
       setSelectedApproverIds([]);
-      const response = await fetch(`${API_BASE_URL}/projects/${activeId}/plan-approvers`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setApproversList(data);
-      } else {
-        showToast('Failed to fetch approvers', 'error');
+      let list = [];
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/projects/${activeId}/plan-approvers`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            list = [...data];
+          }
+        }
+      } catch (err) {
+        console.log('[fetchPlanApprovers] endpoint error:', err);
       }
+
+      // Also fetch from /users to ensure all organization Admins and approvers are included
+      try {
+        const usersResponse = await fetch(`${API_BASE_URL}/users?projectId=${activeId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (usersResponse.ok) {
+          const uData = await usersResponse.json();
+          const usersArr = Array.isArray(uData) ? uData : (uData.users || []);
+          usersArr.forEach(u => {
+            const rName = u.role?.name || u.roleName || '';
+            const isAdm = rName === 'Admin' || rName === 'SuperAdmin' || rName === 'Super Admin' || u.role?.isSystemRole || (u.role?.permissions && u.role.permissions.includes('*'));
+            const hasPerm = u.role?.permissions && u.role.permissions.includes('plans:approve');
+
+            if (isAdm || hasPerm) {
+              const uId = (u._id || u.id)?.toString();
+              const alreadyInList = list.some(existing => (existing._id || existing.id)?.toString() === uId);
+              if (!alreadyInList) {
+                list.push({
+                  _id: uId,
+                  name: u.name || rName || 'Admin',
+                  email: u.email || '',
+                  roleName: rName || (isAdm ? 'Admin' : 'Member')
+                });
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.log('[fetchPlanApprovers] users fallback error:', err);
+      }
+
+      // If creator is an admin and still not in list, add creator
+      if (project?.createdBy && typeof project.createdBy === 'object' && project.createdBy._id) {
+        const creatorId = project.createdBy._id.toString();
+        if (!list.some(existing => (existing._id || existing.id)?.toString() === creatorId)) {
+          list.unshift({
+            _id: creatorId,
+            name: project.createdBy.name || 'Admin',
+            email: project.createdBy.email || '',
+            roleName: project.createdBy.role?.name || project.createdBy.roleName || 'Admin'
+          });
+        }
+      }
+
+      setApproversList(list);
     } catch (e) {
       console.error(e);
       showToast(t('networkErrorFetchApprovers'), 'error');
@@ -866,12 +918,12 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
               ) : (
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   {canCreatePlans && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => {
                         setEditingFolderId(null);
                         setFolderName('');
                         setShowFolderModal(true);
-                      }} 
+                      }}
                       style={styles.uploadPill}
                     >
                       <Ionicons name="add" size={16} color="#FFF" />
@@ -895,8 +947,8 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                   />
                 </View>
                 {activeFolder && (
-                  <TouchableOpacity 
-                    style={[styles.filterToggleBtn, showFilters && styles.filterToggleBtnActive]} 
+                  <TouchableOpacity
+                    style={[styles.filterToggleBtn, showFilters && styles.filterToggleBtnActive]}
                     onPress={() => setShowFilters(!showFilters)}
                   >
                     <Ionicons name="options" size={20} color={showFilters ? '#FFF' : '#64748B'} />
@@ -1037,9 +1089,9 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
               <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
                 {approversList.map((approver) => {
                   const isSelected = selectedApproverIds.includes(approver._id);
-                  const matchingMember = project?.members?.find(m => m._id === approver._id || (m.email && m.email === approver.email)) || 
-                                         ((project?.createdBy?._id === approver._id || (project?.createdBy?.email && project?.createdBy?.email === approver.email)) ? project?.createdBy : null);
-                  
+                  const matchingMember = project?.members?.find(m => m._id === approver._id || (m.email && m.email === approver.email)) ||
+                    ((project?.createdBy?._id === approver._id || (project?.createdBy?.email && project?.createdBy?.email === approver.email)) ? project?.createdBy : null);
+
                   let displayName = approver.name;
                   const isInvalidName = (name) => {
                     if (!name) return true;
@@ -1058,8 +1110,12 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                     displayName = approver.email.split('@')[0];
                   }
 
+                  if (!displayName || isInvalidName(displayName)) {
+                    displayName = approver.name || approver.roleName || 'Admin';
+                  }
+
                   if (displayName && displayName.includes('.')) {
-                      displayName = displayName.split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+                    displayName = displayName.split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
                   }
 
                   return (
