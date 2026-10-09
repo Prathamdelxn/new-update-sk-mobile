@@ -642,7 +642,10 @@ export default function MilestoneTaskDetail() {
               type: 'Used',
               items: usageItems,
               commonNote: `Used for task: ${optimisticTasks[taskIndex].title}`,
-              locationOrTask: optimisticTasks[taskIndex].title
+              locationOrTask: optimisticTasks[taskIndex].title,
+              source: 'task',
+              milestoneId,
+              taskId: optimisticTasks[taskIndex]._id
             })
           });
           setMaterialUsage({});

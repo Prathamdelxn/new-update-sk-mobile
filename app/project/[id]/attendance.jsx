@@ -246,11 +246,17 @@ export default function ProjectAttendanceTab({ project }) {
           activeTab === 'Team' ? (
             <>
               <View style={s.teamHeaderRow}>
-                <Text style={s.sectionTitle}>Team Check-ins</Text>
+                <View style={s.teamHeaderText}>
+                  <Text style={s.sectionTitle} numberOfLines={1}>Check-ins</Text>
+                  <Text style={s.sectionSubtitle} numberOfLines={1}>
+                    {filteredRecords.length} present
+                    {project?.members?.length ? ` of ${project.members.length}` : ''}
+                  </Text>
+                </View>
                 {!isProjectLocked(project) && (
                   <TouchableOpacity style={s.overrideBtn} onPress={() => setManualModalVisible(true)}>
                     <Ionicons name="add" size={16} color="#2563EB" />
-                    <Text style={s.overrideBtnText}>Manual Override</Text>
+                    <Text style={s.overrideBtnText} numberOfLines={1}>Manual Override</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -268,17 +274,39 @@ export default function ProjectAttendanceTab({ project }) {
                     activeOpacity={0.7}
                     onPress={() => setExpandedRecordId(expandedRecordId === rec._id ? null : rec._id)}
                   >
-                    <View style={s.historyRow}>
-                      <View>
-                        <Text style={s.historyDate}>{rec.user?.name || rec.user?.email || 'Unknown User'}</Text>
-                        <Text style={s.historyTime}>
-                          In: {new Date(rec.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          {rec.checkOutTime ? ` • Out: ${new Date(rec.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : ''}
+                    <View style={[s.historyRow, i === filteredRecords.length - 1 && expandedRecordId !== rec._id && { borderBottomWidth: 0 }]}>
+                      <View style={s.avatar}>
+                        <Text style={s.avatarText}>
+                          {(rec.user?.name || rec.user?.email || '?').trim().charAt(0).toUpperCase()}
                         </Text>
                       </View>
-                      <View style={[s.badge, { backgroundColor: '#16A34A20' }]}>
-                        <Text style={[s.badgeText, { color: '#16A34A' }]}>Present</Text>
+                      <View style={s.historyInfo}>
+                        <Text style={s.historyDate} numberOfLines={1}>{rec.user?.name || rec.user?.email || 'Unknown User'}</Text>
+                        <View style={s.timeRow}>
+                          <Ionicons name="log-in-outline" size={13} color="#64748B" />
+                          <Text style={s.historyTime}>
+                            {new Date(rec.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </Text>
+                          {rec.checkOutTime ? (
+                            <>
+                              <Ionicons name="log-out-outline" size={13} color="#64748B" style={{ marginLeft: 8 }} />
+                              <Text style={s.historyTime}>
+                                {new Date(rec.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </Text>
+                            </>
+                          ) : null}
+                        </View>
                       </View>
+                      <View style={s.badge}>
+                        <View style={s.badgeDot} />
+                        <Text style={s.badgeText}>Present</Text>
+                      </View>
+                      <Ionicons
+                        name={expandedRecordId === rec._id ? 'chevron-up' : 'chevron-down'}
+                        size={16}
+                        color="#94A3B8"
+                        style={{ marginLeft: 6 }}
+                      />
                     </View>
 
                     {expandedRecordId === rec._id && (
@@ -474,27 +502,34 @@ const s = StyleSheet.create({
   dateSelectorBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E0F2FE', gap: 8, marginRight: 10 },
   dateSelectorText: { fontSize: 15, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
   exportIconBtn: { backgroundColor: '#EFF6FF', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
-  card: { backgroundColor: '#fff', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#E0F2FE', marginBottom: 20 },
-  tabContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 8, padding: 4, marginBottom: 16 },
-  tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 6 },
+  card: { backgroundColor: '#fff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#E0F2FE', marginBottom: 20 },
+  tabContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 10, padding: 4, marginBottom: 16 },
+  tabBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   tabBtnActive: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E0F2FE' },
   tabText: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center' },
   tabTextActive: { color: '#0F172A', fontFamily: 'Inter-Bold' },
-  teamHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  overrideBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#DBEAFE', gap: 4 },
-  overrideBtnText: { color: '#2563EB', fontFamily: 'Inter-Bold', fontSize: 13 },
+  teamHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 12 },
+  teamHeaderText: { flex: 1, minWidth: 0 },
+  sectionSubtitle: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
+  overrideBtn: { flexDirection: 'row', alignItems: 'center', flexShrink: 0, backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#DBEAFE', gap: 4 },
+  overrideBtnText: { color: '#2563EB', fontFamily: 'Inter-Bold', fontSize: 12 },
   sectionTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
   recordBox: { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 12, gap: 12 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B' },
   value: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  badgeText: { fontSize: 12, fontFamily: 'Inter-Bold' },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 12, backgroundColor: '#DCFCE7' },
+  badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#16A34A' },
+  badgeText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#16A34A' },
   emptyBox: { alignItems: 'center', paddingVertical: 30 },
   emptyText: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 10, textAlign: 'center' },
-  historyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  avatarText: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  historyInfo: { flex: 1, minWidth: 0, marginRight: 8 },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   historyDate: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#1E293B' },
-  historyTime: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  historyTime: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' },
   expandedBox: { backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginTop: 4, marginBottom: 8, borderWidth: 1, borderColor: '#E0F2FE' },
   expandedPhoto: { width: '100%', height: 200, borderRadius: 8, marginTop: 10 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },

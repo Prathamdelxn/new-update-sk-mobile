@@ -76,7 +76,6 @@ export default function ProjectRiskTab({ project }) {
   const canCreate = !isLocked && (isAdmin || hasProjectPermission(user, project, 'risks:create'));
   const canUpdate = !isLocked && (isAdmin || hasProjectPermission(user, project, 'risks:update'));
   const canDelete = !isLocked && (isAdmin || hasProjectPermission(user, project, 'risks:delete'));
-  const canAssign = !isLocked && (isAdmin || hasProjectPermission(user, project, 'risks:assign'));
 
   // Modals
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
@@ -84,7 +83,6 @@ export default function ProjectRiskTab({ project }) {
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [selectedRisk, setSelectedRisk] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ visible: false, id: null });
-  const [isAssignModalVisible, setIsAssignModalVisible] = useState(false);
 
   // Form States
   const [title, setTitle] = useState('');
@@ -95,7 +93,6 @@ export default function ProjectRiskTab({ project }) {
   const [mitigationProgress, setMitigationProgress] = useState('0');
   const [updateNote, setUpdateNote] = useState('');
   const [updateStatus, setUpdateStatus] = useState('');
-  const [assignOwner, setAssignOwner] = useState(null);
   const fetchRisks = useCallback(async (isRefresh = false) => {
     if (!projectId) return;
 
@@ -210,30 +207,6 @@ export default function ProjectRiskTab({ project }) {
       }
     } catch (error) {
       showToast('Update failed', 'error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleAssignOwner = async () => {
-    if (!canAssign) {
-      showToast('Permission denied', 'error');
-      return;
-    }
-    try {
-      setIsSubmitting(true);
-      const res = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/risks/${selectedRisk._id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ owner: assignOwner })
-      });
-      if (res.ok) {
-        showToast('Risk assigned', 'success');
-        setIsAssignModalVisible(false);
-        fetchRisks();
-      }
-    } catch (error) {
-      showToast('Assignment failed', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -448,29 +421,13 @@ export default function ProjectRiskTab({ project }) {
 
               <View style={styles.cardFooter}>
                 <View style={styles.userInfo}>
-                  <View style={[styles.avatar, { backgroundColor: '#F8FAFF' }]}>
-                    <Text style={[styles.avatarText, { color: '#64748B' }]}>{risk.owner?.name?.charAt(0) || 'U'}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.userName} numberOfLines={1}>
-                      {risk.owner?.name || 'Unassigned'} • <Text style={styles.dateText}>{new Date(risk.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
-                    </Text>
-                  </View>
+                  <Feather name="clock" size={13} color="#94A3B8" style={{ marginRight: 6 }} />
+                  <Text style={styles.dateText} numberOfLines={1}>
+                    Updated {new Date(risk.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </Text>
                 </View>
 
                 <View style={styles.actionRow}>
-                  {canAssign && !risk.owner && (
-                    <TouchableOpacity
-                      style={[styles.actionIconBtn, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD', borderWidth: 1 }]}
-                      onPress={() => {
-                        setSelectedRisk(risk);
-                        setAssignOwner(risk.owner?._id || null);
-                        setIsAssignModalVisible(true);
-                      }}
-                    >
-                      <Feather name="user-plus" size={14} color="#0284C7" />
-                    </TouchableOpacity>
-                  )}
                   <TouchableOpacity
                     style={styles.actionIconBtn}
                     onPress={() => {
@@ -772,65 +729,6 @@ export default function ProjectRiskTab({ project }) {
 
               </ScrollView>
             )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* ASSIGN RISK MODAL */}
-      <Modal visible={isAssignModalVisible} animationType="slide" transparent statusBarTranslucent>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setIsAssignModalVisible(false)} />
-          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-            <View style={styles.dragHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('assignOwner', 'Assign Risk Owner')}</Text>
-              <TouchableOpacity style={styles.closeBtn} onPress={() => setIsAssignModalVisible(false)}>
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>{t('selectOwner', 'Select Owner')}</Text>
-                <View style={{ gap: 8, marginTop: 8 }}>
-                  <TouchableOpacity
-                    onPress={() => setAssignOwner(null)}
-                    style={[styles.userListItem, !assignOwner && styles.userListItemActive]}
-                  >
-                    <View style={[styles.userAvatarModal, !assignOwner && { backgroundColor: '#FFF' }]}>
-                      <Feather name="user-x" size={16} color={!assignOwner ? '#3B82F6' : '#64748B'} />
-                    </View>
-                    <Text style={[styles.userListItemText, !assignOwner && { color: '#FFF' }]}>{t('unassigned', 'Unassigned')}</Text>
-                  </TouchableOpacity>
-                  {project?.members?.filter(m => {
-                    if (!m.user) return false;
-                    return hasProjectPermission(m.user, project, 'risks:create') || hasProjectPermission(m.user, project, 'risks:update');
-                  }).map(m => m.user).map(u => (
-                    <TouchableOpacity
-                      key={u._id}
-                      onPress={() => setAssignOwner(u._id)}
-                      style={[styles.userListItem, assignOwner === u._id && styles.userListItemActive]}
-                    >
-                      <View style={[styles.userAvatarModal, assignOwner === u._id && { backgroundColor: '#FFF' }]}>
-                        <Text style={[styles.userAvatarTextModal, assignOwner === u._id && { color: '#3B82F6' }]}>{u.name.charAt(0)}</Text>
-                      </View>
-                      <Text style={[styles.userListItemText, assignOwner === u._id && { color: '#FFF' }]}>{u.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <TouchableOpacity style={[styles.submitBtn, { marginTop: 16 }]} onPress={handleAssignOwner} disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <>
-                    <Text style={styles.submitBtnText}>{t('confirmAssignment', 'Confirm Assignment')}</Text>
-                    <Feather name="check" size={18} color="#FFF" style={{ marginLeft: 8 }} />
-                  </>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
           </View>
         </View>
       </Modal>

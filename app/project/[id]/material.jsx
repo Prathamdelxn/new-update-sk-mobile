@@ -1237,10 +1237,17 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     <Text style={styles.historyType}>Usage #{usage._id.slice(-6).toUpperCase()}</Text>
                     <Text style={styles.historyDate}>{new Date(usage.createdAt).toLocaleDateString()}</Text>
                   </View>
-                  <View style={[styles.statusBadge, { backgroundColor: '#D1FAE5' }]}>
-                    <Text style={[styles.statusText, { color: '#059669' }]}>Logged</Text>
-                  </View>
-                  {canDelete && (
+                  {/* Logs created by a milestone task submission belong to that task — no delete here */}
+                  {usage.source === 'task' ? (
+                    <View style={[styles.statusBadge, { backgroundColor: '#F1F5F9' }]}>
+                      <Text style={[styles.statusText, { color: '#64748B' }]}>From Task</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.statusBadge, { backgroundColor: '#D1FAE5' }]}>
+                      <Text style={[styles.statusText, { color: '#059669' }]}>Logged</Text>
+                    </View>
+                  )}
+                  {canDelete && usage.source !== 'task' && (
                     <TouchableOpacity onPress={() => handleDeleteUsage(usage._id)} style={{ marginLeft: 8 }}>
                       <Feather name="trash-2" size={18} color="#EF4444" />
                     </TouchableOpacity>
