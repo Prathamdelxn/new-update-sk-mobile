@@ -6,7 +6,7 @@
 // import { useAuth } from '../../context/AuthContext';
 // import { useToast } from '../../context/ToastContext';
 // import { useSocket } from '../../context/SocketContext';
-// import { formatCompact, formatCurrency } from '../../utils/format';
+// import { formatCompact, formatCurrency, getCurrentApprovedBudget } from '../../utils/format';
 // import { useTranslation } from 'react-i18next';
 
 // const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -576,7 +576,7 @@ const AdaptiveGlass = ({ style, children }) => <View style={[{ backgroundColor: 
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useSocket } from '../../context/SocketContext';
-import { formatCompact, formatCurrency } from '../../utils/format';
+import { formatCompact, formatCurrency, getCurrentApprovedBudget } from '../../utils/format';
 import { useTranslation } from 'react-i18next';
 import { hasProjectPermission, isProjectLocked } from '../../utils/permissions';
 import { useRouter } from 'expo-router';
@@ -795,7 +795,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
     }
   };
 
-  const currentBudget = project?.budgetHistory?.length ? project.budgetHistory[project.budgetHistory.length - 1].amount : 0;
+  const currentBudget = getCurrentApprovedBudget(project);
 
   if (isLoading) {
     return (

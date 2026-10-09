@@ -118,3 +118,22 @@ export function parseMaxBudget(budget) {
   if (parsedValues.length === 0) return null;
   return Math.max(...parsedValues);
 }
+
+
+export function getCurrentApprovedBudget(project) {
+  if (!project) return 0;
+  const history = project.budgetHistory || [];
+  for (let i = history.length - 1; i >= 0; i--) {
+    const entry = history[i];
+    if (entry.approvalStatus === 'Approved') {
+      return Number(entry.amount) || 0;
+    }
+  }
+  for (let i = history.length - 1; i >= 0; i--) {
+    const entry = history[i];
+    if (entry.approvalStatus !== 'Pending' && entry.approvalStatus !== 'Rejected') {
+      return Number(entry.amount) || 0;
+    }
+  }
+  return Number(project.budget ?? project.totalBudget ?? 0);
+}

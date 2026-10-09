@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useSocket } from '../../context/SocketContext';
 import ConfirmModal from '../../components/ConfirmModal';
-import { formatCompact, formatCurrency } from '../../utils/format';
+import { formatCompact, formatCurrency, getCurrentApprovedBudget } from '../../utils/format';
 import { useTranslation } from 'react-i18next';
 import { hasProjectPermission, isProjectLocked } from '../../utils/permissions';
 import { useRouter } from 'expo-router';
@@ -84,7 +84,25 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
   const isLocked = isProjectLocked(project);
   const canApproveBudget = !isLocked && hasProjectPermission(user, project, 'budget:approve');
   const pendingRequests = project?.budgetHistory?.filter(bh => bh.approvalStatus === 'Pending') || [];
-  const currentBudget = project?.budgetHistory?.length ? project.budgetHistory[project.budgetHistory.length - 1].amount : (project?.budget || 0);
+  const currentBaseBudget = getCurrentApprovedBudget(project);
+  const currentBudget = currentBaseBudget;
+  const pendingBh = project?.budgetHistory?.find(bh => bh.approvalStatus === 'Pending');
+
+  // Derive the added change request amount and the proposed new total budget
+  const { pendingAddedAmount, pendingTotalBudget } = (() => {
+    if (!pendingBh) return { pendingAddedAmount: 0, pendingTotalBudget: currentBaseBudget };
+    const rawPending = Number(pendingBh.amount) || 0;
+    if (rawPending >= currentBaseBudget && currentBaseBudget > 0) {
+      return {
+        pendingAddedAmount: rawPending - currentBaseBudget,
+        pendingTotalBudget: rawPending,
+      };
+    }
+    return {
+      pendingAddedAmount: rawPending,
+      pendingTotalBudget: currentBaseBudget + rawPending,
+    };
+  })();
 
   const calculateDaysRemaining = () => {
     if (!project?.endDate) return 'N/A';
@@ -96,10 +114,24 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
   };
 
   const handleBudgetAction = (budgetId, action) => {
+    const targetBh = project?.budgetHistory?.find(bh => bh._id === budgetId);
+    let resolvedTotal = targetBh ? Number(targetBh.amount) : 0;
+    let addedDisplay = 0;
+    if (targetBh) {
+      if (resolvedTotal >= currentBaseBudget && currentBaseBudget > 0) {
+        addedDisplay = resolvedTotal - currentBaseBudget;
+      } else {
+        addedDisplay = resolvedTotal;
+        resolvedTotal = currentBaseBudget + resolvedTotal;
+      }
+    }
+
     setConfirmModal({
       visible: true,
-      title: `${action} Budget`,
-      message: `Are you sure you want to ${action.toLowerCase()} this budget request?`,
+      title: `${action === 'Approved' ? 'Approve' : 'Reject'} Budget Change Request`,
+      message: action === 'Approved'
+        ? `Are you sure you want to approve this change request of +${formatCompact(addedDisplay)}? The new total budget will become ${formatCompact(resolvedTotal)}.`
+        : `Are you sure you want to reject this budget change request?`,
       confirmText: action,
       type: action === 'Approved' ? 'success' : 'destructive',
       onConfirm: async () => {
@@ -111,7 +143,12 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ budgetId, action })
+            body: JSON.stringify({
+              budgetId,
+              action,
+              newBudget: resolvedTotal,
+              amount: resolvedTotal
+            })
           });
 
           if (res.ok) {
@@ -132,14 +169,18 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
   };
 
   const handleRequestBudget = async () => {
-    if (!requestAmount || isNaN(requestAmount) || Number(requestAmount) <= 0) {
-      showToast('Please enter a valid amount', 'error');
+    const addedAmount = Number(requestAmount);
+    if (!requestAmount || isNaN(addedAmount) || addedAmount <= 0) {
+      showToast('Please enter a valid change request budget amount', 'error');
       return;
     }
     if (!requestReason.trim()) {
-      showToast('Please provide a reason', 'error');
+      showToast('Please provide a reason / justification', 'error');
       return;
     }
+
+    // Change request cycle: New Total Budget = Current Budget + Added Change Req Budget
+    const calculatedTotalBudget = currentBaseBudget + addedAmount;
 
     try {
       setIsProcessing(true);
@@ -150,14 +191,17 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          amount: Number(requestAmount),
-          reason: requestReason,
+          amount: calculatedTotalBudget,
+          addedAmount: addedAmount,
+          changeRequestAmount: addedAmount,
+          currentBudget: currentBaseBudget,
+          reason: requestReason.trim(),
           approverId: selectedApproverId || undefined
         })
       });
 
       if (res.ok) {
-        showToast('Budget request submitted successfully', 'success');
+        showToast(`Change request submitted: +${formatCompact(addedAmount)} (New Total: ${formatCompact(calculatedTotalBudget)})`, 'success');
         setShowRequestModal(false);
         setRequestAmount('');
         setRequestReason('');
@@ -196,7 +240,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
             <Text style={styles.pendingTitle}>Pending Budget Change Request</Text>
           </View>
           <Text style={styles.pendingDesc}>
-            {pendingRequests.length} pending budget modification request awaiting review.
+            {`+${formatCompact(pendingAddedAmount)} requested • Proposed Total: ${project?.currency || '$'} ${formatCompact(pendingTotalBudget)} (Current Base: ${project?.currency || '$'} ${formatCompact(currentBaseBudget)})`}
           </Text>
           <TouchableOpacity 
             style={styles.viewPendingBtn}
@@ -285,10 +329,12 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
             <Ionicons name="time-outline" size={14} color={pendingRequests.length > 0 ? "#DC2626" : "#64748B"} />
           </View>
           <Text style={[styles.bentoDigit, pendingRequests.length > 0 && { color: '#B91C1C' }]} numberOfLines={2} adjustsFontSizeToFit>
-            {project?.currency || '$'} {formatCompact(currentBudget)}
+            {project?.currency || '$'} {formatCompact(currentBaseBudget)}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-            <Text style={styles.bentoSub}>{pendingRequests.length > 0 ? 'Pending Request' : t('latestApproved')}</Text>
+            <Text style={[styles.bentoSub, pendingRequests.length > 0 && { color: '#DC2626', fontFamily: 'Inter-SemiBold' }]}>
+              {pendingRequests.length > 0 ? `+${formatCompact(pendingAddedAmount)} Pending (Total: ${formatCompact(pendingTotalBudget)})` : t('latestApproved')}
+            </Text>
             <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
           </View>
         </TouchableOpacity>
@@ -449,7 +495,8 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               <View>
                 <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>Budget Management</Text>
                 <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B' }}>
-                  Current: {project?.currency || '$'} {formatCompact(currentBudget)}
+                  Current: {project?.currency || '$'} {formatCompact(currentBaseBudget)}
+                  {pendingRequests.length > 0 && ` (+${formatCompact(pendingAddedAmount)} Pending)`}
                 </Text>
               </View>
             </View>
@@ -510,17 +557,32 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingBottom: 20 }}
             >
-              <View style={styles.baseBudgetPill}>
-                <Ionicons name="information-circle-outline" size={16} color="#2563EB" />
-                <Text style={styles.modalSub}>
-                  Current Base Budget: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{project?.currency || '$'} {formatCurrency(currentBudget)}</Text>
-                </Text>
+              {/* Live Calculation Preview Box */}
+              <View style={styles.calcPreviewContainer}>
+                <View style={styles.calcStepBox}>
+                  <Text style={styles.calcStepLabel}>Current Budget</Text>
+                  <Text style={styles.calcStepVal}>{formatCompact(currentBaseBudget)}</Text>
+                </View>
+                <Text style={styles.calcOp}>+</Text>
+                <View style={[styles.calcStepBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+                  <Text style={[styles.calcStepLabel, { color: '#2563EB' }]}>Change Req</Text>
+                  <Text style={[styles.calcStepVal, { color: '#1D4ED8' }]}>
+                    +{formatCompact(Number(requestAmount) || 0)}
+                  </Text>
+                </View>
+                <Text style={styles.calcOp}>=</Text>
+                <View style={[styles.calcStepBox, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+                  <Text style={[styles.calcStepLabel, { color: '#16A34A' }]}>New Total</Text>
+                  <Text style={[styles.calcStepVal, { color: '#15803D' }]}>
+                    {formatCompact(currentBaseBudget + (Number(requestAmount) || 0))}
+                  </Text>
+                </View>
               </View>
 
-              <Text style={styles.inputLabel}>New Proposed Budget Amount ({project?.currency || '$'})</Text>
+              <Text style={styles.inputLabel}>Added Change Request Budget ({project?.currency || '$'})</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. 500000"
+                placeholder="e.g. 50000 (amount to add to current budget)"
                 placeholderTextColor="#94A3B8"
                 keyboardType="numeric"
                 value={requestAmount}
@@ -582,7 +644,11 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 {isProcessing ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <Text style={styles.submitBtnText}>Submit Change Request</Text>
+                  <Text style={styles.submitBtnText}>
+                    {Number(requestAmount) > 0 
+                      ? `Submit Change Request (+${formatCompact(Number(requestAmount))})`
+                      : 'Submit Change Request'}
+                  </Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -614,16 +680,16 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               <Ionicons name="wallet-outline" size={18} color="#2563EB" />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' }}>
-                  Current Active Budget
+                  Current Active Base Budget
                 </Text>
                 <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' }}>
-                  {project?.currency || '$'} {formatCurrency(currentBudget)}
+                  {project?.currency || '$'} {formatCompact(currentBaseBudget)}
                 </Text>
               </View>
               {pendingRequests.length > 0 && (
                 <View style={{ backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA' }}>
                   <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#DC2626' }}>
-                    {pendingRequests.length} PENDING
+                    +{formatCompact(pendingAddedAmount)} PENDING
                   </Text>
                 </View>
               )}
@@ -635,12 +701,34 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 const isApproved = item.approvalStatus === 'Approved';
                 const isRejected = item.approvalStatus === 'Rejected';
 
+                const rawAmt = Number(item.amount) || 0;
+                let itemAdded = 0;
+                let itemTotal = rawAmt;
+                if (isPending) {
+                  if (rawAmt >= currentBaseBudget && currentBaseBudget > 0) {
+                    itemAdded = rawAmt - currentBaseBudget;
+                    itemTotal = rawAmt;
+                  } else {
+                    itemAdded = rawAmt;
+                    itemTotal = currentBaseBudget + rawAmt;
+                  }
+                }
+
                 return (
                   <View key={item._id || idx} style={[styles.histItem, isPending && { borderColor: '#FDE68A', backgroundColor: '#FFFDF5' }]}>
                     <View style={styles.histTop}>
-                      <Text style={styles.histAmt}>
-                        {project?.currency || '$'} {formatCompact(item.amount)}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={styles.histAmt}>
+                          {project?.currency || '$'} {formatCompact(isPending ? itemTotal : item.amount)}
+                        </Text>
+                        {isPending && itemAdded > 0 && (
+                          <View style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE' }}>
+                            <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#1D4ED8' }}>
+                              +{formatCompact(itemAdded)} Change Req
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                       <View style={[
                         styles.histStatus,
                         isApproved && { backgroundColor: '#DCFCE7' },
@@ -674,7 +762,9 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                           onPress={() => handleBudgetAction(item._id, 'Approved')}
                           disabled={isProcessing}
                         >
-                          <Text style={styles.approveBtnText}>Approve</Text>
+                          <Text style={styles.approveBtnText}>
+                            Approve (+{formatCompact(itemAdded)})
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -825,6 +915,45 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  calcPreviewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  calcStepBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  calcStepLabel: {
+    fontSize: 10,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginBottom: 2,
+  },
+  calcStepVal: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  calcOp: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#94A3B8',
+    paddingHorizontal: 4,
   },
   baseBudgetPill: {
     flexDirection: 'row',

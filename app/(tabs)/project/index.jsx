@@ -18,6 +18,7 @@ import { useToast } from '../../context/ToastContext';
 import { BlurView } from 'expo-blur';
 import ConfirmModal from '../../components/ConfirmModal';
 import { useTranslation } from 'react-i18next';
+import { getCurrentApprovedBudget } from '../../utils/format';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -310,7 +311,7 @@ export default function ProjectScreen() {
         startDate: item.startDate,
         targetDate: item.endDate,
         area: item.area?.toString() || '',
-        budget: item.budgetHistory?.length ? item.budgetHistory[item.budgetHistory.length - 1].amount?.toString() : (item.budget?.toString() || ''),
+        budget: (getCurrentApprovedBudget(item) || item.budget || 0).toString(),
         currency: item.currency || 'AED',
       }
     });
@@ -543,7 +544,7 @@ export default function ProjectScreen() {
                 activeOpacity={0.7}
                 onPress={(e) => {
                   e.stopPropagation();
-                  const currentBudget = item.budgetHistory?.length ? item.budgetHistory[item.budgetHistory.length - 1].amount : 0;
+                  const currentBudget = getCurrentApprovedBudget(item);
                   router.push({ pathname: `/project/${item._id}/site-survey`, params: { currentBudget, editMode: item.surveyStatus ? 'true' : 'false', projectType: item.projectType || 'Construction', currency: item.currency || 'AED' } });
                 }}
               >
