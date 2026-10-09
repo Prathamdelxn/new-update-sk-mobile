@@ -48,6 +48,9 @@ export default function MilestoneTaskDetail() {
   const [selectedSnag, setSelectedSnag] = useState(null);
   const [isSnagModalVisible, setIsSnagModalVisible] = useState(false);
   const [isFetchingSnag, setIsFetchingSnag] = useState(false);
+  const [materialUsages, setMaterialUsages] = useState([]);
+  const [selectedCompletedTask, setSelectedCompletedTask] = useState(null);
+  const [isCompletedTaskDetailVisible, setIsCompletedTaskDetailVisible] = useState(false);
 
   // Modern Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
@@ -87,6 +90,60 @@ export default function MilestoneTaskDetail() {
       console.error('Error fetching inventory:', e);
     }
   }, [projectId, token]);
+
+  const fetchMaterialUsages = useCallback(async () => {
+    try {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/projects/${projectId}/material-usage`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMaterialUsages(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error('Error fetching material usages:', e);
+    }
+  }, [projectId, token]);
+
+  const getTaskMaterials = useCallback((task) => {
+    if (!task) return [];
+    if (task.materialsUsed && Array.isArray(task.materialsUsed) && task.materialsUsed.length > 0) {
+      return task.materialsUsed;
+    }
+    if (task.materials && Array.isArray(task.materials) && task.materials.length > 0) {
+      return task.materials;
+    }
+    if (task.usedMaterials && Array.isArray(task.usedMaterials) && task.usedMaterials.length > 0) {
+      return task.usedMaterials;
+    }
+    // Fallback: match from project material-usage logs by task title or commonNote
+    if (materialUsages && materialUsages.length > 0 && task.title) {
+      const taskTitleLower = task.title.trim().toLowerCase();
+      const matched = materialUsages.filter(u => 
+        (u.locationOrTask && u.locationOrTask.trim().toLowerCase() === taskTitleLower) ||
+        (u.commonNote && u.commonNote.toLowerCase().includes(taskTitleLower))
+      );
+      if (matched.length > 0) {
+        const aggregated = [];
+        matched.forEach(log => {
+          if (log.items && Array.isArray(log.items)) {
+            log.items.forEach(it => {
+              const name = it.materialId?.name || it.name || 'Material';
+              const unit = it.materialId?.unit || it.unit || 'Unit';
+              aggregated.push({
+                materialId: it.materialId?._id || it.materialId || it.id,
+                name,
+                quantity: it.quantity,
+                unit
+              });
+            });
+          }
+        });
+        if (aggregated.length > 0) return aggregated;
+      }
+    }
+    return [];
+  }, [materialUsages]);
 
   const fetchProjectMembers = useCallback(async () => {
     try {
@@ -152,6 +209,7 @@ export default function MilestoneTaskDetail() {
           setMilestone(current);
           fetchProjectMembers();
           fetchInventory();
+          fetchMaterialUsages();
         } else {
           showToast("Milestone not found", "error");
         }
@@ -174,7 +232,7 @@ export default function MilestoneTaskDetail() {
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, milestoneId, token, fetchProjectMembers]);
+  }, [projectId, milestoneId, token, fetchProjectMembers, fetchInventory, fetchMaterialUsages]);
 
   const handleViewSnag = async (snagId) => {
     try {
@@ -374,7 +432,26 @@ export default function MilestoneTaskDetail() {
     setIsModalVisible(true);
   };
 
+  const handleTaskCardPress = (task, index) => {
+    if (task.isCompleted) {
+      setSelectedCompletedTask({ ...task, taskIndex: index });
+      setIsCompletedTaskDetailVisible(true);
+    } else {
+      toggleTask(index);
+    }
+  };
+
   const toggleTask = async (taskIndex) => {
+    const task = milestone?.tasks?.[taskIndex];
+    if (!task) return;
+
+    // If task is already completed, open its detail modal
+    if (task.isCompleted) {
+      setSelectedCompletedTask({ ...task, taskIndex });
+      setIsCompletedTaskDetailVisible(true);
+      return;
+    }
+
     if (!canCompleteTask) {
       setConfirmModal({
         visible: true,
@@ -385,8 +462,6 @@ export default function MilestoneTaskDetail() {
       });
       return;
     }
-
-    const task = milestone.tasks[taskIndex];
 
     // Assignment Check: Only the assignee or an Admin can complete the task
     const assignedId = task.assignedTo?._id || task.assignedTo;
@@ -403,18 +478,6 @@ export default function MilestoneTaskDetail() {
     }
 
     try {
-      // If task is already completed, prevent uncompleting
-      if (task.isCompleted) {
-        setConfirmModal({
-          visible: true,
-          title: 'Task Locked',
-          message: 'Completed tasks cannot be uncompleted to maintain the audit trail of work proof.',
-          confirmText: 'OK',
-          onConfirm: () => setConfirmModal(prev => ({ ...prev, visible: false }))
-        });
-        return;
-      }
-
       // Show specialized Proof Modal
       setActiveTaskIndex(taskIndex);
       setProofModalVisible(true);
@@ -454,6 +517,8 @@ export default function MilestoneTaskDetail() {
         setProofModalVisible(false);
         setTempImageUri(result.assets[0].uri);
         setCompletionNote('');
+        setMaterialUsage({});
+        setMaterialSearchQuery('');
         setIsCompletionConfirmVisible(true);
       }
     } catch (e) {
@@ -478,10 +543,20 @@ export default function MilestoneTaskDetail() {
         .filter(([_, qty]) => qty && parseFloat(qty) > 0)
         .map(([id, qty]) => ({ materialId: id, quantity: parseFloat(qty) }));
 
+      const usedMaterialsList = usageItems.map(item => {
+        const inv = inventory.find(i => (i._id || i.id) === item.materialId);
+        return {
+          materialId: item.materialId,
+          name: inv?.name || 'Material',
+          quantity: item.quantity,
+          unit: inv?.unit || 'Unit'
+        };
+      });
+
       if (usageItems.length > 0) {
         // Validate stock levels before proceeding
         for (const item of usageItems) {
-          const invItem = inventory.find(i => i._id === item.materialId);
+          const invItem = inventory.find(i => (i._id || i.id) === item.materialId);
           if (invItem && item.quantity > invItem.balance) {
             setConfirmModal({
               visible: true,
@@ -502,8 +577,13 @@ export default function MilestoneTaskDetail() {
         ...optimisticTasks[taskIndex],
         isCompleted: true,
         completedAt: new Date(),
+        completedBy: user?._id || user?.id,
+        completedByName: user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User',
         proofImage: localUri ? { url: localUri, uploadedAt: new Date() } : null,
-        completionNote: note || ''
+        completionNote: note || '',
+        materialsUsed: usedMaterialsList,
+        materials: usedMaterialsList,
+        usedMaterials: usedMaterialsList
       };
       
       let optimisticStatus = milestone.status;
@@ -545,6 +625,9 @@ export default function MilestoneTaskDetail() {
       finalTasks[taskIndex] = {
         ...finalTasks[taskIndex],
         proofImage: imageUrl ? { url: imageUrl, uploadedAt: new Date() } : null,
+        materialsUsed: usedMaterialsList,
+        materials: usedMaterialsList,
+        usedMaterials: usedMaterialsList
       };
 
       if (usageItems.length > 0) {
@@ -575,6 +658,8 @@ export default function MilestoneTaskDetail() {
         });
         fetchMilestone(); // Sync with server data
         fetchInventory(); // Refresh stock levels
+        fetchMaterialUsages(); // Refresh usage logs
+        showToast('Task submitted successfully', 'success');
       } catch (backendError) {
         setMilestone(originalMilestone); // Revert UI
         setConfirmModal({
@@ -712,13 +797,19 @@ export default function MilestoneTaskDetail() {
               key={index}
               style={styles.taskCard}
               activeOpacity={0.7}
-              onPress={() => toggleTask(index)}
+              onPress={() => handleTaskCardPress(task, index)}
               onLongPress={() => deleteTask(index)}
             >
               <View style={styles.taskInner}>
-                <View style={[styles.checkCircle, task.isCompleted && styles.checkCircleActive]}>
+                <TouchableOpacity 
+                  style={[styles.checkCircle, task.isCompleted && styles.checkCircleActive]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleTaskCardPress(task, index);
+                  }}
+                >
                   {task.isCompleted && <Feather name="check" size={14} color="#FFF" />}
-                </View>
+                </TouchableOpacity>
                 <View style={styles.taskInfo}>
                   <Text style={[styles.taskTitle, task.isCompleted && styles.taskTitleDone]}>
                     {task.title}
@@ -770,30 +861,62 @@ export default function MilestoneTaskDetail() {
                     )}
                   </View>
 
-                  {task.isCompleted && task.completedAt && (
+                  {task.isCompleted && (
                     <View style={styles.completionBlock}>
                       <View style={styles.completionHeader}>
-                        <Feather name="check-circle" size={12} color="#059669" />
-                        <Text style={styles.completionHeaderText}>
-                          Completed on {new Date(task.completedAt).toLocaleDateString()}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                          <Feather name="check-circle" size={12} color="#059669" />
+                          <Text style={styles.completionHeaderText}>
+                            Completed {task.completedAt ? `on ${new Date(task.completedAt).toLocaleDateString()}` : ''}
+                          </Text>
+                        </View>
+                        <View style={styles.viewSubmissionChip}>
+                          <Text style={styles.viewSubmissionChipText}>View Report</Text>
+                          <Feather name="chevron-right" size={12} color="#059669" />
+                        </View>
                       </View>
                       
                       {(task.proofImage?.url || task.completionNote) && (
                         <View style={styles.completionContent}>
                           {task.proofImage?.url && (
                             <TouchableOpacity
-                              onPress={() => setSelectedImage(task.proofImage.url)}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                setSelectedImage(task.proofImage.url);
+                              }}
                               style={styles.proofContainer}
                             >
                               <Image source={{ uri: task.proofImage.url }} style={styles.proofThumb} />
                             </TouchableOpacity>
                           )}
                           {task.completionNote ? (
-                            <Text style={styles.completionNoteText}>{task.completionNote}</Text>
+                            <Text style={styles.completionNoteText} numberOfLines={2}>{task.completionNote}</Text>
                           ) : null}
                         </View>
                       )}
+
+                      {/* Used Materials Badges on the Card */}
+                      {(() => {
+                        const mats = getTaskMaterials(task);
+                        if (!mats || mats.length === 0) return null;
+                        return (
+                          <View style={styles.cardMaterialsWrapper}>
+                            <View style={styles.cardMaterialsHeader}>
+                              <Ionicons name="cube-outline" size={12} color="#047857" />
+                              <Text style={styles.cardMaterialsTitle}>Materials Used ({mats.length}):</Text>
+                            </View>
+                            <View style={styles.cardMaterialChips}>
+                              {mats.map((m, mIdx) => (
+                                <View key={mIdx} style={styles.cardMaterialChip}>
+                                  <Text style={styles.cardMaterialChipText}>
+                                    {m.name}: <Text style={{ fontFamily: 'Inter-SemiBold', color: '#065F46' }}>{m.quantity} {m.unit}</Text>
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                          </View>
+                        );
+                      })()}
                     </View>
                   )}
                 </View>
@@ -1287,21 +1410,20 @@ export default function MilestoneTaskDetail() {
                 </View>
               </View>
 
-              <View style={styles.confirmFinalBtnWrapper}>
-                <TouchableOpacity 
-                  style={styles.confirmFinalBtn} 
-                  onPress={() => finalizeToggle(activeTaskIndex, tempImageUri, completionNote)}
-                >
-                  <Text style={styles.confirmFinalBtnText}>Finalize & Mark Completed</Text>
-                  <Feather name="check-circle" size={18} color="#FFF" />
-                </TouchableOpacity>
-              </View>
-
+              {/* MATERIALS USED (Placed logically BEFORE the final submit button) */}
               <View style={styles.usageSection}>
                 <View style={styles.usageHeader}>
-                  <Text style={styles.usageLabel}>MATERIALS USED</Text>
-                  <Ionicons name="cube-outline" size={16} color="#64748B" />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="cube-outline" size={16} color="#2563EB" />
+                    <Text style={styles.usageLabel}>MATERIALS USED (OPTIONAL)</Text>
+                  </View>
+                  {inventory.length > 0 && (
+                    <Text style={styles.usageCountBadge}>{inventory.length} in stock</Text>
+                  )}
                 </View>
+                <Text style={styles.usageSubtitle}>
+                  Select materials from site inventory and enter quantities used for this task. Stock will be auto-deducted.
+                </Text>
                 {inventory.length > 0 && (
                   <View style={styles.materialSearchBox}>
                     <Feather name="search" size={16} color="#94A3B8" />
@@ -1330,7 +1452,7 @@ export default function MilestoneTaskDetail() {
                           parseFloat(materialUsage[item._id] || 0) > item.balance && { color: '#EF4444' }
                         ]}>
                           Avail: {item.balance} {item.unit}
-                          {parseFloat(materialUsage[item._id] || 0) > item.balance && " (Insufficent)"}
+                          {parseFloat(materialUsage[item._id] || 0) > item.balance && " (Insufficient)"}
                         </Text>
                       </View>
                       <View style={[
@@ -1352,8 +1474,231 @@ export default function MilestoneTaskDetail() {
                   <Text style={styles.noMaterialsText}>No inventory found for this project.</Text>
                 )}
               </View>
+
+              <View style={styles.confirmFinalBtnWrapper}>
+                <TouchableOpacity 
+                  style={styles.confirmFinalBtn} 
+                  onPress={() => finalizeToggle(activeTaskIndex, tempImageUri, completionNote)}
+                >
+                  <Text style={styles.confirmFinalBtnText}>Finalize & Mark Completed</Text>
+                  <Feather name="check-circle" size={18} color="#FFF" />
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </AdaptiveGlass>
+        </View>
+      </Modal>
+
+      {/* Submitted Task Details Modal */}
+      <Modal 
+        visible={isCompletedTaskDetailVisible} 
+        transparent 
+        animationType="slide" 
+        statusBarTranslucent
+        onRequestClose={() => setIsCompletedTaskDetailVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={StyleSheet.absoluteFill} 
+            activeOpacity={1} 
+            onPress={() => setIsCompletedTaskDetailVisible(false)} 
+          />
+          <View style={[styles.submittedDetailCard, { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, 20) }]}>
+            <View style={styles.dragHandle} />
+            
+            {/* Header */}
+            <View style={styles.submittedDetailHeader}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <View style={styles.verifiedHeaderBadge}>
+                  <Feather name="check-circle" size={13} color="#059669" />
+                  <Text style={styles.verifiedHeaderBadgeText}>COMPLETED & SUBMITTED</Text>
+                </View>
+                <Text style={styles.submittedDetailTitle} numberOfLines={2}>
+                  {selectedCompletedTask?.title || 'Task Details'}
+                </Text>
+                <Text style={styles.submittedDetailSub}>
+                  {milestone?.name ? `Milestone: ${milestone.name}` : 'Milestone Task Submission'}
+                </Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setIsCompletedTaskDetailVisible(false)} 
+                style={styles.closeBtn}
+              >
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+              showsVerticalScrollIndicator={false} 
+              style={styles.submittedDetailScroll}
+              contentContainerStyle={{ paddingBottom: 24 }}
+            >
+              {/* Submission Status & Audit Card */}
+              <View style={styles.auditStatusCard}>
+                <View style={styles.auditRow}>
+                  <View style={styles.auditIconBox}>
+                    <Feather name="calendar" size={16} color="#059669" />
+                  </View>
+                  <View style={styles.auditCol}>
+                    <Text style={styles.auditLabel}>Submitted Date</Text>
+                    <Text style={styles.auditVal}>
+                      {selectedCompletedTask?.completedAt 
+                        ? new Date(selectedCompletedTask.completedAt).toLocaleString(undefined, { 
+                            dateStyle: 'medium', 
+                            timeStyle: 'short' 
+                          })
+                        : 'Recorded'}
+                    </Text>
+                  </View>
+                </View>
+
+                {(() => {
+                  const assignedId = selectedCompletedTask?.assignedTo?._id || selectedCompletedTask?.assignedTo;
+                  const assignee = projectMembers.find(m => (m._id || m) === assignedId) || (selectedCompletedTask?.assignedTo?.name ? selectedCompletedTask.assignedTo : null);
+                  const submitterName = selectedCompletedTask?.completedByName || assignee?.name;
+                  if (!submitterName) return null;
+                  return (
+                    <View style={[styles.auditRow, { marginTop: 12, borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingTop: 10 }]}>
+                      <View style={[styles.auditIconBox, { backgroundColor: '#E0F2FE' }]}>
+                        <Feather name="user-check" size={16} color="#0284C7" />
+                      </View>
+                      <View style={styles.auditCol}>
+                        <Text style={styles.auditLabel}>Submitted By</Text>
+                        <Text style={styles.auditVal}>{submitterName}</Text>
+                      </View>
+                    </View>
+                  );
+                })()}
+              </View>
+
+              {/* Task Description (if any) */}
+              {selectedCompletedTask?.description ? (
+                <View style={styles.detailSectionBox}>
+                  <Text style={styles.detailSectionLabel}>TASK SCOPE / DESCRIPTION</Text>
+                  <Text style={styles.detailSectionText}>{selectedCompletedTask.description}</Text>
+                </View>
+              ) : null}
+
+              {/* Proof Photo Section */}
+              <View style={styles.detailSectionBox}>
+                <Text style={styles.detailSectionLabel}>WORK PROOF PHOTO</Text>
+                {selectedCompletedTask?.proofImage?.url ? (
+                  <View style={styles.proofFullWrapper}>
+                    <TouchableOpacity 
+                      activeOpacity={0.9} 
+                      onPress={() => setSelectedImage(selectedCompletedTask.proofImage.url)}
+                      style={styles.proofImageClickable}
+                    >
+                      <Image 
+                        source={{ uri: selectedCompletedTask.proofImage.url }} 
+                        style={styles.proofLargeImage} 
+                        resizeMode="cover"
+                      />
+                      <View style={styles.proofZoomOverlay}>
+                        <Feather name="maximize-2" size={14} color="#FFF" />
+                        <Text style={styles.proofZoomText}>Tap to zoom</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.noProofDetailBox}>
+                    <Feather name="image" size={24} color="#94A3B8" />
+                    <Text style={styles.noProofDetailText}>No visual photo proof was uploaded for this task.</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Completion Notes Section */}
+              <View style={styles.detailSectionBox}>
+                <Text style={styles.detailSectionLabel}>COMPLETION NOTES</Text>
+                {selectedCompletedTask?.completionNote ? (
+                  <View style={styles.noteCallout}>
+                    <Feather name="message-square" size={16} color="#2563EB" style={{ marginTop: 2 }} />
+                    <Text style={styles.noteCalloutText}>{selectedCompletedTask.completionNote}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.noNoteDetailText}>No additional completion notes provided.</Text>
+                )}
+              </View>
+
+              {/* MATERIALS USED SECTION - PRIMARY USER NEED */}
+              <View style={styles.detailSectionBox}>
+                {(() => {
+                  const usedMats = getTaskMaterials(selectedCompletedTask);
+                  return (
+                    <>
+                      <View style={styles.materialsSectionHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="cube" size={16} color="#EA580C" />
+                          <Text style={styles.detailSectionLabel}>MATERIALS USED</Text>
+                        </View>
+                        <View style={[styles.matsCountBadge, { backgroundColor: usedMats.length > 0 ? '#FFEDD5' : '#F1F5F9' }]}>
+                          <Text style={[styles.matsCountBadgeText, { color: usedMats.length > 0 ? '#C2410C' : '#64748B' }]}>
+                            {usedMats.length} {usedMats.length === 1 ? 'item' : 'items'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {usedMats.length > 0 ? (
+                        <View style={styles.matsListContainer}>
+                          {usedMats.map((mat, mIdx) => (
+                            <View key={mIdx} style={styles.matDetailRow}>
+                              <View style={styles.matDetailIconBox}>
+                                <Ionicons name="cube-outline" size={18} color="#EA580C" />
+                              </View>
+                              <View style={styles.matDetailInfo}>
+                                <Text style={styles.matDetailName}>{mat.name || 'Site Material'}</Text>
+                                <Text style={styles.matDetailSub}>Consumed for this milestone task</Text>
+                              </View>
+                              <View style={styles.matDetailQtyBox}>
+                                <Text style={styles.matDetailQtyNum}>{mat.quantity}</Text>
+                                <Text style={styles.matDetailQtyUnit}>{mat.unit || 'Units'}</Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      ) : (
+                        <View style={styles.emptyMaterialsBox}>
+                          <Ionicons name="cube-outline" size={32} color="#CBD5E1" />
+                          <Text style={styles.emptyMaterialsTitle}>No Materials Logged</Text>
+                          <Text style={styles.emptyMaterialsSub}>No inventory materials were recorded for this task completion.</Text>
+                        </View>
+                      )}
+                    </>
+                  );
+                })()}
+              </View>
+
+              {/* Source Snag if any */}
+              {selectedCompletedTask?.sourceSnag ? (
+                <View style={styles.detailSectionBox}>
+                  <Text style={styles.detailSectionLabel}>ORIGINATING SNAG</Text>
+                  <TouchableOpacity 
+                    style={styles.snagLinkBtn}
+                    onPress={() => {
+                      const sId = typeof selectedCompletedTask.sourceSnag === 'object' 
+                        ? selectedCompletedTask.sourceSnag._id 
+                        : selectedCompletedTask.sourceSnag;
+                      setIsCompletedTaskDetailVisible(false);
+                      handleViewSnag(sId);
+                    }}
+                  >
+                    <Feather name="alert-circle" size={16} color="#3B82F6" />
+                    <Text style={styles.snagLinkBtnText}>View Linked Snag Inspection</Text>
+                    <Feather name="arrow-right" size={14} color="#3B82F6" />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {/* Done button */}
+              <TouchableOpacity
+                style={styles.detailCloseActionBtn}
+                onPress={() => setIsCompletedTaskDetailVisible(false)}
+              >
+                <Text style={styles.detailCloseActionBtnText}>Close Details</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
         </View>
       </Modal>
 
@@ -1553,4 +1898,65 @@ const styles = StyleSheet.create({
   completionInfo: { marginTop: 6 },
   noteBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginTop: 4, gap: 6, alignSelf: 'flex-start' },
   noteText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#059669', fontStyle: 'italic' },
+
+  // Task Card Submission & Materials Styles
+  viewSubmissionChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#D1FAE5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 3 },
+  viewSubmissionChipText: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#059669' },
+  cardMaterialsWrapper: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#D1FAE5' },
+  cardMaterialsHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
+  cardMaterialsTitle: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#047857', letterSpacing: 0.5, textTransform: 'uppercase' },
+  cardMaterialChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  cardMaterialChip: { backgroundColor: '#FFFFFF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#A7F3D0' },
+  cardMaterialChipText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#065F46' },
+
+  // Usage Section Extras
+  usageSubtitle: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B', marginBottom: 12, lineHeight: 18 },
+  usageCountBadge: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#2563EB', backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+
+  // Submitted Task Details Modal Styles
+  submittedDetailCard: { backgroundColor: '#FFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 20, paddingTop: 16, width: '100%' },
+  submittedDetailHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', marginBottom: 16 },
+  verifiedHeaderBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 6, borderWidth: 1, borderColor: '#D1FAE5' },
+  verifiedHeaderBadgeText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#059669', letterSpacing: 0.5 },
+  submittedDetailTitle: { fontSize: 18, fontFamily: 'Inter-Bold', color: '#0F172A', lineHeight: 24 },
+  submittedDetailSub: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
+  submittedDetailScroll: { flexGrow: 0 },
+  auditStatusCard: { backgroundColor: '#F8FAFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 16 },
+  auditRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  auditIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center' },
+  auditCol: { flex: 1 },
+  auditLabel: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' },
+  auditVal: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A', marginTop: 2 },
+  detailSectionBox: { marginBottom: 16 },
+  detailSectionLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', letterSpacing: 0.8, marginBottom: 8, textTransform: 'uppercase' },
+  detailSectionText: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#334155', lineHeight: 22, backgroundColor: '#F8FAFF', padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#F1F5F9' },
+  proofFullWrapper: { borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#0F172A' },
+  proofImageClickable: { position: 'relative', width: '100%', height: 220 },
+  proofLargeImage: { width: '100%', height: '100%' },
+  proofZoomOverlay: { position: 'absolute', bottom: 10, right: 10, backgroundColor: 'rgba(15, 23, 42, 0.75)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  proofZoomText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#FFF' },
+  noProofDetailBox: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F8FAFF', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' },
+  noProofDetailText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', flex: 1 },
+  noteCallout: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#EFF6FF', padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#DBEAFE' },
+  noteCalloutText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#1E40AF', lineHeight: 20, flex: 1 },
+  noNoteDetailText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', fontStyle: 'italic' },
+  materialsSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  matsCountBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  matsCountBadgeText: { fontSize: 11, fontFamily: 'Inter-Bold' },
+  matsListContainer: { gap: 8 },
+  matDetailRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FFEDD5', borderRadius: 14, padding: 12, gap: 12 },
+  matDetailIconBox: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#FED7AA', justifyContent: 'center', alignItems: 'center' },
+  matDetailInfo: { flex: 1 },
+  matDetailName: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#9A3412' },
+  matDetailSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#C2410C', marginTop: 2 },
+  matDetailQtyBox: { backgroundColor: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#FDBA74', alignItems: 'center' },
+  matDetailQtyNum: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#C2410C' },
+  matDetailQtyUnit: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#EA580C' },
+  emptyMaterialsBox: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFF', padding: 20, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', gap: 6 },
+  emptyMaterialsTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B', marginTop: 4 },
+  emptyMaterialsSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
+  snagLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F0F7FF', padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#BFDBFE' },
+  snagLinkBtnText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#1D4ED8' },
+  detailCloseActionBtn: { backgroundColor: '#0F172A', height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
+  detailCloseActionBtnText: { fontSize: 15, fontFamily: 'Inter-SemiBold', color: '#FFF' },
 });
