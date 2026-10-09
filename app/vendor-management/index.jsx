@@ -43,6 +43,11 @@ export default function VendorManagementDashboard() {
   const [newVendorContact, setNewVendorContact] = useState('');
   const [newVendorEmail, setNewVendorEmail] = useState('');
   const [newVendorPhone, setNewVendorPhone] = useState('');
+  const [newVendorGst, setNewVendorGst] = useState('');
+  const [newVendorPaymentTerms, setNewVendorPaymentTerms] = useState('');
+  const [newVendorBankName, setNewVendorBankName] = useState('');
+  const [newVendorAccountNumber, setNewVendorAccountNumber] = useState('');
+  const [newVendorIfscCode, setNewVendorIfscCode] = useState('');
 
   const { showToast } = useToast();
 
@@ -85,10 +90,15 @@ export default function VendorManagementDashboard() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          name: newVendorName,
-          contactPerson: newVendorContact,
-          email: newVendorEmail,
-          phoneNumber: newVendorPhone,
+          name: newVendorName.trim(),
+          contactPerson: newVendorContact.trim(),
+          email: newVendorEmail.trim(),
+          phoneNumber: newVendorPhone.trim(),
+          gstNumber: newVendorGst.trim(),
+          paymentTerms: newVendorPaymentTerms.trim(),
+          bankName: newVendorBankName.trim(),
+          accountNumber: newVendorAccountNumber.trim(),
+          ifscCode: newVendorIfscCode.trim(),
         }),
       });
 
@@ -121,6 +131,11 @@ export default function VendorManagementDashboard() {
     setNewVendorContact('');
     setNewVendorEmail('');
     setNewVendorPhone('');
+    setNewVendorGst('');
+    setNewVendorPaymentTerms('');
+    setNewVendorBankName('');
+    setNewVendorAccountNumber('');
+    setNewVendorIfscCode('');
   };
 
   const handleEditVendor = (vendor) => {
@@ -130,10 +145,15 @@ export default function VendorManagementDashboard() {
     }
     setIsEditingVendor(true);
     setEditingVendorId(vendor._id);
-    setNewVendorName(vendor.name);
+    setNewVendorName(vendor.name || '');
     setNewVendorContact(vendor.contactPerson || '');
     setNewVendorEmail(vendor.email || '');
     setNewVendorPhone(vendor.phoneNumber || '');
+    setNewVendorGst(vendor.gstNumber || vendor.taxId || '');
+    setNewVendorPaymentTerms(vendor.paymentTerms || '');
+    setNewVendorBankName(vendor.bankName || '');
+    setNewVendorAccountNumber(vendor.accountNumber || '');
+    setNewVendorIfscCode(vendor.ifscCode || '');
     setIsAddVendorVisible(true);
   };
 
@@ -342,6 +362,31 @@ export default function VendorManagementDashboard() {
                 <Text style={styles.inputLabel}>Phone Number</Text>
                 <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
                     <TextInput style={styles.textInput} placeholder="e.g. +1 234 567 8900" keyboardType="phone-pad" placeholderTextColor="#94A3B8" value={newVendorPhone} onChangeText={setNewVendorPhone} />
+                </AdaptiveGlass>
+
+                <Text style={styles.inputLabel}>Tax ID / VAT / GST No.</Text>
+                <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
+                    <TextInput style={styles.textInput} placeholder="e.g. TAX-ID-992810 / 27AAAAA0000A1Z5" autoCapitalize="characters" placeholderTextColor="#94A3B8" value={newVendorGst} onChangeText={setNewVendorGst} />
+                </AdaptiveGlass>
+
+                <Text style={styles.inputLabel}>Payment Terms</Text>
+                <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
+                    <TextInput style={styles.textInput} placeholder="e.g. Net 30 Days, 50% Advance" placeholderTextColor="#94A3B8" value={newVendorPaymentTerms} onChangeText={setNewVendorPaymentTerms} />
+                </AdaptiveGlass>
+
+                <Text style={styles.inputLabel}>Bank Name</Text>
+                <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
+                    <TextInput style={styles.textInput} placeholder="e.g. HDFC Bank / Chase" placeholderTextColor="#94A3B8" value={newVendorBankName} onChangeText={setNewVendorBankName} />
+                </AdaptiveGlass>
+
+                <Text style={styles.inputLabel}>Account Number</Text>
+                <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
+                    <TextInput style={styles.textInput} placeholder="e.g. 50200012345678" keyboardType="numeric" placeholderTextColor="#94A3B8" value={newVendorAccountNumber} onChangeText={setNewVendorAccountNumber} />
+                </AdaptiveGlass>
+
+                <Text style={styles.inputLabel}>IFSC / Branch Code</Text>
+                <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
+                    <TextInput style={styles.textInput} placeholder="e.g. HDFC0001234" autoCapitalize="characters" placeholderTextColor="#94A3B8" value={newVendorIfscCode} onChangeText={setNewVendorIfscCode} />
                 </AdaptiveGlass>
 
                 <TouchableOpacity

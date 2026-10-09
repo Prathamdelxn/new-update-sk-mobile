@@ -12,7 +12,7 @@ import { useToast } from '../context/ToastContext';
 import interiorApiClient from '../services/interiorApiClient';
 import interiorCrmService from '../services/interiorCrmService';
 import { queryKeys, invalidateCrmQueries, invalidateProjectQueries, useQuerySetter } from '../context/QueryProvider';
-import { parseMaxBudget } from '../utils/format';
+import { parseMaxBudget, formatExactCurrency } from '../utils/format';
 import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../utils/crmValidation';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
@@ -20,6 +20,10 @@ import * as Sharing from 'expo-sharing';
 import { WebView } from 'react-native-webview';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import BoqBuilderModal from '../components/crm/BoqBuilderModal';
+import BoqDrawingViewerModal from '../components/crm/BoqDrawingViewerModal';
+import QuotationBuilderModal from '../components/crm/QuotationBuilderModal';
+import SendQuotationModal from '../components/crm/SendQuotationModal';
+import DrawingConfirmApproveModal from '../components/crm/DrawingConfirmApproveModal';
 import LogSiteVisitModal from '../components/crm/LogSiteVisitModal';
 import LogRequirementsModal from '../components/crm/LogRequirementsModal';
 import UploadDesignModal from '../components/crm/UploadDesignModal';
@@ -271,10 +275,14 @@ export default function Lead360Screen() {
   const [approvalModalAction, setApprovalModalAction] = useState('approve');
   const [revisionDrawing, setRevisionDrawing] = useState(null);
   const [approvingDrawingId, setApprovingDrawingId] = useState(null);
+  const [confirmApproveDrawing, setConfirmApproveDrawing] = useState(null);
+  const [previewLightboxDrawing, setPreviewLightboxDrawing] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
 
   // Quotation Builder Modal State
   const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [editingQuoteIdx, setEditingQuoteIdx] = useState(null);
+  const [sendQuoteModalQuote, setSendQuoteModalQuote] = useState(null);
   const [quoteItems, setQuoteItems] = useState([{ description: '', quantity: '1', unitPrice: '' }]);
   const [quoteTax, setQuoteTax] = useState('18');
   const [quoteDiscount, setQuoteDiscount] = useState('0');
@@ -284,6 +292,7 @@ export default function Lead360Screen() {
   const [showQuoteDocModal, setShowQuoteDocModal] = useState(false);
   const [sendingQuoteEmail, setSendingQuoteEmail] = useState(false);
   const [downloadingQuotePdf, setDownloadingQuotePdf] = useState(false);
+  const [downloadingBoqPdf, setDownloadingBoqPdf] = useState(false);
 
   const isConverted = lead?.status === 'Won' || lead?.status === 'Converted' || !!lead?.linkedProject;
   const isLost = lead?.status === 'Lost';
@@ -904,17 +913,20 @@ export default function Lead360Screen() {
 
   // Builds the printable A4 quotation document (mirrors the web QuotationPreview layout)
   const buildQuotationHtml = (targetLead, quote) => {
+    const currency = targetLead?.currency || 'INR';
     const items = quote?.items || [];
     const rowsHtml = items.map((item) => {
       const qty = Number(item.quantity) || 0;
+      const unitStr = item.unit ? ` ${item.unit}` : '';
       const unitPrice = Number(item.unitPrice || item.rate || 0);
       const total = Number(item.total) || qty * unitPrice;
+      const itemTitle = typeof item.description === 'string' ? item.description.split('\n')[0] : (item.description || item.itemName || 'Line Item');
       return `
         <tr>
-          <td class="desc">${item.description || 'Line Item'}</td>
-          <td class="center">${qty}</td>
-          <td class="right">₹${Math.round(unitPrice).toLocaleString('en-IN')}</td>
-          <td class="right bold">₹${Math.round(total).toLocaleString('en-IN')}</td>
+          <td class="desc">${itemTitle}</td>
+          <td class="center">${qty}${unitStr}</td>
+          <td class="right">${formatExactCurrency(unitPrice, currency)}</td>
+          <td class="right bold">${formatExactCurrency(total, currency)}</td>
         </tr>`;
     }).join('');
 
@@ -923,8 +935,10 @@ export default function Lead360Screen() {
     const tax = Number(quote?.tax) || Math.round(subtotal * (taxPercentage / 100));
     const discount = Number(quote?.discount) || 0;
     const grandTotal = Number(quote?.grandTotal) || Math.max(0, subtotal + tax - discount);
-    const notes = quote?.notes || '1. Quotation is valid for 15 days.\n2. 50% advance payment required to commence work.\n3. Goods once sold will not be taken back.';
+    const notes = quote?.notes || '1. Quotation is valid for 30 days.\n2. 50% advance payment required to commence work.\n3. Goods once delivered and approved will not be returned.';
     const createdDate = quote?.createdAt ? new Date(quote.createdAt).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+    const quoteTitle = quote?.title ? quote.title.toUpperCase() : 'COMMERCIAL QUOTATION';
+    const quoteSub = quote?.title || `Quotation Version ${quote?.version || 1}`;
 
     return `
       <html>
@@ -934,7 +948,7 @@ export default function Lead360Screen() {
             * { box-sizing: border-box; }
             body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #0F172A; padding: 32px; }
             .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #E0E7FF; padding-bottom: 24px; margin-bottom: 28px; }
-            .header h1 { font-size: 30px; color: #312E81; margin: 0; letter-spacing: -0.5px; }
+            .header h1 { font-size: 26px; color: #312E81; margin: 0; letter-spacing: -0.5px; }
             .header .ver { font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
             .company { text-align: right; }
             .company h2 { font-size: 20px; margin: 0; color: #0F172A; }
@@ -952,9 +966,9 @@ export default function Lead360Screen() {
             td.desc { font-weight: 600; color: #1E293B; }
             td.bold { font-weight: 700; color: #0F172A; }
             .totals { display: flex; justify-content: flex-end; border-top: 1px solid #E2E8F0; padding-top: 20px; }
-            .totals-box { width: 260px; }
+            .totals-box { width: 280px; }
             .totals-box .row { display: flex; justify-content: space-between; font-size: 13px; color: #475569; margin-bottom: 8px; }
-            .totals-box .grand { display: flex; justify-content: space-between; font-size: 20px; font-weight: 800; color: #312E81; border-top: 2px solid #E0E7FF; padding-top: 10px; margin-top: 6px; }
+            .totals-box .grand { display: flex; justify-content: space-between; font-size: 19px; font-weight: 800; color: #312E81; border-top: 2px solid #E0E7FF; padding-top: 10px; margin-top: 6px; }
             .terms { margin-top: 40px; padding-top: 20px; border-top: 1px solid #F1F5F9; }
             .terms .label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
             .terms p { font-size: 11px; color: #64748B; white-space: pre-wrap; line-height: 1.6; }
@@ -963,8 +977,8 @@ export default function Lead360Screen() {
         <body>
           <div class="header">
             <div>
-              <h1>QUOTATION</h1>
-              <p class="ver">Version ${quote?.version || 1}</p>
+              <h1>${quoteTitle}</h1>
+              <p class="ver">${quoteSub}</p>
             </div>
             <div class="company">
               <h2>SKY INTERIOR</h2>
@@ -979,30 +993,28 @@ export default function Lead360Screen() {
               <p class="name">${targetLead?.name || ''}</p>
               <p>${targetLead?.mobileNumber || ''}</p>
               ${targetLead?.email ? `<p>${targetLead.email}</p>` : ''}
-            </div>
-            <div style="text-align:right;">
-              <p class="label">Details</p>
-              <p><strong>Date:</strong> ${createdDate}</p>
-              <p><strong>Lead ID:</strong> ${targetLead?.leadNumber || 'LD-XXXX'}</p>
+              <p style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Date: ${createdDate}</p>
             </div>
           </div>
           <table>
             <thead>
               <tr>
-                <th>Description</th>
-                <th class="center">Qty</th>
-                <th class="right">Unit Price</th>
-                <th class="right">Total</th>
+                <th style="width: 50%;">Description</th>
+                <th class="center" style="width: 15%;">Qty</th>
+                <th class="right" style="width: 15%;">Unit Price</th>
+                <th class="right" style="width: 20%;">Total</th>
               </tr>
             </thead>
-            <tbody>${rowsHtml}</tbody>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
           </table>
           <div class="totals">
             <div class="totals-box">
-              <div class="row"><span>Subtotal</span><span>₹${Math.round(subtotal).toLocaleString('en-IN')}</span></div>
-              <div class="row"><span>Tax (${taxPercentage}%)</span><span>₹${Math.round(tax).toLocaleString('en-IN')}</span></div>
-              ${discount > 0 ? `<div class="row"><span>Discount</span><span>- ₹${Math.round(discount).toLocaleString('en-IN')}</span></div>` : ''}
-              <div class="grand"><span>Grand Total</span><span>₹${Math.round(grandTotal).toLocaleString('en-IN')}</span></div>
+              <div class="row"><span>Subtotal</span><span>${formatExactCurrency(subtotal, currency)}</span></div>
+              <div class="row"><span>Tax (${taxPercentage}%)</span><span>${formatExactCurrency(tax, currency)}</span></div>
+              ${discount > 0 ? `<div class="row" style="color: #059669;"><span>Discount</span><span>- ${formatExactCurrency(discount, currency)}</span></div>` : ''}
+              <div class="grand"><span>Grand Total</span><span>${formatExactCurrency(grandTotal, currency)}</span></div>
             </div>
           </div>
           <div class="terms">
@@ -1010,7 +1022,8 @@ export default function Lead360Screen() {
             <p>${notes}</p>
           </div>
         </body>
-      </html>`;
+      </html>
+    `;
   };
 
   const handleSendQuotationEmail = async () => {
@@ -1048,6 +1061,169 @@ export default function Lead360Screen() {
       showToast(e.message || 'Failed to generate quotation PDF', 'error');
     } finally {
       setDownloadingQuotePdf(false);
+    }
+  };
+
+  const buildBoqHtml = (targetLead, boq) => {
+    const currency = targetLead?.currency || 'INR';
+    const items = boq?.items || [];
+    const sections = boq?.sections && boq.sections.length > 0 ? boq.sections : null;
+
+    let itemsTableHtml = '';
+    if (sections) {
+      itemsTableHtml = sections.map((sec, sIdx) => {
+        const secItems = items.filter((it) => (it.sectionId ? it.sectionId === sec.id : it.category === sec.sectionTitle));
+        const secTotal = secItems.reduce((acc, it) => acc + (Number(it.amount) || ((Number(it.quantity) || 0) * (Number(it.rate) || 0))), 0);
+        return `
+          <tr style="background:#F8FAFC;">
+            <td colspan="5" style="padding:10px 8px;font-weight:700;color:#1E293B;border-top:1.5px solid #CBD5E1;border-bottom:1px solid #CBD5E1;">
+              SECTION ${sIdx + 1}: ${sec.sectionTitle || 'Scope Section'} 
+              <span style="float:right;color:#0F172A;">${formatExactCurrency(secTotal, currency)}</span>
+            </td>
+          </tr>
+          ${secItems.map((item, idx) => {
+            const qty = Number(item.quantity) || 0;
+            const rate = Number(item.rate) || 0;
+            const amt = Number(item.amount) || qty * rate;
+            return `
+              <tr>
+                <td style="width:30px;text-align:center;color:#64748B;">${idx + 1}</td>
+                <td class="desc">
+                  ${item.itemName || item.description || 'Item'}
+                  ${item.technicalDescription ? `<br/><span style="font-size:11px;color:#64748B;font-weight:normal;">${item.technicalDescription}</span>` : ''}
+                  ${item.brandMake ? `<br/><span style="font-size:10.5px;color:#2563EB;font-weight:600;">Brand/Make: ${item.brandMake}</span>` : ''}
+                </td>
+                <td class="center">${qty} ${item.unit || 'nos'}</td>
+                <td class="right">${formatExactCurrency(rate, currency)}</td>
+                <td class="right bold">${formatExactCurrency(amt, currency)}</td>
+              </tr>
+            `;
+          }).join('')}
+        `;
+      }).join('');
+    } else {
+      itemsTableHtml = items.map((item, idx) => {
+        const qty = Number(item.quantity) || 0;
+        const rate = Number(item.rate) || 0;
+        const amt = Number(item.amount) || qty * rate;
+        return `
+          <tr>
+            <td style="width:30px;text-align:center;color:#64748B;">${idx + 1}</td>
+            <td class="desc">${item.itemName || item.description || 'Line Item'}</td>
+            <td class="center">${qty} ${item.unit || 'nos'}</td>
+            <td class="right">${formatExactCurrency(rate, currency)}</td>
+            <td class="right bold">${formatExactCurrency(amt, currency)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    const totalAmount = Number(boq?.totalAmount) || items.reduce((acc, it) => acc + (Number(it.amount) || ((Number(it.quantity) || 0) * (Number(it.rate) || 0))), 0);
+    const notes = boq?.notes || 'Standard specifications and BOQ terms apply.';
+    const createdDate = boq?.createdAt ? new Date(boq.createdAt).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+
+    return `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            * { box-sizing: border-box; }
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #0F172A; padding: 32px; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #E2E8F0; padding-bottom: 24px; margin-bottom: 28px; }
+            .header h1 { font-size: 28px; color: #1E293B; margin: 0; letter-spacing: -0.5px; }
+            .header .ver { font-size: 12px; font-weight: 700; color: #2563EB; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+            .company { text-align: right; }
+            .company h2 { font-size: 20px; margin: 0; color: #0F172A; }
+            .company p { font-size: 12px; color: #64748B; margin: 2px 0; }
+            .meta { display: flex; justify-content: space-between; margin-bottom: 28px; gap: 16px; }
+            .meta .label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+            .meta .name { font-size: 16px; font-weight: 700; }
+            .meta p { font-size: 13px; color: #475569; margin: 2px 0; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+            thead tr { border-bottom: 2px solid #0F172A; }
+            th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 10px 4px; color: #0F172A; }
+            th.center, td.center { text-align: center; }
+            th.right, td.right { text-align: right; }
+            td { padding: 10px 4px; font-size: 13px; border-bottom: 1px solid #F1F5F9; color: #334155; }
+            td.desc { font-weight: 600; color: #1E293B; }
+            .bold { font-weight: 700; color: #0F172A; }
+            .totals { margin-left: auto; width: 300px; margin-bottom: 32px; border-top: 2px solid #0F172A; padding-top: 12px; }
+            .totals-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: 800; color: #0F172A; }
+            .notes { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin-top: 24px; font-size: 12px; line-height: 1.6; color: #475569; }
+            .notes h4 { margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #0F172A; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>Bill of Quantities (BOQ)</h1>
+              <div class="ver">Version ${boq?.version || 1} • Status: ${boq?.status || 'Draft'}</div>
+            </div>
+            <div class="company">
+              <h2>Sky Interior Design</h2>
+              <p>Interior Architecture & Turnkey Solutions</p>
+              <p>Date: ${createdDate}</p>
+            </div>
+          </div>
+          <div class="meta">
+            <div>
+              <div class="label">Project / Client</div>
+              <div class="name">${targetLead?.name || 'Client'}</div>
+              <p>${targetLead?.email || ''} ${targetLead?.phone ? '• ' + targetLead.phone : ''}</p>
+              <p>${targetLead?.projectLocation || targetLead?.location || ''}</p>
+            </div>
+            <div style="text-align:right;">
+              <div class="label">BOQ Details</div>
+              <p><b>Items Count:</b> ${items.length} line items</p>
+              <p><b>Sections:</b> ${sections ? sections.length : 1} section(s)</p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:30px;text-align:center;">#</th>
+                <th>Item Description / Specification</th>
+                <th class="center">Qty & UOM</th>
+                <th class="right">Unit Rate</th>
+                <th class="right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsTableHtml}
+            </tbody>
+          </table>
+          <div class="totals">
+            <div class="totals-row">
+              <span>Total Estimated BOQ</span>
+              <span>${formatExactCurrency(totalAmount, currency)}</span>
+            </div>
+          </div>
+          ${notes ? `
+            <div class="notes">
+              <h4>BOQ Remarks & Notes</h4>
+              <p>${notes.replace(/\n/g, '<br/>')}</p>
+            </div>
+          ` : ''}
+        </body>
+      </html>
+    `;
+  };
+
+  const handleDownloadBoqPdf = async (boq) => {
+    if (!boq) return;
+    setDownloadingBoqPdf(true);
+    try {
+      const html = buildBoqHtml(lead, boq);
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `BOQ v${boq.version || 1}` });
+      } else {
+        showToast('Sharing is not available on this device.', 'error');
+      }
+    } catch (e) {
+      showToast(e.message || 'Failed to generate BOQ PDF', 'error');
+    } finally {
+      setDownloadingBoqPdf(false);
     }
   };
 
@@ -1160,19 +1336,19 @@ export default function Lead360Screen() {
     }
   };
 
-  const openQuoteModal = () => {
+  const openQuoteModal = (quoteIdx = null) => {
     const existingQuotations = lead?.quotations || [];
-    const latest = existingQuotations.length > 0 ? existingQuotations[existingQuotations.length - 1] : null;
-    if (latest && latest.status !== 'Rejected' && latest.status !== 'Draft') {
-      Alert.alert(
-        'Cannot Create New Version',
-        `The current quotation (v${latest.version}) is "${latest.status}". A new version can only be created if the latest one is Rejected.`
-      );
-      return;
+    if (quoteIdx === null || quoteIdx === undefined) {
+      const latest = existingQuotations.length > 0 ? existingQuotations[existingQuotations.length - 1] : null;
+      if (latest && latest.status !== 'Rejected' && latest.status !== 'Draft') {
+        Alert.alert(
+          'Cannot Create New Version',
+          `The current quotation (v${latest.version}) is "${latest.status}". A new version can only be created if the latest one is Rejected or in Draft.`
+        );
+        return;
+      }
     }
-    if (!quoteItems || quoteItems.length === 0) {
-      setQuoteItems([{ description: '', quantity: '1', unitPrice: '' }]);
-    }
+    setEditingQuoteIdx(typeof quoteIdx === 'number' ? quoteIdx : null);
     setShowQuoteModal(true);
   };
 
@@ -2534,7 +2710,14 @@ export default function Lead360Screen() {
                       const isApprovingThis = approvingDrawingId === (file._id || file.id || idx);
                       return (
                         <View key={file._id || file.id || idx} style={[s.fileCard, { flexDirection: 'column', padding: 0, overflow: 'hidden' }]}>
-                          <TouchableOpacity onPress={() => file.url && Linking.openURL(file.url)} activeOpacity={0.8}>
+                          <TouchableOpacity
+                            onPress={() => {
+                              if (file.url) {
+                                setPreviewLightboxDrawing(file);
+                              }
+                            }}
+                            activeOpacity={0.8}
+                          >
                             {/* Thumbnail for image files */}
                             {file.fileType === 'image' && file.url ? (
                               <Image source={{ uri: file.url }} style={{ width: '100%', height: 160, resizeMode: 'cover', backgroundColor: '#E2E8F0' }} />
@@ -2607,7 +2790,7 @@ export default function Lead360Screen() {
                                   <>
                                     <TouchableOpacity
                                       style={[s.smallBtn, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
-                                      onPress={() => handleDirectApproveDrawing(file)}
+                                      onPress={() => setConfirmApproveDrawing(file)}
                                       disabled={isApprovingThis}
                                     >
                                       {isApprovingThis ? <ActivityIndicator size="small" color="#16A34A" /> : (
@@ -2771,29 +2954,45 @@ export default function Lead360Screen() {
                           Updated: {new Date(activeBoq.createdAt || Date.now()).toLocaleDateString()}
                         </Text>
                       </View>
-                      {boqIsLocked ? (
-                        <View style={s.boqLockedPill}>
-                          <Ionicons name="lock-closed" size={12} color="#64748B" />
-                          <Text style={s.boqLockedPillText}>{isLost ? 'Lead Lost (Locked)' : 'Quotation Approved (Locked)'}</Text>
-                        </View>
-                      ) : (
-                        <>
-                          <TouchableOpacity
-                            style={s.editBoqBtn}
-                            onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}
-                          >
-                            <Ionicons name="create-outline" size={13} color="#2563EB" />
-                            <Text style={s.editBoqBtnText}>Edit</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={s.newBoqBtn}
-                            onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
-                          >
-                            <Ionicons name="add" size={14} color="#FFFFFF" />
-                            <Text style={s.newBoqBtnText}>New Rev</Text>
-                          </TouchableOpacity>
-                        </>
-                      )}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <TouchableOpacity
+                          style={[s.editBoqBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
+                          onPress={() => handleDownloadBoqPdf(activeBoq)}
+                          disabled={downloadingBoqPdf}
+                        >
+                          {downloadingBoqPdf ? (
+                            <ActivityIndicator size="small" color="#475569" />
+                          ) : (
+                            <>
+                              <Ionicons name="share-outline" size={13} color="#475569" />
+                              <Text style={[s.editBoqBtnText, { color: '#475569' }]}>Export</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                        {boqIsLocked ? (
+                          <View style={s.boqLockedPill}>
+                            <Ionicons name="lock-closed" size={12} color="#64748B" />
+                            <Text style={s.boqLockedPillText}>{isLost ? 'Lead Lost (Locked)' : 'Quotation Approved (Locked)'}</Text>
+                          </View>
+                        ) : (
+                          <>
+                            <TouchableOpacity
+                              style={s.editBoqBtn}
+                              onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}
+                            >
+                              <Ionicons name="create-outline" size={13} color="#2563EB" />
+                              <Text style={s.editBoqBtnText}>Edit</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={s.newBoqBtn}
+                              onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
+                            >
+                              <Ionicons name="add" size={14} color="#FFFFFF" />
+                              <Text style={s.newBoqBtnText}>New Rev</Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                      </View>
                     </View>
 
                     {/* Primary action — placed right below the header so it's reachable
@@ -3003,9 +3202,19 @@ export default function Lead360Screen() {
                               </Text>
                             </View>
                             {!isConverted && (
-                              <TouchableOpacity onPress={() => handleDeleteQuotation(activeQuoteIdx)} style={{ padding: 6, backgroundColor: '#FEF2F2', borderRadius: 8 }}>
-                                <Ionicons name="trash-outline" size={15} color="#DC2626" />
-                              </TouchableOpacity>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                {(currentQuote?.status === 'Draft' || currentQuote?.status === 'Sent') && (
+                                  <TouchableOpacity
+                                    onPress={() => openQuoteModal(activeQuoteIdx)}
+                                    style={{ padding: 6, backgroundColor: '#EFF6FF', borderRadius: 8 }}
+                                  >
+                                    <Ionicons name="create-outline" size={15} color="#2563EB" />
+                                  </TouchableOpacity>
+                                )}
+                                <TouchableOpacity onPress={() => handleDeleteQuotation(activeQuoteIdx)} style={{ padding: 6, backgroundColor: '#FEF2F2', borderRadius: 8 }}>
+                                  <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                                </TouchableOpacity>
+                              </View>
                             )}
                           </View>
                         </View>
@@ -3022,18 +3231,12 @@ export default function Lead360Screen() {
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={s.quoteDocActionBtn}
-                            onPress={handleSendQuotationEmail}
+                            onPress={() => setSendQuoteModalQuote(currentQuote)}
                             disabled={sendingQuoteEmail}
                             activeOpacity={0.8}
                           >
-                            {sendingQuoteEmail ? (
-                              <ActivityIndicator size="small" color="#4F46E5" />
-                            ) : (
-                              <>
-                                <Ionicons name="mail-outline" size={14} color="#4F46E5" />
-                                <Text style={s.quoteDocActionText}>Send Email</Text>
-                              </>
-                            )}
+                            <Ionicons name="paper-plane-outline" size={14} color="#4F46E5" />
+                            <Text style={s.quoteDocActionText}>Send / Email</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={s.quoteDocActionBtn}
@@ -3759,233 +3962,50 @@ export default function Lead360Screen() {
         onSuccess={() => fetchData()}
       />
 
-      {/* 7. Quotation Builder Modal (Matches Web Exactly) */}
-      <Modal visible={showQuoteModal} transparent animationType="slide" onRequestClose={() => setShowQuoteModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
-          <View style={[s.modalCard, { maxHeight: '92%', paddingBottom: Platform.OS === 'ios' ? 24 : 16 }]}>
-            {/* Header */}
-            <View style={s.quoteModalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={s.quoteHeaderIconBox}>
-                  <Ionicons name="calculator-outline" size={18} color="#4F46E5" />
-                </View>
-                <View>
-                  <Text style={s.quoteModalTitle}>Quotation Builder</Text>
-                  <Text style={s.quoteModalSubtitle}>
-                    Generating Version {(lead?.quotations?.length || 0) + 1}
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={() => setShowQuoteModal(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={s.quoteCloseBtn}
-              >
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
+      {/* 7. Advanced Quotation Builder Modal */}
+      <QuotationBuilderModal
+        visible={showQuoteModal}
+        onClose={() => {
+          setShowQuoteModal(false);
+          setEditingQuoteIdx(null);
+        }}
+        customerId={id}
+        existingQuotations={lead?.quotations || []}
+        existingBoqs={lead?.boqs || []}
+        editingQuoteIndex={editingQuoteIdx}
+        budgetRange={lead?.budgetRange || lead?.estimatedBudget || lead?.budget}
+        isReadOnly={isReadOnly}
+        onSuccess={() => {
+          showToast('Quotation saved successfully!', 'success');
+          fetchData();
+        }}
+      />
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {/* Line Items Card / Box */}
-              <View style={s.quoteItemsContainer}>
-                {quoteItems.map((item, idx) => {
-                  const itemQty = parseFloat(item.quantity) || 0;
-                  const itemPrice = parseFloat(item.unitPrice) || 0;
-                  const itemTotal = itemQty * itemPrice;
+      {/* 7b. Send Quotation Modal */}
+      <SendQuotationModal
+        isOpen={Boolean(sendQuoteModalQuote)}
+        onClose={() => setSendQuoteModalQuote(null)}
+        customerId={id}
+        customerName={lead?.name}
+        customerEmail={lead?.email}
+        customerPhone={lead?.phone}
+        quotation={sendQuoteModalQuote}
+        onSuccess={() => {
+          showToast('Quotation dispatched successfully!', 'success');
+          fetchData();
+        }}
+      />
 
-                  return (
-                    <View key={idx} style={s.quoteItemCard}>
-                      {/* Row 1: Description + Trash */}
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <TextInput
-                          style={[s.quoteDescInput, { flex: 1 }]}
-                          placeholder="e.g. Modular Kitchen - Acrylic Finish"
-                          placeholderTextColor="#94A3B8"
-                          value={item.description}
-                          onChangeText={(v) => {
-                            const copy = [...quoteItems];
-                            copy[idx].description = v;
-                            setQuoteItems(copy);
-                          }}
-                        />
-                        <TouchableOpacity
-                          style={s.quoteTrashBtn}
-                          onPress={() => {
-                            if (quoteItems.length > 1) {
-                              setQuoteItems(quoteItems.filter((_, i) => i !== idx));
-                            } else {
-                              setQuoteItems([{ description: '', quantity: '1', unitPrice: '' }]);
-                            }
-                          }}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                        >
-                          <Ionicons name="trash-outline" size={16} color="#F87171" />
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* Row 2: Qty / Rate / Total — each with its own labeled, roomy box */}
-                      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginTop: 8 }}>
-                        <View style={{ width: 56 }}>
-                          <Text style={s.quoteFieldLabel}>QTY</Text>
-                          <TextInput
-                            style={s.quoteQtyInput}
-                            placeholder="1"
-                            placeholderTextColor="#94A3B8"
-                            keyboardType="numeric"
-                            value={item.quantity}
-                            onChangeText={(v) => {
-                              const copy = [...quoteItems];
-                              copy[idx].quantity = v;
-                              setQuoteItems(copy);
-                            }}
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.quoteFieldLabel}>RATE (₹)</Text>
-                          <TextInput
-                            style={s.quoteRateInput}
-                            placeholder="0"
-                            placeholderTextColor="#94A3B8"
-                            keyboardType="numeric"
-                            value={item.unitPrice}
-                            onChangeText={(v) => {
-                              const copy = [...quoteItems];
-                              copy[idx].unitPrice = v;
-                              setQuoteItems(copy);
-                            }}
-                          />
-                        </View>
-                        <View style={s.quoteRowTotalBox}>
-                          <Text style={s.quoteFieldLabel}>TOTAL</Text>
-                          <Text style={s.quoteRowTotalText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                            ₹{Math.round(itemTotal).toLocaleString('en-IN')}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
-
-                {/* Add Line Item */}
-                <TouchableOpacity
-                  style={s.addLineItemBtn}
-                  onPress={() => setQuoteItems([...quoteItems, { description: '', quantity: '1', unitPrice: '' }])}
-                >
-                  <Ionicons name="add" size={16} color="#4F46E5" />
-                  <Text style={s.addLineItemText}>Add Line Item</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Client Notes / Terms */}
-              <View style={{ marginTop: 14 }}>
-                <Text style={s.clientNotesLabel}>CLIENT NOTES / TERMS</Text>
-                <TextInput
-                  style={s.clientNotesInput}
-                  multiline
-                  numberOfLines={3}
-                  value={quoteNotes}
-                  onChangeText={setQuoteNotes}
-                  placeholder="E.g., 50% advance required before production begins. Valid for 15 days."
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-
-              {/* Financial Calculation Card */}
-              {(() => {
-                const subtotal = quoteItems.reduce((sum, item) => {
-                  const qty = parseFloat(item.quantity) || 0;
-                  const price = parseFloat(item.unitPrice) || 0;
-                  return sum + (qty * price);
-                }, 0);
-                const taxRate = parseFloat(quoteTax) || 0;
-                const tax = Math.round(((subtotal * taxRate) / 100) * 100) / 100;
-                const discount = parseFloat(quoteDiscount) || 0;
-                const grandTotal = Math.max(0, Math.round((subtotal + tax - discount) * 100) / 100);
-
-                return (
-                  <View style={s.quoteFinancialCard}>
-                    {/* Subtotal */}
-                    <View style={s.quoteFinRow}>
-                      <Text style={s.quoteFinLabel}>Subtotal</Text>
-                      <Text style={s.quoteFinVal}>₹{Math.round(subtotal).toLocaleString('en-IN')}</Text>
-                    </View>
-
-                    {/* Tax (GST) % */}
-                    <View style={s.quoteFinRow}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Text style={s.quoteFinLabel}>Tax (GST) %</Text>
-                        <TextInput
-                          style={s.quoteInlineInput}
-                          keyboardType="numeric"
-                          value={quoteTax}
-                          onChangeText={setQuoteTax}
-                          placeholder="18"
-                          placeholderTextColor="#94A3B8"
-                        />
-                      </View>
-                      <Text style={s.quoteTaxVal}>+ ₹{tax.toLocaleString('en-IN')}</Text>
-                    </View>
-
-                    {/* Discount (₹) */}
-                    <View style={s.quoteFinRow}>
-                      <Text style={s.quoteFinLabel}>Discount (₹)</Text>
-                      <TextInput
-                        style={[s.quoteInlineInput, { width: 68 }]}
-                        keyboardType="numeric"
-                        value={quoteDiscount}
-                        onChangeText={setQuoteDiscount}
-                        placeholder="0"
-                        placeholderTextColor="#94A3B8"
-                      />
-                    </View>
-
-                    {/* Grand Total */}
-                    <View style={s.quoteGrandTotalRow}>
-                      <Text style={s.quoteGrandTotalLabel}>Grand Total</Text>
-                      <Text style={s.quoteGrandTotalVal}>₹{(Math.round(grandTotal * 100) / 100).toLocaleString('en-IN')}</Text>
-                    </View>
-                  </View>
-                );
-              })()}
-            </ScrollView>
-
-            {/* Bottom Footer Action Buttons */}
-            <View style={s.quoteModalFooter}>
-              <TouchableOpacity
-                style={s.quoteCancelBtn}
-                onPress={() => setShowQuoteModal(false)}
-                disabled={submittingAct}
-              >
-                <Text style={s.quoteCancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[s.quoteSaveBtn, submittingAct && { opacity: 0.7 }]}
-                onPress={handleSaveQuotation}
-                disabled={submittingAct}
-              >
-                {submittingAct ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
-                    <Text style={s.quoteSaveText}>Save & Generate</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* 8. BOQ Builder Modal */}
+      {/* 8. Multi-Section BOQ Builder Modal */}
       <BoqBuilderModal
         visible={showBoqModal}
         onClose={() => setShowBoqModal(false)}
         customerId={id}
+        customerName={lead?.name}
+        drawings={lead?.designFiles || lead?.drawings || []}
         existingBoqs={lead?.boqs || []}
         editingBoqIndex={editingBoqIdx}
-        budgetRange={lead?.budgetRange}
+        budgetRange={lead?.budgetRange || lead?.estimatedBudget || lead?.budget}
         isReadOnly={isReadOnly || Boolean(
           (lead?.quotations && lead.quotations.some((q) => ['accepted', 'approved', 'converted', 'signed & accepted'].includes(String(q.status || '').toLowerCase()))) ||
           ['Booking Pending', 'Won', 'Converted'].includes(lead?.status) ||
@@ -3995,6 +4015,27 @@ export default function Lead360Screen() {
           showToast('BOQ saved successfully!', 'success');
           fetchData();
         }}
+      />
+
+      {/* 8b. Drawing Approval Confirmation Modal */}
+      <DrawingConfirmApproveModal
+        isOpen={Boolean(confirmApproveDrawing)}
+        onClose={() => setConfirmApproveDrawing(null)}
+        onConfirm={async () => {
+          const d = confirmApproveDrawing;
+          setConfirmApproveDrawing(null);
+          if (d) await handleDirectApproveDrawing(d);
+        }}
+        drawing={confirmApproveDrawing}
+        leadName={lead?.name}
+      />
+
+      {/* 8c. BOQ & Drawing Lightbox Viewer Modal */}
+      <BoqDrawingViewerModal
+        isOpen={Boolean(previewLightboxDrawing)}
+        onClose={() => setPreviewLightboxDrawing(null)}
+        drawing={previewLightboxDrawing}
+        title={previewLightboxDrawing?.title || previewLightboxDrawing?.name}
       />
 
       {/* 9. Stage Advancement Guided Modals */}
@@ -4089,12 +4130,12 @@ export default function Lead360Screen() {
               </Text>
             </View>
             <TouchableOpacity
-              onPress={handleSendQuotationEmail}
+              onPress={() => setSendQuoteModalQuote(currentQuote)}
               disabled={sendingQuoteEmail}
               style={s.quoteDocHeaderBtn}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              {sendingQuoteEmail ? <ActivityIndicator size="small" color="#4F46E5" /> : <Ionicons name="mail-outline" size={18} color="#4F46E5" />}
+              <Ionicons name="paper-plane-outline" size={18} color="#4F46E5" />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleDownloadQuotationPdf}
@@ -4118,6 +4159,101 @@ export default function Lead360Screen() {
               source={{ html: buildQuotationHtml(lead, currentQuote) }}
               style={{ flex: 1, backgroundColor: '#F1F5F9' }}
             />
+          )}
+          {currentQuote && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              backgroundColor: '#FFFFFF',
+              borderTopWidth: 1,
+              borderTopColor: '#E2E8F0',
+              gap: 10,
+            }}>
+              {currentQuote.status === 'Accepted' && !isConverted && !isLost ? (
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#4F46E5',
+                    borderRadius: 10,
+                    paddingVertical: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                  onPress={() => {
+                    setShowQuoteDocModal(false);
+                    handleConvertToProject(activeQuoteIdx);
+                  }}
+                >
+                  <Ionicons name="rocket-outline" size={17} color="#FFFFFF" />
+                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>Convert to Project</Text>
+                </TouchableOpacity>
+              ) : !isReadOnly && currentQuote.status !== 'Accepted' && currentQuote.status !== 'Rejected' ? (
+                <>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#DCFCE7',
+                      borderWidth: 1,
+                      borderColor: '#86EFAC',
+                      borderRadius: 10,
+                      paddingVertical: 11,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                    onPress={async () => {
+                      await handleQuoteStatus(activeQuoteIdx, 'Accepted');
+                    }}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={16} color="#15803D" />
+                    <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#15803D' }}>Accept</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#FEE2E2',
+                      borderWidth: 1,
+                      borderColor: '#FCA5A5',
+                      borderRadius: 10,
+                      paddingVertical: 11,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                    onPress={async () => {
+                      await handleQuoteStatus(activeQuoteIdx, 'Rejected');
+                    }}
+                  >
+                    <Ionicons name="close-circle-outline" size={16} color="#B91C1C" />
+                    <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#B91C1C' }}>Reject</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+              <TouchableOpacity
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 11,
+                  backgroundColor: '#4F46E5',
+                  borderRadius: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+                onPress={() => {
+                  setSendQuoteModalQuote(currentQuote);
+                }}
+              >
+                <Ionicons name="mail-outline" size={16} color="#FFFFFF" />
+                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>Email</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </SafeAreaView>
       </Modal>

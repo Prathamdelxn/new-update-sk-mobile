@@ -13,7 +13,21 @@ import { useToast } from '../../context/ToastContext';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-const CURRENCIES = ['USD ($)', 'EUR (€)', 'GBP (£)', 'INR (₹)', 'AED (AED)'];
+const CURRENCIES = [
+  'INR (₹)',
+  'AED (AED)',
+  'USD ($)',
+  'EUR (€)',
+  'GBP (£)',
+  'SAR (SAR)',
+  'QAR (QAR)',
+  'OMR (OMR)',
+  'KWD (KWD)',
+  'BHD (BHD)',
+  'SGD (S$)',
+  'CAD (C$)',
+  'AUD (A$)',
+];
 const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
 
 const SettingItem = ({ icon, iconBg, iconColor, title, subtitle, type = 'chevron', value, onPress }) => (

@@ -32,9 +32,38 @@ export const formatCompact = (num) => {
   return num.toString();
 };
 
-export const formatCurrency = (num, currency = 'AED') => {
-  if (num == null || isNaN(num)) return `${currency} 0`;
-  return `${currency} ${Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num)}`;
+export const SYMBOL_MAP = {
+  INR: '₹',
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  AED: 'AED',
+  SAR: 'SAR',
+  QAR: 'QAR',
+  OMR: 'OMR',
+  KWD: 'KWD',
+  BHD: 'BHD',
+  SGD: 'S$',
+  AUD: 'A$',
+  CAD: 'C$',
+};
+
+export const getCurrencySymbol = (code = 'INR') => {
+  if (!code) return '₹';
+  const clean = String(code).trim().toUpperCase();
+  return SYMBOL_MAP[clean] || clean;
+};
+
+export const formatCurrency = (num, currency = 'INR') => {
+  if (num == null || isNaN(num)) return `${getCurrencySymbol(currency)} 0`;
+  const symbol = getCurrencySymbol(currency);
+  return `${symbol} ${Intl.NumberFormat('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num)}`;
+};
+
+export const formatExactCurrency = (num, currency = 'INR') => {
+  if (num == null || isNaN(num)) return `${getCurrencySymbol(currency)} 0`;
+  const symbol = getCurrencySymbol(currency);
+  return `${symbol} ${Math.round(num).toLocaleString('en-IN')}`;
 };
 
 // Parses a free-text budget field (e.g. "15-20 Lakhs", "1.2 Cr", "500000") into a

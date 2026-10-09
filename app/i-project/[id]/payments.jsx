@@ -9,6 +9,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { formatExactCurrency, getCurrencySymbol } from '../../utils/format';
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
 function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
@@ -120,8 +121,8 @@ const EXPENSE_CATEGORIES = [
 
 const PAYMENT_METHODS = ['Bank Transfer', 'UPI', 'RTGS/NEFT', 'Cheque', 'Cash'];
 
-function formatAmount(amount) {
-  return `₹${Math.round(amount || 0).toLocaleString('en-IN')}`;
+function formatAmount(amount, currency = 'INR') {
+  return formatExactCurrency(amount, currency);
 }
 
 function formatDate(val) {
@@ -173,6 +174,7 @@ export default function InteriorPaymentsScreen() {
   const [activeCategory, setActiveCategory] = useState('incoming');
   const [payments, setPayments] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [projectCurrency, setProjectCurrency] = useState('INR');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -189,12 +191,16 @@ export default function InteriorPaymentsScreen() {
   const loadPayments = useCallback(async () => {
     setLoading(true);
     try {
-      const [payRes, poRes] = await Promise.allSettled([
+      const [payRes, poRes, projRes] = await Promise.allSettled([
         interiorApiClient.get(`/projects/${projectId}/payments`),
         interiorApiClient.get(`/projects/${projectId}/procurement`),
+        interiorApiClient.get(`/projects/${projectId}`),
       ]);
       setPayments(payRes.status === 'fulfilled' && payRes.value?.success ? payRes.value.data || [] : []);
       setPurchaseOrders(poRes.status === 'fulfilled' && poRes.value?.success ? poRes.value.data || [] : []);
+      if (projRes.status === 'fulfilled' && projRes.value?.data?.currency) {
+        setProjectCurrency(projRes.value.data.currency);
+      }
     } catch (e) {
       console.error('Failed to load payments', e);
       setPayments([]);
@@ -217,6 +223,8 @@ export default function InteriorPaymentsScreen() {
   const allIncoming = payments.filter((p) => p.type === 'incoming');
   const allOutgoing = payments.filter((p) => p.type === 'outgoing');
   const allDebitNotes = payments.filter((p) => p.type === 'debit_note');
+
+  const fmt = (amt) => formatAmount(amt, projectCurrency);
 
   const handlePoSelect = (poId) => {
     setSelectedPoId(poId);
@@ -345,7 +353,7 @@ export default function InteriorPaymentsScreen() {
         <View key={tx._id} style={s.card}>
           <View style={s.cardTopRow}>
             <Text style={s.cardTitle} numberOfLines={1}>{tx.invoiceNo}</Text>
-            <Text style={[s.cardAmount, { color: '#16A34A' }]}>+{formatAmount(tx.amount)}</Text>
+            <Text style={[s.cardAmount, { color: '#16A34A' }]}>+{fmt(tx.amount)}</Text>
           </View>
           <Text style={s.cardSub}>{tx.milestoneName}</Text>
           <View style={s.cardBottomRow}>
@@ -370,7 +378,7 @@ export default function InteriorPaymentsScreen() {
         <View key={tx._id} style={s.card}>
           <View style={s.cardTopRow}>
             <Text style={s.cardTitle} numberOfLines={1}>{tx.vendorName}</Text>
-            <Text style={[s.cardAmount, { color: '#DC2626' }]}>-{formatAmount(tx.amount)}</Text>
+            <Text style={[s.cardAmount, { color: '#DC2626' }]}>-{fmt(tx.amount)}</Text>
           </View>
           <Text style={s.cardSub}>{tx.poNo} • {tx.category}</Text>
           <View style={s.cardBottomRow}>
@@ -394,7 +402,7 @@ export default function InteriorPaymentsScreen() {
       <View key={dn._id} style={s.card}>
         <View style={s.cardTopRow}>
           <Text style={s.cardTitle} numberOfLines={1}>{dn.debitNoteNo}</Text>
-          <Text style={[s.cardAmount, { color: '#D97706' }]}>{formatAmount(dn.amount)}</Text>
+          <Text style={[s.cardAmount, { color: '#D97706' }]}>{fmt(dn.amount)}</Text>
         </View>
         <Text style={s.cardSub}>{dn.vendorName}</Text>
         <Text style={s.cardReason} numberOfLines={2}>{dn.reason}</Text>
@@ -436,19 +444,19 @@ export default function InteriorPaymentsScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.summaryRow}>
               <View style={s.summaryCard}>
                 <Text style={s.summaryLabel}>Net Balance</Text>
-                <Text style={[s.summaryValue, { color: netBalance >= 0 ? '#16A34A' : '#DC2626' }]}>{formatAmount(Math.abs(netBalance))}</Text>
+                <Text style={[s.summaryValue, { color: netBalance >= 0 ? '#16A34A' : '#DC2626' }]}>{fmt(Math.abs(netBalance))}</Text>
               </View>
               <View style={s.summaryCard}>
                 <Text style={s.summaryLabel}>Incoming</Text>
-                <Text style={[s.summaryValue, { color: '#16A34A' }]}>{formatAmount(allIncoming.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
+                <Text style={[s.summaryValue, { color: '#16A34A' }]}>{fmt(allIncoming.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
               </View>
               <View style={s.summaryCard}>
                 <Text style={s.summaryLabel}>Outgoing</Text>
-                <Text style={[s.summaryValue, { color: '#DC2626' }]}>{formatAmount(allOutgoing.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
+                <Text style={[s.summaryValue, { color: '#DC2626' }]}>{fmt(allOutgoing.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
               </View>
               <View style={s.summaryCard}>
                 <Text style={s.summaryLabel}>Debit Notes</Text>
-                <Text style={[s.summaryValue, { color: '#D97706' }]}>{formatAmount(allDebitNotes.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
+                <Text style={[s.summaryValue, { color: '#D97706' }]}>{fmt(allDebitNotes.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
               </View>
             </ScrollView>
 
@@ -503,7 +511,7 @@ export default function InteriorPaymentsScreen() {
                 inputStyle={s.input}
               />
 
-              <Text style={s.label}>Amount (₹)</Text>
+              <Text style={s.label}>Amount ({getCurrencySymbol(projectCurrency)})</Text>
               <TextInput style={s.input} placeholder="e.g. 250000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={incomingForm.amount} onChangeText={(v) => setIncomingForm({ ...incomingForm, amount: v })} />
 
               <Text style={s.label}>Payment Date</Text>
@@ -518,8 +526,8 @@ export default function InteriorPaymentsScreen() {
                 inputStyle={s.input}
               />
 
-              <Text style={s.label}>Ref / UTR Number</Text>
-              <TextInput style={s.input} placeholder="e.g. HDFC10928301" placeholderTextColor="#94A3B8" value={incomingForm.referenceNo} onChangeText={(v) => setIncomingForm({ ...incomingForm, referenceNo: v })} />
+              <Text style={s.label}>Ref / Transaction Number</Text>
+              <TextInput style={s.input} placeholder="e.g. WIRE-89210928 / CHQ-4401" placeholderTextColor="#94A3B8" value={incomingForm.referenceNo} onChangeText={(v) => setIncomingForm({ ...incomingForm, referenceNo: v })} />
 
               <Text style={s.label}>Remarks</Text>
               <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholder="Enter transaction notes..." placeholderTextColor="#94A3B8" value={incomingForm.remarks} onChangeText={(v) => setIncomingForm({ ...incomingForm, remarks: v })} />
@@ -571,7 +579,7 @@ export default function InteriorPaymentsScreen() {
                 ))}
               </View>
 
-              <Text style={s.label}>Amount (₹)</Text>
+              <Text style={s.label}>Amount ({getCurrencySymbol(projectCurrency)})</Text>
               <TextInput style={s.input} placeholder="e.g. 150000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={outgoingForm.amount} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, amount: v })} />
 
               <Text style={s.label}>Payment Date</Text>
@@ -586,8 +594,8 @@ export default function InteriorPaymentsScreen() {
                 inputStyle={s.input}
               />
 
-              <Text style={s.label}>Ref / UTR Number</Text>
-              <TextInput style={s.input} placeholder="e.g. UTR-9812401" placeholderTextColor="#94A3B8" value={outgoingForm.referenceNo} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, referenceNo: v })} />
+              <Text style={s.label}>Ref / Transaction Number</Text>
+              <TextInput style={s.input} placeholder="e.g. TXN-9812401" placeholderTextColor="#94A3B8" value={outgoingForm.referenceNo} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, referenceNo: v })} />
 
               <Text style={s.label}>Remarks</Text>
               <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholder="Enter transaction notes..." placeholderTextColor="#94A3B8" value={outgoingForm.remarks} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, remarks: v })} />
@@ -617,11 +625,11 @@ export default function InteriorPaymentsScreen() {
               <Text style={s.label}>Reason / Defect Detail</Text>
               <TextInput style={[s.input, { height: 60, textAlignVertical: 'top' }]} multiline placeholder="e.g. Damaged plywood sheets returned (5 sheets)" placeholderTextColor="#94A3B8" value={debitNoteForm.reason} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, reason: v })} />
 
-              <Text style={s.label}>Amount (₹)</Text>
+              <Text style={s.label}>Amount ({getCurrencySymbol(projectCurrency)})</Text>
               <TextInput style={s.input} placeholder="e.g. 45000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={debitNoteForm.amount} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, amount: v })} />
 
               <Text style={s.label}>Issue Date</Text>
-              <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={debitNoteForm.issueDate} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, issueDate: v })} />
+              <DateField value={debitNoteForm.issueDate} onChange={(v) => setDebitNoteForm({ ...debitNoteForm, issueDate: v })} inputStyle={s.input} />
 
               <Text style={s.label}>Remarks</Text>
               <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholderTextColor="#94A3B8" value={debitNoteForm.remarks} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, remarks: v })} />
