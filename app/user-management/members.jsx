@@ -348,15 +348,13 @@ export default function MemberManagementScreen() {
             <Text style={styles.headerPreTitle}>{t('workforce')}</Text>
             <Text style={styles.headerTitle}>{t('memberRegistry')}</Text>
           </View>
-          <TouchableOpacity style={styles.headerActionBtn} onPress={() => { 
-            if (!hasPermission('users', 'create')) {
-              showToast("You don't have permission to add new members.", "error");
-              return;
-            }
-            setIsEditing(false); setIsAddMemberVisible(true); 
-          }} activeOpacity={0.7}>
-            <Ionicons name="person-add-outline" size={22} color="#3B82F6" />
-          </TouchableOpacity>
+          {hasPermission('users', 'create') ? (
+            <TouchableOpacity style={styles.headerActionBtn} onPress={() => {
+              setIsEditing(false); setIsAddMemberVisible(true);
+            }} activeOpacity={0.7}>
+              <Ionicons name="person-add-outline" size={22} color="#3B82F6" />
+            </TouchableOpacity>
+          ) : <View style={styles.headerActionBtn} />}
         </View>
 
         {/* Search */}
@@ -387,8 +385,8 @@ export default function MemberManagementScreen() {
                 name={member.name}
                 email={member.email}
                 role={member.role?.name || 'No Role'}
-                onRemove={() => removeMember(member._id, member.name, member)}
-                onChangeRole={() => handleEditMember(member)}
+                onRemove={hasPermission('users', 'delete') ? () => removeMember(member._id, member.name, member) : undefined}
+                onChangeRole={hasPermission('users', 'update') ? () => handleEditMember(member) : undefined}
                 showActions={canManageMember(member)}
               />
             ))

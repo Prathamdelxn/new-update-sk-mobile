@@ -45,6 +45,8 @@ export default function FullWorkspacePreview() {
 
   const [project, setProject] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  // API refused the project (403) — the user's role lacks Project Management > View
+  const [accessDenied, setAccessDenied] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab ? initialTab : 'Details');
   const [visibleTab, setVisibleTab] = useState(initialTab ? initialTab : 'Details');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -96,7 +98,16 @@ export default function FullWorkspacePreview() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
-      if (response.ok && isMounted.current) setProject(data);
+      if (!isMounted.current) return;
+      if (response.status === 403) {
+        setAccessDenied(true);
+        setProject(null);
+        return;
+      }
+      if (response.ok) {
+        setAccessDenied(false);
+        setProject(data);
+      }
     } catch (e) { console.error(e); }
     finally { if (isMounted.current) setIsLoading(false); }
   }, [id, token]);
@@ -159,6 +170,31 @@ export default function FullWorkspacePreview() {
     tabLayouts[tab] = e.nativeEvent.layout;
     if (TABS.every(t => tabLayouts[t])) setLayoutReady(true);
   };
+
+  if (accessDenied) {
+    return (
+      <View style={styles.outerContainer}>
+        <StatusBar barStyle="dark-content" />
+        <SimpleBackground />
+        <SafeAreaView style={styles.container} edges={['top']}>
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.hBtn} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={22} color="#0F172A" />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+            <Ionicons name="lock-closed-outline" size={64} color="#CBD5E1" />
+            <Text style={{ marginTop: 16, fontSize: 18, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' }}>
+              {t('accessDenied', 'Access denied')}
+            </Text>
+            <Text style={{ marginTop: 8, fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', lineHeight: 22 }}>
+              {t('noProjectViewPermission', "You don't have permission to view this project.")}
+            </Text>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.outerContainer}>

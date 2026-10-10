@@ -267,18 +267,22 @@ export default function UserManagementDashboard() {
                   </View>
 
                   <View style={styles.roleActions}>
-                    <TouchableOpacity
-                      style={styles.roleActionBtn}
-                      onPress={() => handleEditRole(role)}
-                    >
-                      <Ionicons name="create-outline" size={18} color="#94A3B8" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.roleActionBtn, styles.roleDeleteBtn]}
-                      onPress={() => handleDeleteRole(role)}
-                    >
-                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                    </TouchableOpacity>
+                    {hasPermission('users', 'update') && (
+                      <TouchableOpacity
+                        style={styles.roleActionBtn}
+                        onPress={() => handleEditRole(role)}
+                      >
+                        <Ionicons name="create-outline" size={18} color="#94A3B8" />
+                      </TouchableOpacity>
+                    )}
+                    {hasPermission('users', 'delete') && (
+                      <TouchableOpacity
+                        style={[styles.roleActionBtn, styles.roleDeleteBtn]}
+                        onPress={() => handleDeleteRole(role)}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                      </TouchableOpacity>
+                    )}
                     <Ionicons name="chevron-forward" size={16} color="#3B82F6" style={{ marginLeft: 4 }} />
                   </View>
                 </AdaptiveGlass>
@@ -287,7 +291,8 @@ export default function UserManagementDashboard() {
           )}
         </ScrollView>
 
-        {/* FAB for Add Role */}
+        {/* FAB for Add Role (User Management > Create) */}
+        {hasPermission('users', 'create') && (
         <TouchableOpacity
           style={[styles.fab, { bottom: insets.bottom + 24 }]}
           onPress={() => { 
@@ -304,6 +309,7 @@ export default function UserManagementDashboard() {
             <Text style={styles.fabText}>{t('newRole')}</Text>
           </LinearGradient>
         </TouchableOpacity>
+        )}
 
         {/* Add Role Modal */}
         <Modal

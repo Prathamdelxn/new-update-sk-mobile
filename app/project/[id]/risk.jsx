@@ -264,7 +264,7 @@ export default function ProjectRiskTab({ project }) {
         <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
         <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>Access Restricted</Text>
         <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', marginTop: 8 }}>
-          You don't have permission to view the Risk & Escalation Matrix module.
+          You don't have permission to view the Risk Management module.
         </Text>
       </View>
     );
@@ -437,7 +437,8 @@ export default function ProjectRiskTab({ project }) {
                   >
                     <Feather name="eye" size={14} color="#3B82F6" />
                   </TouchableOpacity>
-                  {canDelete && (isAdmin || String(risk.owner?._id) === String(user?.id)) && (
+                  {/* Risk Management > Delete decides — not who raised the risk */}
+                  {canDelete && (
                     <TouchableOpacity onPress={() => setConfirmModal({ visible: true, id: risk._id })} style={styles.actionIconBtn}>
                       <Feather name="trash-2" size={14} color="#EF4444" />
                     </TouchableOpacity>

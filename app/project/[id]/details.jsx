@@ -83,6 +83,8 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
 
   const isLocked = isProjectLocked(project);
   const canApproveBudget = !isLocked && hasProjectPermission(user, project, 'budget:approve');
+  // Adding members to the project is Project Management > Assign (mirrors web)
+  const canAssignMembers = !isLocked && hasProjectPermission(user, project, 'projects:assign');
   const pendingRequests = project?.budgetHistory?.filter(bh => bh.approvalStatus === 'Pending') || [];
   const currentBaseBudget = getCurrentApprovedBudget(project);
   const currentBudget = currentBaseBudget;
@@ -416,7 +418,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 );
               })()}
             </View>
-            {canApproveBudget && (
+            {canAssignMembers && (
               <TouchableOpacity onPress={handleOpenAddMember} style={styles.addMemberBtnSmall}>
                 <Ionicons name="add" size={16} color="#3B82F6" />
                 <Text style={styles.addMemberBtnText}>Add</Text>

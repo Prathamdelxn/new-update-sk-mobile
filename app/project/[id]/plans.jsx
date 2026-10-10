@@ -230,7 +230,8 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
   const canEditPlans = !isLocked && (activeIsAdmin || hasProjectPermission(user, project, 'plans:update') || hasProjectPermission(user, project, 'plans:edit'));
   const canApprovePlans = !isLocked && (activeIsAdmin || hasProjectPermission(user, project, 'plans:approve'));
   const canAssignPlans = !isLocked && (activeIsAdmin || hasProjectPermission(user, project, 'plans:assign'));
-  const canViewPlans = activeIsAdmin || hasAnyProjectPermissionPrefix(user, project, 'plans:');
+  // View needs Plan Management > View itself (matches web PlansTab)
+  const canViewPlans = activeIsAdmin || hasProjectPermission(user, project, 'plans:view');
   const activeCurrentUserId = currentUserId || user?.id;
 
   const [planFolders, setPlanFolders] = useState([]);
@@ -744,12 +745,20 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
     if ((isImage || isPdf) && plan?._id && folderId) {
       router.push({
         pathname: '/annotate-plan',
-        params: { url, name, documentId: plan._id, folderId, projectId: activeId, canAnnotate: canAnnotate ? '1' : '0', isPdf: isPdf ? '1' : '0' },
+        params: {
+          url, name, documentId: plan._id, folderId, projectId: activeId,
+          canAnnotate: canAnnotate ? '1' : '0', isPdf: isPdf ? '1' : '0',
+          // Plan Annotations per action (global role or role on this project)
+          canViewAnn: (activeIsAdmin || hasProjectPermission(user, project, 'annotations:view')) ? '1' : '0',
+          canCreateAnn: (activeIsAdmin || (!isLocked && hasProjectPermission(user, project, 'annotations:create'))) ? '1' : '0',
+          canUpdateAnn: (activeIsAdmin || (!isLocked && hasProjectPermission(user, project, 'annotations:update'))) ? '1' : '0',
+          canDeleteAnn: (activeIsAdmin || (!isLocked && hasProjectPermission(user, project, 'annotations:delete'))) ? '1' : '0',
+        },
       });
     } else {
       router.push({ pathname: '/document-viewer', params: { url, name } });
     }
-  }, [router, activeId, canAnnotate]);
+  }, [router, activeId, canAnnotate, activeIsAdmin, isLocked, user, project]);
 
   const activeFolder = useMemo(() => planFolders.find(f => f._id === activeFolderId), [planFolders, activeFolderId]);
 
@@ -1268,14 +1277,17 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                     <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#1E293B' }}>{a.text}</Text>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
                       <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' }}>{a.createdByName || 'You'} • {new Date(a.createdAt).toLocaleDateString()}</Text>
-                      <TouchableOpacity onPress={() => deleteAnnotation(a._id)}>
-                        <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                      </TouchableOpacity>
+                      {(activeIsAdmin || (!isLocked && hasProjectPermission(user, project, 'annotations:delete'))) && (
+                        <TouchableOpacity onPress={() => deleteAnnotation(a._id)}>
+                          <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
                 ))}
               </ScrollView>
 
+              {(activeIsAdmin || (!isLocked && hasProjectPermission(user, project, 'annotations:create'))) && (
               <View style={{ marginTop: 12, gap: 10 }}>
                 <TextInput
                   style={[styles.modalInput, { height: 80, textAlignVertical: 'top' }]}
@@ -1302,6 +1314,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
+              )}
             </View>
           </View>
         </KeyboardAvoidingView>

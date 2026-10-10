@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useTranslation } from 'react-i18next';
+import { hasAnyRolePermission } from '../../utils/permissions';
 
 const { width, height } = Dimensions.get('window');
 
@@ -360,6 +361,21 @@ export default function TemplateScreen() {
     </TouchableOpacity>
   );
 
+  // Templates / Categories are org-wide: View on the global role or any project role
+  if (user && !hasAnyRolePermission(user, 'template:view') && !hasAnyRolePermission(user, 'category:view')) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, backgroundColor: '#F8FAFC' }}>
+        <Ionicons name="lock-closed-outline" size={56} color="#CBD5E1" />
+        <Text style={{ marginTop: 16, fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' }}>
+          You don't have access to templates
+        </Text>
+        <Text style={{ marginTop: 8, fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', lineHeight: 20 }}>
+          Ask your admin to enable Template Management → View on your role.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.outerContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#DBEAFE" translucent={false} />
@@ -452,7 +468,7 @@ export default function TemplateScreen() {
                   style={styles.optionCard}
                   activeOpacity={0.7}
                   onPress={() => {
-                    const hasCreateCategoryPermission = user?.role?.name === 'Admin' || user?.role?.permissions?.includes('*') || user?.role?.permissions?.includes('category:create');
+                    const hasCreateCategoryPermission = hasAnyRolePermission(user, 'category:create');
                     if (!hasCreateCategoryPermission) {
                       showToast('You do not have permission to create categories.', 'error');
                       return;
@@ -476,7 +492,7 @@ export default function TemplateScreen() {
                   style={styles.optionCard}
                   activeOpacity={0.7}
                   onPress={() => {
-                    const hasCreateTemplatePermission = user?.role?.name === 'Admin' || user?.role?.permissions?.includes('*') || user?.role?.permissions?.includes('template:create');
+                    const hasCreateTemplatePermission = hasAnyRolePermission(user, 'template:create');
                     if (!hasCreateTemplatePermission) {
                       showToast('You do not have permission to create templates.', 'error');
                       return;
@@ -646,7 +662,7 @@ export default function TemplateScreen() {
                   style={styles.actionSheetRow}
                   activeOpacity={0.7}
                   onPress={() => {
-                    const hasEditTemplatePermission = user?.role?.name === 'Admin' || user?.role?.permissions?.includes('*') || user?.role?.permissions?.includes('template:update') || user?.role?.permissions?.includes('template:edit');
+                    const hasEditTemplatePermission = hasAnyRolePermission(user, 'template:update');
                     if (!hasEditTemplatePermission) {
                       showToast('You do not have permission to edit templates.', 'error');
                       return;
@@ -675,7 +691,7 @@ export default function TemplateScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.actionSheetRow, styles.deleteRow]} activeOpacity={0.7} onPress={() => {
-                  const hasDeleteTemplatePermission = user?.role?.name === 'Admin' || user?.role?.permissions?.includes('*') || user?.role?.permissions?.includes('template:delete');
+                  const hasDeleteTemplatePermission = hasAnyRolePermission(user, 'template:delete');
                   if (!hasDeleteTemplatePermission) {
                     showToast('You do not have permission to delete templates.', 'error');
                     return;
@@ -723,7 +739,7 @@ export default function TemplateScreen() {
                   style={styles.actionSheetRow}
                   activeOpacity={0.7}
                   onPress={() => {
-                    const hasEditCategoryPermission = user?.role?.name === 'Admin' || user?.role?.permissions?.includes('*') || user?.role?.permissions?.includes('category:update') || user?.role?.permissions?.includes('category:edit');
+                    const hasEditCategoryPermission = hasAnyRolePermission(user, 'category:update');
                     if (!hasEditCategoryPermission) {
                       showToast('You do not have permission to edit categories.', 'error');
                       return;
@@ -738,7 +754,7 @@ export default function TemplateScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.actionSheetRow, styles.deleteRow]} activeOpacity={0.7} onPress={() => {
-                  const hasDeleteCategoryPermission = user?.role?.name === 'Admin' || user?.role?.permissions?.includes('*') || user?.role?.permissions?.includes('category:delete');
+                  const hasDeleteCategoryPermission = hasAnyRolePermission(user, 'category:delete');
                   if (!hasDeleteCategoryPermission) {
                     showToast('You do not have permission to delete categories.', 'error');
                     return;

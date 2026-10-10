@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking, Platform, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking, Platform, TextInput, ScrollView, Modal } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import ConfirmModal from '../../components/ConfirmModal';
 import * as DocumentPicker from 'expo-document-picker';
@@ -148,6 +148,59 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
   const canUpload = !isLocked && (isAdmin || hasProjectPermission(user, project, 'land:create'));
   const canApprove = !isLocked && (isAdmin || hasProjectPermission(user, project, 'land:approve'));
   const canDelete = !isLocked && (isAdmin || hasProjectPermission(user, project, 'land:delete'));
+  // Edit document (Land > Update): rename and/or replace the file (mirrors web)
+  const canUpdate = !isLocked && (isAdmin || hasProjectPermission(user, project, 'land:update'));
+  const [editingDoc, setEditingDoc] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [replacementFile, setReplacementFile] = useState(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const openEditDocument = (doc) => {
+    setEditingDoc(doc);
+    setEditName(doc.name || '');
+    setReplacementFile(null);
+  };
+
+  const pickReplacementFile = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+    if (!result.canceled) setReplacementFile(result.assets[0]);
+  };
+
+  const handleSaveDocumentEdit = async () => {
+    const name = editName.trim();
+    if (!name) { showToast('Document name cannot be empty', 'error'); return; }
+    setIsSavingEdit(true);
+    try {
+      const payload = { name };
+      if (replacementFile) {
+        payload.url = await cloudinaryService.uploadFile(
+          replacementFile.uri,
+          replacementFile.name,
+          replacementFile.mimeType || 'application/octet-stream'
+        );
+        payload.mimeType = replacementFile.mimeType;
+        payload.size = replacementFile.size;
+      }
+      const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+      const res = await fetch(`${API_BASE_URL}/projects/${project._id}/documents/${editingDoc._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        showToast(replacementFile ? 'Document updated and sent for approval again' : 'Document updated', 'success');
+        setEditingDoc(null);
+        if (fetchProjectData) fetchProjectData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.message || 'Failed to update document', 'error');
+      }
+    } catch (error) {
+      showToast('Failed to update document', 'error');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   const handleDocumentAction = (docId, action) => {
     setConfirmModal({
@@ -459,6 +512,17 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
                     <Text style={[styles.statusBadgeText, { color: doc.status === 'Approved' ? '#059669' : doc.status === 'Rejected' ? '#DC2626' : '#D97706' }]}>{doc.status || 'Pending'}</Text>
                   </View>
 
+                  {canUpdate && !isVirtualFolder && (
+                    <TouchableOpacity
+                      style={styles.docActionBtn}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        openEditDocument(doc);
+                      }}
+                    >
+                      <Feather name="edit-2" size={14} color="#D97706" />
+                    </TouchableOpacity>
+                  )}
                   {canDelete && !isVirtualFolder && doc.status !== 'Approved' && (
                     <TouchableOpacity 
                       style={styles.docActionBtn}
@@ -504,6 +568,57 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
           </>
         )}
       </View>
+      {/* Edit Document sheet */}
+      <Modal visible={!!editingDoc} transparent animationType="fade" onRequestClose={() => setEditingDoc(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20 }}>
+            <Text style={{ fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' }}>Edit Document</Text>
+            <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 }} numberOfLines={1}>{editingDoc?.name}</Text>
+
+            <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginTop: 18, marginBottom: 6, textTransform: 'uppercase' }}>Document name</Text>
+            <TextInput
+              value={editName}
+              onChangeText={setEditName}
+              style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: 'Inter-Medium', color: '#0F172A' }}
+            />
+
+            <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginTop: 16, marginBottom: 6, textTransform: 'uppercase' }}>Replace file (optional)</Text>
+            <TouchableOpacity
+              onPress={pickReplacementFile}
+              style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: '#CBD5E1', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+            >
+              <Feather name="upload" size={16} color="#64748B" />
+              <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#475569' }} numberOfLines={1}>
+                {replacementFile ? replacementFile.name : 'Choose a new file'}
+              </Text>
+            </TouchableOpacity>
+            {!!replacementFile && (
+              <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#B45309', marginTop: 6 }}>
+                Replacing the file sends the document for approval again.
+              </Text>
+            )}
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+              <TouchableOpacity
+                onPress={() => setEditingDoc(null)}
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center' }}
+              >
+                <Text style={{ fontFamily: 'Inter-Bold', color: '#475569' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSaveDocumentEdit}
+                disabled={isSavingEdit}
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#2563EB', alignItems: 'center', opacity: isSavingEdit ? 0.6 : 1 }}
+              >
+                {isSavingEdit
+                  ? <ActivityIndicator size="small" color="#FFFFFF" />
+                  : <Text style={{ fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>Save Changes</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ConfirmModal 
         visible={confirmModal.visible}
         title={confirmModal.title}

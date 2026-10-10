@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useCallback, useMemo } from
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AnimatedToast from '../components/AnimatedToast';
+import { toPermissionMessage } from '../utils/permissionErrors';
 
 const ToastContext = createContext(null);
 
@@ -54,6 +55,9 @@ export const ToastProvider = ({ children }) => {
     }
 
     type = typeof type === 'string' ? type.toLowerCase() : 'success';
+
+    // Refused for lack of permission? Say so instead of "Failed to ..."
+    message = toPermissionMessage(message);
 
     if (type === 'modal') {
       setErrorConfig({ visible: true, message: String(message || '') });

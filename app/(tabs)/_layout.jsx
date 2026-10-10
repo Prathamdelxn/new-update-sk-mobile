@@ -1,10 +1,13 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { hasAnyRolePermission } from '../utils/permissions';
 
 export default function TabLayout() {
   const { user } = useAuth();
   const isInterior = user?.organization?.industryType === 'interior';
+  // Templates tab needs Template or Category Management > View (any role)
+  const canSeeTemplates = hasAnyRolePermission(user, 'template:view') || hasAnyRolePermission(user, 'category:view');
 
   return (
     <Tabs
@@ -74,7 +77,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="template/index"
         options={{
-          href: isInterior ? null : undefined,
+          href: isInterior || !canSeeTemplates ? null : undefined,
           title: 'Template',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'layers' : 'layers-outline'} size={22} color={color} />

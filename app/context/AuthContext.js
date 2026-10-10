@@ -1,7 +1,9 @@
 import React, { createContext, useState, useEffect, useContext, useRef, useCallback, useMemo } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { AppState } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { queryClient } from './QueryProvider';
+import { markForbidden } from '../utils/permissionErrors';
 
 const AuthContext = createContext({
   user: null,
@@ -326,6 +328,9 @@ export const AuthProvider = ({ children }) => {
 
       let response = await originalFetch(url, options);
 
+      // Lets the toast show "no permission" instead of a generic failure
+      if (response.status === 403) markForbidden();
+
       // If 401 Unauthorized, and it's an API request (not login, refresh, or logout)
       if (
         response.status === 401 &&
@@ -446,6 +451,36 @@ export const AuthProvider = ({ children }) => {
       global.fetch = originalFetch;
     };
   }, []);
+
+  // Role permissions are saved at login. Re-read them once the session loads and
+  // whenever the app returns to the foreground, so role changes an admin makes
+  // apply without logging out (mirrors the web AuthContext). Construction only.
+  const syncUser = useCallback(async () => {
+    const current = userRef.current;
+    if (!token || !current || current?.organization?.industryType === 'interior') return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      const data = await res.json();
+      const fresh = data?.user;
+      if (!fresh) return;
+      const merged = { ...current, ...fresh };
+      userRef.current = merged;
+      setUser(merged);
+      await SecureStore.setItemAsync('userData', JSON.stringify(merged));
+    } catch {
+      // Keep the cached user if the refresh fails (offline, etc.)
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || isLoading) return;
+    syncUser();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') syncUser();
+    });
+    return () => sub.remove();
+  }, [token, isLoading, syncUser]);
 
   const contextValue = useMemo(() => ({
     user,

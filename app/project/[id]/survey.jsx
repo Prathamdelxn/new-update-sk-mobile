@@ -622,23 +622,23 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
 
   // Authorization Check
   const isLocked = isProjectLocked(project);
-  const isAdminOrManager = !isLocked && hasProjectPermission(user, project, 'sitesurvey:manage');
+  // Each action follows its own Site Survey permission (role editor actions);
+  // the API enforces the same rules.
+  const canCreateSurvey = !isLocked && hasProjectPermission(user, project, 'sitesurvey:create');
+  const canUpdateSurvey = !isLocked && hasProjectPermission(user, project, 'sitesurvey:update');
+  const canApproveSurvey = !isLocked && hasProjectPermission(user, project, 'sitesurvey:approve');
   const canApproveBudget = !isLocked && (
     hasProjectPermission(user, project, 'budget:approve') ||
     user?.role === 'Admin' ||
-    user?.role?.name === 'Admin' ||
-    isAdminOrManager
+    user?.role?.name === 'Admin'
   );
 
   const pendingBudgetReq = project?.budgetHistory?.find(
     (bh) => bh.approvalStatus === 'Pending'
   );
 
-  const isAssignedSurveyor = !!(
-    project?.siteSurveyor &&
-    (user?.id === (project.siteSurveyor?._id || project.siteSurveyor) || user?._id === (project.siteSurveyor?._id || project.siteSurveyor))
-  );
-  const canView = hasProjectPermission(user, project, 'sitesurvey:view') || isAdminOrManager || isAssignedSurveyor;
+  // Being the assigned surveyor doesn't grant access — View must be on the role
+  const canView = hasProjectPermission(user, project, 'sitesurvey:view');
 
   const handleBudgetActionSubmit = async (budgetId, action) => {
     if (isProcessingBudgetAction) return;
@@ -818,7 +818,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
     const surveyorId = project?.siteSurveyor?._id || project?.siteSurveyor;
     const currentUserId = user?._id || user?.id;
     const isSurveyor = surveyorId && currentUserId && (surveyorId === currentUserId);
-    const canManageSurvey = isAdminOrManager || isSurveyor;
+    const canManageSurvey = canCreateSurvey;
 
     return (
       <View style={styles.centerContainer}>
@@ -902,7 +902,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
           </View>
         )}
 
-        {(survey.surveyor?._id === user?._id || survey.surveyor === user?._id) && survey.status !== 'Approved' && (
+        {canUpdateSurvey && (survey.surveyor?._id === user?._id || survey.surveyor === user?._id) && survey.status !== 'Approved' && (
           <TouchableOpacity 
             style={styles.editSurveyBtn}
             onPress={() => router.push({
@@ -1149,8 +1149,8 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
         </AdaptiveGlass>
       )}
 
-      {/* Action Buttons for Admins */}
-      {isAdminOrManager && survey.status === 'Submitted' && (
+      {/* Approve / Reject — needs Site Survey > Approve */}
+      {canApproveSurvey && survey.status === 'Submitted' && (
         <View style={styles.actionRow}>
           <TouchableOpacity style={styles.rejectBtn} onPress={() => setIsRejectModalVisible(true)}>
             <Ionicons name="close" size={18} color="#EF4444" />

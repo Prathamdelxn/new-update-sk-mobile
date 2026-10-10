@@ -937,7 +937,7 @@
 //   },
 //   readOnlyTagText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#64748B' },
 // });
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal,
   TextInput, Image, Alert, ActivityIndicator, StatusBar,
@@ -1219,7 +1219,7 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                 )}
               </View>
               <View style={{ flexDirection: 'row', gap: SPACE.sm }}>
-                {!readOnly && (
+                {onDelete && (
                   <TouchableOpacity style={styles.sheetDeleteBtn} onPress={onDelete} activeOpacity={0.75}>
                     <Ionicons name="trash-outline" size={16} color={COLORS.danger} />
                   </TouchableOpacity>
@@ -1491,7 +1491,8 @@ export default function AnnotatePlan() {
   const sheetMaxWidth = isTablet ? 480 : SCREEN_W;
 
   const perms = user?.role?.permissions || [];
-  const { url, name, documentId, folderId, projectId, canAnnotate: canAnnotateParam, isPdf: isPdfParam } = useLocalSearchParams();
+  const { url, name, documentId, folderId, projectId, canAnnotate: canAnnotateParam, isPdf: isPdfParam,
+    canViewAnn, canCreateAnn, canUpdateAnn, canDeleteAnn } = useLocalSearchParams();
   // canAnnotateParam is resolved by the caller (plans.jsx) using the user's
   // project-specific role — checking only user.role.permissions here would
   // miss permissions granted via a project-level role assignment rather than
@@ -1499,6 +1500,15 @@ export default function AnnotatePlan() {
   const canAnnotate = canAnnotateParam !== undefined
     ? canAnnotateParam === '1'
     : (perms.includes('*') || perms.includes('annotations:update'));
+  // Plan Annotations per action (mirrors web + API): new pins need Create,
+  // editing a saved pin Update, removing a saved pin Delete, loading pins View.
+  const flag = (v, fallback) => (v !== undefined ? v === '1' : fallback);
+  const canViewAnnotations = flag(canViewAnn, true);
+  const canCreateAnnotations = flag(canCreateAnn, canAnnotate);
+  const canUpdateAnnotations = flag(canUpdateAnn, canAnnotate);
+  const canDeleteAnnotations = flag(canDeleteAnn, canAnnotate);
+  // Pins already saved on the server; anything else was added in this session
+  const persistedIdsRef = useRef(new Set());
 
   const isPdf = isPdfParam !== undefined
     ? isPdfParam === '1'
@@ -1548,7 +1558,7 @@ export default function AnnotatePlan() {
   const isCanvasLoading = isLoading || (isPdf && !pdfImageUri && !pdfRenderFailed);
 
   useEffect(() => {
-    if (!folderId || !documentId || !token) { setIsLoading(false); return; }
+    if (!folderId || !documentId || !token || !canViewAnnotations) { setIsLoading(false); return; }
     (async () => {
       try {
         const res = await fetch(
@@ -1562,6 +1572,7 @@ export default function AnnotatePlan() {
               ...ann,
               clientId: ann.clientId || ann._id
             }));
+            persistedIdsRef.current = new Set(normalized.map(a => a.clientId));
             setHistory([normalized]);
             setHistoryIndex(0);
           }
@@ -1661,6 +1672,8 @@ export default function AnnotatePlan() {
   }, [annotations, editingAnnotation, pushHistory, showToast]);
 
   // ── Delete pin ────────────────────────────────────────────────────────────
+  const isEditingNewPin = !!editingAnnotation && !persistedIdsRef.current.has(editingAnnotation.clientId);
+
   const handleDelete = useCallback(() => {
     const updated = annotations.filter((a) => a.clientId !== editingAnnotation.clientId);
     pushHistory(updated);
@@ -1686,6 +1699,7 @@ export default function AnnotatePlan() {
         }
       );
       if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
+      persistedIdsRef.current = new Set(annotations.map(a => a.clientId));
       setHasUnsaved(false);
       showToast('Annotations saved.', 'success');
     } catch (e) {
@@ -1720,7 +1734,7 @@ export default function AnnotatePlan() {
           {hasUnsaved && !isSaving && (
             <View style={styles.unsavedDot} />
           )}
-          {canAnnotate && (
+          {(canCreateAnnotations || canUpdateAnnotations || canDeleteAnnotations) && (
             <TouchableOpacity
               style={[styles.saveHeaderBtn, (!hasUnsaved || isSaving) && styles.saveHeaderBtnDisabled]}
               onPress={handleSave}
@@ -1879,7 +1893,7 @@ export default function AnnotatePlan() {
             </TouchableOpacity>
           </View>
 
-          {canAnnotate && (
+          {canCreateAnnotations && (
             <TouchableOpacity
               style={[styles.addPinBtn, isAddingPin && styles.addPinBtnActive]}
               onPress={() => setIsAddingPin(!isAddingPin)}
@@ -1909,10 +1923,10 @@ export default function AnnotatePlan() {
         visible={modalVisible}
         annotation={editingAnnotation}
         onSave={handleAnnotationSave}
-        onDelete={handleDelete}
+        onDelete={(isEditingNewPin ? canCreateAnnotations : canDeleteAnnotations) ? handleDelete : undefined}
         onClose={closeModal}
         uploading={isUploading}
-        readOnly={!canAnnotate}
+        readOnly={isEditingNewPin ? !canCreateAnnotations : !canUpdateAnnotations}
         sheetMaxWidth={sheetMaxWidth}
       />
     </View>

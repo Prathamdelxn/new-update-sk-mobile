@@ -19,6 +19,7 @@ import { BlurView } from 'expo-blur';
 import ConfirmModal from '../../components/ConfirmModal';
 import { useTranslation } from 'react-i18next';
 import { getCurrentApprovedBudget } from '../../utils/format';
+import { hasProjectPermission, canViewAnyProject, canCreateProjects, isProjectLocked } from '../../utils/permissions';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -167,9 +168,19 @@ export default function ProjectScreen() {
     }
   };
 
-  const handleSendForSiteSurvey = (projectId) => {
-    const hasAssignPermission = user?.role?.name === 'Admin' || user?.role?.permissions?.includes('*') || user?.role?.permissions?.includes('sitesurvey:manage');
-    if (!hasAssignPermission) {
+  // The role that matters is the one the member has on the survey's project;
+  // fall back to their global role.
+  const memberRoleLabel = (member) => {
+    const assignment = (member?.projects || []).find(p =>
+      String(p.project?._id || p.project) === String(surveyProjectId)
+    );
+    const projectRoleName = typeof assignment?.role === 'object' ? assignment.role?.name : undefined;
+    return projectRoleName || member?.role?.name || 'No role';
+  };
+
+  const handleSendForSiteSurvey = (project) => {
+    const projectId = project._id;
+    if (!hasProjectPermission(user, project, 'sitesurvey:assign')) {
       showToast('You do not have permission to assign site surveys.', 'error');
       return;
     }
@@ -293,7 +304,7 @@ export default function ProjectScreen() {
   };
 
   const handleEditProject = (item) => {
-    const hasEditPermission = user?.role?.name === 'Admin' || user?.role?.permissions?.includes('*') || user?.role?.permissions?.includes('projects:update') || user?.role?.permissions?.includes('projects:edit');
+    const hasEditPermission = !isProjectLocked(item) && hasProjectPermission(user, item, 'projects:update');
     if (!hasEditPermission) {
       showToast('You do not have permission to edit projects.', 'error');
       return;
@@ -318,7 +329,8 @@ export default function ProjectScreen() {
   };
 
   const handleDeleteProject = (id) => {
-    const hasDeletePermission = user?.role?.name === 'Admin' || user?.role?.permissions?.includes('*') || user?.role?.permissions?.includes('projects:delete');
+    const project = projectsList.find((p) => p._id === id);
+    const hasDeletePermission = hasProjectPermission(user, project, 'projects:delete');
     if (!hasDeletePermission) {
       showToast('You do not have permission to delete projects.', 'error');
       return;
@@ -528,17 +540,18 @@ export default function ProjectScreen() {
               </Text>
             </View>
             {/* Send for Site Survey icon button */}
-            {item.needSiteSurvey && !item.siteSurveyor && (
+            {item.needSiteSurvey && !item.siteSurveyor && hasProjectPermission(user, item, 'sitesurvey:assign') && (
               <TouchableOpacity
                 style={[styles.cardActionBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
                 activeOpacity={0.7}
-                onPress={(e) => { e.stopPropagation(); handleSendForSiteSurvey(item._id); }}
+                onPress={(e) => { e.stopPropagation(); handleSendForSiteSurvey(item); }}
               >
                 <MaterialIcons name="send" size={14} color="#2563EB" />
               </TouchableOpacity>
             )}
-            {/* Perform / Edit Site Survey icon button */}
-            {(item.siteSurveyor?._id || item.siteSurveyor) === (user?.id || user?._id) && (item.status === 'Site Survey' || item.status === 'Planning') && item.surveyStatus !== 'Approved' && (
+            {/* Perform / Edit Site Survey icon button — needs Create (new) or Update (existing) */}
+            {(item.siteSurveyor?._id || item.siteSurveyor) === (user?.id || user?._id) && (item.status === 'Site Survey' || item.status === 'Planning') && item.surveyStatus !== 'Approved' &&
+              hasProjectPermission(user, item, item.surveyStatus ? 'sitesurvey:update' : 'sitesurvey:create') && (
               <TouchableOpacity
                 style={[styles.cardActionBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
                 activeOpacity={0.7}
@@ -563,20 +576,24 @@ export default function ProjectScreen() {
                 </View>
               )}
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.cardActionBtn}
-              activeOpacity={0.7}
-              onPress={(e) => { e.stopPropagation(); handleEditProject(item); }}
-            >
-              <Feather name="edit-2" size={14} color="#64748B" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.cardActionBtn, styles.deleteBtn]}
-              activeOpacity={0.7}
-              onPress={(e) => { e.stopPropagation(); handleDeleteProject(item._id); }}
-            >
-              <Feather name="trash-2" size={14} color="#EF4444" />
-            </TouchableOpacity>
+            {!isProjectLocked(item) && hasProjectPermission(user, item, 'projects:update') && (
+              <TouchableOpacity
+                style={styles.cardActionBtn}
+                activeOpacity={0.7}
+                onPress={(e) => { e.stopPropagation(); handleEditProject(item); }}
+              >
+                <Feather name="edit-2" size={14} color="#64748B" />
+              </TouchableOpacity>
+            )}
+            {hasProjectPermission(user, item, 'projects:delete') && (
+              <TouchableOpacity
+                style={[styles.cardActionBtn, styles.deleteBtn]}
+                activeOpacity={0.7}
+                onPress={(e) => { e.stopPropagation(); handleDeleteProject(item._id); }}
+              >
+                <Feather name="trash-2" size={14} color="#EF4444" />
+              </TouchableOpacity>
+            )}
           </View>
 
         </View>
@@ -599,21 +616,19 @@ export default function ProjectScreen() {
             <Text style={styles.modernTitle}>{t('my')}<Text style={styles.modernTitleHighlight}> {t('projects')}</Text></Text>
           </View>
           <View style={styles.headerRightActions}>
-            <TouchableOpacity
-              style={styles.modernAddBtn}
-              activeOpacity={0.8}
-              onPress={() => {
-                const hasCreatePermission = user?.role?.name === 'Admin' || user?.role?.permissions?.includes('*') || user?.role?.permissions?.includes('projects:create');
-                if (!hasCreatePermission) {
-                  showToast('You do not have permission to create projects.', 'error');
-                  return;
-                }
-                setModalStep('category');
-                setIsModalVisible(true);
-              }}
-            >
-              <MaterialIcons name="add" size={20} color="#FFF" />
-            </TouchableOpacity>
+            {/* Create Project: Project Management > Create on any role (mirrors web) */}
+            {canCreateProjects(user) && (
+              <TouchableOpacity
+                style={styles.modernAddBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setModalStep('category');
+                  setIsModalVisible(true);
+                }}
+              >
+                <MaterialIcons name="add" size={20} color="#FFF" />
+              </TouchableOpacity>
+            )}
             {/* <View style={styles.bellScale}>
               <HeaderNotification />
             </View> */}
@@ -683,6 +698,18 @@ export default function ProjectScreen() {
               scrollEnabled={false}
               contentContainerStyle={styles.projectList}
             />
+          ) : projectsList.length === 0 && !canViewAnyProject(user) ? (
+            /* No Project Management > View on any role — say what to ask for */
+            <AdaptiveGlass intensity={10} tint="light" style={styles.emptyProjectsCard}>
+              <MaterialIcons name="lock-outline" size={48} color="#F59E0B" />
+              <Text style={styles.emptyTitle}>{t('noProjectAccessTitle', "You don't have access to projects")}</Text>
+              <Text style={[styles.emptySub, { textAlign: 'center' }]}>
+                {t('noProjectAccessBody', "Your role doesn't include Project Management → View, so no projects are shown. Your other permissions (like Site Survey) only work inside a project you can view.")}
+              </Text>
+              <Text style={[styles.emptySub, { textAlign: 'center', marginTop: 8 }]}>
+                {t('noProjectAccessAction', 'Ask your admin to enable Project Management → View on your role.')}
+              </Text>
+            </AdaptiveGlass>
           ) : (
             <AdaptiveGlass intensity={10} tint="light" style={styles.emptyProjectsCard}>
               <MaterialIcons name="work-outline" size={48} color="#CBD5E1" />
@@ -935,7 +962,7 @@ export default function ProjectScreen() {
                       <View style={styles.listItemTextContainer}>
                         <Text style={styles.roleListItemText}>{member.name}</Text>
                         <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 2, fontFamily: 'Inter-Medium' }}>
-                          {member.role?.name || 'Member'} · {member.email}
+                          {memberRoleLabel(member)} · {member.email}
                         </Text>
                       </View>
                       {isAssigningSurvey ? (
@@ -956,7 +983,7 @@ export default function ProjectScreen() {
       <ConfirmModal
         visible={surveyConfirmModal.visible}
         title={t('assignSiteSurveyor')}
-        message={`${surveyConfirmModal.member?.name || ''} (${surveyConfirmModal.member?.role?.name || 'Member'})`}
+        message={`${surveyConfirmModal.member?.name || ''} (${memberRoleLabel(surveyConfirmModal.member)})`}
         confirmText={t('assign')}
         type="success"
         isSubmitting={isAssigningSurvey}

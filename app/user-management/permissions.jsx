@@ -10,16 +10,16 @@ import ModulePermissionCard from '../components/ModulePermissionCard';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTranslation } from 'react-i18next';
+import { hasProjectPermission } from '../utils/permissions';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 const { width } = Dimensions.get('window');
 
 const MODULES = [
-  { id: 'projects', title: 'Project Management' },
-  { id: 'financials', title: 'Financials & Payments' },
-  { id: 'inventory', title: 'Material Management' },
-  { id: 'users', title: 'User Management' },
+  { id: 'projects', title: 'Project Management', excludeActions: ['approve', 'complete'] },
+  { id: 'inventory', title: 'Material Management', excludeActions: ['complete', 'assign'] },
+  { id: 'users', title: 'User Management', excludeActions: ['approve', 'complete', 'assign'] },
 
   { id: 'plans', title: 'Plan Management' },
   { id: 'annotations', title: 'Plan Annotations' },
@@ -29,19 +29,32 @@ const MODULES = [
   { id: 'boq', title: 'BOQ Management', excludeActions: ['complete'] },
   { id: 'tasks', title: 'Task Management', excludeActions: ['approve'] },
   { id: 'workprogress', title: 'Work Progress' },
-  { id: 'risks', title: 'Risk & Escalation Matrix' },
-  { id: 'handover', title: 'Handover Management' },
-  { id: 'snags', title: 'Snags & Issues Management' },
-  { id: 'transactions', title: 'Transaction Management' },
-  { id: 'category', title: 'Category Management' },
-  { id: 'template', title: 'Template Management' },
-  { id: 'rooms', title: 'Room Management' },
-  { id: 'ffe', title: 'FF&E Management' },
+  { id: 'reports', title: 'Reports Management', excludeActions: ['create', 'update', 'delete', 'approve', 'complete', 'assign'] },
+  { id: 'risks', title: 'Risk Management', excludeActions: ['approve', 'complete', 'assign'] },
+  { id: 'handover', title: 'Handover Management', excludeActions: ['update', 'delete', 'complete'] },
+  { id: 'snags', title: 'Snag Management', excludeActions: ['approve'] },
+  { id: 'transactions', title: 'Transaction Management', excludeActions: ['approve', 'complete', 'assign'] },
+  { id: 'category', title: 'Category Management', excludeActions: ['approve', 'complete', 'assign'] },
+  { id: 'template', title: 'Template Management', excludeActions: ['approve', 'complete', 'assign'] },
 ];
 
 const DEFAULT_ACTIONS = { view: false, create: false, update: false, delete: false, approve: false, complete: false, assign: false };
 const FULL_ACCESS = { view: true, create: true, update: true, delete: true, approve: true, complete: true, assign: true };
 const READ_ONLY = { view: true, create: false, update: false, delete: false, approve: false, complete: false, assign: false };
+
+// Org-wide modules that work without opening a project. Every other module is
+// project-scoped: its permissions only apply inside a project the user can
+// see, so they're useless without Project Management > View. (Mirrors web RoleModal.)
+const ORG_LEVEL_MODULES = ['projects', 'users', 'category', 'template'];
+
+const hasProjectScopedPerms = (perms) =>
+  MODULES.some(m =>
+    !ORG_LEVEL_MODULES.includes(m.id) &&
+    Object.entries(perms[m.id] || {}).some(([action, on]) => on && !(m.excludeActions || []).includes(action))
+  );
+
+const PROJECT_VIEW_FIRST_MSG =
+  "Enable Project Management → View first. Without it the user can't open any project, so this permission won't work.";
 
 const SimpleBackground = () => (
   <View style={styles.bgBase} />
@@ -52,7 +65,7 @@ export default function RolePermissionsEdit() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { roleId, roleName } = useLocalSearchParams();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { showToast } = useToast();
 
   const defaultPermissions = Object.fromEntries(MODULES.map(m => [m.id, { ...DEFAULT_ACTIONS }]));
@@ -62,6 +75,9 @@ export default function RolePermissionsEdit() {
 
   // Check if we should block editing
   const isAdminRole = roleName?.toLowerCase().includes('admin');
+  // Changing a role's permissions needs User Management > Update (the API enforces it too)
+  const canEditRoles = hasProjectPermission(user, null, 'users:update');
+  const isReadOnly = isAdminRole || !canEditRoles;
 
   useEffect(() => {
     fetchRolePermissions();
@@ -103,7 +119,12 @@ export default function RolePermissionsEdit() {
     }
 
     flatArray.forEach(p => {
-      const [module, action] = p.split(':');
+      let [module, action] = p.split(':');
+      // Default roles seeded at registration use the older `project:*` and
+      // `team:assign` keys — show them under Project Management so saving the
+      // role keeps them (as `projects:*`) instead of silently dropping them.
+      if (module === 'project') module = 'projects';
+      if (module === 'team' && action === 'assign') module = 'projects';
       if (module && action && nested[module]) {
         nested[module][action] = true;
       }
@@ -130,6 +151,14 @@ export default function RolePermissionsEdit() {
   const handleSave = async () => {
     if (isAdminRole) {
       showToast('System Admin permissions cannot be modified.', 'error');
+      return;
+    }
+    if (!canEditRoles) {
+      showToast("You don't have permission to update roles.", 'error');
+      return;
+    }
+    if (missingProjectView) {
+      showToast(PROJECT_VIEW_FIRST_MSG, 'error');
       return;
     }
 
@@ -160,7 +189,18 @@ export default function RolePermissionsEdit() {
     }
   };
 
+  // Role grants project-scoped permissions but can't see any project
+  const missingProjectView = !isAdminRole && !permissions.projects?.view && hasProjectScopedPerms(permissions);
+  const enableProjectView = () =>
+    setPermissions(prev => ({ ...prev, projects: { ...(prev.projects || DEFAULT_ACTIONS), view: true } }));
+
   const toggleAction = (moduleId, actionId) => {
+    // Project-scoped permissions need Project Management > View first
+    const enabling = !permissions[moduleId]?.[actionId];
+    if (enabling && !ORG_LEVEL_MODULES.includes(moduleId) && !permissions.projects?.view) {
+      showToast(PROJECT_VIEW_FIRST_MSG, 'error');
+      return;
+    }
     setPermissions(prev => {
       const current = prev[moduleId] || { ...DEFAULT_ACTIONS };
       const newValue = !current[actionId];
@@ -243,12 +283,31 @@ export default function RolePermissionsEdit() {
                   <Text style={styles.protectedNoticeText}>{t('protectedRoleLocked')}</Text>
                 </View>
               )}
+              {!isAdminRole && !canEditRoles && (
+                <View style={styles.protectedNotice}>
+                  <Ionicons name="eye-outline" size={20} color="#1D4ED8" />
+                  <Text style={styles.protectedNoticeText}>View only — you need User Management → Update to change role permissions.</Text>
+                </View>
+              )}
+              {missingProjectView && (
+                <View style={styles.projectViewNotice}>
+                  <Ionicons name="warning-outline" size={20} color="#B45309" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.projectViewNoticeText}>
+                      This role has project permissions but not Project Management → View. Members with it won't be able to open any project, so those permissions won't work.
+                    </Text>
+                    <TouchableOpacity style={styles.projectViewNoticeBtn} onPress={enableProjectView}>
+                      <Text style={styles.projectViewNoticeBtnText}>Enable Project View</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
               {MODULES.map((module) => (
                 <ModulePermissionCard
                   key={module.id}
                   title={module.title}
                   permissions={permissions[module.id] || DEFAULT_ACTIONS}
-                  onToggle={(actionId) => !isAdminRole && toggleAction(module.id, actionId)}
+                  onToggle={(actionId) => !isReadOnly && toggleAction(module.id, actionId)}
                   excludeActions={module.excludeActions}
                 />
               ))}
@@ -259,10 +318,10 @@ export default function RolePermissionsEdit() {
         {/* Footer Save Button */}
         <View style={[styles.footer, { bottom: insets.bottom + 20 }]}>
           <TouchableOpacity
-            style={[styles.saveBtn, (isAdminRole || isLoading) && { opacity: 0.5 }]}
+            style={[styles.saveBtn, (isReadOnly || isLoading) && { opacity: 0.5 }]}
             activeOpacity={0.9}
             onPress={handleSave}
-            disabled={isAdminRole || isLoading || isSaving}
+            disabled={isReadOnly || isLoading || isSaving}
           >
             <LinearGradient
               colors={['#3B82F6', '#2563EB']}
@@ -326,5 +385,35 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#1E40AF',
     lineHeight: 18
+  },
+  projectViewNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFBEB',
+    padding: 16,
+    borderRadius: 18,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    gap: 12
+  },
+  projectViewNoticeText: {
+    fontSize: 13,
+    fontFamily: 'Inter-SemiBold',
+    color: '#92400E',
+    lineHeight: 18
+  },
+  projectViewNoticeBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    backgroundColor: '#D97706',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10
+  },
+  projectViewNoticeBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontFamily: 'Inter-Bold'
   },
 });
