@@ -389,13 +389,15 @@ export default function TemplateScreen() {
             <Text style={styles.title}>{t('my')}<Text style={styles.titleHighlight}> {t('templatesTitle')}</Text></Text>
           </View>
           <View style={styles.headerRightActions}>
-            <TouchableOpacity
-              style={styles.actionBtn}
-              activeOpacity={0.8}
-              onPress={() => setIsAddModalVisible(true)}
-            >
-              <Ionicons name="add" size={20} color="#FFF" />
-            </TouchableOpacity>
+            {(hasAnyRolePermission(user, 'template:create') || hasAnyRolePermission(user, 'category:create')) && (
+              <TouchableOpacity
+                style={styles.actionBtn}
+                activeOpacity={0.8}
+                onPress={() => setIsAddModalVisible(true)}
+              >
+                <Ionicons name="add" size={20} color="#FFF" />
+              </TouchableOpacity>
+            )}
             <View style={styles.bellScale}>
               <HeaderNotification />
             </View>
@@ -833,7 +835,12 @@ export default function TemplateScreen() {
         </Modal>
 
 
-        {isTemplatesLoading && templatesList.length === 0 ? (
+        {!hasAnyRolePermission(user, 'template:view') ? (
+          <View style={styles.centralLoader}>
+            <Ionicons name="lock-closed-outline" size={40} color="#CBD5E1" />
+            <Text style={styles.loaderText}>You don't have permission to view templates. Ask your admin to enable Template Management → View.</Text>
+          </View>
+        ) : isTemplatesLoading && templatesList.length === 0 ? (
           <View style={styles.centralLoader}>
             <ActivityIndicator size="large" color="#3B82F6" />
             <Text style={styles.loaderText}>{t('synchronizingTemplates')}</Text>

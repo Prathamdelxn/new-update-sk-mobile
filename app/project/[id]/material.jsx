@@ -1355,6 +1355,8 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                   
                   {!isSelectionMode && (
                     <View style={styles.cardActions}>
+                      {/* Material Management > Update / Delete */}
+                      {canUpdate && (
                       <TouchableOpacity 
                         style={styles.actionIconBtn}
                         onPress={() => {
@@ -1370,12 +1372,15 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                       >
                         <Feather name="edit-3" size={13} color="#3B82F6" />
                       </TouchableOpacity>
+                      )}
+                      {canDelete && (
                       <TouchableOpacity 
                         style={styles.actionIconBtn}
                         onPress={() => handleDeleteMaterial(material)}
                       >
                         <Feather name="trash-2" size={13} color="#EF4444" />
                       </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 </View>
@@ -1739,12 +1744,17 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
             </View>
 
             <View style={styles.actionOptions}>
-              {(canCreate ? [
-                { id: 'Request', icon: 'file-text', color: '#0EA5E9', title: 'Material Request', sub: 'Request materials from warehouse' },
-                { id: 'Received', icon: 'download', color: '#10B981', title: 'Material Received', sub: 'Record incoming site delivery' },
-                { id: 'Used', icon: 'upload', color: '#F97316', title: 'Material Used', sub: 'Log daily site consumption' },
-                { id: 'Purchase', icon: 'shopping-cart', color: '#8B5CF6', title: 'Material Purchase', sub: 'Record new vendor purchase' },
-              ] : []).map((item) => (
+              {[
+                ...(canCreate ? [
+                  { id: 'Request', icon: 'file-text', color: '#0EA5E9', title: 'Material Request', sub: 'Request materials from warehouse' },
+                  { id: 'Received', icon: 'download', color: '#10B981', title: 'Material Received', sub: 'Record incoming site delivery' },
+                  { id: 'Used', icon: 'upload', color: '#F97316', title: 'Material Used', sub: 'Log daily site consumption' },
+                  { id: 'Purchase', icon: 'shopping-cart', color: '#8B5CF6', title: 'Material Purchase', sub: 'Record new vendor purchase' },
+                ] : []),
+                // Material Management > Update / Delete (the handlers below already support these)
+                ...(canUpdate ? [{ id: 'Edit', icon: 'edit-3', color: '#3B82F6', title: 'Edit Material', sub: 'Change name or unit' }] : []),
+                ...(canDelete ? [{ id: 'Delete', icon: 'trash-2', color: '#EF4444', title: 'Delete Material', sub: 'Remove from inventory' }] : []),
+              ].map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={styles.actionOptionRow}

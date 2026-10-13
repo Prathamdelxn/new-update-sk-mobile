@@ -8,6 +8,7 @@ import AdaptiveGlass from '../components/AdaptiveGlass';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTranslation } from 'react-i18next';
+import { hasProjectPermission } from '../utils/permissions';
 
 const { width } = Dimensions.get('window');
 
@@ -26,12 +27,9 @@ export default function UserManagementDashboard() {
   const router = useRouter();
   const { token, user } = useAuth();
 
-  const hasPermission = (moduleId, action) => {
-    if (!user || !user.role) return false;
-    const perms = user.role.permissions || [];
-    if (perms.includes('*')) return true;
-    return perms.includes(`${moduleId}:${action}`) || perms.includes(moduleId);
-  };
+  // User Management is org-wide: global role only, alias-aware (shared helper).
+  // (Previously a bare module key like "users" also counted as full access.)
+  const hasPermission = (moduleId, action) => hasProjectPermission(user, null, `${moduleId}:${action}`);
 
   const [roles, setRoles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -186,6 +184,24 @@ export default function UserManagementDashboard() {
 
     return filtered;
   }, [roles, searchQuery, sortBy]);
+
+  // Every way into this screen needs User Management > View
+  if (user && !hasPermission('users', 'view')) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, backgroundColor: '#F8FAFC' }}>
+        <Ionicons name="lock-closed-outline" size={56} color="#CBD5E1" />
+        <Text style={{ marginTop: 16, fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' }}>
+          You don't have access to Team &amp; Roles
+        </Text>
+        <Text style={{ marginTop: 8, fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', lineHeight: 20 }}>
+          Ask your admin to enable User Management → View on your role.
+        </Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: '#EFF6FF' }}>
+          <Text style={{ fontFamily: 'Inter-Bold', color: '#2563EB' }}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.outerContainer}>

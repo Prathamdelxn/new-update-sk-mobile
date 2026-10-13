@@ -36,7 +36,7 @@ const FolderCard = memo(({ folder, onSelect }) => (
   </TouchableOpacity>
 ));
 
-const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAssignPlans, onDocDelete, onVersionDelete, onDocView, onSendApproval, onRevertDraft, onApprove, onReject, onUploadRevision, onShowHistory, isUpdating, uploadingRevisionId, canAnnotate, onAnnotate }) => {
+const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAssignPlans, canCreatePlans, canApprovePlans, onDocDelete, onVersionDelete, onDocView, onSendApproval, onRevertDraft, onApprove, onReject, onUploadRevision, onShowHistory, isUpdating, uploadingRevisionId, canAnnotate, onAnnotate }) => {
   const versions = item.versions || [];
   const [viewIdx, setViewIdx] = useState(versions.length - 1);
 
@@ -161,7 +161,7 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
                   <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>Resubmit</Text>
                 </TouchableOpacity>
               )}
-              {activeIsAdmin && (status === 'Approved' || status === 'Rejected') && (
+              {(activeIsAdmin || canCreatePlans) && (status === 'Approved' || status === 'Rejected') && (
                 <TouchableOpacity
                   style={[styles.miniBtn, { backgroundColor: '#EFF6FF', borderColor: '#3B82F640' }]}
                   onPress={() => onUploadRevision(item)}
@@ -178,7 +178,7 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
                 </TouchableOpacity>
               )}
 
-              {status === 'Pending' && item.isMyTurn && (
+              {status === 'Pending' && (activeIsAdmin || (item.isMyTurn && canApprovePlans)) && (
                 <>
                   <TouchableOpacity
                     style={[styles.miniBtn, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
@@ -198,7 +198,7 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
               )}
             </>
           )}
-          {activeIsAdmin && (status === 'Draft' || status === 'Pending') && versionCount > 1 && (
+          {(activeIsAdmin || canDeleteDocument) && (status === 'Draft' || status === 'Pending') && versionCount > 1 && (
             <TouchableOpacity
               style={[styles.miniBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
               onPress={() => onVersionDelete(item, displayedVersion)}
@@ -856,6 +856,8 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
       activeIsAdmin={activeIsAdmin}
       canDeleteDocument={canDeleteDocument}
       canAssignPlans={canAssignPlans}
+      canCreatePlans={canCreatePlans}
+      canApprovePlans={canApprovePlans}
       onDocDelete={handlePlanDeleteDoc}
       onVersionDelete={handleVersionDelete}
       onDocView={handleViewDocument}
@@ -870,7 +872,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
       canAnnotate={canAnnotate}
       onAnnotate={openAnnotateModal}
     />
-  ), [activeFolderId, activeIsAdmin, canDeleteDocument, canAssignPlans, handlePlanDeleteDoc, handleVersionDelete, handleViewDocument, handleDocSendApproval, handleRevertDraft, handleDocApprove, handleDocReject, handleUploadDocument, updatingDocId, uploadingRevisionId, canAnnotate, openAnnotateModal]);
+  ), [activeFolderId, activeIsAdmin, canDeleteDocument, canAssignPlans, canCreatePlans, canApprovePlans, handlePlanDeleteDoc, handleVersionDelete, handleViewDocument, handleDocSendApproval, handleRevertDraft, handleDocApprove, handleDocReject, handleUploadDocument, updatingDocId, uploadingRevisionId, canAnnotate, openAnnotateModal]);
 
   if (!canViewPlans) {
     return (

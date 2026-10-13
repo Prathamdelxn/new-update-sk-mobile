@@ -295,15 +295,30 @@ export default function MilestoneTaskDetail() {
       return;
     }
 
-    if (editingTaskIndex !== null && !canUpdateTask) {
-      setConfirmModal({
-        visible: true,
-        title: 'Access Denied',
-        message: 'You do not have permission to edit tasks.',
-        confirmText: 'OK',
-        onConfirm: () => setConfirmModal(prev => ({ ...prev, visible: false }))
-      });
-      return;
+    if (editingTaskIndex !== null) {
+      // Only the parts actually changed need permission (same rule as the API):
+      // title/description/dates -> Update, assignee -> Assign.
+      const original = milestone?.tasks?.[editingTaskIndex] || {};
+      const sameDate = (a, b) => String(a ? new Date(a).toDateString() : '') === String(b ? new Date(b).toDateString() : '');
+      const detailsChanged =
+        (newTask.title || '') !== (original.title || '') ||
+        (newTask.description || '') !== (original.description || '') ||
+        !sameDate(newTask.startDate, original.startDate) ||
+        !sameDate(newTask.endDate, original.endDate);
+      const assigneeChanged = String(newTask.assignedTo || '') !== String(original.assignedTo?._id || original.assignedTo || '');
+      const denied = (detailsChanged && !canUpdateTask)
+        ? 'You do not have permission to edit task details.'
+        : (assigneeChanged && !canAssignTask) ? 'You do not have permission to reassign tasks.' : null;
+      if (denied) {
+        setConfirmModal({
+          visible: true,
+          title: 'Access Denied',
+          message: denied,
+          confirmText: 'OK',
+          onConfirm: () => setConfirmModal(prev => ({ ...prev, visible: false }))
+        });
+        return;
+      }
     }
 
     if (editingTaskIndex === null && !canAssignTask) {
@@ -418,6 +433,10 @@ export default function MilestoneTaskDetail() {
       setIsSubmitting(false);
     }
   };
+
+  // While editing: details need Task > Update, the assignee needs Task > Assign
+  const taskDetailsLocked = editingTaskIndex !== null && !canUpdateTask;
+  const taskAssigneeLocked = editingTaskIndex !== null && !canAssignTask;
 
   const handleEditTask = (taskIndex) => {
     const task = milestone.tasks[taskIndex];
@@ -1119,7 +1138,8 @@ export default function MilestoneTaskDetail() {
                     value={newTask.title}
                     onChangeText={(v) => setNewTask({ ...newTask, title: v })}
                     placeholderTextColor="#94A3B8"
-                    autoFocus
+                    editable={!taskDetailsLocked}
+                    autoFocus={!taskDetailsLocked}
                   />
                 </View>
               </View>
@@ -1134,6 +1154,7 @@ export default function MilestoneTaskDetail() {
                     value={newTask.description}
                     onChangeText={(v) => setNewTask({ ...newTask, description: v })}
                     placeholderTextColor="#94A3B8"
+                    editable={!taskDetailsLocked}
                     multiline
                     numberOfLines={3}
                   />
@@ -1144,7 +1165,8 @@ export default function MilestoneTaskDetail() {
                 <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
                   <Text style={styles.inputLabel}>Start Date <Text style={{ color: '#EF4444' }}>*</Text></Text>
                   <TouchableOpacity
-                    style={styles.datePickerBtn}
+                    style={[styles.datePickerBtn, taskDetailsLocked && { opacity: 0.5 }]}
+                    disabled={taskDetailsLocked}
                     onPress={() => setShowStartDate(true)}
                   >
                     <Feather name="calendar" size={16} color="#3B82F6" />
@@ -1168,7 +1190,8 @@ export default function MilestoneTaskDetail() {
                 <View style={[styles.inputGroup, { flex: 1 }]}>
                   <Text style={styles.inputLabel}>End Date <Text style={{ color: '#EF4444' }}>*</Text></Text>
                   <TouchableOpacity
-                    style={styles.datePickerBtn}
+                    style={[styles.datePickerBtn, taskDetailsLocked && { opacity: 0.5 }]}
+                    disabled={taskDetailsLocked}
                     onPress={() => setShowEndDate(true)}
                   >
                     <Feather name="calendar" size={16} color="#3B82F6" />
@@ -1192,8 +1215,9 @@ export default function MilestoneTaskDetail() {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Assign To *</Text>
-                <TouchableOpacity 
-                  style={styles.assigneeSelector} 
+                <TouchableOpacity
+                  style={[styles.assigneeSelector, taskAssigneeLocked && { opacity: 0.5 }]}
+                  disabled={taskAssigneeLocked}
                   onPress={() => setIsAssignModalVisible(true)}
                 >
                   <View style={styles.selectedMemberRow}>

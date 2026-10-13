@@ -77,6 +77,19 @@ export function hasAnyRolePermission(user, permission) {
 
 export const canCreateProjects = (user) => hasAnyRolePermission(user, 'projects:create');
 
+// Global role, or the user's own role on the project with this id (from
+// user.projects). Mirrors the backend's userHasProjectPermission — useful on
+// screens that only have the project id, not the full project object.
+export function hasPermissionOnProjectId(user, projectId, permission) {
+  if (hasProjectPermission(user, null, permission)) return true;
+  const assignment = (user?.projects || []).find(
+    (p) => String(p?.project?._id || p?.project) === String(projectId)
+  );
+  const role = assignment?.role;
+  if (!role || typeof role !== 'object') return false;
+  return role.name === 'Admin' || role.isSystemRole || permissionListIncludes(role.permissions, permission);
+}
+
 /**
  * Check if the user has ANY permission that starts with a specific prefix
  * (e.g., 'escalation:') either globally or in the project.

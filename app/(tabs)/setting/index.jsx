@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useTranslation } from 'react-i18next';
+import { hasProjectPermission } from '../../utils/permissions';
 import { I18nManager } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as SecureStore from 'expo-secure-store';
@@ -83,12 +84,9 @@ export default function SettingScreen() {
     }
   };
 
-  const hasPermission = (moduleId, action) => {
-    if (!user || !user.role) return false;
-    const perms = user.role.permissions || [];
-    if (perms.includes('*')) return true;
-    return perms.includes(`${moduleId}:${action}`) || perms.includes(moduleId);
-  };
+  // User Management is org-wide: global role only, alias-aware (shared helper).
+  // (Previously a bare module key like "users" also counted as full access.)
+  const hasPermission = (moduleId, action) => hasProjectPermission(user, null, `${moduleId}:${action}`);
 
   const handleLogout = () => {
     setIsLogoutModalVisible(true);
@@ -166,18 +164,14 @@ export default function SettingScreen() {
                 subtitle={t('subscriptionAndUsage')}
                 onPress={() => router.push('/(tabs)/payment')}
               />
-              <SettingItem
-                icon="person-add"
-                title={t('userManagement')}
-                subtitle={t('rolesAndPermissions')}
-                onPress={() => {
-                  if (!hasPermission('users', 'view')) {
-                    showToast("You don't have permission to access User Management.", "error");
-                  } else {
-                    setIsUserMenuVisible(true);
-                  }
-                }}
-              />
+              {hasPermission('users', 'view') && (
+                <SettingItem
+                  icon="person-add"
+                  title={t('userManagement')}
+                  subtitle={t('rolesAndPermissions')}
+                  onPress={() => setIsUserMenuVisible(true)}
+                />
+              )}
               <SettingItem 
                 icon="briefcase" 
                 title={t('vendorManagement')} 

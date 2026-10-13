@@ -12,6 +12,7 @@ import { useToast } from '../../context/ToastContext';
 import cloudinaryService from '../../services/cloudinaryService';
 import { formatCompact, formatCurrency } from '../../utils/format';
 import { useTranslation } from 'react-i18next';
+import { hasPermissionOnProjectId } from '../../utils/permissions';
 
 const { width } = Dimensions.get('window');
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -26,7 +27,9 @@ export default function SiteSurveyScreen() {
   const { t } = useTranslation();
   const { id, currentBudget, editMode, projectType, currency } = useLocalSearchParams();
   const isInterior = projectType === 'Interior';
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  // New survey needs Site Survey > Create; editing needs Site Survey > Update (API enforces both)
+  const canSubmitSurvey = hasPermissionOnProjectId(user, id, editMode === 'true' ? 'sitesurvey:update' : 'sitesurvey:create');
   const { showToast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -237,6 +240,25 @@ export default function SiteSurveyScreen() {
       setIsSubmitting(false);
     }
   };
+
+  if (user && !canSubmitSurvey) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, backgroundColor: '#F8FAFC' }}>
+        <Ionicons name="lock-closed-outline" size={56} color="#CBD5E1" />
+        <Text style={{ marginTop: 16, fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' }}>
+          {editMode === 'true' ? "You can't edit this survey" : "You can't submit a survey"}
+        </Text>
+        <Text style={{ marginTop: 8, fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', lineHeight: 20 }}>
+          {editMode === 'true'
+            ? 'Ask your admin to enable Site Survey Management → Update on your role.'
+            : 'Ask your admin to enable Site Survey Management → Create on your role.'}
+        </Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: '#EFF6FF' }}>
+          <Text style={{ fontFamily: 'Inter-Bold', color: '#2563EB' }}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.outerContainer}>

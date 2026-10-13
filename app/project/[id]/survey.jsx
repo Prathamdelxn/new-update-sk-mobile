@@ -902,7 +902,9 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
           </View>
         )}
 
-        {canUpdateSurvey && (survey.surveyor?._id === user?._id || survey.surveyor === user?._id) && survey.status !== 'Approved' && (
+        {/* Edit: Site Survey > Update, and only the original surveyor (API rule).
+            Mobile users carry `id` (not `_id`), so compare against both. */}
+        {canUpdateSurvey && [user?.id, user?._id].filter(Boolean).map(String).includes(String(survey.surveyor?._id || survey.surveyor)) && survey.status !== 'Approved' && (
           <TouchableOpacity 
             style={styles.editSurveyBtn}
             onPress={() => router.push({
