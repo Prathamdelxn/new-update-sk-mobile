@@ -15,7 +15,7 @@ import { formatCompact } from '../../utils/format';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-export default function ProjectHandoverTab({ project, fetchProjectData }) {
+export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTab }) {
   const router = useRouter();
   const { token, user } = useAuth();
   const { showToast } = useToast();
@@ -620,7 +620,7 @@ export default function ProjectHandoverTab({ project, fetchProjectData }) {
               key={i._id} 
               style={styles.itemDetailRow}
               activeOpacity={0.7}
-              onPress={() => router.push(`/project/${projectId}/issues`)}
+              onPress={() => (onOpenTab ? onOpenTab('Snags') : router.push(`/project/${projectId}?initialTab=Snags`))}
             >
               <View style={[styles.priorityBadgeDot, { backgroundColor: priorityColor }]} />
               <View style={{ flex: 1 }}>

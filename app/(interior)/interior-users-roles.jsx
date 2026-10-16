@@ -364,7 +364,7 @@ export default function InteriorUsersRolesScreen() {
               <TextInput style={s.input} placeholder="john@company.com" placeholderTextColor="#94A3B8" keyboardType="email-address" autoCapitalize="none" value={userForm.email} onChangeText={(v) => setUserForm({ ...userForm, email: v })} />
 
               <Text style={s.label}>Password</Text>
-              <TextInput style={s.input} placeholder="Leave blank for Welcome@123" placeholderTextColor="#94A3B8" secureTextEntry value={userForm.password} onChangeText={(v) => setUserForm({ ...userForm, password: v })} />
+              <TextInput style={s.input} placeholder="Leave blank for welcome123" placeholderTextColor="#94A3B8" secureTextEntry value={userForm.password} onChangeText={(v) => setUserForm({ ...userForm, password: v })} />
 
               <Text style={s.label}>Phone</Text>
               <TextInput style={s.input} placeholder="+91 9876543210" placeholderTextColor="#94A3B8" keyboardType="phone-pad" value={userForm.phone} onChangeText={(v) => setUserForm({ ...userForm, phone: v })} />

@@ -298,7 +298,7 @@ export default function FullWorkspacePreview() {
               {visibleTab === 'Transactions' && <ProjectTransactionsTab project={project} fetchProjectData={fetchProjectData} />}
               {visibleTab === 'Risk' && <ProjectRiskTab project={project} />}
               {visibleTab === 'Snags' && <ProjectIssuesTab project={project} />}
-              {visibleTab === 'Handover' && <ProjectHandoverTab project={project} />}
+              {visibleTab === 'Handover' && <ProjectHandoverTab project={project} onOpenTab={handleTabPress} />}
             </>
           </ScrollView>
         )}
