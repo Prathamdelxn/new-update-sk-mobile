@@ -1,23 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Dimensions, StatusBar, ActivityIndicator, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
+  ActivityIndicator,
+  ScrollView,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
-import AdaptiveGlass from '../components/AdaptiveGlass';
+import * as NavigationBar from 'expo-navigation-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../context/AuthContext';
 import { useSuperAdmin } from '../context/SuperAdminContext';
 import { useTranslation } from 'react-i18next';
 
-const { width, height } = Dimensions.get('window');
-
-const SimpleBackground = () => (
-  <View style={styles.bgBase} />
-);
-
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const [industryType, setIndustryType] = useState('construction');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,6 +34,18 @@ export default function LoginScreen() {
   const { saLogin } = useSuperAdmin();
   const router = useRouter();
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      try {
+        NavigationBar.setPositionAsync('relative').catch(() => {});
+        NavigationBar.setVisibilityAsync('hidden').catch(() => {});
+        NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => {});
+        NavigationBar.setBackgroundColorAsync('#F8FAFC').catch(() => {});
+        NavigationBar.setButtonStyleAsync('dark').catch(() => {});
+      } catch (e) {}
+    }
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -70,164 +88,16 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.outerContainer}>
-      <StatusBar barStyle="dark-content" />
-      <SimpleBackground />
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-      >
-        <ScrollView
-          contentContainerStyle={styles.formContainer}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.header}>
-            <Image
-              source={require('../../assets/logo.svg')}
-              style={styles.logo}
-              contentFit="contain"
-            />
-            <Text style={styles.eliteGreeting}>{t('welcomeBack', 'Welcome back! Please enter your details.')}</Text>
-            <Text style={styles.eliteTitle}>Skystruct</Text>
-          </View>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-          <View style={styles.glassCard}>
-            {error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Workspace Mode</Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setIndustryType('construction')}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 10,
-                    paddingHorizontal: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: industryType === 'construction' ? '#2563EB' : '#E2E8F0',
-                    backgroundColor: industryType === 'construction' ? '#EFF6FF' : '#F8FAFC',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: industryType === 'construction' ? '#1E40AF' : '#64748B' }}>
-                    🏗️ Construction
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setIndustryType('interior')}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 10,
-                    paddingHorizontal: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: industryType === 'interior' ? '#2563EB' : '#E2E8F0',
-                    backgroundColor: industryType === 'interior' ? '#DBEAFE' : '#F8FAFC',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: industryType === 'interior' ? '#6B21A8' : '#64748B' }}>
-                    🎨 Interior Design
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('email', 'Email')}</Text>
-              <View style={[styles.inputWrapper, { gap: 12 }]}>
-                <Ionicons name="mail-outline" size={20} color="#94A3B8" />
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('emailPlaceholder')}
-                  placeholderTextColor="#94A3B8"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('password', 'Password')}</Text>
-              <View style={[styles.inputWrapper, { gap: 12 }]}>
-                <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" />
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor="#94A3B8"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(v => !v)}
-                  style={styles.eyeBtn}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color="#94A3B8"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.forgotRow}>
-              <TouchableOpacity
-                style={styles.forgotPassword}
-                activeOpacity={0.7}
-                onPress={() => router.push('/auth/forgot-password')}
-              >
-                <Text style={styles.forgotPasswordText}>{t('forgetPassword', 'Forget Password?')}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleLogin}
-              disabled={isLoading}
-            >
-              <View style={[styles.buttonContainer, isLoading && { opacity: 0.7 }]}>
-                <View style={styles.loginButton}>
-                  <Text style={styles.loginButtonText}>
-                    {isLoading ? (
-                      <ActivityIndicator color="#FFFFFF" size="small" />
-                    ) : (
-                      t('loginUpper', 'Login')
-                    )}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push('/auth/register')}
-              activeOpacity={0.7}
-              style={styles.registerLink}
-            >
-              <Text style={styles.registerLinkText}>
-                {t('dontHaveAccount', "Don't have an account?")}{' '}
-                <Text style={styles.registerLinkHighlight}>{t('signUp', 'Sign Up')}</Text>
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-
+      {/* Floating Language Button on top-left (Fixed position) */}
       <TouchableOpacity
-        style={styles.languageBtn}
+        style={[
+          styles.langBtn,
+          {
+            top: Math.max(insets.top + 6, Platform.OS === 'ios' ? 44 : 20),
+          },
+        ]}
         onPress={() => router.push('/auth/language-select')}
         onLongPress={async () => {
           await SecureStore.deleteItemAsync('hasSeenOnboarding');
@@ -236,8 +106,207 @@ export default function LoginScreen() {
         }}
         activeOpacity={0.7}
       >
-        <Ionicons name="language" size={24} color="#1E293B" />
+        <Ionicons name="language" size={16} color="#475569" />
       </TouchableOpacity>
+
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: Math.max(insets.top + 16, Platform.OS === 'ios' ? 48 : 24),
+              paddingBottom: Math.max(insets.bottom + 16, 20),
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Centered Header: Logo in Center, then Title & Subtitle */}
+          <View style={styles.headerSection}>
+            <Image
+              source={require('../../assets/logo.svg')}
+              style={styles.centeredLogo}
+              contentFit="contain"
+            />
+            <Text style={styles.mainTitle}>Welcome Back</Text>
+            <Text style={styles.subTitle}>
+              {industryType === 'interior'
+                ? 'Sign in to your studio command centre'
+                : 'Sign in to your project command centre'}
+            </Text>
+          </View>
+
+          {/* Error Banner */}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={15} color="#DC2626" style={{ marginRight: 6 }} />
+              <Text style={styles.errorText} numberOfLines={2}>
+                {error}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Form Card */}
+          <View style={styles.card}>
+            {/* Segmented Industry Switcher (100% Matching Register) */}
+            <View style={styles.industrySegment}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setIndustryType('construction');
+                  setError('');
+                }}
+                style={[
+                  styles.segmentBtn,
+                  industryType === 'construction' && styles.segmentBtnActive,
+                ]}
+              >
+                <Text style={styles.segmentEmoji}>🏗️</Text>
+                <Text
+                  style={[
+                    styles.segmentText,
+                    industryType === 'construction' && styles.segmentTextActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  Construction
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setIndustryType('interior');
+                  setError('');
+                }}
+                style={[
+                  styles.segmentBtn,
+                  industryType === 'interior' && styles.segmentBtnActive,
+                ]}
+              >
+                <Text style={styles.segmentEmoji}>🎨</Text>
+                <Text
+                  style={[
+                    styles.segmentText,
+                    industryType === 'interior' && styles.segmentTextActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  Interior Design
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Email Field */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>{t('email', 'Work email')}</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="mail-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="name@company.com"
+                  placeholderTextColor="#94A3B8"
+                  value={email}
+                  onChangeText={(val) => {
+                    setEmail(val);
+                    if (error) setError('');
+                  }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
+
+            {/* Password Field */}
+            <View style={[styles.fieldGroup, { marginBottom: 4 }]}>
+              <Text style={styles.fieldLabel}>{t('password', 'Password')}</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="lock-closed-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="••••••••"
+                  placeholderTextColor="#94A3B8"
+                  value={password}
+                  onChangeText={(val) => {
+                    setPassword(val);
+                    if (error) setError('');
+                  }}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  style={styles.eyeBtn}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={17}
+                    color="#64748B"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Forgot Password Link */}
+            <View style={styles.forgotRow}>
+              <TouchableOpacity
+                style={styles.forgotPassword}
+                activeOpacity={0.7}
+                onPress={() =>
+                  router.push({
+                    pathname: '/auth/forgot-password',
+                    params: {
+                      industryType,
+                      email: email || '',
+                    },
+                  })
+                }
+              >
+                <Text style={styles.forgotPasswordText}>
+                  {t('forgetPassword', 'Forgot password?')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleLogin}
+              disabled={isLoading}
+              style={[styles.submitBtn, isLoading && { opacity: 0.75 }]}
+            >
+              {isLoading ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <Text style={styles.submitBtnText}>Signing in...</Text>
+                </View>
+              ) : (
+                <Text style={styles.submitBtnText}>{t('loginUpper', 'Sign in')}</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Register Link */}
+            <TouchableOpacity
+              onPress={() => router.push('/auth/register')}
+              activeOpacity={0.7}
+              style={styles.registerRow}
+            >
+              <Text style={styles.registerRowText}>
+                {t('dontHaveAccount', "Don't have a workspace?")}{' '}
+                <Text style={styles.registerRowHighlight}>
+                  {t('signUp', 'Create workspace')}
+                </Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -245,152 +314,185 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: '#F0F9FF',
+    backgroundColor: '#F8FAFC',
   },
-  bgBase: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#F8FAFF',
-  },
-
   container: {
     flex: 1,
   },
-  formContainer: {
+  scrollContent: {
+    paddingHorizontal: 16,
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
   },
-  header: {
-    marginBottom: 40,
-    alignItems: 'center',
-  },
-  logo: {
-    width: 100,
-    height: 100,
-    marginBottom: 20,
-  },
-  eliteGreeting: {
-    fontSize: 13,
-    color: '#3B82F6',
-    fontFamily: 'Inter-Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 2.5,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  eliteTitle: {
-    fontSize: 38,
-    fontFamily: 'Inter-Bold',
-    color: '#0F172A',
-    letterSpacing: -1.5,
-    textAlign: 'center',
-  },
-  glassCard: {
-    borderRadius: 24,
-    padding: 28,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    backgroundColor: '#FFFFFF',
-  },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontFamily: 'Inter-Bold',
-    color: '#334155',
-    marginBottom: 8,
-  },
-  languageBtn: {
+  langBtn: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 65 : 45,
-    left: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    left: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    justifyContent: 'center',
     zIndex: 10,
   },
-  inputWrapper: {
+  headerSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  centeredLogo: {
+    width: 72,
+    height: 40,
+    marginBottom: 6,
+  },
+  mainTitle: {
+    fontSize: 26,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+    letterSpacing: -0.7,
+    textAlign: 'center',
+  },
+  subTitle: {
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 50,
-    borderRadius: 16,
+    backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#E0F2FE',
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginBottom: 8,
+  },
+  errorText: {
+    flex: 1,
+    color: '#DC2626',
+    fontSize: 11.5,
+    fontFamily: 'Inter-Medium',
+  },
+  card: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  industrySegment: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 10,
+    gap: 4,
+  },
+  segmentBtn: {
+    flex: 1,
+    height: 34,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  segmentBtnActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  segmentEmoji: {
+    fontSize: 13,
+  },
+  segmentText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#64748B',
+  },
+  segmentTextActive: {
+    color: '#1D4ED8',
+  },
+  fieldGroup: {
+    marginBottom: 8,
+  },
+  fieldLabel: {
+    fontSize: 11.5,
+    fontFamily: 'Inter-SemiBold',
+    color: '#334155',
+    marginBottom: 4,
+  },
+  inputWrapper: {
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fieldIcon: {
+    marginRight: 7,
   },
   input: {
     flex: 1,
-    fontSize: 15,
-    color: '#0F172A',
-    fontFamily: 'Inter-SemiBold',
     height: '100%',
+    fontSize: 13.5,
+    fontFamily: 'Inter-Medium',
+    color: '#0F172A',
     paddingVertical: 0,
   },
   eyeBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  forgotPassword: {
-    marginBottom: 32,
-    marginTop: -4,
-  },
-  forgotPasswordText: {
-    color: '#3B82F6',
-    fontSize: 14,
-    fontFamily: 'Inter-Bold',
-  },
-  buttonContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  loginButton: {
-    paddingVertical: 18,
-    alignItems: 'center',
-    backgroundColor: '#2563EB', // Bluish color theme
-  },
-  loginButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
+    padding: 4,
   },
   forgotRow: {
     alignItems: 'flex-end',
+    marginTop: 2,
+    marginBottom: 8,
   },
-  registerLink: {
-    alignItems: 'center',
-    marginTop: 24,
+  forgotPassword: {
+    paddingVertical: 2,
   },
-  registerLinkText: {
-    color: '#475569',
-    fontSize: 14,
+  forgotPasswordText: {
+    color: '#2563EB',
+    fontSize: 12,
     fontFamily: 'Inter-SemiBold',
   },
-  registerLinkHighlight: {
-    color: '#3B82F6',
-    fontFamily: 'Inter-Black',
+  submitBtn: {
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
   },
-  errorContainer: {
-    backgroundColor: '#FEF2F2',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#FECACA',
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  errorText: {
-    color: '#DC2626',
+  submitBtnText: {
+    color: '#FFFFFF',
     fontSize: 14,
     fontFamily: 'Inter-Bold',
-    textAlign: 'center',
+  },
+  registerRow: {
+    alignItems: 'center',
+    marginTop: 10,
+    paddingVertical: 2,
+  },
+  registerRowText: {
+    color: '#64748B',
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+  },
+  registerRowHighlight: {
+    color: '#2563EB',
+    fontFamily: 'Inter-Bold',
   },
 });

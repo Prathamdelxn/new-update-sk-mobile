@@ -1,0 +1,5625 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  TextInput, Modal, StatusBar, ActivityIndicator, RefreshControl,
+  KeyboardAvoidingView, Platform, Alert, Image, Linking
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '../../context/ToastContext';
+import interiorApiClient from '../../services/interiorApiClient';
+import interiorCrmService from '../../services/interiorCrmService';
+import { queryKeys, invalidateCrmQueries, invalidateProjectQueries, useQuerySetter } from '../../context/QueryProvider';
+import { parseMaxBudget, formatExactCurrency } from '../../utils/format';
+import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../../utils/crmValidation';
+import * as ImagePicker from 'expo-image-picker';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { WebView } from 'react-native-webview';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import BoqBuilderModal from '../../components/crm/BoqBuilderModal';
+import BoqDrawingViewerModal from '../../components/crm/BoqDrawingViewerModal';
+import QuotationBuilderModal from '../../components/crm/QuotationBuilderModal';
+import SendQuotationModal from '../../components/crm/SendQuotationModal';
+import DrawingConfirmApproveModal from '../../components/crm/DrawingConfirmApproveModal';
+import LogSiteVisitModal from '../../components/crm/LogSiteVisitModal';
+import LogRequirementsModal from '../../components/crm/LogRequirementsModal';
+import UploadDesignModal from '../../components/crm/UploadDesignModal';
+import SendDrawingForApprovalModal from '../../components/crm/SendDrawingForApprovalModal';
+import DrawingApprovalModal from '../../components/crm/DrawingApprovalModal';
+import UploadRevisionModal from '../../components/crm/UploadRevisionModal';
+import CrmShareModal from '../../components/crm/CrmShareModal';
+import { WEB_APP_URL } from '../../config';
+import MarkLostModal from '../../components/crm/MarkLostModal';
+import SiteVisitHistoryModal from '../../components/crm/SiteVisitHistoryModal';
+import {
+  SendToSiteVisitModal,
+  SendToRequirementsModal,
+  SendToDrawingModal,
+  SendToBoqModal,
+  SendToQuotationsModal,
+  ConvertToProjectModal,
+} from '../../components/crm/StageTransitionModals';
+
+const LEAD_SOURCES = ['Phone Call', 'Walk-in', 'Referral', 'Existing Customer', 'Builder Reference', 'Architect Reference', 'Society Reference', 'Social Media', 'Other'];
+const FOLLOWUP_TYPES = ['Phone Call', 'WhatsApp', 'Meeting', 'Office Visit', 'Site Visit'];
+
+function userLabel(u) {
+  if (!u) return 'User';
+  const name = u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || 'User';
+  return `${name}${u.role?.name || u.role ? ` (${u.role?.name || u.role})` : ''}`;
+}
+
+// Handover notes from the "Pass to X" modals are built as
+// "note | Role: Name | Session/Scheduled for: date" — split that back out into
+// a clean note line + separate labeled meta lines instead of one run-on string.
+const BRIEF_META_PREFIXES = ['assigned:', 'architect:', 'designer:', 'estimator:', 'sales executive:', 'scheduled for:', 'session:'];
+function parseBriefNote(raw) {
+  const segments = (raw || '').split(' | ').map((s) => s.trim()).filter(Boolean);
+  const metaLines = [];
+  const noteParts = [];
+  segments.forEach((seg) => {
+    const lower = seg.toLowerCase();
+    const prefix = BRIEF_META_PREFIXES.find((p) => lower.startsWith(p));
+    if (prefix) {
+      const isDate = prefix === 'scheduled for:' || prefix === 'session:';
+      metaLines.push({
+        icon: isDate ? 'calendar-outline' : 'person-outline',
+        text: isDate ? `Scheduled for ${seg.slice(prefix.length).trim()}` : seg,
+      });
+    } else {
+      noteParts.push(seg);
+    }
+  });
+  return { note: noteParts.join(' '), metaLines };
+}
+
+function BriefNoteBody({ raw, textStyle, metaTextStyle }) {
+  const { note, metaLines } = parseBriefNote(raw);
+  return (
+    <View style={{ gap: 4 }}>
+      {!!note && <Text style={textStyle}>{note}</Text>}
+      {metaLines.length > 0 && (
+        <View style={{ gap: 3, marginTop: note ? 2 : 0 }}>
+          {metaLines.map((m, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Ionicons name={m.icon} size={11} color="#64748B" />
+              <Text style={metaTextStyle}>{m.text}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const STAGES = [
+  'New Lead', 'Contacted', 'Meeting Scheduled', 'Under Site Visit', 'Measurement Done',
+  'Under Requirement', 'Requirement Completed', 'Under Drawing', 'Design Approved',
+  'Under BOQ Creation', 'Under Quotation', 'Quotation Sent',
+  'Booking Pending', 'Won', 'Lost'
+];
+
+const STAGE_META = {
+  'New Lead': { color: '#0284C7', bg: '#F0F9FF' },
+  'Contacted': { color: '#D97706', bg: '#FFFBEB' },
+  'Meeting Scheduled': { color: '#7C3AED', bg: '#F5F3FF' },
+  'Under Site Visit': { color: '#7C3AED', bg: '#F5F3FF' },
+  'Measurement Done': { color: '#7C3AED', bg: '#F5F3FF' },
+  'Under Requirement': { color: '#4F46E5', bg: '#EEF2FF' },
+  'Requirement Completed': { color: '#4F46E5', bg: '#EEF2FF' },
+  'Under Drawing': { color: '#0284C7', bg: '#F0F9FF' },
+  'Design Approved': { color: '#0284C7', bg: '#F0F9FF' },
+  'Under BOQ Creation': { color: '#059669', bg: '#ECFDF5' },
+  'Under Quotation': { color: '#E11D48', bg: '#FFF1F2' },
+  'Quotation Sent': { color: '#E11D48', bg: '#FFF1F2' },
+  'Booking Pending': { color: '#E11D48', bg: '#FFF1F2' },
+  'Won': { color: '#16A34A', bg: '#F0FDF4' },
+  'Lost': { color: '#64748B', bg: '#F8FAFC' },
+};
+
+const STAGE_ORDER = {
+  'New Lead': 0,
+  'Contacted': 0,
+  'Meeting Scheduled': 0,
+  'Under Site Visit': 1,
+  'Measurement Done': 1,
+  'Under Requirement': 2,
+  'Requirement Completed': 2,
+  'Under Drawing': 3,
+  'Design Approved': 3,
+  'Under BOQ Creation': 4,
+  'BOQ Approved': 4,
+  'Under Quotation': 5,
+  'Quotation Pending': 5,
+  'Quotation Sent': 5,
+  'Negotiation': 5,
+  'Booking Pending': 5,
+  'Won': 6,
+  'Converted': 6,
+  'Lost': 6,
+};
+
+const TABS = [
+  { id: 'overview', label: 'Overview', icon: 'grid-outline' },
+  { id: 'follow_ups', label: 'Follow-ups', icon: 'calendar-outline' },
+  { id: 'site', label: 'Site Visits', icon: 'location-outline' },
+  { id: 'requirements', label: 'Requirements', icon: 'document-text-outline' },
+  { id: 'designs', label: 'Designs', icon: 'cube-outline' },
+  { id: 'boq', label: 'BOQ', icon: 'calculator-outline' },
+  { id: 'quotations', label: 'Quotations', icon: 'receipt-outline' },
+];
+
+export default function Lead360Screen() {
+  const { id, tab } = useLocalSearchParams();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
+
+  const showFieldDetail = (title, value, actionType = null) => {
+    const valText = value || 'Not specified';
+    const buttons = [{ text: 'Close', style: 'cancel' }];
+    if (actionType === 'phone' && value) {
+      buttons.unshift(
+        { text: 'Call', onPress: () => Linking.openURL(`tel:${value}`) },
+        { text: 'WhatsApp', onPress: () => Linking.openURL(`https://wa.me/${value.replace(/\D/g, '')}`) }
+      );
+    } else if (actionType === 'email' && value) {
+      buttons.unshift(
+        { text: 'Send Email', onPress: () => Linking.openURL(`mailto:${value}`) }
+      );
+    }
+    Alert.alert(title, valText, buttons);
+  };
+
+  const queryClient = useQueryClient();
+  // Lead, activities and users are cached per lead (see QueryProvider), so
+  // re-opening a lead shows it instantly instead of re-fetching everything.
+  const leadQuery = useQuery({
+    queryKey: queryKeys.crmLead(id),
+    queryFn: () => interiorCrmService.getCustomerById(id).then((cust) => cust || null),
+    enabled: !!id,
+  });
+  const activitiesQuery = useQuery({
+    queryKey: queryKeys.crmLeadActivities(id),
+    queryFn: async () => {
+      const actList = await interiorCrmService.getActivities(id);
+      return Array.isArray(actList) ? actList : [];
+    },
+    enabled: !!id,
+  });
+  const usersQuery = useQuery({
+    queryKey: queryKeys.crmUsers,
+    queryFn: async () => {
+      const list = await interiorCrmService.getUsers();
+      return Array.isArray(list) ? list : [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+  const lead = leadQuery.data ?? null;
+  const activities = activitiesQuery.data ?? [];
+  const users = usersQuery.data ?? [];
+  const setLead = useQuerySetter(queryKeys.crmLead(id));
+  const setActivities = useQuerySetter(queryKeys.crmLeadActivities(id));
+  const loading = leadQuery.isPending;
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState(tab || 'overview');
+  const [activeQuoteIdx, setActiveQuoteIdx] = useState(0);
+
+  // BOQ state
+  const [activeBoqIdx, setActiveBoqIdx] = useState(0);
+  const [showBoqModal, setShowBoqModal] = useState(false);
+  const [editingBoqIdx, setEditingBoqIdx] = useState(null);
+
+  // Guided Transition Modals
+  const [showSendSiteModal, setShowSendSiteModal] = useState(false);
+  const [showSendReqModal, setShowSendReqModal] = useState(false);
+  const [showSendDrawingModal, setShowSendDrawingModal] = useState(false);
+  const [sendSiteInitialData, setSendSiteInitialData] = useState(null);
+  const [sendReqInitialData, setSendReqInitialData] = useState(null);
+  const [sendDrawingInitialData, setSendDrawingInitialData] = useState(null);
+  const [showSendBoqModal, setShowSendBoqModal] = useState(false);
+  const [showSendQuoteModal, setShowSendQuoteModal] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [showLostModal, setShowLostModal] = useState(false);
+
+  // Status Change Modal
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showSiteHistoryModal, setShowSiteHistoryModal] = useState(false);
+
+  // Edit Lead Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditLeadSourceDropdown, setShowEditLeadSourceDropdown] = useState(false);
+  const [showEditAssignDropdown, setShowEditAssignDropdown] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', mobileNumber: '', email: '', leadSource: 'Phone Call', propertyType: 'Flat', projectLocation: '', assignedSalesExecutive: '' });
+  const [editFormErrors, setEditFormErrors] = useState({});
+  const [editFormTouched, setEditFormTouched] = useState({});
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+  const [deletingLead, setDeletingLead] = useState(false);
+
+  // Activity Modal State
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [activityForm, setActivityForm] = useState({ type: 'Phone Call', remarks: '' });
+  const [submittingAct, setSubmittingAct] = useState(false);
+
+  // Follow Up Modal State
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [followUpForm, setFollowUpForm] = useState({ type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' });
+
+  // Reschedule Follow-up Modal State
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [reschedulingId, setReschedulingId] = useState(null);
+  const [rescheduleForm, setRescheduleForm] = useState({ type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' });
+  const [showRescheduleDatePicker, setShowRescheduleDatePicker] = useState(false);
+  const [submittingReschedule, setSubmittingReschedule] = useState(false);
+
+  // Site Visit Modal State
+  const [showSiteModal, setShowSiteModal] = useState(false);
+  const [siteForm, setSiteForm] = useState({ carpetArea: '', ceilingHeight: '', rooms: '', notes: '' });
+  const [sitePhotos, setSitePhotos] = useState([]);
+
+  // Requirements Modal State
+  const [showReqModal, setShowReqModal] = useState(false);
+  const [reqForm, setReqForm] = useState({ roomName: '', theme: '', description: '' });
+
+  // Upload Design Modal State
+  const [showDesignModal, setShowDesignModal] = useState(false);
+  const [designForm, setDesignForm] = useState({ name: '', fileType: 'image', url: '' });
+
+  // Drawing Two-Step Approval Workflow State
+  const [sendApprovalDrawing, setSendApprovalDrawing] = useState(null);
+  const [approvalModalDrawing, setApprovalModalDrawing] = useState(null);
+  const [approvalModalAction, setApprovalModalAction] = useState('approve');
+  const [revisionDrawing, setRevisionDrawing] = useState(null);
+  const [approvingDrawingId, setApprovingDrawingId] = useState(null);
+  const [confirmApproveDrawing, setConfirmApproveDrawing] = useState(null);
+  const [previewLightboxDrawing, setPreviewLightboxDrawing] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  // Quotation Builder Modal State
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [editingQuoteIdx, setEditingQuoteIdx] = useState(null);
+  const [sendQuoteModalQuote, setSendQuoteModalQuote] = useState(null);
+  const [quoteItems, setQuoteItems] = useState([{ description: '', quantity: '1', unitPrice: '' }]);
+  const [quoteTax, setQuoteTax] = useState('18');
+  const [quoteDiscount, setQuoteDiscount] = useState('0');
+  const [quoteNotes, setQuoteNotes] = useState('');
+
+  // Quotation Document Preview / Email / Download State
+  const [showQuoteDocModal, setShowQuoteDocModal] = useState(false);
+  const [sendingQuoteEmail, setSendingQuoteEmail] = useState(false);
+  const [downloadingQuotePdf, setDownloadingQuotePdf] = useState(false);
+  const [downloadingBoqPdf, setDownloadingBoqPdf] = useState(false);
+
+  const isConverted = lead?.status === 'Won' || lead?.status === 'Converted' || !!lead?.linkedProject;
+  const isLost = lead?.status === 'Lost';
+  const isReadOnly = isConverted || isLost;
+  // A follow-up left "Pending" must stop being flagged Overdue once the lead
+  // has actually moved past the initial contact phase — otherwise it stays
+  // permanently red even though the lead progressed through later stages.
+  const isLeadProgressed = !['New Lead', 'Contacted', 'Meeting Scheduled'].includes(lead?.status) || isConverted || !!lead?.linkedProject;
+
+  const getTabLockState = (tabId) => {
+    if (isConverted) return { isLocked: false, requiredStage: '', stageTitle: '', reason: '' };
+    if (isLost) return { isLocked: false, requiredStage: '', stageTitle: '', reason: '' };
+
+    if (tabId === 'overview') {
+      return { isLocked: false, requiredStage: 'New Lead', stageTitle: 'Overview', reason: '' };
+    }
+    if (tabId === 'follow_ups') {
+      return { isLocked: false, requiredStage: 'New Lead', stageTitle: 'Follow-ups', reason: '' };
+    }
+
+    const currentStage = STAGE_ORDER[lead?.status || 'New Lead'] ?? 0;
+
+    switch (tabId) {
+      case 'site': {
+        // Matches web exactly: only a real stage advance (via the Pass-to-Site-Visit
+        // assignment form) or existing site data unlocks this tab — merely completing
+        // a follow-up does NOT, since that form is what actually assigns the visit.
+        const isUnlocked = currentStage >= 1 || !!lead?.siteMeasurements || (lead?.sitePhotos && lead.sitePhotos.length > 0);
+        return {
+          isLocked: !isUnlocked,
+          requiredStage: 'Under Site Visit',
+          stageTitle: 'Site Visit',
+          reason: 'Complete the initial follow-up before passing to the Site Visit stage.',
+        };
+      }
+      case 'requirements': {
+        const isUnlocked = currentStage >= 2 || (lead?.requirements && lead.requirements.length > 0);
+        return {
+          isLocked: !isUnlocked,
+          requiredStage: 'Under Requirement',
+          stageTitle: 'Requirements',
+          reason: 'Complete site measurements before logging detailed room specifications.',
+        };
+      }
+      case 'designs': {
+        const isUnlocked = currentStage >= 3 || (lead?.designFiles && lead.designFiles.length > 0);
+        return {
+          isLocked: !isUnlocked,
+          requiredStage: 'Under Drawing',
+          stageTitle: '2D/3D Drawing',
+          reason: 'Finalize site requirements before initiating 2D/3D design drafting.',
+        };
+      }
+      case 'boq': {
+        const isUnlocked = currentStage >= 4 || (lead?.boqs && lead.boqs.length > 0);
+        return {
+          isLocked: !isUnlocked,
+          requiredStage: 'Under BOQ Creation',
+          stageTitle: 'BOQ',
+          reason: 'Approval of 2D/3D drawings is required before building itemized BOQs.',
+        };
+      }
+      case 'quotations': {
+        const isUnlocked = currentStage >= 5 || (lead?.quotations && lead.quotations.length > 0);
+        return {
+          isLocked: !isUnlocked,
+          requiredStage: 'Under Quotation',
+          stageTitle: 'Quotations',
+          reason: 'An estimate BOQ is required before generating final sales quotations.',
+        };
+      }
+      default:
+        return { isLocked: false, requiredStage: '', stageTitle: '', reason: '' };
+    }
+  };
+
+  // Called after every mutation and on pull-to-refresh. Invalidating all CRM
+  // queries also refreshes the lead list, pipeline and follow-ups for this change.
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    try {
+      await invalidateCrmQueries(queryClient);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [queryClient]);
+
+  const loadError = leadQuery.error || activitiesQuery.error;
+  useEffect(() => {
+    if (loadError) showToast(loadError.message || 'Failed to load lead details', 'error');
+  }, [loadError]);
+
+  useEffect(() => {
+    if (tab) setActiveTab(tab);
+  }, [tab]);
+
+  const handleStatusChange = async (newStatus) => {
+    if (newStatus === 'Lost') {
+      setShowStatusModal(false);
+      setShowLostModal(true);
+      return;
+    }
+    try {
+      setLead((prev) => (prev ? { ...prev, status: newStatus } : prev));
+      await interiorApiClient.patch(`/crm/customers/${id}`, { status: newStatus });
+      showToast(`Lead moved to ${newStatus}`, 'success');
+      setShowStatusModal(false);
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to update status', 'error');
+      fetchData();
+    }
+  };
+
+  const handleAddActivity = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (!activityForm.remarks.trim()) return showToast('Remarks are required', 'error');
+    setSubmittingAct(true);
+    try {
+      await interiorCrmService.createActivity({
+        customer: id,
+        type: activityForm.type,
+        status: 'Completed',
+        remarks: activityForm.remarks,
+      });
+      showToast('Activity logged!', 'success');
+      setShowActivityModal(false);
+      setActivityForm({ type: 'Phone Call', remarks: '' });
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to log activity', 'error');
+    } finally {
+      setSubmittingAct(false);
+    }
+  };
+
+  const openScheduleDatePicker = () => {
+    if (Platform.OS === 'android') {
+      const base = followUpForm.scheduledDate || new Date();
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, pickedDate) => {
+          if (event.type !== 'set' || !pickedDate) return;
+          DateTimePickerAndroid.open({
+            value: base,
+            mode: 'time',
+            onChange: (timeEvent, pickedTime) => {
+              if (timeEvent.type !== 'set' || !pickedTime) return;
+              const combined = new Date(pickedDate);
+              combined.setHours(pickedTime.getHours(), pickedTime.getMinutes());
+              setFollowUpForm((prev) => ({ ...prev, scheduledDate: combined }));
+            },
+          });
+        },
+      });
+    } else {
+      setShowDatePicker(true);
+    }
+  };
+
+  const handleAssignSalesExecutive = async (userId) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    try {
+      await interiorApiClient.patch(`/crm/customers/${id}`, {
+        assignedSalesExecutive: userId,
+        status: lead?.status === 'New Lead' ? 'Contacted' : lead?.status,
+      });
+      showToast('Sales executive assigned successfully!', 'success');
+      setShowAssignDropdown(false);
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to assign executive', 'error');
+    }
+  };
+
+  const handleCompleteFollowUp = async (actId) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    try {
+      // Optimistic update so Done disappears immediately
+      setActivities((prev) =>
+        prev.map((act) => (act._id === actId ? { ...act, status: 'Completed', completedDate: new Date().toISOString() } : act))
+      );
+      await interiorApiClient.patch(`/crm/activities/${actId}`, {
+        status: 'Completed',
+        completedDate: new Date(),
+      });
+      showToast('Follow-up marked as completed!', 'success');
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to update follow-up', 'error');
+      fetchData();
+    }
+  };
+
+  const openRescheduleSiteVisit = (act) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    setSendSiteInitialData({
+      scheduledDate: act?.scheduledDate || null,
+      assignedSalesExecutive: act?.user?._id || act?.user?.id || act?.user || lead?.assignedSalesExecutive || '',
+      remarks: act?.remarks || '',
+    });
+    setShowSendSiteModal(true);
+  };
+
+  const openRescheduleRequirements = (act) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    setSendReqInitialData({
+      scheduledDate: act?.scheduledDate || null,
+      assignedMember: act?.user?._id || act?.user?.id || act?.user || lead?.designerAssigned || '',
+      remarks: act?.remarks || '',
+    });
+    setShowSendReqModal(true);
+  };
+
+  const openRescheduleDrawing = (act) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    setSendDrawingInitialData({
+      scheduledDate: act?.scheduledDate || null,
+      assignedDesigner: act?.user?._id || act?.user?.id || act?.user || lead?.designerAssigned || '',
+      remarks: act?.remarks || '',
+    });
+    setShowSendDrawingModal(true);
+  };
+
+  const openRescheduleModal = (act) => {
+    setReschedulingId(act._id);
+    setRescheduleForm({
+      type: act.type || 'Phone Call',
+      scheduledDate: act.scheduledDate ? new Date(act.scheduledDate) : new Date(),
+      remarks: act.remarks || '',
+      assignedSalesExecutive: act.user?._id || act.user?.id || act.user || lead?.assignedSalesExecutive || '',
+    });
+    setShowRescheduleModal(true);
+  };
+
+  const handleRescheduleFollowUp = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    const rescheduleDateError = validateFutureDate(rescheduleForm.scheduledDate, 'Follow-up date & time');
+    if (rescheduleDateError) return showToast(rescheduleDateError, 'error');
+    if (!rescheduleForm.assignedSalesExecutive) return showToast('Please assign a member before rescheduling', 'error');
+    if (!rescheduleForm.remarks.trim()) return showToast('Notes are required', 'error');
+    if (!reschedulingId) return;
+    setSubmittingReschedule(true);
+    try {
+      // Always create a new activity (rather than overwriting the old one) so the
+      // previous follow-up history is preserved in the timeline.
+      await interiorApiClient.post('/crm/activities', {
+        customer: id,
+        type: rescheduleForm.type,
+        scheduledDate: rescheduleForm.scheduledDate
+          ? rescheduleForm.scheduledDate.toISOString()
+          : new Date().toISOString(),
+        remarks: rescheduleForm.remarks.trim(),
+        status: 'Pending',
+        user: rescheduleForm.assignedSalesExecutive,
+      });
+      await interiorApiClient.patch(`/crm/customers/${id}`, {
+        assignedSalesExecutive: rescheduleForm.assignedSalesExecutive,
+      });
+      showToast('Follow-up rescheduled successfully!', 'success');
+      setShowRescheduleModal(false);
+      setReschedulingId(null);
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to reschedule follow-up', 'error');
+    } finally {
+      setSubmittingReschedule(false);
+    }
+  };
+
+  const openRescheduleDatePicker = () => {
+    if (Platform.OS === 'android') {
+      const base = rescheduleForm.scheduledDate || new Date();
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, pickedDate) => {
+          if (event.type !== 'set' || !pickedDate) return;
+          DateTimePickerAndroid.open({
+            value: base,
+            mode: 'time',
+            onChange: (timeEvent, pickedTime) => {
+              if (timeEvent.type !== 'set' || !pickedTime) return;
+              const combined = new Date(pickedDate);
+              combined.setHours(pickedTime.getHours(), pickedTime.getMinutes());
+              setRescheduleForm((prev) => ({ ...prev, scheduledDate: combined }));
+            },
+          });
+        },
+      });
+    } else {
+      setShowRescheduleDatePicker(true);
+    }
+  };
+
+  const handleScheduleFollowUp = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    const followUpDateError = validateFutureDate(followUpForm.scheduledDate, 'Follow-up date & time');
+    if (followUpDateError) return showToast(followUpDateError, 'error');
+    if (!followUpForm.assignedSalesExecutive) return showToast('Please assign a member before scheduling', 'error');
+    if (!followUpForm.remarks.trim()) return showToast('Follow-up goal / notes are required', 'error');
+    setSubmittingAct(true);
+    try {
+      await interiorApiClient.post('/crm/activities', {
+        customer: id,
+        type: followUpForm.type,
+        status: 'Pending',
+        scheduledDate: followUpForm.scheduledDate.toISOString(),
+        remarks: followUpForm.remarks.trim(),
+        user: followUpForm.assignedSalesExecutive,
+      });
+      await interiorApiClient.patch(`/crm/customers/${id}`, {
+        assignedSalesExecutive: followUpForm.assignedSalesExecutive,
+        status: lead?.status === 'New Lead' ? 'Contacted' : lead?.status,
+      });
+      showToast('Follow-up scheduled successfully!', 'success');
+      setShowFollowUpModal(false);
+      setFollowUpForm({ type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' });
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to schedule follow-up', 'error');
+    } finally {
+      setSubmittingAct(false);
+    }
+  };
+
+  const handlePickSitePhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets?.[0]?.base64) {
+      const base64Uri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setSitePhotos((prev) => [...prev, base64Uri]);
+    }
+  };
+
+  const handleSaveSiteVisit = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    setSubmittingAct(true);
+    try {
+      await interiorApiClient.patch(`/crm/customers/${id}`, {
+        status: 'Measurement Done',
+        siteMeasurements: siteForm,
+        sitePhotos: sitePhotos,
+      });
+
+      await interiorApiClient.post('/crm/activities', {
+        customer: id,
+        type: 'Site Visit',
+        status: 'Completed',
+        remarks: 'Completed site visit and updated measurements & photos.',
+      });
+
+      showToast('Site Visit saved!', 'success');
+      setShowSiteModal(false);
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to save site visit', 'error');
+    } finally {
+      setSubmittingAct(false);
+    }
+  };
+
+  const handleSaveRequirements = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (!reqForm.roomName.trim()) return showToast('Room name is required', 'error');
+    setSubmittingAct(true);
+    try {
+      const existingReqs = lead?.requirements || [];
+      const updatedReqs = [...existingReqs, reqForm];
+
+      await interiorApiClient.patch(`/crm/customers/${id}`, {
+        requirements: updatedReqs,
+        status: 'Requirement Completed',
+      });
+
+      showToast('Requirement logged!', 'success');
+      setShowReqModal(false);
+      setReqForm({ roomName: '', theme: '', description: '' });
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to log requirement', 'error');
+    } finally {
+      setSubmittingAct(false);
+    }
+  };
+
+  const handleSaveDesign = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (!designForm.name.trim() || !designForm.url.trim()) return showToast('Name and URL are required', 'error');
+    setSubmittingAct(true);
+    try {
+      const existingDesigns = lead?.designFiles || [];
+      const newFile = {
+        name: designForm.name,
+        url: designForm.url,
+        fileType: designForm.fileType,
+        uploadedAt: new Date().toISOString(),
+      };
+      await interiorApiClient.patch(`/crm/customers/${id}`, {
+        designFiles: [...existingDesigns, newFile],
+        status: 'Design Approved',
+      });
+
+      showToast('Design file uploaded!', 'success');
+      setShowDesignModal(false);
+      setDesignForm({ name: '', fileType: 'image', url: '' });
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to upload design', 'error');
+    } finally {
+      setSubmittingAct(false);
+    }
+  };
+
+  // Drawing status is authoritative on `status` (top-level field the backend
+  // actually keeps in sync on every approve/reject/send/version call) — the
+  // legacy `approvalStatus` field is only ever set on send-for-approval, so
+  // it can go stale and must not be trusted as the source of truth.
+  const DRAWING_STATUS_META = {
+    draft: { label: 'Draft', color: '#64748B', bg: '#F1F5F9' },
+    pending_internal_approval: { label: 'Pending Approval', color: '#D97706', bg: '#FFFBEB' },
+    internally_approved: { label: 'Approved', color: '#16A34A', bg: '#F0FDF4' },
+    client_approved: { label: 'Client Approved', color: '#16A34A', bg: '#F0FDF4' },
+    internally_rejected: { label: 'Rejected', color: '#DC2626', bg: '#FEF2F2' },
+    client_changes_requested: { label: 'Client Revision', color: '#DC2626', bg: '#FEF2F2' },
+  };
+  const getDrawingStatus = (f) => f?.status || 'draft';
+  const isDrawingPendingForBoq = (f) => {
+    const status = getDrawingStatus(f);
+    return status === 'draft' || status === 'pending_internal_approval' || status === 'internally_rejected' || status === 'client_changes_requested';
+  };
+
+  const handleDirectApproveDrawing = async (drawing) => {
+    const drawingId = drawing._id || drawing.id;
+    setApprovingDrawingId(drawingId);
+    try {
+      await interiorCrmService.approveDrawing(id, drawingId, {
+        action: 'approve',
+        versionNumber: drawing.currentVersion || 1,
+      });
+      showToast('Drawing approved and published to client portal!', 'success');
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to approve drawing', 'error');
+    } finally {
+      setApprovingDrawingId(null);
+    }
+  };
+
+  const handleDeleteDrawingFile = (drawing) => {
+    Alert.alert(
+      'Delete Drawing',
+      `Are you sure you want to delete "${drawing.title || drawing.name}"? This removes all its versions and cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await interiorCrmService.deleteDrawing(id, drawing._id || drawing.id);
+              showToast('Drawing deleted successfully', 'success');
+              fetchData();
+            } catch (e) {
+              showToast(e.message || 'Failed to delete drawing', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSaveQuotation = async () => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (quoteItems.length === 0 || !quoteItems[0].description.trim()) {
+      return showToast('At least one item with a description is required', 'error');
+    }
+    setSubmittingAct(true);
+    try {
+      const formattedItems = quoteItems.map((i) => {
+        const qty = parseFloat(i.quantity) || 1;
+        const price = parseFloat(i.unitPrice) || 0;
+        return { description: i.description, quantity: qty, unitPrice: price, total: qty * price };
+      });
+
+      const subtotal = formattedItems.reduce((sum, item) => sum + item.total, 0);
+      const taxRate = parseFloat(quoteTax) || 0;
+      const tax = Math.round(((subtotal * taxRate) / 100) * 100) / 100;
+      const discount = parseFloat(quoteDiscount) || 0;
+      const grandTotal = Math.max(0, Math.round((subtotal + tax - discount) * 100) / 100);
+
+      const existingQuotations = lead?.quotations || [];
+      const newQuote = {
+        version: existingQuotations.length + 1,
+        items: formattedItems,
+        subtotal,
+        taxPercentage: taxRate,
+        tax,
+        discount,
+        grandTotal,
+        notes: quoteNotes,
+        status: 'Sent',
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedQuotations = [...existingQuotations, newQuote];
+
+      // Optimistic update
+      setLead((prev) => (prev ? { ...prev, quotations: updatedQuotations, status: 'Quotation Sent' } : prev));
+
+      await interiorApiClient.patch(`/crm/customers/${id}`, {
+        quotations: updatedQuotations,
+        status: 'Quotation Sent',
+      });
+
+      await interiorApiClient.post('/crm/activities', {
+        customer: id,
+        type: 'Status Change',
+        status: 'Completed',
+        remarks: `Quotation v${newQuote.version} created (₹${grandTotal.toLocaleString('en-IN')}).`,
+      });
+
+      showToast('Quotation generated successfully!', 'success');
+      setShowQuoteModal(false);
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to create quotation', 'error');
+      fetchData();
+    } finally {
+      setSubmittingAct(false);
+    }
+  };
+
+  const handleQuoteStatus = async (quoteIndex, status) => {
+    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    try {
+      const updatedQuotations = [...(lead?.quotations || [])];
+      if (updatedQuotations[quoteIndex]) {
+        updatedQuotations[quoteIndex] = {
+          ...updatedQuotations[quoteIndex],
+          status: status,
+        };
+      }
+      let nextStatus = lead.status;
+      if (status === 'Accepted') nextStatus = 'Booking Pending';
+      if (status === 'Rejected') nextStatus = 'Under Quotation';
+
+      // Optimistic update so UI immediately renders the updated status without delay
+      setLead((prev) => (prev ? {
+        ...prev,
+        quotations: updatedQuotations,
+        status: nextStatus,
+      } : prev));
+
+      await interiorApiClient.patch(`/crm/customers/${id}`, {
+        quotations: updatedQuotations,
+        status: nextStatus,
+      });
+
+      await interiorApiClient.post('/crm/activities', {
+        customer: id,
+        type: 'Status Change',
+        status: 'Completed',
+        remarks: `Quotation v${updatedQuotations[quoteIndex]?.version || (quoteIndex + 1)} marked as ${status}.`,
+      });
+
+      showToast(`Quotation marked as ${status}!`, 'success');
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to update quote status', 'error');
+      fetchData();
+    }
+  };
+
+  const handleDeleteQuotation = (quoteIndex) => {
+    const quote = lead?.quotations?.[quoteIndex];
+    Alert.alert(
+      `Delete Quotation Version ${quote?.version || quoteIndex + 1}`,
+      `Are you sure you want to delete Quotation Version ${quote?.version || quoteIndex + 1} (Total: ₹${(quote?.grandTotal || 0).toLocaleString('en-IN')})? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Quotation',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updatedQuotations = (lead.quotations || [])
+                .filter((_, idx) => idx !== quoteIndex)
+                .map((q, i) => ({ ...q, version: i + 1 }));
+
+              await interiorApiClient.patch(`/crm/customers/${id}`, {
+                quotations: updatedQuotations,
+              });
+
+              await interiorApiClient.post('/crm/activities', {
+                customer: id,
+                type: 'Status Change',
+                status: 'Completed',
+                remarks: `Deleted Quotation Version ${quote?.version || quoteIndex + 1}`,
+              });
+
+              showToast(`Quotation Version ${quote?.version || quoteIndex + 1} deleted successfully!`, 'success');
+              setActiveQuoteIdx((prev) => Math.max(0, Math.min(prev, updatedQuotations.length - 1)));
+              fetchData();
+            } catch (e) {
+              showToast(e.message || 'Failed to delete quotation', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Builds the printable A4 quotation document (mirrors the web QuotationPreview layout)
+  const buildQuotationHtml = (targetLead, quote) => {
+    const currency = targetLead?.currency || 'INR';
+    const items = quote?.items || [];
+    const rowsHtml = items.map((item) => {
+      const qty = Number(item.quantity) || 0;
+      const unitStr = item.unit ? ` ${item.unit}` : '';
+      const unitPrice = Number(item.unitPrice || item.rate || 0);
+      const total = Number(item.total) || qty * unitPrice;
+      const itemTitle = typeof item.description === 'string' ? item.description.split('\n')[0] : (item.description || item.itemName || 'Line Item');
+      return `
+        <tr>
+          <td class="desc">${itemTitle}</td>
+          <td class="center">${qty}${unitStr}</td>
+          <td class="right">${formatExactCurrency(unitPrice, currency)}</td>
+          <td class="right bold">${formatExactCurrency(total, currency)}</td>
+        </tr>`;
+    }).join('');
+
+    const subtotal = Number(quote?.subtotal) || items.reduce((acc, it) => acc + (Number(it.total) || (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)), 0);
+    const taxPercentage = Number(quote?.taxPercentage ?? 18);
+    const tax = Number(quote?.tax) || Math.round(subtotal * (taxPercentage / 100));
+    const discount = Number(quote?.discount) || 0;
+    const grandTotal = Number(quote?.grandTotal) || Math.max(0, subtotal + tax - discount);
+    const notes = quote?.notes || '1. Quotation is valid for 30 days.\n2. 50% advance payment required to commence work.\n3. Goods once delivered and approved will not be returned.';
+    const createdDate = quote?.createdAt ? new Date(quote.createdAt).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+    const quoteTitle = quote?.title ? quote.title.toUpperCase() : 'COMMERCIAL QUOTATION';
+    const quoteSub = quote?.title || `Quotation Version ${quote?.version || 1}`;
+
+    return `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            * { box-sizing: border-box; }
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #0F172A; padding: 32px; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #E0E7FF; padding-bottom: 24px; margin-bottom: 28px; }
+            .header h1 { font-size: 26px; color: #312E81; margin: 0; letter-spacing: -0.5px; }
+            .header .ver { font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+            .company { text-align: right; }
+            .company h2 { font-size: 20px; margin: 0; color: #0F172A; }
+            .company p { font-size: 12px; color: #64748B; margin: 2px 0; }
+            .meta { display: flex; justify-content: space-between; margin-bottom: 32px; gap: 16px; }
+            .meta .label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+            .meta .name { font-size: 16px; font-weight: 700; }
+            .meta p { font-size: 13px; color: #475569; margin: 2px 0; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+            thead tr { border-bottom: 2px solid #0F172A; }
+            th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 10px 4px; color: #0F172A; }
+            th.center, td.center { text-align: center; }
+            th.right, td.right { text-align: right; }
+            td { padding: 12px 4px; font-size: 13px; border-bottom: 1px solid #F1F5F9; color: #334155; }
+            td.desc { font-weight: 600; color: #1E293B; }
+            td.bold { font-weight: 700; color: #0F172A; }
+            .totals { display: flex; justify-content: flex-end; border-top: 1px solid #E2E8F0; padding-top: 20px; }
+            .totals-box { width: 280px; }
+            .totals-box .row { display: flex; justify-content: space-between; font-size: 13px; color: #475569; margin-bottom: 8px; }
+            .totals-box .grand { display: flex; justify-content: space-between; font-size: 19px; font-weight: 800; color: #312E81; border-top: 2px solid #E0E7FF; padding-top: 10px; margin-top: 6px; }
+            .terms { margin-top: 40px; padding-top: 20px; border-top: 1px solid #F1F5F9; }
+            .terms .label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+            .terms p { font-size: 11px; color: #64748B; white-space: pre-wrap; line-height: 1.6; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>${quoteTitle}</h1>
+              <p class="ver">${quoteSub}</p>
+            </div>
+            <div class="company">
+              <h2>SKY INTERIOR</h2>
+              <p>123 Design Avenue, Tech Park</p>
+              <p>contact@skyinterior.com</p>
+              <p>+91 98765 43210</p>
+            </div>
+          </div>
+          <div class="meta">
+            <div>
+              <p class="label">Prepared For</p>
+              <p class="name">${targetLead?.name || ''}</p>
+              <p>${targetLead?.mobileNumber || ''}</p>
+              ${targetLead?.email ? `<p>${targetLead.email}</p>` : ''}
+              <p style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Date: ${createdDate}</p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 50%;">Description</th>
+                <th class="center" style="width: 15%;">Qty</th>
+                <th class="right" style="width: 15%;">Unit Price</th>
+                <th class="right" style="width: 20%;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+          <div class="totals">
+            <div class="totals-box">
+              <div class="row"><span>Subtotal</span><span>${formatExactCurrency(subtotal, currency)}</span></div>
+              <div class="row"><span>Tax (${taxPercentage}%)</span><span>${formatExactCurrency(tax, currency)}</span></div>
+              ${discount > 0 ? `<div class="row" style="color: #059669;"><span>Discount</span><span>- ${formatExactCurrency(discount, currency)}</span></div>` : ''}
+              <div class="grand"><span>Grand Total</span><span>${formatExactCurrency(grandTotal, currency)}</span></div>
+            </div>
+          </div>
+          <div class="terms">
+            <p class="label">Terms & Conditions</p>
+            <p>${notes}</p>
+          </div>
+        </body>
+      </html>
+    `;
+  };
+
+  const handleSendQuotationEmail = async () => {
+    if (!lead?.email) {
+      Alert.alert('Email Required', 'This lead has no email address on file. Add one from Edit Lead before sending.');
+      return;
+    }
+    if (!currentQuote) return;
+    setSendingQuoteEmail(true);
+    try {
+      await interiorCrmService.sendQuotationEmail(id, {
+        quotation: currentQuote,
+        recipientEmail: lead.email,
+      });
+      showToast(`Quotation emailed to ${lead.email}!`, 'success');
+    } catch (e) {
+      showToast(e.message || 'Failed to send quotation email', 'error');
+    } finally {
+      setSendingQuoteEmail(false);
+    }
+  };
+
+  const handleDownloadQuotationPdf = async () => {
+    if (!currentQuote) return;
+    setDownloadingQuotePdf(true);
+    try {
+      const html = buildQuotationHtml(lead, currentQuote);
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `Quotation v${currentQuote.version}` });
+      } else {
+        showToast('Sharing is not available on this device.', 'error');
+      }
+    } catch (e) {
+      showToast(e.message || 'Failed to generate quotation PDF', 'error');
+    } finally {
+      setDownloadingQuotePdf(false);
+    }
+  };
+
+  const buildBoqHtml = (targetLead, boq) => {
+    const currency = targetLead?.currency || 'INR';
+    const items = boq?.items || [];
+    const sections = boq?.sections && boq.sections.length > 0 ? boq.sections : null;
+
+    let itemsTableHtml = '';
+    if (sections) {
+      itemsTableHtml = sections.map((sec, sIdx) => {
+        const secItems = items.filter((it) => (it.sectionId ? it.sectionId === sec.id : it.category === sec.sectionTitle));
+        const secTotal = secItems.reduce((acc, it) => acc + (Number(it.amount) || ((Number(it.quantity) || 0) * (Number(it.rate) || 0))), 0);
+        return `
+          <tr style="background:#F8FAFC;">
+            <td colspan="5" style="padding:10px 8px;font-weight:700;color:#1E293B;border-top:1.5px solid #CBD5E1;border-bottom:1px solid #CBD5E1;">
+              SECTION ${sIdx + 1}: ${sec.sectionTitle || 'Scope Section'} 
+              <span style="float:right;color:#0F172A;">${formatExactCurrency(secTotal, currency)}</span>
+            </td>
+          </tr>
+          ${secItems.map((item, idx) => {
+            const qty = Number(item.quantity) || 0;
+            const rate = Number(item.rate) || 0;
+            const amt = Number(item.amount) || qty * rate;
+            return `
+              <tr>
+                <td style="width:30px;text-align:center;color:#64748B;">${idx + 1}</td>
+                <td class="desc">
+                  ${item.itemName || item.description || 'Item'}
+                  ${item.technicalDescription ? `<br/><span style="font-size:11px;color:#64748B;font-weight:normal;">${item.technicalDescription}</span>` : ''}
+                  ${item.brandMake ? `<br/><span style="font-size:10.5px;color:#2563EB;font-weight:600;">Brand/Make: ${item.brandMake}</span>` : ''}
+                </td>
+                <td class="center">${qty} ${item.unit || 'nos'}</td>
+                <td class="right">${formatExactCurrency(rate, currency)}</td>
+                <td class="right bold">${formatExactCurrency(amt, currency)}</td>
+              </tr>
+            `;
+          }).join('')}
+        `;
+      }).join('');
+    } else {
+      itemsTableHtml = items.map((item, idx) => {
+        const qty = Number(item.quantity) || 0;
+        const rate = Number(item.rate) || 0;
+        const amt = Number(item.amount) || qty * rate;
+        return `
+          <tr>
+            <td style="width:30px;text-align:center;color:#64748B;">${idx + 1}</td>
+            <td class="desc">${item.itemName || item.description || 'Line Item'}</td>
+            <td class="center">${qty} ${item.unit || 'nos'}</td>
+            <td class="right">${formatExactCurrency(rate, currency)}</td>
+            <td class="right bold">${formatExactCurrency(amt, currency)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    const totalAmount = Number(boq?.totalAmount) || items.reduce((acc, it) => acc + (Number(it.amount) || ((Number(it.quantity) || 0) * (Number(it.rate) || 0))), 0);
+    const notes = boq?.notes || 'Standard specifications and BOQ terms apply.';
+    const createdDate = boq?.createdAt ? new Date(boq.createdAt).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+
+    return `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            * { box-sizing: border-box; }
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #0F172A; padding: 32px; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #E2E8F0; padding-bottom: 24px; margin-bottom: 28px; }
+            .header h1 { font-size: 28px; color: #1E293B; margin: 0; letter-spacing: -0.5px; }
+            .header .ver { font-size: 12px; font-weight: 700; color: #2563EB; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+            .company { text-align: right; }
+            .company h2 { font-size: 20px; margin: 0; color: #0F172A; }
+            .company p { font-size: 12px; color: #64748B; margin: 2px 0; }
+            .meta { display: flex; justify-content: space-between; margin-bottom: 28px; gap: 16px; }
+            .meta .label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+            .meta .name { font-size: 16px; font-weight: 700; }
+            .meta p { font-size: 13px; color: #475569; margin: 2px 0; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+            thead tr { border-bottom: 2px solid #0F172A; }
+            th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 10px 4px; color: #0F172A; }
+            th.center, td.center { text-align: center; }
+            th.right, td.right { text-align: right; }
+            td { padding: 10px 4px; font-size: 13px; border-bottom: 1px solid #F1F5F9; color: #334155; }
+            td.desc { font-weight: 600; color: #1E293B; }
+            .bold { font-weight: 700; color: #0F172A; }
+            .totals { margin-left: auto; width: 300px; margin-bottom: 32px; border-top: 2px solid #0F172A; padding-top: 12px; }
+            .totals-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: 800; color: #0F172A; }
+            .notes { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin-top: 24px; font-size: 12px; line-height: 1.6; color: #475569; }
+            .notes h4 { margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #0F172A; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>Bill of Quantities (BOQ)</h1>
+              <div class="ver">Version ${boq?.version || 1} • Status: ${boq?.status || 'Draft'}</div>
+            </div>
+            <div class="company">
+              <h2>Sky Interior Design</h2>
+              <p>Interior Architecture & Turnkey Solutions</p>
+              <p>Date: ${createdDate}</p>
+            </div>
+          </div>
+          <div class="meta">
+            <div>
+              <div class="label">Project / Client</div>
+              <div class="name">${targetLead?.name || 'Client'}</div>
+              <p>${targetLead?.email || ''} ${targetLead?.phone ? '• ' + targetLead.phone : ''}</p>
+              <p>${targetLead?.projectLocation || targetLead?.location || ''}</p>
+            </div>
+            <div style="text-align:right;">
+              <div class="label">BOQ Details</div>
+              <p><b>Items Count:</b> ${items.length} line items</p>
+              <p><b>Sections:</b> ${sections ? sections.length : 1} section(s)</p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:30px;text-align:center;">#</th>
+                <th>Item Description / Specification</th>
+                <th class="center">Qty & UOM</th>
+                <th class="right">Unit Rate</th>
+                <th class="right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsTableHtml}
+            </tbody>
+          </table>
+          <div class="totals">
+            <div class="totals-row">
+              <span>Total Estimated BOQ</span>
+              <span>${formatExactCurrency(totalAmount, currency)}</span>
+            </div>
+          </div>
+          ${notes ? `
+            <div class="notes">
+              <h4>BOQ Remarks & Notes</h4>
+              <p>${notes.replace(/\n/g, '<br/>')}</p>
+            </div>
+          ` : ''}
+        </body>
+      </html>
+    `;
+  };
+
+  const handleDownloadBoqPdf = async (boq) => {
+    if (!boq) return;
+    setDownloadingBoqPdf(true);
+    try {
+      const html = buildBoqHtml(lead, boq);
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `BOQ v${boq.version || 1}` });
+      } else {
+        showToast('Sharing is not available on this device.', 'error');
+      }
+    } catch (e) {
+      showToast(e.message || 'Failed to generate BOQ PDF', 'error');
+    } finally {
+      setDownloadingBoqPdf(false);
+    }
+  };
+
+  const handleConvertToProject = async (quoteIndex) => {
+    if (isLost) return showToast('This lead is marked Lost and cannot be converted to a project.', 'info');
+    if (isConverted) return showToast('This lead has already been converted to a project.', 'info');
+    Alert.alert(
+      'Convert to Project',
+      'Are you sure you want to convert this Lead into an active Execution Project?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Convert Now',
+          style: 'default',
+          onPress: async () => {
+            try {
+              await interiorApiClient.post(`/crm/customers/${id}/convert`, { quotationIndex: quoteIndex });
+              invalidateCrmQueries(queryClient);
+              invalidateProjectQueries(queryClient);
+              showToast('🎉 Successfully converted to Project!', 'success');
+              router.push('/(tabs)/crm');
+            } catch (e) {
+              showToast(e.message || 'Failed to convert to project', 'error');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const openEditModal = () => {
+    const currExecId = typeof lead?.assignedSalesExecutive === 'object'
+      ? (lead?.assignedSalesExecutive?._id || '')
+      : (lead?.assignedSalesExecutive || '');
+    setEditForm({
+      name: lead?.name || '',
+      mobileNumber: lead?.mobileNumber || '',
+      email: lead?.email || '',
+      leadSource: lead?.leadSource || 'Phone Call',
+      propertyType: lead?.propertyType || 'Flat',
+      projectLocation: lead?.projectLocation || '',
+      assignedSalesExecutive: currExecId,
+    });
+    setEditFormErrors({});
+    setEditFormTouched({});
+    setShowEditLeadSourceDropdown(false);
+    setShowEditAssignDropdown(false);
+    setShowEditModal(true);
+  };
+
+  // Project location is optional on edit (unlike create) so leads saved
+  // before this field existed don't get blocked from being edited.
+  const validateEditField = (field, value) => {
+    switch (field) {
+      case 'name': return validateName(value);
+      case 'mobileNumber': return validateMobileNumber(value);
+      case 'email': return validateEmail(value);
+      case 'leadSource': return validateLeadSource(value);
+      case 'propertyType': return validatePropertyType(value);
+      case 'projectLocation': return validateProjectLocation(value, false);
+      default: return null;
+    }
+  };
+
+  const handleEditFieldChange = (field, value) => {
+    setEditForm((f) => ({ ...f, [field]: value }));
+    if (editFormTouched[field] || editFormErrors[field]) {
+      setEditFormErrors((prev) => ({ ...prev, [field]: validateEditField(field, value) }));
+    }
+  };
+
+  const handleEditFieldBlur = (field) => {
+    setEditFormTouched((prev) => ({ ...prev, [field]: true }));
+    setEditFormErrors((prev) => ({ ...prev, [field]: validateEditField(field, editForm[field]) }));
+  };
+
+  const handleEditSubmit = async () => {
+    const fields = ['name', 'mobileNumber', 'email', 'leadSource', 'propertyType', 'projectLocation'];
+    const nextErrors = {};
+    fields.forEach((f) => { nextErrors[f] = validateEditField(f, editForm[f]); });
+    setEditFormErrors(nextErrors);
+    setEditFormTouched(fields.reduce((acc, f) => ({ ...acc, [f]: true }), {}));
+    if (Object.values(nextErrors).some(Boolean)) {
+      showToast('Please fix the validation errors before saving', 'error');
+      return;
+    }
+    setSubmittingEdit(true);
+    try {
+      const payload = {
+        name: editForm.name.trim(),
+        mobileNumber: editForm.mobileNumber.trim(),
+        email: editForm.email.trim(),
+        leadSource: editForm.leadSource,
+        propertyType: editForm.propertyType,
+        projectLocation: editForm.projectLocation.trim(),
+      };
+      if (editForm.assignedSalesExecutive) {
+        payload.assignedSalesExecutive = editForm.assignedSalesExecutive;
+      }
+      await interiorApiClient.patch(`/crm/customers/${id}`, payload);
+      showToast('Lead updated successfully!', 'success');
+      setShowEditLeadSourceDropdown(false);
+      setShowEditAssignDropdown(false);
+      setShowEditModal(false);
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to update lead', 'error');
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
+
+  const openQuoteModal = (quoteIdx = null) => {
+    const existingQuotations = lead?.quotations || [];
+    if (quoteIdx === null || quoteIdx === undefined) {
+      const latest = existingQuotations.length > 0 ? existingQuotations[existingQuotations.length - 1] : null;
+      if (latest && latest.status !== 'Rejected' && latest.status !== 'Draft') {
+        Alert.alert(
+          'Cannot Create New Version',
+          `The current quotation (v${latest.version}) is "${latest.status}". A new version can only be created if the latest one is Rejected or in Draft.`
+        );
+        return;
+      }
+    }
+    setEditingQuoteIdx(typeof quoteIdx === 'number' ? quoteIdx : null);
+    setShowQuoteModal(true);
+  };
+
+  const handleDeleteLead = () => {
+    Alert.alert(
+      'Delete Lead',
+      `Are you sure you want to delete ${lead?.name || 'this lead'}? This action cannot be undone — all site visits, requirements, quotations, and activity history will be permanently deleted.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingLead(true);
+            try {
+              await interiorApiClient.delete(`/crm/customers/${id}`);
+              queryClient.removeQueries({ queryKey: queryKeys.crmLead(id) });
+              invalidateCrmQueries(queryClient);
+              showToast('Lead deleted successfully', 'delete');
+              router.replace('/(tabs)/crm');
+            } catch (e) {
+              showToast(e.message || 'Failed to delete lead', 'error');
+            } finally {
+              setDeletingLead(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={s.center}>
+        <ActivityIndicator size="large" color="#2563EB" />
+        <Text style={s.loadingText}>Loading Lead Profile...</Text>
+      </View>
+    );
+  }
+
+  if (!lead) {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+            <Ionicons name="arrow-back" size={20} color="#1E293B" />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Lead Details</Text>
+        </View>
+        <View style={s.center}>
+          <Text style={s.errorText}>Lead not found</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const meta = STAGE_META[lead.status] || STAGE_META['Lost'];
+  const currentQuote = lead.quotations?.[activeQuoteIdx];
+
+  return (
+    <View style={s.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#DBEAFE" translucent={false} />
+
+      {/* --- HERO HEADER (Compact & Centered) --- */}
+      <View style={[s.header, { paddingTop: Math.max(insets.top, 12) + 6 }]}>
+        <View style={s.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={18} color="#1E293B" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={s.headerLeadInfoCenter}>
+          <Text style={s.headerGreeting} numberOfLines={1}>CRM Workspace / Lead</Text>
+          <View style={s.headerTitleRow}>
+            <Text style={s.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+              {lead.name}
+            </Text>
+            <View style={s.leadIdBadge}>
+              <Text style={s.leadIdText}>{lead.leadNumber || 'LD-XXXX'}</Text>
+            </View>
+          </View>
+          <View style={s.headerPhoneRow}>
+            <Ionicons name="call" size={11} color="#1D4ED8" />
+            <Text style={s.headerSub} numberOfLines={1}>{lead.mobileNumber || 'No Phone'}</Text>
+          </View>
+        </View>
+
+      </View>
+
+
+      {/* Lost Lead Alert Banner */}
+      {lead.status === 'Lost' && (
+        <View style={s.lostAlertBanner}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+            <View style={s.lostAlertIconBox}>
+              <Ionicons name="close-circle" size={22} color="#DC2626" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.lostAlertTitle}>This Deal is Marked as Lost</Text>
+              <Text style={s.lostAlertReason}>
+                {lead.lostReason ? `Reason: ${lead.lostReason}` : 'No reason recorded for this lost deal.'}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={s.reopenLeadBtn}
+            onPress={() => setShowStatusModal(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh" size={13} color="#2563EB" />
+            <Text style={s.reopenLeadBtnText}>Reactivate</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} tintColor="#2563EB" />}
+      >
+        {/* --- TAB NAVIGATION --- */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabRow}>
+          {(() => {
+            const followUpActs = activities.filter(
+              (a) => a.type !== 'Status Change' && a.type !== 'Site Visit' && (a.remarks || a.scheduledDate || a.status === 'Pending')
+            );
+            const activePendingFollowUp = followUpActs.find((a) => a.status?.toLowerCase() === 'pending');
+            const hasOverdueFollowUp = !isLeadProgressed && activePendingFollowUp && activePendingFollowUp.scheduledDate && new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now();
+
+            return TABS.map((t) => {
+              const active = activeTab === t.id;
+              const lock = getTabLockState(t.id);
+              const isFollowUpTab = t.id === 'follow_ups';
+
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  style={[
+                    s.tabItem,
+                    active && s.tabItemActive,
+                    isFollowUpTab && hasOverdueFollowUp && { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' }
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (lock.isLocked) {
+                      showToast(`Complete previous stages to unlock ${t.label}.`, 'info');
+                    }
+                    setActiveTab(t.id);
+                  }}
+                >
+                  {lock.isLocked ? (
+                    <Ionicons name="lock-closed" size={12} color="#94A3B8" />
+                  ) : (
+                    <Ionicons name={t.icon} size={13} color={isFollowUpTab && hasOverdueFollowUp ? '#DC2626' : active ? '#2563EB' : '#64748B'} />
+                  )}
+                  <Text style={[s.tabText, active && s.tabTextActive, lock.isLocked && { color: '#94A3B8' }, isFollowUpTab && hasOverdueFollowUp && { color: '#DC2626', fontFamily: 'Inter-Bold' }]}>
+                    {t.label}
+                  </Text>
+                  {isFollowUpTab && activePendingFollowUp && (
+                    <View style={{ backgroundColor: hasOverdueFollowUp ? '#DC2626' : '#2563EB', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, marginLeft: 4 }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 9.5, fontFamily: 'Inter-Bold' }}>
+                        {hasOverdueFollowUp ? 'Overdue' : '1'}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            });
+          })()}
+        </ScrollView>
+
+        {/* --- TAB CONTENT --- */}
+        <View style={s.tabContent}>
+          {/* 1. OVERVIEW TAB */}
+          {activeTab === 'overview' && (
+            <View style={{ gap: 14 }}>
+              {/* Overview Section Header with Edit Button & Mark Lost */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', letterSpacing: 0.3 }}>
+                  LEAD DETAILS
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {!isReadOnly && (
+                    <TouchableOpacity
+                      style={s.headerIconBtn}
+                      onPress={() => setShowLostModal(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
+                    </TouchableOpacity>
+                  )}
+                  {!isReadOnly && (
+                    <TouchableOpacity
+                      style={[s.headerIconBtn, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}
+                      onPress={openEditModal}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="pencil" size={15} color="#334155" />
+                    </TouchableOpacity>
+                  )}
+                  {!isConverted && (
+                    <TouchableOpacity
+                      style={s.headerIconBtn}
+                      onPress={handleDeleteLead}
+                      disabled={deletingLead}
+                      activeOpacity={0.7}
+                    >
+                      {deletingLead ? (
+                        <ActivityIndicator size="small" color="#DC2626" />
+                      ) : (
+                        <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              <View style={{ gap: 10 }}>
+                {/* Row 1: Mobile Number & Client Source side-by-side */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    style={[s.metricCard, { flex: 1 }]}
+                    activeOpacity={0.7}
+                    onPress={() => showFieldDetail('Mobile Number', lead.mobileNumber, 'phone')}
+                  >
+                    <View style={s.metricHeader}>
+                      <Text style={s.metricLabel}>MOBILE NUMBER</Text>
+                      <Ionicons name="call-outline" size={13} color="#64748B" />
+                    </View>
+                    <Text style={s.metricVal} numberOfLines={1}>{lead.mobileNumber || 'Not specified'}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[s.metricCard, { flex: 1 }]}
+                    activeOpacity={0.7}
+                    onPress={() => showFieldDetail('Client Source', lead.leadSource)}
+                  >
+                    <View style={s.metricHeader}>
+                      <Text style={s.metricLabel}>CLIENT SOURCE</Text>
+                      <Ionicons name="pricetag-outline" size={13} color="#64748B" />
+                    </View>
+                    <Text style={s.metricVal} numberOfLines={1}>{lead.leadSource || 'Manual Entry'}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Row 2: Property Scope & Location side-by-side */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    style={[s.metricCard, { flex: 1 }]}
+                    activeOpacity={0.7}
+                    onPress={() => showFieldDetail('Property Scope', lead.propertyType)}
+                  >
+                    <View style={s.metricHeader}>
+                      <Text style={s.metricLabel}>PROPERTY SCOPE</Text>
+                      <Ionicons name="business-outline" size={13} color="#64748B" />
+                    </View>
+                    <Text style={s.metricVal} numberOfLines={1}>{lead.propertyType || 'Not specified'}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[s.metricCard, { flex: 1 }]}
+                    activeOpacity={0.7}
+                    onPress={() => showFieldDetail('Project Location', lead.projectLocation || lead.city)}
+                  >
+                    <View style={s.metricHeader}>
+                      <Text style={s.metricLabel}>LOCATION</Text>
+                      <Ionicons name="location-outline" size={13} color="#64748B" />
+                    </View>
+                    <Text style={s.metricVal} numberOfLines={1}>{lead.projectLocation || lead.city || 'Not specified'}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Row 3: Email Address full width */}
+                <TouchableOpacity
+                  style={s.metricCardFull}
+                  activeOpacity={0.7}
+                  onPress={() => showFieldDetail('Email Address', lead.email, 'email')}
+                >
+                  <View style={s.metricHeader}>
+                    <Text style={s.metricLabel}>EMAIL ADDRESS</Text>
+                    <Ionicons name="mail-outline" size={13} color="#64748B" />
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <Text style={[s.metricVal, { flex: 1 }]} numberOfLines={2}>
+                      {lead.email || 'Not specified'}
+                    </Text>
+                    {!!lead.email && (
+                      <View style={s.quickActionPill}>
+                        <Ionicons name="send-outline" size={11} color="#2563EB" />
+                        <Text style={s.quickActionPillText}>Send</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Activity Timeline */}
+              <View style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <Ionicons name="pulse" size={18} color="#2563EB" />
+                  <Text style={s.cardTitle}>Activity Timeline</Text>
+                  <TouchableOpacity style={s.smallBtn} onPress={() => setShowActivityModal(true)}>
+                    <Ionicons name="add" size={14} color="#2563EB" />
+                    <Text style={s.smallBtnText}>Log</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {activities.length === 0 ? (
+                  <Text style={s.emptySubText}>No activities logged yet.</Text>
+                ) : (
+                  activities.map((act) => {
+                    const userName = act.user?.name || act.user?.firstName || 'User';
+                    const isPending = act.status?.toLowerCase() === 'pending';
+                    const isOverdue = isPending && act.scheduledDate && new Date(act.scheduledDate).getTime() < Date.now();
+
+                    return (
+                      <View key={act._id} style={[s.timelineItem, isOverdue && { backgroundColor: '#FFF5F5', borderRadius: 10, padding: 8, marginVertical: 4 }]}>
+                        <View style={[s.timelineDot, { backgroundColor: isOverdue ? '#DC2626' : isPending ? '#F59E0B' : '#2563EB' }]} />
+                        <View style={s.timelineBody}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={s.actType}>{act.type} {isPending && (isOverdue ? '• Overdue' : '• Scheduled')}</Text>
+                              {isOverdue && (
+                                <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4, borderWidth: 1, borderColor: '#FCA5A5' }}>
+                                  <Text style={{ fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#DC2626' }}>Overdue</Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={[s.actTime, isOverdue && { color: '#DC2626', fontFamily: 'Inter-Bold' }]}>
+                              {new Date(act.scheduledDate || act.createdAt).toLocaleDateString()}
+                            </Text>
+                          </View>
+                          {act.type === 'Site Visit' ? (
+                            (() => {
+                              // Site Visit activity remarks are built as
+                              // "note | Assigned: X | Scheduled for: Y" — split that
+                              // back out into readable labeled lines instead of one run-on string.
+                              const segments = (act.remarks || '').split(' | ').map((s) => s.trim()).filter(Boolean);
+                              const assignedSeg = segments.find((s) => s.toLowerCase().startsWith('assigned:'));
+                              const scheduledSeg = segments.find((s) => s.toLowerCase().startsWith('scheduled for:'));
+                              const noteSeg = segments.filter((s) => s !== assignedSeg && s !== scheduledSeg).join(' ');
+                              return (
+                                <View style={{ gap: 4 }}>
+                                  {!!noteSeg && <Text style={s.actRemarks}>{noteSeg}</Text>}
+                                  {(!!assignedSeg || !!scheduledSeg) && (
+                                    <View style={{ gap: 3, marginTop: 2 }}>
+                                      {!!assignedSeg && (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                                          <Ionicons name="person-outline" size={11} color="#64748B" />
+                                          <Text style={s.actMetaLine}>{assignedSeg.replace(/^assigned:\s*/i, '')}</Text>
+                                        </View>
+                                      )}
+                                      {!!scheduledSeg && (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                                          <Ionicons name="calendar-outline" size={11} color="#64748B" />
+                                          <Text style={s.actMetaLine}>Scheduled for {scheduledSeg.replace(/^scheduled for:\s*/i, '')}</Text>
+                                        </View>
+                                      )}
+                                    </View>
+                                  )}
+                                </View>
+                              );
+                            })()
+                          ) : (
+                            <Text style={s.actRemarks}>{act.remarks}</Text>
+                          )}
+                          <Text style={s.actAuthor}>Logged by {userName}</Text>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* 2. FOLLOW-UPS TAB (Web Flow: Exactly 1 Active Follow-up Until Done) */}
+          {activeTab === 'follow_ups' && (
+            <View style={{ gap: 16 }}>
+              {(() => {
+                const followUpActs = activities.filter(
+                  (a) => a.type !== 'Status Change' && a.type !== 'Site Visit' && (a.remarks || a.scheduledDate || a.status === 'Pending')
+                );
+                // In Web flow: Exactly 1 pending follow-up is active until it is marked as done
+                const activePendingFollowUp = followUpActs.find((a) => a.status?.toLowerCase() === 'pending');
+                const completedFollowUps = followUpActs
+                  .filter((a) => a.status?.toLowerCase() === 'completed')
+                  .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime());
+
+                // Matches web's InteriorLeadFollowUpsTab exactly: site visit can only be
+                // offered while the lead is still pre-site-visit and has no quotations yet.
+                const isInitialPhase = ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(lead?.status || '');
+                const hasSiteVisitStarted =
+                  !isInitialPhase ||
+                  lead?.status === 'Under Site Visit' ||
+                  lead?.status === 'Measurement Done' ||
+                  Boolean(lead?.siteMeasurements) ||
+                  (Array.isArray(lead?.sitePhotos) && lead.sitePhotos.length > 0) ||
+                  Boolean(lead?.linkedProject);
+                const canSendToSiteVisit = !isConverted && !hasSiteVisitStarted && (!lead?.quotations || lead.quotations.length === 0);
+                const isActiveOverdue = !isLeadProgressed && !!(activePendingFollowUp?.scheduledDate && new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now());
+
+                return (
+                  <>
+                    {/* Action Buttons Row */}
+                    {!isReadOnly && (
+                    <View style={{ gap: 8 }}>
+                      <View style={{ flexDirection: 'row', gap: 10 }}>
+                        {activePendingFollowUp ? (
+                          canSendToSiteVisit ? (
+                            !isActiveOverdue && (
+                              <TouchableOpacity
+                                style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#7C3AED', paddingVertical: 12 }]}
+                                onPress={() => setShowSendSiteModal(true)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name="location-outline" size={15} color="#FFFFFF" />
+                                <Text style={s.saveBtnText}>Complete & Send to Site Visit </Text>
+                              </TouchableOpacity>
+                              // Matches web: once overdue, only Reschedule is offered — no
+                              // way to complete/advance until the follow-up date is fixed.
+                            )
+                          ) : (
+                            <TouchableOpacity
+                              style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#16A34A', paddingVertical: 12 }]}
+                              onPress={() => handleCompleteFollowUp(activePendingFollowUp._id)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
+                              <Text style={s.saveBtnText}>Mark Done</Text>
+                            </TouchableOpacity>
+                          )
+                        ) : completedFollowUps.length === 0 ? (
+                          <TouchableOpacity
+                            style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#2563EB', paddingVertical: 12 }]}
+                            onPress={() => setShowFollowUpModal(true)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="calendar-outline" size={15} color="#FFFFFF" />
+                            <Text style={s.saveBtnText}>Schedule Follow-up</Text>
+                          </TouchableOpacity>
+                        ) : canSendToSiteVisit ? (
+                          <TouchableOpacity
+                            style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#7C3AED', paddingVertical: 12 }]}
+                            onPress={() => setShowSendSiteModal(true)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="location-outline" size={15} color="#FFFFFF" />
+                            <Text style={s.saveBtnText}>Pass to Site Visit</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                    </View>
+                    )}
+
+                    {/* Active Scheduled Follow-up Card */}
+                    {activePendingFollowUp && (() => {
+                      const isOverdue = !isLeadProgressed && activePendingFollowUp.scheduledDate &&
+                        new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now();
+                      const overdueMs = isOverdue
+                        ? Date.now() - new Date(activePendingFollowUp.scheduledDate).getTime() : 0;
+                      const overdueDays = Math.floor(overdueMs / (1000 * 60 * 60 * 24));
+                      const overdueHrs = Math.floor(overdueMs / (1000 * 60 * 60));
+                      const overdueText = overdueDays > 0
+                        ? `${overdueDays}d overdue`
+                        : overdueHrs > 0
+                        ? `${overdueHrs}h overdue`
+                        : 'Just overdue';
+                      return (
+                      <View style={[s.card, isOverdue
+                        ? { borderColor: '#FCA5A5', backgroundColor: '#FFF5F5' }
+                        : { borderColor: '#BFDBFE', backgroundColor: '#F0F7FF' }
+                      ]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isOverdue ? '#DC2626' : '#2563EB' }} />
+                            <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: isOverdue ? '#991B1B' : '#1D4ED8' }}>
+                              {isOverdue ? 'Overdue Follow-up' : 'Current Active Follow-up'}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            {isOverdue && (
+                              <View style={s.overdueBadge}>
+                                <View style={s.overdueDot} />
+                                <Text style={s.overdueBadgeText}>{overdueText}</Text>
+                              </View>
+                            )}
+                            {!isOverdue && (
+                              <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE' }}>
+                                <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#1D4ED8', textTransform: 'uppercase' }}>Pending</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+
+                        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#DBEAFE', gap: 10 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                              <View style={[s.actionIconBox, { backgroundColor: '#EFF6FF' }]}>
+                                <Ionicons
+                                  name={activePendingFollowUp.type === 'WhatsApp' ? 'logo-whatsapp' : activePendingFollowUp.type === 'Meeting' ? 'people-outline' : 'call-outline'}
+                                  size={16}
+                                  color="#2563EB"
+                                />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>
+                                  {activePendingFollowUp.type || 'Touchpoint'}
+                                </Text>
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' }}>
+                                  Due: {activePendingFollowUp.scheduledDate
+                                    ? new Date(activePendingFollowUp.scheduledDate).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                                    : 'Not set'}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          {!isReadOnly && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                              <TouchableOpacity
+                                style={[s.rescheduleBtn, { flex: 1, justifyContent: 'center' }]}
+                                onPress={() => openRescheduleModal(activePendingFollowUp)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name="calendar-outline" size={13} color="#7C3AED" />
+                                <Text style={s.rescheduleBtnText}>Reschedule</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+
+                          {!!activePendingFollowUp.remarks && (
+                            <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#475569', backgroundColor: '#F8FAFC', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                              &quot;{activePendingFollowUp.remarks}&quot;
+                            </Text>
+                          )}
+
+                          {/* Quick Spec Matrix */}
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>CHANNEL</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{activePendingFollowUp.type || 'Phone Call'}</Text>
+                            </View>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>ASSIGNED TO</Text>
+                              <Text style={s.specVal} numberOfLines={1}>
+                                {(() => {
+                                  const uRef = lead.assignedSalesExecutive || activePendingFollowUp.user;
+                                  if (!uRef) return 'Unassigned';
+                                  const uId = typeof uRef === 'object' ? (uRef._id || uRef.id) : uRef;
+                                  const matched = users.find((u) => (u._id || u.id) === uId);
+                                  return matched ? userLabel(matched).split(' (')[0] : (typeof uRef === 'object' ? userLabel(uRef).split(' (')[0] : 'Team Member');
+                                })()}
+                              </Text>
+                            </View>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>CLIENT MOBILE</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{lead.mobileNumber || '—'}</Text>
+                            </View>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>PROJECT CITY</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{lead.city || lead.projectLocation || 'Standard'}</Text>
+                            </View>
+                          </View>
+
+                          {/* Quick Outreach Links */}
+                          {!!lead.mobileNumber && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingTop: 2 }}>
+                              <TouchableOpacity
+                                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
+                                onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`)}
+                              >
+                                <Ionicons name="call" size={12} color="#2563EB" />
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' }}>Call</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
+                                onPress={() => Linking.openURL(`https://wa.me/${lead.mobileNumber.replace(/\D/g, '')}`)}
+                              >
+                                <Ionicons name="logo-whatsapp" size={12} color="#16A34A" />
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#16A34A' }}>WhatsApp</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    );
+                    })()}
+
+                    {/* Follow-up Touchpoints / Completed History */}
+                    {/* Close the old activePendingFollowUp card wrapper */}
+
+                    <View style={s.card}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                          <Ionicons name="time-outline" size={18} color="#2563EB" />
+                          <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>
+                            Follow-up History ({completedFollowUps.length})
+                          </Text>
+                        </View>
+                        {completedFollowUps.length === 0 && !activePendingFollowUp && (
+                          <TouchableOpacity style={s.smallBtn} onPress={() => setShowFollowUpModal(true)}>
+                            <Ionicons name="add" size={14} color="#2563EB" />
+                            <Text style={s.smallBtnText}>Schedule</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      {completedFollowUps.length === 0 && !activePendingFollowUp ? (
+                        <View style={{ alignItems: 'center', paddingVertical: 24, gap: 8 }}>
+                          <Ionicons name="calendar-clear-outline" size={36} color="#CBD5E1" />
+                          <Text style={s.emptySubText}>No follow-ups logged yet.</Text>
+                          <TouchableOpacity
+                            style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 }}
+                            onPress={() => setShowFollowUpModal(true)}
+                          >
+                            <Text style={{ color: '#2563EB', fontSize: 12, fontFamily: 'Inter-Bold' }}>+ Schedule First Follow-up</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : completedFollowUps.length === 0 && activePendingFollowUp ? (
+                        <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 }}>
+                          Current follow-up is pending above. Tap &quot;Done&quot; once completed.
+                        </Text>
+                      ) : (
+                        completedFollowUps.map((act) => {
+                          const actDate = act.completedDate || act.updatedAt || act.scheduledDate || act.createdAt;
+                          return (
+                            <View key={act._id} style={s.followUpCard}>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                  <View style={[s.actionIconBox, { backgroundColor: '#F0FDF4' }]}>
+                                    <Ionicons
+                                      name={act.type === 'WhatsApp' ? 'logo-whatsapp' : act.type === 'Meeting' ? 'people-outline' : 'call-outline'}
+                                      size={16}
+                                      color="#16A34A"
+                                    />
+                                  </View>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{act.type || 'Touchpoint'}</Text>
+                                    <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B' }}>
+                                      {new Date(actDate).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                    </Text>
+                                  </View>
+                                </View>
+                                <View style={{
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 3,
+                                  borderRadius: 6,
+                                  backgroundColor: '#F0FDF4',
+                                  borderWidth: 1,
+                                  borderColor: '#BBF7D0',
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  gap: 3,
+                                }}>
+                                  <Ionicons name="checkmark-circle" size={12} color="#16A34A" />
+                                  <Text style={{
+                                    fontSize: 10,
+                                    fontFamily: 'Inter-Bold',
+                                    color: '#16A34A',
+                                    textTransform: 'uppercase',
+                                  }}>
+                                    Completed
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {!!act.remarks && (
+                                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#475569', marginTop: 8, backgroundColor: '#F8FAFC', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                  &quot;{act.remarks}&quot;
+                                </Text>
+                              )}
+                            </View>
+                          );
+                        })
+                      )}
+                    </View>
+                  </>
+                );
+              })()}
+            </View>
+          )}
+
+          {/* 3. SITE VISITS TAB */}
+          {activeTab === 'site' && (
+            <View style={{ gap: 16 }}>
+              {(() => {
+                const lock = getTabLockState('site');
+                const siteVisitActs = activities.filter((a) => a.type === 'Site Visit');
+                const latestSiteVisitAct = [...siteVisitActs].sort(
+                  (a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime()
+                )[0];
+                const siteVisitScheduledDate = lead?.siteVisitScheduledDate || latestSiteVisitAct?.scheduledDate;
+                const isSiteVisitOverdue = Boolean(
+                  !lead?.siteMeasurements && siteVisitScheduledDate && new Date(siteVisitScheduledDate).getTime() < Date.now()
+                );
+                // Resolve who the site visit is assigned to — checks the lead's own
+                // assignment first, then falls back to whoever the activity was logged for.
+                const siteAssignedId = (() => {
+                  const la = lead?.assignedSalesExecutive;
+                  const laId = typeof la === 'object' && la !== null ? (la._id || la.id) : la;
+                  if (laId) return laId;
+                  const au = latestSiteVisitAct?.user;
+                  return typeof au === 'object' && au !== null ? (au._id || au.id) : au;
+                })();
+                const siteAssignedName = siteAssignedId
+                  ? userLabel(users.find((u) => (u._id || u.id) === siteAssignedId) || {}).split(' (')[0]
+                  : null;
+                if (lock.isLocked) {
+                  return (
+                    <View style={s.lockedCard}>
+                      <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#F3E8FF' }]}>
+                        <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#7C3AED'} />
+                      </View>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Site Visit Phase Locked'}</Text>
+                      <Text style={s.lockedSub}>{lock.reason || `Advance the lead from "${lead.status}" to begin physical site measurements.`}</Text>
+                      {lock.isUnassigned ? (
+                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
+                          <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                          <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          style={[s.unlockActionBtn, { backgroundColor: '#7C3AED' }]}
+                          onPress={() => {
+                            const hasLoggedFollowUp = activities.some(
+                              (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && ['completed', 'pending'].includes(a.status?.toLowerCase())
+                            );
+                            if (!hasLoggedFollowUp) {
+                              Alert.alert('Follow-up Required', 'Please log a follow-up before passing to the Site Visit stage.');
+                              setActiveTab('follow_ups');
+                              return;
+                            }
+                            setShowSendSiteModal(true);
+                          }}
+                        >
+                          <Text style={s.unlockActionBtnText}>Pass to Site Visit</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                }
+
+                if (!lead.siteMeasurements) {
+                  return (
+                    <View style={{ gap: 14 }}>
+                      {isSiteVisitOverdue && (
+                        <View style={s.siteOverdueBanner}>
+                          <View style={s.siteOverdueIconBox}>
+                            <Ionicons name="warning" size={20} color="#DC2626" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <Text style={s.siteOverdueTitle}>Site Visit Schedule Overdue</Text>
+                            </View>
+                            <Text style={s.siteOverdueSub}>
+                              The scheduled site visit for {new Date(siteVisitScheduledDate).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} has passed without measurements being logged.
+                            </Text>
+                            {!isReadOnly && (
+                              <TouchableOpacity
+                                style={s.siteOverdueRescheduleBtn}
+                                onPress={() => openRescheduleSiteVisit(latestSiteVisitAct || { scheduledDate: siteVisitScheduledDate })}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
+                                <Text style={s.siteOverdueRescheduleBtnText}>Reschedule Site Visit</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        </View>
+                      )}
+
+                      <View style={s.emptyCard}>
+                        <Ionicons name="location-outline" size={40} color="#7C3AED" />
+                        <Text style={s.emptyCardTitle}>No Site Measurements</Text>
+                        <Text style={s.emptySubText}>Capture area, height, and site photos.</Text>
+                        {(!!lead.remarks || !!siteAssignedName) && (
+                          <View style={s.siteVisitBriefingCard}>
+                            <View style={s.siteVisitBriefingIconBox}>
+                              <Ionicons name="document-text-outline" size={15} color="#7C3AED" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.siteVisitBriefingLabel}>SITE VISIT BRIEFING NOTE</Text>
+                              <Text style={s.siteVisitBriefingText}>{lead.remarks || 'No specific instructions entered.'}</Text>
+                              {!!siteAssignedName && (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
+                                  <Ionicons name="person-outline" size={11} color="#64748B" />
+                                  <Text style={s.actMetaLine}>Assigned: {siteAssignedName}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        )}
+                        <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowSiteModal(true)}>
+                          <Text style={s.actionBtnText}>Log Site Visit</Text>
+                        </TouchableOpacity>
+                        {siteVisitActs.length > 0 && (
+                          <TouchableOpacity style={[s.smallBtn, { marginTop: 8 }]} onPress={() => setShowSiteHistoryModal(true)}>
+                            <Ionicons name="time-outline" size={13} color="#7C3AED" />
+                            <Text style={s.smallBtnText}>View History ({siteVisitActs.length})</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  );
+                }
+
+                return (
+                  <View style={{ gap: 16 }}>
+                    {/* Site Visit Briefing Note (from scheduling) */}
+                    {(!!lead.remarks || !!siteAssignedName) && (
+                      <View style={s.siteVisitBriefingCard}>
+                        <View style={s.siteVisitBriefingIconBox}>
+                          <Ionicons name="document-text-outline" size={15} color="#7C3AED" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.siteVisitBriefingLabel}>SITE VISIT BRIEFING NOTE</Text>
+                          <Text style={s.siteVisitBriefingText}>{lead.remarks || 'No specific instructions entered.'}</Text>
+                          {!!siteAssignedName && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
+                              <Ionicons name="person-outline" size={11} color="#64748B" />
+                              <Text style={s.actMetaLine}>Assigned: {siteAssignedName}</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    )}
+                    {siteVisitActs.length > 0 && (
+                      <TouchableOpacity style={[s.smallBtn, { alignSelf: 'flex-end' }]} onPress={() => setShowSiteHistoryModal(true)}>
+                        <Ionicons name="time-outline" size={13} color="#7C3AED" />
+                        <Text style={s.smallBtnText}>View History ({siteVisitActs.length})</Text>
+                      </TouchableOpacity>
+                    )}
+                    {/* 1. ROOM & SPATIAL DIMENSIONS */}
+                    <View style={s.card}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
+                          <View style={[s.actionIconBox, { backgroundColor: '#F3E8FF', width: 32, height: 32, borderRadius: 8 }]}>
+                            <Ionicons name="pencil-outline" size={16} color="#7C3AED" />
+                          </View>
+                          <Text style={s.cardTitle} numberOfLines={1}>Room & Spatial Dimensions</Text>
+                        </View>
+                        <TouchableOpacity style={s.smallBtn} onPress={() => setShowSiteModal(true)}>
+                          <Ionicons name="create-outline" size={14} color="#2563EB" />
+                          <Text style={s.smallBtnText}>Edit</Text>
+                        </TouchableOpacity>
+                      </View>
+                      
+                      {/* Metric Row: Carpet Area & Ceiling Height */}
+                      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                        <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                          <Text style={s.metricLabel}>Carpet Area</Text>
+                          <Text style={s.measureVal}>{lead.siteMeasurements.carpetArea ? `${lead.siteMeasurements.carpetArea} Sq.Ft` : 'N/A'}</Text>
+                        </View>
+                        <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                          <Text style={s.metricLabel}>Ceiling Height</Text>
+                          <Text style={s.measureVal}>{lead.siteMeasurements.ceilingHeight ? `${lead.siteMeasurements.ceilingHeight} Ft` : 'N/A'}</Text>
+                        </View>
+                      </View>
+
+                      {/* Floor-to-Ceiling Height */}
+                      {!!lead.siteMeasurements.floorToCeilingHeight && (
+                        <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 10 }}>
+                          <Text style={s.metricLabel}>Floor-to-Ceiling Height</Text>
+                          <Text style={s.measureVal}>{lead.siteMeasurements.floorToCeilingHeight} Ft</Text>
+                        </View>
+                      )}
+
+                      {/* Rooms to Design */}
+                      {!!lead.siteMeasurements.rooms && (
+                        <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 10 }}>
+                          <Text style={s.metricLabel}>Rooms to Design</Text>
+                          <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.rooms}</Text>
+                        </View>
+                      )}
+
+                      {/* Room Length × Width */}
+                      {!!lead.siteMeasurements.roomDimensions && (
+                        <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                          <Text style={s.metricLabel}>Room Length × Width</Text>
+                          <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.roomDimensions}</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* 2. OPENINGS & STRUCTURAL ELEMENTS */}
+                    {(!!lead.siteMeasurements.doorDimensions || !!lead.siteMeasurements.windowDimensions || !!lead.siteMeasurements.wallThickness || !!lead.siteMeasurements.columnBeamDimensions) && (
+                      <View style={s.card}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                          <View style={[s.actionIconBox, { backgroundColor: '#EEF2FF', width: 32, height: 32, borderRadius: 8 }]}>
+                            <Ionicons name="construct-outline" size={16} color="#4F46E5" />
+                          </View>
+                          <Text style={s.cardTitle}>Openings & Structural Elements</Text>
+                        </View>
+
+                        <View style={{ gap: 10 }}>
+                          {(!!lead.siteMeasurements.doorDimensions || !!lead.siteMeasurements.windowDimensions) && (
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                              {!!lead.siteMeasurements.doorDimensions && (
+                                <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                  <Text style={s.metricLabel}>Door Dimensions</Text>
+                                  <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.doorDimensions}</Text>
+                                </View>
+                              )}
+                              {!!lead.siteMeasurements.windowDimensions && (
+                                <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                  <Text style={s.metricLabel}>Window Dimensions</Text>
+                                  <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.windowDimensions}</Text>
+                                </View>
+                              )}
+                            </View>
+                          )}
+                          {!!lead.siteMeasurements.wallThickness && (
+                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                              <Text style={s.metricLabel}>Wall Thickness</Text>
+                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.wallThickness}</Text>
+                            </View>
+                          )}
+                          {!!lead.siteMeasurements.columnBeamDimensions && (
+                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                              <Text style={s.metricLabel}>Column & Beam Dimensions</Text>
+                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.columnBeamDimensions}</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 3. MEP & SERVICES (ELECTRICAL, PLUMBING, AC) */}
+                    {(!!lead.siteMeasurements.electricalPoints || !!lead.siteMeasurements.plumbingPoints || !!lead.siteMeasurements.acLocations) && (
+                      <View style={s.card}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                          <View style={[s.actionIconBox, { backgroundColor: '#FEF3C7', width: 32, height: 32, borderRadius: 8 }]}>
+                            <Ionicons name="flash-outline" size={16} color="#D97706" />
+                          </View>
+                          <Text style={s.cardTitle}>MEP & Services</Text>
+                        </View>
+
+                        <View style={{ gap: 10 }}>
+                          {!!lead.siteMeasurements.electricalPoints && (
+                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                              <Text style={s.metricLabel}>Existing Electrical Points</Text>
+                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.electricalPoints}</Text>
+                            </View>
+                          )}
+                          {!!lead.siteMeasurements.plumbingPoints && (
+                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                              <Text style={s.metricLabel}>Plumbing Points</Text>
+                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.plumbingPoints}</Text>
+                            </View>
+                          )}
+                          {!!lead.siteMeasurements.acLocations && (
+                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                              <Text style={s.metricLabel}>AC Locations & Piping</Text>
+                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.acLocations}</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 3. EXISTING FURNITURE & SITE CONSTRAINTS */}
+                    {(!!lead.siteMeasurements.furnitureDimensions || !!lead.siteMeasurements.siteConstraints || !!lead.siteMeasurements.notes) && (
+                      <View style={s.card}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                          <View style={[s.actionIconBox, { backgroundColor: '#ECFDF5', width: 32, height: 32, borderRadius: 8 }]}>
+                            <Ionicons name="cube-outline" size={16} color="#059669" />
+                          </View>
+                          <Text style={s.cardTitle}>Existing Furniture & Site Constraints</Text>
+                        </View>
+
+                        <View style={{ gap: 10 }}>
+                          {!!lead.siteMeasurements.furnitureDimensions && (
+                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                              <Text style={s.metricLabel}>Existing Furniture Dimensions</Text>
+                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.furnitureDimensions}</Text>
+                            </View>
+                          )}
+                          {!!lead.siteMeasurements.siteConstraints && (
+                            <View style={{ backgroundColor: '#FEF2F2', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#FEE2E2' }}>
+                              <Text style={[s.metricLabel, { color: '#DC2626' }]}>Any Site Constraints / Society Rules</Text>
+                              <Text style={[s.measureVal, { fontSize: 13, color: '#991B1B', marginTop: 2 }]}>{lead.siteMeasurements.siteConstraints}</Text>
+                            </View>
+                          )}
+                          {!!lead.siteMeasurements.notes && (
+                            <View style={{ backgroundColor: '#F3E8FF', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#E9D5FF' }}>
+                              <Text style={[s.metricLabel, { color: '#7C3AED' }]}>Additional Site Notes / Observations</Text>
+                              <Text style={[s.measureVal, { fontSize: 13, color: '#4C1D95', marginTop: 2 }]}>{lead.siteMeasurements.notes}</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 4. SITE PHOTOS */}
+                    <View style={s.card}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, marginRight: 8 }}>
+                          <View style={[s.actionIconBox, { backgroundColor: '#ECFDF5', width: 32, height: 32, borderRadius: 8, flexShrink: 0 }]}>
+                            <Ionicons name="images-outline" size={16} color="#059669" />
+                          </View>
+                          <Text style={s.cardTitle} numberOfLines={1}>Site Photos ({lead.sitePhotos?.length || 0})</Text>
+                        </View>
+                        <TouchableOpacity style={[s.smallBtn, { flexShrink: 0 }]} onPress={() => setShowSiteModal(true)}>
+                          <Ionicons name="camera-outline" size={14} color="#2563EB" />
+                          <Text style={s.smallBtnText}>Manage</Text>
+                        </TouchableOpacity>
+                      </View>
+                      {lead.sitePhotos && lead.sitePhotos.length > 0 ? (
+                        <View style={s.photoGrid}>
+                          {lead.sitePhotos.map((photo, i) => (
+                            <Image key={i} source={{ uri: photo }} style={s.photoThumb} />
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={s.emptySubText}>No site photos attached yet.</Text>
+                      )}
+                    </View>
+                    
+                    <View style={{ gap: 8, marginTop: 4 }}>
+                      {lead.status === 'Under Site Visit' && (
+                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#7C3AED', marginTop: 0 }]} onPress={() => setShowSendReqModal(true)}>
+                          <Text style={s.actionBtnText}>Complete Phase & Pass to Requirements</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+            })()}
+          </View>
+        )}
+
+          {/* 3. REQUIREMENTS TAB */}
+          {activeTab === 'requirements' && (
+            <View style={{ gap: 16 }}>
+              {(() => {
+                const lock = getTabLockState('requirements');
+                const reqActivity = activities.find(
+                  (a) => a.type === 'Requirement Gathering' && (a.status === 'Pending' || a.remarks)
+                ) || activities.find((a) => a.type === 'Requirement Gathering')
+                  || activities.find((a) => a.type === 'Status Change' && a.remarks?.toLowerCase().includes('requirement'));
+                const reqNote = reqActivity?.remarks || '';
+                const pendingReqActEarly = activities
+                  .filter((a) => a.type === 'Requirement Gathering' && a.status === 'Pending')
+                  .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime())[0];
+                const isReqOverdue = Boolean(
+                  pendingReqActEarly?.scheduledDate && new Date(pendingReqActEarly.scheduledDate).getTime() < Date.now()
+                );
+                if (lock.isLocked) {
+                  return (
+                    <View style={s.lockedCard}>
+                      <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#EEF2FF' }]}>
+                        <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#4F46E5'} />
+                      </View>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Requirements Phase Locked'}</Text>
+                      <Text style={s.lockedSub}>{lock.reason || 'Complete site measurements before logging detailed room specifications.'}</Text>
+                      {lock.isUnassigned ? (
+                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
+                          <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                          <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#4F46E5' }]} onPress={() => setShowSendReqModal(true)}>
+                          <Text style={s.unlockActionBtnText}>Pass to Requirements</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                }
+
+                if (!lead.requirements || lead.requirements.length === 0) {
+                  return (
+                    <View style={{ gap: 14 }}>
+                      {isReqOverdue && (
+                        <View style={s.siteOverdueBanner}>
+                          <View style={s.siteOverdueIconBox}>
+                            <Ionicons name="warning" size={20} color="#DC2626" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.siteOverdueTitle}>Requirements Session Overdue</Text>
+                            <Text style={s.siteOverdueSub}>
+                              The scheduled session for {new Date(pendingReqActEarly.scheduledDate).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} has passed without requirements being logged.
+                            </Text>
+                            {!isReadOnly && (
+                              <TouchableOpacity
+                                style={s.siteOverdueRescheduleBtn}
+                                onPress={() => openRescheduleRequirements(pendingReqActEarly)}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
+                                <Text style={s.siteOverdueRescheduleBtnText}>Reschedule Session</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        </View>
+                      )}
+
+                      <View style={s.emptyCard}>
+                        <Ionicons name="create-outline" size={40} color="#059669" />
+                        <Text style={s.emptyCardTitle}>No Requirements Recorded</Text>
+                        <Text style={s.emptySubText}>Add room-by-room themes and specifications.</Text>
+                        {!!reqNote && (
+                          <View style={s.briefingCardGreen}>
+                            <View style={s.briefingIconBoxGreen}>
+                              <Ionicons name="chatbubble-ellipses-outline" size={15} color="#059669" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.briefingLabelGreen}>REQUIREMENT HANDOVER & SCOPE NOTES</Text>
+                              <BriefNoteBody raw={reqNote} textStyle={s.briefingTextGreen} metaTextStyle={s.actMetaLine} />
+                            </View>
+                          </View>
+                        )}
+                        {!isReadOnly && (
+                          <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
+                            <Text style={s.actionBtnText}>Log Requirement</Text>
+                          </TouchableOpacity>
+                        )}
+                        {!isReadOnly && pendingReqActEarly && !isReqOverdue && (
+                          <TouchableOpacity style={[s.smallBtn, { marginTop: 8 }]} onPress={() => openRescheduleRequirements(pendingReqActEarly)}>
+                            <Ionicons name="time-outline" size={13} color="#4F46E5" />
+                            <Text style={s.smallBtnText}>Reschedule Session</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  );
+                }
+
+                const pendingReqAct = pendingReqActEarly;
+
+                return (
+                  <View style={{ gap: 12 }}>
+                  {!!reqNote && (
+                    <View style={s.briefingCardGreen}>
+                      <View style={s.briefingIconBoxGreen}>
+                        <Ionicons name="chatbubble-ellipses-outline" size={15} color="#059669" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.briefingLabelGreen}>REQUIREMENT HANDOVER & SCOPE NOTES</Text>
+                        <BriefNoteBody raw={reqNote} textStyle={s.briefingTextGreen} metaTextStyle={s.actMetaLine} />
+                      </View>
+                    </View>
+                  )}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                    {lead.budgetRange ? (
+                      <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#059669' }}>Budget: ₹{lead.budgetRange}</Text>
+                    ) : <View />}
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {!isReadOnly && pendingReqAct && (
+                        <TouchableOpacity style={s.smallBtn} onPress={() => openRescheduleRequirements(pendingReqAct)}>
+                          <Ionicons name="time-outline" size={14} color="#4F46E5" />
+                          <Text style={[s.smallBtnText, { color: '#4F46E5' }]}>Reschedule</Text>
+                        </TouchableOpacity>
+                      )}
+                      {!isReadOnly && (
+                        <TouchableOpacity style={s.smallBtn} onPress={() => setShowReqModal(true)}>
+                          <Ionicons name="create-outline" size={14} color="#059669" />
+                          <Text style={[s.smallBtnText, { color: '#059669' }]}>Edit / Add</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                  {lead.requirements.map((req, idx) => (
+                    <View key={idx} style={s.card}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                        <Text style={s.reqRoomName}>{req.roomName}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          {req.interiorType && (
+                            <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#DBEAFE' }}>
+                              <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#2563EB' }}>{req.interiorType}</Text>
+                            </View>
+                          )}
+                          {(req.designStyle || req.theme) && (
+                            <Text style={s.reqThemeBadge}>{req.designStyle || req.theme}</Text>
+                          )}
+                        </View>
+                      </View>
+                      
+                      {/* Functional Details */}
+                      {(req.roomUsage || req.furnitureRequirements || req.storage || req.electricalPoints || req.lightingRequirements || req.plumbingRequirements || req.circulation) && (
+                        <View style={{ marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                          <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB', marginBottom: 6 }}>FUNCTIONAL REQUIREMENTS</Text>
+                          {req.roomUsage && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Usage:</Text> {req.roomUsage}</Text>}
+                          {req.furnitureRequirements && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Furniture:</Text> {req.furnitureRequirements}</Text>}
+                          {req.storage && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Storage:</Text> {req.storage}</Text>}
+                          {req.electricalPoints && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Electrical:</Text> {req.electricalPoints}</Text>}
+                          {req.lightingRequirements && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Lighting:</Text> {req.lightingRequirements}</Text>}
+                          {req.plumbingRequirements && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Plumbing:</Text> {req.plumbingRequirements}</Text>}
+                          {req.circulation && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Circulation:</Text> {req.circulation}</Text>}
+                        </View>
+                      )}
+
+                      {/* Aesthetic Details */}
+                      {(req.designStyle || req.colours || req.materials || req.flooring || req.ceiling || req.wallFinishes || req.furnitureStyle) && (
+                        <View style={{ marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                          <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#7C3AED', marginBottom: 6 }}>AESTHETIC REQUIREMENTS</Text>
+                          {req.designStyle && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Style:</Text> {req.designStyle}</Text>}
+                          {req.colours && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Colors:</Text> {req.colours}</Text>}
+                          {req.materials && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Materials:</Text> {req.materials}</Text>}
+                          {req.flooring && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Flooring:</Text> {req.flooring}</Text>}
+                          {req.ceiling && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Ceiling:</Text> {req.ceiling}</Text>}
+                          {req.wallFinishes && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Walls:</Text> {req.wallFinishes}</Text>}
+                          {req.furnitureStyle && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Furniture Style:</Text> {req.furnitureStyle}</Text>}
+                        </View>
+                      )}
+
+                      {/* Observations & Notes */}
+                      {req.description && (
+                        <View style={{ marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                          <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#059669', marginBottom: 4 }}>OBSERVATIONS & NOTES</Text>
+                          <Text style={[s.measureVal, { color: '#334155' }]}>{req.description}</Text>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                  
+                  <View style={{ gap: 8, marginTop: 8 }}>
+                    {lead.status === 'Under Requirement' && (
+                      <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#4F46E5', marginTop: 0 }]} onPress={() => setShowSendDrawingModal(true)}>
+                        <Text style={s.actionBtnText}>Complete Phase & Pass to Drawing</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              );
+            })()}
+          </View>
+        )}
+
+          {/* 4. DESIGNS & FILES TAB */}
+          {activeTab === 'designs' && (
+            <View style={{ gap: 16 }}>
+              {(() => {
+                const lock = getTabLockState('designs');
+                if (lock.isLocked) {
+                  return (
+                    <View style={s.lockedCard}>
+                      <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#F0F9FF' }]}>
+                        <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#0284C7'} />
+                      </View>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Drawing & Design Phase Locked'}</Text>
+                      <Text style={s.lockedSub}>{lock.reason || 'Finalize site requirements before initiating 2D/3D design drafting.'}</Text>
+                      {lock.isUnassigned ? (
+                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
+                          <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                          <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#0284C7' }]} onPress={() => setShowSendDrawingModal(true)}>
+                          <Text style={s.unlockActionBtnText}>Pass to Drawing</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                }
+
+                const drawingActivity = activities.find(
+                  (a) => (a.type === '2D/3D Drawing' || a.type === 'Design Phase') && (a.status === 'Pending' || a.scheduledDate || a.remarks)
+                ) || activities.find((a) => a.type === '2D/3D Drawing' || a.type === 'Design Phase')
+                  || activities.find((a) => a.type === 'Status Change' && (a.remarks?.toLowerCase().includes('drawing') || a.remarks?.toLowerCase().includes('design')));
+                const drawingNote = drawingActivity?.remarks || '';
+
+                if (!lead.designFiles || lead.designFiles.length === 0) {
+                  return (
+                    <View style={s.emptyCard}>
+                      <Ionicons name="cloud-upload-outline" size={40} color="#2563EB" />
+                      <Text style={s.emptyCardTitle}>No Designs Uploaded</Text>
+                      <Text style={s.emptySubText}>Attach 2D/3D design renders and files.</Text>
+                      {!!drawingNote && (
+                        <View style={s.briefingCardBlue}>
+                          <View style={s.briefingIconBoxBlue}>
+                            <Ionicons name="chatbubble-ellipses-outline" size={15} color="#1D4ED8" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.briefingLabelBlue}>DESIGN BRIEF & LAYER GUIDELINES</Text>
+                            <BriefNoteBody raw={drawingNote} textStyle={s.briefingTextBlue} metaTextStyle={s.actMetaLine} />
+                          </View>
+                        </View>
+                      )}
+                      {!isReadOnly && (
+                        <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowDesignModal(true)}>
+                          <Text style={s.actionBtnText}>Upload Design File</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                }
+
+                const pendingDrawingAct = activities
+                  .filter((a) => a.type === '2D/3D Drawing' && a.status === 'Pending')
+                  .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime())[0];
+
+                return (
+                  <View style={{ gap: 12 }}>
+                    {!!drawingNote && (
+                      <View style={s.briefingCardBlue}>
+                        <View style={s.briefingIconBoxBlue}>
+                          <Ionicons name="chatbubble-ellipses-outline" size={15} color="#1D4ED8" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.briefingLabelBlue}>DESIGN BRIEF & LAYER GUIDELINES</Text>
+                          <BriefNoteBody raw={drawingNote} textStyle={s.briefingTextBlue} metaTextStyle={s.actMetaLine} />
+                        </View>
+                      </View>
+                    )}
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+                      {!isReadOnly && pendingDrawingAct && (
+                        <TouchableOpacity style={s.smallBtn} onPress={() => openRescheduleDrawing(pendingDrawingAct)}>
+                          <Ionicons name="time-outline" size={14} color="#0284C7" />
+                          <Text style={[s.smallBtnText, { color: '#0284C7' }]}>Reschedule</Text>
+                        </TouchableOpacity>
+                      )}
+                      {!isReadOnly && (
+                        <TouchableOpacity style={s.smallBtn} onPress={() => setShowDesignModal(true)}>
+                          <Ionicons name="add" size={14} color="#2563EB" />
+                          <Text style={s.smallBtnText}>Upload File</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Client Share Portal Ribbon */}
+                    <View style={s.shareRibbon}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={s.shareRibbonIconBox}>
+                          <Ionicons name="globe-outline" size={16} color="#7C3AED" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.shareRibbonTitle}>Client View-Only Portal</Text>
+                          <Text style={s.shareRibbonSub}>
+                            {lead.shareSettings?.isPublic ? 'Active — approved drawings are visible to the client' : 'Not generated yet'}
+                          </Text>
+                        </View>
+                        <View style={[s.shareRibbonBadge, { backgroundColor: lead.shareSettings?.isPublic ? '#DCFCE7' : '#F1F5F9' }]}>
+                          <Text style={[s.shareRibbonBadgeText, { color: lead.shareSettings?.isPublic ? '#16A34A' : '#64748B' }]}>
+                            {lead.shareSettings?.isPublic ? 'Active' : 'Inactive'}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                        {lead.shareSettings?.isPublic && lead.shareSettings?.shareToken && (
+                          <TouchableOpacity
+                            style={s.shareRibbonBtnOutline}
+                            onPress={() => Linking.openURL(`${WEB_APP_URL}/share/drawing/${lead.shareSettings.shareToken}`)}
+                          >
+                            <Ionicons name="eye-outline" size={13} color="#7C3AED" />
+                            <Text style={s.shareRibbonBtnOutlineText}>Preview Portal</Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity style={s.shareRibbonBtn} onPress={() => setShowShareModal(true)}>
+                          <Ionicons name="link-outline" size={13} color="#FFFFFF" />
+                          <Text style={s.shareRibbonBtnText}>{lead.shareSettings?.isPublic ? 'Manage / Copy Link' : 'Generate Share Link'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {lead.designFiles.map((file, idx) => {
+                      const status = getDrawingStatus(file);
+                      const statusMeta = DRAWING_STATUS_META[status] || DRAWING_STATUS_META.draft;
+                      const isApprovingThis = approvingDrawingId === (file._id || file.id || idx);
+                      return (
+                        <View key={file._id || file.id || idx} style={[s.fileCard, { flexDirection: 'column', padding: 0, overflow: 'hidden' }]}>
+                          <TouchableOpacity
+                            onPress={() => {
+                              if (file.url) {
+                                setPreviewLightboxDrawing(file);
+                              }
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            {/* Thumbnail for image files */}
+                            {file.fileType === 'image' && file.url ? (
+                              <Image source={{ uri: file.url }} style={{ width: '100%', height: 160, resizeMode: 'cover', backgroundColor: '#E2E8F0' }} />
+                            ) : (
+                              <View style={{ width: '100%', height: 80, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
+                                <Ionicons
+                                  name={file.fileType === 'pdf' ? 'document-text-outline' : file.fileType === '3d-model' ? 'cube-outline' : file.fileType === 'cad' ? 'git-branch-outline' : 'document-outline'}
+                                  size={36}
+                                  color="#2563EB"
+                                />
+                                <Text style={{ fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#2563EB', marginTop: 4, textTransform: 'uppercase' }}>
+                                  {file.fileType || 'File'}
+                                </Text>
+                              </View>
+                            )}
+
+                            {/* Overlay: category + version badge (top-left), status pill (top-right) */}
+                            <View style={{ position: 'absolute', top: 8, left: 8, flexDirection: 'row', gap: 6 }}>
+                              {!!file.category && (
+                                <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
+                                  <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' }}>{file.category}</Text>
+                                </View>
+                              )}
+                              <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
+                                <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>v{file.currentVersion || 1}</Text>
+                              </View>
+                            </View>
+                            <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: statusMeta.bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                              <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: statusMeta.color }}>{statusMeta.label}</Text>
+                            </View>
+                          </TouchableOpacity>
+
+                          {/* File info */}
+                          <View style={{ padding: 10, gap: 6 }}>
+                            <Text style={s.fileName} numberOfLines={1}>{file.title || file.name}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              {!!file.roomTag && (
+                                <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                  <Text style={{ fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>{file.roomTag}</Text>
+                                </View>
+                              )}
+                              <Text style={s.fileSub}>{new Date(file.uploadedAt).toLocaleDateString()}</Text>
+                              {!!file.assignedReviewerName && (status === 'pending_internal_approval') && (
+                                <Text style={s.fileSub}>• Assigned: {file.assignedReviewerName}</Text>
+                              )}
+                            </View>
+
+                            {(status === 'internally_rejected' || status === 'client_changes_requested') && !!file.rejectionReason && (
+                              <View style={{ backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 8, padding: 8 }}>
+                                <Text style={{ fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#DC2626' }}>REJECTION REASON</Text>
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{file.rejectionReason}</Text>
+                              </View>
+                            )}
+                            {!!file.clientFeedback && (
+                              <View style={{ backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 8, padding: 8 }}>
+                                <Text style={{ fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#B45309' }}>CLIENT FEEDBACK</Text>
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{file.clientFeedback}</Text>
+                              </View>
+                            )}
+
+                            {!isReadOnly && (
+                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+                                {status === 'draft' && (
+                                  <TouchableOpacity style={s.smallBtn} onPress={() => setSendApprovalDrawing(file)}>
+                                    <Ionicons name="paper-plane-outline" size={13} color="#0284C7" />
+                                    <Text style={[s.smallBtnText, { color: '#0284C7' }]}>Send for Approval</Text>
+                                  </TouchableOpacity>
+                                )}
+                                {status === 'pending_internal_approval' && (
+                                  <>
+                                    <TouchableOpacity
+                                      style={[s.smallBtn, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
+                                      onPress={() => setConfirmApproveDrawing(file)}
+                                      disabled={isApprovingThis}
+                                    >
+                                      {isApprovingThis ? <ActivityIndicator size="small" color="#16A34A" /> : (
+                                        <>
+                                          <Ionicons name="checkmark-circle-outline" size={13} color="#16A34A" />
+                                          <Text style={[s.smallBtnText, { color: '#16A34A' }]}>Approve</Text>
+                                        </>
+                                      )}
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      style={[s.smallBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
+                                      onPress={() => { setApprovalModalAction('reject'); setApprovalModalDrawing(file); }}
+                                    >
+                                      <Ionicons name="close-circle-outline" size={13} color="#DC2626" />
+                                      <Text style={[s.smallBtnText, { color: '#DC2626' }]}>Reject</Text>
+                                    </TouchableOpacity>
+                                  </>
+                                )}
+                                {(status === 'internally_rejected' || status === 'client_changes_requested') && (
+                                  <TouchableOpacity style={[s.smallBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => setRevisionDrawing(file)}>
+                                    <Ionicons name="add-circle-outline" size={13} color="#2563EB" />
+                                    <Text style={[s.smallBtnText, { color: '#2563EB' }]}>+ Revision</Text>
+                                  </TouchableOpacity>
+                                )}
+                                <TouchableOpacity style={[s.smallBtn, { marginLeft: 'auto' }]} onPress={() => handleDeleteDrawingFile(file)}>
+                                  <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })}
+
+                    <View style={{ gap: 8, marginTop: 8 }}>
+                      {lead.status === 'Under Drawing' && (() => {
+                        const pendingCount = lead.designFiles.filter(isDrawingPendingForBoq).length;
+                        return pendingCount > 0 ? (
+                          <View style={{ gap: 6 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, padding: 10 }}>
+                              <Ionicons name="alert-circle" size={14} color="#B45309" />
+                              <Text style={{ flex: 1, fontSize: 11, fontFamily: 'Inter-Medium', color: '#92400E' }}>
+                                Cannot pass to BOQ — {pendingCount} drawing{pendingCount === 1 ? '' : 's'} pending approval.
+                              </Text>
+                            </View>
+                            <TouchableOpacity disabled style={[s.actionBtnPrimary, { backgroundColor: '#CBD5E1', marginTop: 0 }]}>
+                              <Text style={s.actionBtnText}>Drawings Pending Approval</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#0284C7', marginTop: 0 }]} onPress={() => setShowSendBoqModal(true)}>
+                            <Text style={s.actionBtnText}>Complete Phase & Pass to BOQ Estimation</Text>
+                          </TouchableOpacity>
+                        );
+                      })()}
+                    </View>
+                  </View>
+                );
+              })()}
+            </View>
+          )}
+
+          {/* 5. BOQ TAB */}
+          {activeTab === 'boq' && (
+            <View style={{ gap: 16 }}>
+              {(() => {
+                const lock = getTabLockState('boq');
+                if (lock.isLocked) {
+                  return (
+                    <View style={s.lockedCard}>
+                      <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#ECFDF5' }]}>
+                        <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#059669'} />
+                      </View>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'BOQ Estimation Phase Locked'}</Text>
+                      <Text style={s.lockedSub}>{lock.reason || 'Approval of 2D/3D drawings is required before building itemized BOQs.'}</Text>
+                      {lock.isUnassigned ? (
+                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
+                          <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                          <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#059669' }]} onPress={() => setShowSendBoqModal(true)}>
+                          <Text style={s.unlockActionBtnText}>Pass to BOQ Phase</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                }
+
+                if (!lead.boqs || lead.boqs.length === 0) {
+                  return (
+                    <View style={s.emptyCard}>
+                      <Ionicons name="calculator-outline" size={40} color="#059669" />
+                      <Text style={s.emptyCardTitle}>No BOQ Generated</Text>
+                      <Text style={s.emptySubText}>Build an itemized Bill of Quantities with quantities and rates.</Text>
+                      {!isReadOnly && (
+                        <TouchableOpacity
+                          style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]}
+                          onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
+                        >
+                          <Text style={s.actionBtnText}>+ Create Estimate BOQ</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                }
+
+                const activeBoq = lead.boqs[activeBoqIdx] || {};
+                const boqItems = activeBoq.items || [];
+                const calculatedItemsSubtotal = boqItems.reduce((acc, it) => {
+                  const amt = Number(it.amount);
+                  if (!isNaN(amt) && amt > 0) return acc + amt;
+                  const qty = parseFloat(it.quantity) || 0;
+                  const rt = parseFloat(it.rate || it.unitRate) || 0;
+                  return acc + (qty * rt);
+                }, 0);
+
+                const estimatedTotal = Number(activeBoq.totalAmount) || calculatedItemsSubtotal;
+
+                const boqMaxBudget = parseMaxBudget(lead?.budgetRange || lead?.estimatedBudget || lead?.budget);
+                const boqIsOverBudget = Boolean(boqMaxBudget && boqMaxBudget > 0 && estimatedTotal > boqMaxBudget);
+                const boqExcessPct = boqIsOverBudget ? ((estimatedTotal - boqMaxBudget) / boqMaxBudget) * 100 : 0;
+                const ACCEPTED_QUOTE_STATUSES = ['accepted', 'approved', 'converted', 'signed & accepted'];
+                const isQuotationApproved = Boolean(
+                  (lead.quotations && lead.quotations.some((q) => ACCEPTED_QUOTE_STATUSES.includes(String(q.status || '').toLowerCase()))) ||
+                  ['Booking Pending', 'Won', 'Converted'].includes(lead.status) ||
+                  lead.linkedProject
+                );
+                const boqIsLocked = isReadOnly || isQuotationApproved;
+
+                return (
+                  <View style={{ gap: 14 }}>
+                    {boqIsOverBudget && (
+                      <View style={s.overBudgetBanner}>
+                        <Ionicons name="warning" size={18} color="#E11D48" style={{ marginTop: 1 }} />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <Text style={s.overBudgetTitle}>Over Budget Warning</Text>
+                            <View style={s.overBudgetPill}>
+                              <Text style={s.overBudgetPillText}>+{boqExcessPct.toFixed(1)}% Over Estimate</Text>
+                            </View>
+                          </View>
+                          <Text style={s.overBudgetSub}>
+                            Estimate ₹{estimatedTotal.toLocaleString('en-IN')} exceeds the client's target budget of ₹{boqMaxBudget.toLocaleString('en-IN')} by ₹{(estimatedTotal - boqMaxBudget).toLocaleString('en-IN')}.
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                    {/* BOQ Header & Rev Switcher */}
+                    <View style={s.boqHeaderCard}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={s.boqNumberText}>{activeBoq.boqNumber || 'BOQ'}</Text>
+                          <View style={s.versionTag}>
+                            <Text style={s.versionTagText}>
+                              {activeBoq.version ? `v${activeBoq.version}.0` : 'v1.0'}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={s.boqDateText}>
+                          Updated: {new Date(activeBoq.createdAt || Date.now()).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <TouchableOpacity
+                          style={[s.editBoqBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
+                          onPress={() => handleDownloadBoqPdf(activeBoq)}
+                          disabled={downloadingBoqPdf}
+                        >
+                          {downloadingBoqPdf ? (
+                            <ActivityIndicator size="small" color="#475569" />
+                          ) : (
+                            <>
+                              <Ionicons name="share-outline" size={13} color="#475569" />
+                              <Text style={[s.editBoqBtnText, { color: '#475569' }]}>Export</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                        {boqIsLocked ? (
+                          <View style={s.boqLockedPill}>
+                            <Ionicons name="lock-closed" size={12} color="#64748B" />
+                            <Text style={s.boqLockedPillText}>{isLost ? 'Lead Lost (Locked)' : 'Quotation Approved (Locked)'}</Text>
+                          </View>
+                        ) : (
+                          <>
+                            <TouchableOpacity
+                              style={s.editBoqBtn}
+                              onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}
+                            >
+                              <Ionicons name="create-outline" size={13} color="#2563EB" />
+                              <Text style={s.editBoqBtnText}>Edit</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={s.newBoqBtn}
+                              onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
+                            >
+                              <Ionicons name="add" size={14} color="#FFFFFF" />
+                              <Text style={s.newBoqBtnText}>New Rev</Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                      </View>
+                    </View>
+
+                    {/* Primary action — placed right below the header so it's reachable
+                        without scrolling past the full line-items list. */}
+                    {!boqIsLocked && lead.status === 'Under BOQ Creation' && (
+                      <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 0 }]} onPress={() => setShowSendQuoteModal(true)}>
+                        <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Versions Tabs if multiple */}
+                    {lead.boqs.length > 1 && (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                        {lead.boqs.map((b, idx) => (
+                          <TouchableOpacity
+                            key={idx}
+                            style={[s.versionChip, activeBoqIdx === idx && s.versionChipActive]}
+                            onPress={() => setActiveBoqIdx(idx)}
+                          >
+                            <Text style={[s.versionChipText, activeBoqIdx === idx && s.versionChipTextActive]}>
+                              {b.version ? `v${b.version}.0` : `v${idx + 1}.0`}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    )}
+
+                    {/* Summary Totals */}
+                    <View style={s.costSummaryCard}>
+                      <View style={s.costRow}>
+                        <Text style={s.costLabel}>Line Items</Text>
+                        <Text style={s.costVal}>{boqItems.length} item{boqItems.length === 1 ? '' : 's'}</Text>
+                      </View>
+                      <View style={[s.costRow, s.costRowTotal]}>
+                        <Text style={s.grandTotalTitle}>Total BOQ Amount</Text>
+                        <Text style={[s.grandTotalAmount, boqIsOverBudget && { color: '#E11D48' }]}>
+                          ₹{Math.round(estimatedTotal).toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Category Breakdown Chips */}
+                    {(() => {
+                      const catMap = new Map();
+                      boqItems.forEach((it) => {
+                        const cat = it.category || 'General';
+                        const existing = catMap.get(cat) || { count: 0, total: 0 };
+                        existing.count += 1;
+                        existing.total += Number(it.amount) || (Number(it.quantity) * Number(it.rate)) || 0;
+                        catMap.set(cat, existing);
+                      });
+                      const cats = Array.from(catMap.entries()).map(([name, v]) => ({ name, ...v }));
+                      if (cats.length === 0) return null;
+                      return (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                          {cats.map((cat) => (
+                            <View key={cat.name} style={s.catChip}>
+                              <Ionicons name="pricetag-outline" size={11} color="#4F46E5" />
+                              <Text style={s.catChipText} numberOfLines={1} ellipsizeMode="tail">{cat.name}</Text>
+                              <Text style={s.catChipCount}>({cat.count})</Text>
+                            </View>
+                          ))}
+                        </ScrollView>
+                      );
+                    })()}
+
+                    {/* Items List */}
+                    <View style={s.card}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <Text style={s.cardTitle}>Line Items ({lead.boqs[activeBoqIdx]?.items?.length || 0})</Text>
+                      </View>
+
+                      {(lead.boqs[activeBoqIdx]?.items || []).map((it, idx) => (
+                        <View key={idx} style={s.boqItemRow}>
+                          <View style={{ flex: 1, marginRight: 10 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <View style={s.catBadgeSmall}>
+                                <Text style={s.catBadgeSmallText} numberOfLines={1} ellipsizeMode="tail">{it.category || 'Item'}</Text>
+                              </View>
+                              <Text style={s.itemNameText} numberOfLines={1} ellipsizeMode="tail">{it.itemName || 'Unnamed Item'}</Text>
+                            </View>
+                            {!!it.description && <Text style={s.itemDescText} numberOfLines={2} ellipsizeMode="tail">{it.description}</Text>}
+                            <Text style={s.itemQtyRateText}>
+                              {it.quantity} {it.unit} × ₹{Math.round(Number(it.rate || it.unitRate || 0)).toLocaleString('en-IN')}
+                            </Text>
+                          </View>
+                          <Text style={s.itemTotalText}>
+                            ₹{Math.round(it.amount || (parseFloat(it.quantity) || 1) * (parseFloat(it.rate || it.unitRate) || 0)).toLocaleString('en-IN')}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    {!!activeBoq.notes && (
+                      <View style={s.quoteNotesBox}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <Ionicons name="document-text-outline" size={13} color="#64748B" />
+                          <Text style={s.quoteNotesHeader}>BOQ REMARKS / TERMS</Text>
+                        </View>
+                        <Text style={s.quoteNotesBody}>{activeBoq.notes}</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
+            </View>
+          )}
+
+          {/* 6. QUOTATIONS TAB */}
+          {activeTab === 'quotations' && (
+            <View style={{ gap: 16 }}>
+              {(() => {
+                const lock = getTabLockState('quotations');
+                if (lock.isLocked) {
+                  return (
+                    <View style={s.lockedCard}>
+                      <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#FFF1F2' }]}>
+                        <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#E11D48'} />
+                      </View>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Quotation Phase Locked'}</Text>
+                      <Text style={s.lockedSub}>{lock.reason || 'An estimate BOQ is required before generating final sales quotations.'}</Text>
+                      {lock.isUnassigned ? (
+                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
+                          <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                          <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#E11D48' }]} onPress={() => setShowSendQuoteModal(true)}>
+                          <Text style={s.unlockActionBtnText}>Pass to Quotation</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                }
+
+                if (!lead.quotations || lead.quotations.length === 0) {
+                  return (
+                    <View style={s.emptyCard}>
+                      <Ionicons name="calculator-outline" size={40} color="#E11D48" />
+                      <Text style={s.emptyCardTitle}>No Quotations Created</Text>
+                      <Text style={s.emptySubText}>Generate itemized quotes for your client.</Text>
+                      <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#E11D48' }]} onPress={openQuoteModal}>
+                        <Text style={s.actionBtnText}>Generate Quotation</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }
+
+                const quoteMaxBudget = parseMaxBudget(lead?.budgetRange || lead?.estimatedBudget || lead?.budget);
+                const quoteGrandTotal = Number(currentQuote?.grandTotal) || Number(currentQuote?.subtotal) || 0;
+                const quoteIsOverBudget = Boolean(quoteMaxBudget && quoteMaxBudget > 0 && quoteGrandTotal > quoteMaxBudget);
+                const quoteExcessPct = quoteIsOverBudget ? ((quoteGrandTotal - quoteMaxBudget) / quoteMaxBudget) * 100 : 0;
+
+                return (
+                  <View style={{ gap: 16 }}>
+                    {quoteIsOverBudget && (
+                      <View style={s.overBudgetBanner}>
+                        <Ionicons name="warning" size={18} color="#E11D48" style={{ marginTop: 1 }} />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <Text style={s.overBudgetTitle}>Over Target Budget Warning</Text>
+                            <View style={s.overBudgetPill}>
+                              <Text style={s.overBudgetPillText}>+{quoteExcessPct.toFixed(1)}% Over Estimate</Text>
+                            </View>
+                          </View>
+                          <Text style={s.overBudgetSub}>
+                            Quote total ₹{quoteGrandTotal.toLocaleString('en-IN')} exceeds the client's target budget of ₹{quoteMaxBudget.toLocaleString('en-IN')} by ₹{(quoteGrandTotal - quoteMaxBudget).toLocaleString('en-IN')}.
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                    {/* Version Picker */}
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                      {lead.quotations.map((q, idx) => (
+                        <TouchableOpacity
+                          key={idx}
+                          style={[s.versionChip, activeQuoteIdx === idx && s.versionChipActive]}
+                          onPress={() => setActiveQuoteIdx(idx)}
+                        >
+                          <Text style={[s.versionChipText, activeQuoteIdx === idx && s.versionChipTextActive]}>
+                            v{q.version} ({q.status})
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                      {!isReadOnly && (lead.quotations[lead.quotations.length - 1]?.status === 'Rejected' || lead.quotations[lead.quotations.length - 1]?.status === 'Draft') && (
+                        <TouchableOpacity style={s.addVersionBtn} onPress={openQuoteModal}>
+                          <Ionicons name="add" size={14} color="#E11D48" />
+                        </TouchableOpacity>
+                      )}
+                    </ScrollView>
+
+                    {/* Quotation Detail Card */}
+                    {currentQuote && (
+                      <View style={s.card}>
+                        {/* Quotation Header */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                          <View>
+                            <Text style={s.cardTitle}>Quotation v{currentQuote.version}</Text>
+                            <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>
+                              {currentQuote.items?.length || 0} line item{currentQuote.items?.length === 1 ? '' : 's'}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={[s.stageBadge, { backgroundColor: currentQuote.status === 'Accepted' ? '#DCFCE7' : currentQuote.status === 'Rejected' ? '#FEE2E2' : '#FEF3C7' }]}>
+                              <Text style={[s.stageBadgeText, { color: currentQuote.status === 'Accepted' ? '#15803D' : currentQuote.status === 'Rejected' ? '#B91C1C' : '#B45309' }]}>
+                                {currentQuote.status || 'Sent'}
+                              </Text>
+                            </View>
+                            {!isConverted && (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                {(currentQuote?.status === 'Draft' || currentQuote?.status === 'Sent') && (
+                                  <TouchableOpacity
+                                    onPress={() => openQuoteModal(activeQuoteIdx)}
+                                    style={{ padding: 6, backgroundColor: '#EFF6FF', borderRadius: 8 }}
+                                  >
+                                    <Ionicons name="create-outline" size={15} color="#2563EB" />
+                                  </TouchableOpacity>
+                                )}
+                                <TouchableOpacity onPress={() => handleDeleteQuotation(activeQuoteIdx)} style={{ padding: 6, backgroundColor: '#FEF2F2', borderRadius: 8 }}>
+                                  <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+
+                        {/* Document Actions: Preview / Email / Download */}
+                        <View style={s.quoteDocActionsRow}>
+                          <TouchableOpacity
+                            style={s.quoteDocActionBtn}
+                            onPress={() => setShowQuoteDocModal(true)}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="document-text-outline" size={14} color="#4F46E5" />
+                            <Text style={s.quoteDocActionText}>Preview</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={s.quoteDocActionBtn}
+                            onPress={() => setSendQuoteModalQuote(currentQuote)}
+                            disabled={sendingQuoteEmail}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="paper-plane-outline" size={14} color="#4F46E5" />
+                            <Text style={s.quoteDocActionText}>Send / Email</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={s.quoteDocActionBtn}
+                            onPress={handleDownloadQuotationPdf}
+                            disabled={downloadingQuotePdf}
+                            activeOpacity={0.8}
+                          >
+                            {downloadingQuotePdf ? (
+                              <ActivityIndicator size="small" color="#4F46E5" />
+                            ) : (
+                              <>
+                                <Ionicons name="download-outline" size={14} color="#4F46E5" />
+                                <Text style={s.quoteDocActionText}>Download</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Prepared For / Details Meta */}
+                        <View style={s.quoteMetaRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.quoteMetaLabel}>PREPARED FOR</Text>
+                            <Text style={s.quoteMetaName}>{lead.name}</Text>
+                            <Text style={s.quoteMetaSub}>{lead.mobileNumber}</Text>
+                            {!!lead.email && <Text style={s.quoteMetaSub}>{lead.email}</Text>}
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={s.quoteMetaLabel}>DETAILS</Text>
+                            <Text style={s.quoteMetaSub}>
+                              Date: {currentQuote.createdAt ? new Date(currentQuote.createdAt).toLocaleDateString('en-IN') : 'N/A'}
+                            </Text>
+                            <Text style={s.quoteMetaSub}>Lead ID: {lead.leadNumber || 'LD-XXXX'}</Text>
+                          </View>
+                        </View>
+
+                        {/* Items Section: Horizontally Scrollable 4-Column Table */}
+                        <View style={s.quoteTable}>
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={true}
+                            nestedScrollEnabled
+                            contentContainerStyle={{ minWidth: 460 }}
+                          >
+                            <View style={{ minWidth: 460, width: '100%' }}>
+                              <View style={s.quoteHeaderRow}>
+                                <Text style={[s.quoteCol, { width: 170, paddingLeft: 8 }]}>Item</Text>
+                                <Text style={[s.quoteCol, { width: 50, textAlign: 'center' }]}>Qty</Text>
+                                <Text style={[s.quoteCol, { width: 110, textAlign: 'right' }]}>Rate</Text>
+                                <Text style={[s.quoteCol, { width: 130, textAlign: 'right', paddingRight: 8 }]}>Total</Text>
+                              </View>
+                              {(currentQuote.items || []).map((item, i) => {
+                                const qty = Number(item.quantity) || 1;
+                                const unitPrice = Number(item.unitPrice || item.rate || 0);
+                                const lineTotal = Number(item.total) || (qty * unitPrice);
+
+                                return (
+                                  <View key={i} style={s.quoteRow}>
+                                    <Text style={[s.quoteCell, { width: 170, paddingLeft: 8, fontFamily: 'Inter-Medium' }]} numberOfLines={2}>
+                                      {item.description || 'Line Item'}
+                                    </Text>
+                                    <Text style={[s.quoteCell, { width: 50, textAlign: 'center', fontFamily: 'Inter-Medium' }]}>
+                                      {qty}
+                                    </Text>
+                                    <Text style={[s.quoteCell, { width: 110, textAlign: 'right', fontFamily: 'Inter-Medium' }]} numberOfLines={1}>
+                                      ₹{Math.round(unitPrice).toLocaleString('en-IN')}
+                                    </Text>
+                                    <Text style={[s.quoteCell, { width: 130, textAlign: 'right', fontFamily: 'Inter-Bold', color: '#0F172A', paddingRight: 8 }]} numberOfLines={1}>
+                                      ₹{Math.round(lineTotal).toLocaleString('en-IN')}
+                                    </Text>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          </ScrollView>
+                        </View>
+
+                        {/* Totals Summary Card */}
+                        {(() => {
+                          const quoteItems = currentQuote.items || [];
+                          const computedSubtotal = quoteItems.reduce((acc, it) => acc + (Number(it.total) || ((parseFloat(it.quantity) || 0) * (parseFloat(it.unitPrice || it.rate) || 0))), 0);
+                          const subtotal = Number(currentQuote.subtotal) || computedSubtotal;
+                          const taxPercentage = Number(currentQuote.taxPercentage ?? 18);
+                          const taxAmount = Number(currentQuote.tax) || Math.round(subtotal * (taxPercentage / 100));
+                          const discount = Number(currentQuote.discount) || 0;
+                          const grandTotal = Number(currentQuote.grandTotal) || Math.max(0, subtotal + taxAmount - discount);
+
+                          return (
+                            <View style={s.quoteTotalsBox}>
+                              <View style={s.totalRow}>
+                                <Text style={s.totalLabel}>Total Items Count</Text>
+                                <Text style={s.totalVal}>{quoteItems.length} item{quoteItems.length === 1 ? '' : 's'}</Text>
+                              </View>
+                              <View style={s.totalRow}>
+                                <Text style={s.totalLabel}>Subtotal</Text>
+                                <Text style={s.totalVal}>₹{Math.round(subtotal).toLocaleString('en-IN')}</Text>
+                              </View>
+                              <View style={s.totalRow}>
+                                <Text style={s.totalLabel}>Tax ({taxPercentage}%)</Text>
+                                <Text style={s.totalVal}>₹{Math.round(taxAmount).toLocaleString('en-IN')}</Text>
+                              </View>
+                              {discount > 0 && (
+                                <View style={s.totalRow}>
+                                  <Text style={[s.totalLabel, { color: '#16A34A' }]}>Discount</Text>
+                                  <Text style={[s.totalVal, { color: '#16A34A' }]}>- ₹{Math.round(discount).toLocaleString('en-IN')}</Text>
+                                </View>
+                              )}
+                              <View style={{ height: 1, backgroundColor: '#E2E8F0', marginVertical: 6 }} />
+                              <View style={s.totalRow}>
+                                <Text style={s.grandTotalTitle}>Grand Total</Text>
+                                <Text style={s.grandTotalVal}>
+                                  ₹{Math.round(grandTotal).toLocaleString('en-IN')}
+                                </Text>
+                              </View>
+                            </View>
+                          );
+                        })()}
+
+                        {/* Notes / Terms (falls back to default terms, matching web) */}
+                        <View style={s.quoteNotesBox}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <Ionicons name="document-text-outline" size={13} color="#64748B" />
+                            <Text style={s.quoteNotesHeader}>TERMS & CLIENT NOTES</Text>
+                          </View>
+                          <Text style={s.quoteNotesBody}>
+                            {currentQuote.notes || '1. Quotation is valid for 15 days.\n2. 50% advance payment required to commence work.\n3. Goods once sold will not be taken back.'}
+                          </Text>
+                        </View>
+
+                        {/* Actions */}
+                        {currentQuote.status === 'Accepted' ? (
+                          <View style={{ marginTop: 16, gap: 10 }}>
+                            <View style={s.quoteAcceptedBanner}>
+                              <Ionicons name="checkmark-circle" size={20} color="#15803D" />
+                              <View style={{ flex: 1 }}>
+                                <Text style={s.quoteAcceptedTitle}>Quotation Accepted</Text>
+                                <Text style={s.quoteAcceptedSubtitle}>
+                                  {isLost
+                                    ? 'This lead was later marked Lost and can no longer be converted.'
+                                    : isConverted
+                                    ? 'This lead has already been converted to a project.'
+                                    : 'Client approved this proposal. Ready to initialize project execution.'}
+                                </Text>
+                              </View>
+                            </View>
+                            {!isReadOnly && (
+                              <TouchableOpacity
+                                style={s.quoteConvertBtn}
+                                onPress={() => handleConvertToProject(activeQuoteIdx)}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons name="rocket-outline" size={18} color="#FFFFFF" />
+                                <Text style={s.quoteConvertBtnText}>Convert to Project</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        ) : currentQuote.status === 'Rejected' ? (
+                          <View style={{ marginTop: 16, gap: 10 }}>
+                            <View style={s.quoteRejectedBanner}>
+                              <Ionicons name="close-circle" size={20} color="#B91C1C" />
+                              <View style={{ flex: 1 }}>
+                                <Text style={s.quoteRejectedTitle}>Quotation Rejected</Text>
+                                <Text style={s.quoteRejectedSubtitle}>Client declined this version. Create a new revision with revised rates.</Text>
+                              </View>
+                            </View>
+                            <TouchableOpacity
+                              style={s.quoteRevisionBtn}
+                              onPress={openQuoteModal}
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+                              <Text style={s.quoteConvertBtnText}>Create New Revision</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : !isReadOnly ? (
+                          <View style={{ gap: 8, marginTop: 16 }}>
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                              <TouchableOpacity
+                                style={[s.smallActionBtn, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC', borderWidth: 1, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+                                onPress={() => handleQuoteStatus(activeQuoteIdx, 'Accepted')}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons name="checkmark-circle-outline" size={15} color="#15803D" style={{ marginRight: 4 }} />
+                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>Mark Accepted</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[s.smallActionBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA', borderWidth: 1, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+                                onPress={() => handleQuoteStatus(activeQuoteIdx, 'Rejected')}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons name="close-circle-outline" size={15} color="#B91C1C" style={{ marginRight: 4 }} />
+                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#B91C1C' }}>Mark Rejected</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ) : null}
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      {/* --- MODALS --- */}
+      {/* Mark Lost Modal */}
+      <MarkLostModal
+        visible={showLostModal}
+        onClose={() => setShowLostModal(false)}
+        customerId={id}
+        leadName={lead.name}
+        onSuccess={() => {
+          setLead((prev) => (prev ? { ...prev, status: 'Lost' } : prev));
+          showToast('Lead has been marked as Lost.', 'success');
+          fetchData();
+        }}
+      />
+
+      <SiteVisitHistoryModal
+        visible={showSiteHistoryModal}
+        onClose={() => setShowSiteHistoryModal(false)}
+        activities={activities}
+        users={users}
+        leadName={lead.name}
+        isReadOnly={isReadOnly}
+        onReschedule={() => {
+          const siteVisitActs = activities
+            .filter((a) => a.type === 'Site Visit')
+            .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime());
+          if (siteVisitActs[0]) {
+            openRescheduleSiteVisit(siteVisitActs[0]);
+          } else {
+            setShowSiteModal(true);
+          }
+        }}
+      />
+
+      {/* 1. Status Modal */}
+      <Modal visible={showStatusModal} transparent animationType="fade" onRequestClose={() => setShowStatusModal(false)}>
+        <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowStatusModal(false)}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Update Lead Stage</Text>
+            {STAGES.map((st) => (
+              <TouchableOpacity key={st} style={s.stageOption} onPress={() => handleStatusChange(st)}>
+                <Text style={[s.stageOptionText, lead.status === st && { fontWeight: '900', color: '#2563EB' }]}>{st}</Text>
+                {lead.status === st && <Ionicons name="checkmark" size={16} color="#2563EB" />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* 1b. Edit Lead Modal */}
+      <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => setShowEditModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Edit Lead Details</Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={s.label}>Full Name *</Text>
+              <TextInput
+                style={[s.input, editFormErrors.name && s.inputError]}
+                placeholder="e.g. John Doe"
+                placeholderTextColor="#94A3B8"
+                value={editForm.name}
+                maxLength={50}
+                onChangeText={(v) => handleEditFieldChange('name', v)}
+                onBlur={() => handleEditFieldBlur('name')}
+              />
+              {!!editFormErrors.name && <Text style={s.fieldErrorText}>{editFormErrors.name}</Text>}
+
+              <Text style={s.label}>Mobile Number *</Text>
+              <TextInput
+                style={[s.input, editFormErrors.mobileNumber && s.inputError]}
+                placeholder="+91 9876543210"
+                placeholderTextColor="#94A3B8"
+                keyboardType="phone-pad"
+                value={editForm.mobileNumber}
+                maxLength={16}
+                onChangeText={(v) => handleEditFieldChange('mobileNumber', v)}
+                onBlur={() => handleEditFieldBlur('mobileNumber')}
+              />
+              {!!editFormErrors.mobileNumber && <Text style={s.fieldErrorText}>{editFormErrors.mobileNumber}</Text>}
+
+              <Text style={s.label}>Email Address</Text>
+              <TextInput
+                style={[s.input, editFormErrors.email && s.inputError]}
+                placeholder="john@example.com"
+                placeholderTextColor="#94A3B8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={editForm.email}
+                maxLength={100}
+                onChangeText={(v) => handleEditFieldChange('email', v)}
+                onBlur={() => handleEditFieldBlur('email')}
+              />
+              {!!editFormErrors.email && <Text style={s.fieldErrorText}>{editFormErrors.email}</Text>}
+
+              <Text style={s.label}>Lead Source</Text>
+              <TouchableOpacity
+                style={[s.dropdownBtn, showEditLeadSourceDropdown && s.dropdownBtnActive]}
+                onPress={() => setShowEditLeadSourceDropdown(!showEditLeadSourceDropdown)}
+                activeOpacity={0.7}
+              >
+                <View style={s.dropdownBtnContent}>
+                  <Ionicons name="funnel-outline" size={15} color="#64748B" style={{ marginRight: 8 }} />
+                  <Text style={s.dropdownBtnText}>{editForm.leadSource || 'Select Lead Source'}</Text>
+                </View>
+                <Ionicons name={showEditLeadSourceDropdown ? 'chevron-up' : 'chevron-down'} size={18} color="#64748B" />
+              </TouchableOpacity>
+
+              {showEditLeadSourceDropdown && (
+                <View style={s.dropdownMenu}>
+                  <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 180 }}>
+                    {LEAD_SOURCES.map((opt, idx) => {
+                      const active = editForm.leadSource === opt;
+                      return (
+                        <TouchableOpacity
+                          key={opt}
+                          style={[
+                            s.dropdownItem,
+                            active && s.dropdownItemActive,
+                            idx === LEAD_SOURCES.length - 1 && { borderBottomWidth: 0 }
+                          ]}
+                          onPress={() => {
+                            handleEditFieldChange('leadSource', opt);
+                            setShowEditLeadSourceDropdown(false);
+                          }}
+                        >
+                          <Text style={[s.dropdownItemText, active && s.dropdownItemTextActive]}>{opt}</Text>
+                          {active && <Ionicons name="checkmark-circle" size={18} color="#2563EB" />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
+              <Text style={s.label}>Property Type</Text>
+              <View style={s.chipOptions}>
+                {['Flat', 'Villa', 'Office', 'Shop', 'Other'].map((opt) => (
+                  <TouchableOpacity key={opt} style={[s.optionChip, editForm.propertyType === opt && s.optionChipActive]} onPress={() => handleEditFieldChange('propertyType', opt)}>
+                    <Text style={[s.optionChipText, editForm.propertyType === opt && s.optionChipTextActive]}>{opt}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={s.label}>Assign Follow-up Executive</Text>
+              <TouchableOpacity
+                style={[s.dropdownBtn, showEditAssignDropdown && s.dropdownBtnActive]}
+                onPress={() => setShowEditAssignDropdown(!showEditAssignDropdown)}
+                activeOpacity={0.7}
+              >
+                <View style={s.dropdownBtnContent}>
+                  <Ionicons name="person-outline" size={15} color="#64748B" style={{ marginRight: 8 }} />
+                  <Text style={s.dropdownBtnText}>
+                    {(() => {
+                      if (!editForm.assignedSalesExecutive) return 'Unassigned (No Follow-up Assigned)';
+                      const match = users.find((u) => (u._id || u.id) === editForm.assignedSalesExecutive);
+                      return match ? userLabel(match) : 'Assigned Member';
+                    })()}
+                  </Text>
+                </View>
+                <Ionicons name={showEditAssignDropdown ? 'chevron-up' : 'chevron-down'} size={18} color="#64748B" />
+              </TouchableOpacity>
+
+              {showEditAssignDropdown && (
+                <View style={s.dropdownMenu}>
+                  <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 180 }}>
+                    <TouchableOpacity
+                      style={[
+                        s.dropdownItem,
+                        !editForm.assignedSalesExecutive && s.dropdownItemActive,
+                      ]}
+                      onPress={() => {
+                        setEditForm({ ...editForm, assignedSalesExecutive: '' });
+                        setShowEditAssignDropdown(false);
+                      }}
+                    >
+                      <Text style={[s.dropdownItemText, !editForm.assignedSalesExecutive && s.dropdownItemTextActive]}>
+                        Unassigned (No Follow-up Assigned)
+                      </Text>
+                      {!editForm.assignedSalesExecutive && <Ionicons name="checkmark-circle" size={18} color="#2563EB" />}
+                    </TouchableOpacity>
+                    {users.map((u, idx) => {
+                      const uid = u._id || u.id;
+                      const active = editForm.assignedSalesExecutive === uid;
+                      return (
+                        <TouchableOpacity
+                          key={uid}
+                          style={[
+                            s.dropdownItem,
+                            active && s.dropdownItemActive,
+                            idx === users.length - 1 && { borderBottomWidth: 0 }
+                          ]}
+                          onPress={() => {
+                            setEditForm({ ...editForm, assignedSalesExecutive: uid });
+                            setShowEditAssignDropdown(false);
+                          }}
+                        >
+                          <Text style={[s.dropdownItemText, active && s.dropdownItemTextActive]}>{userLabel(u)}</Text>
+                          {active && <Ionicons name="checkmark-circle" size={18} color="#2563EB" />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
+              <Text style={s.label}>Project Location</Text>
+              <TextInput
+                style={[s.input, editFormErrors.projectLocation && s.inputError]}
+                placeholder="e.g. Hiranandani Estate, Thane"
+                placeholderTextColor="#94A3B8"
+                value={editForm.projectLocation}
+                maxLength={150}
+                onChangeText={(v) => handleEditFieldChange('projectLocation', v)}
+                onBlur={() => handleEditFieldBlur('projectLocation')}
+              />
+              {!!editFormErrors.projectLocation && <Text style={s.fieldErrorText}>{editFormErrors.projectLocation}</Text>}
+
+              <TouchableOpacity style={s.submitBtn} onPress={handleEditSubmit} disabled={submittingEdit}>
+                <Text style={s.submitBtnText}>{submittingEdit ? 'Saving...' : 'Save Changes'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* 2. Activity Modal */}
+      <Modal visible={showActivityModal} transparent animationType="slide" onRequestClose={() => setShowActivityModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Log Activity</Text>
+              <TouchableOpacity onPress={() => setShowActivityModal(false)}>
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <Text style={s.label}>Activity Type</Text>
+            <View style={s.chipOptions}>
+              {['Phone Call', 'WhatsApp', 'Meeting', 'Site Visit'].map((t) => (
+                <TouchableOpacity key={t} style={[s.optionChip, activityForm.type === t && s.optionChipActive]} onPress={() => setActivityForm({ ...activityForm, type: t })}>
+                  <Text style={[s.optionChipText, activityForm.type === t && s.optionChipTextActive]}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={s.label}>Remarks / Summary</Text>
+            <TextInput
+              style={[s.input, { height: 80 }]}
+              multiline
+              placeholder="Enter meeting notes..."
+              placeholderTextColor="#94A3B8"
+              value={activityForm.remarks}
+              onChangeText={(v) => setActivityForm({ ...activityForm, remarks: v })}
+            />
+            <TouchableOpacity style={s.submitBtn} onPress={handleAddActivity} disabled={submittingAct}>
+              <Text style={s.submitBtnText}>{submittingAct ? 'Saving...' : 'Save Activity'}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* 3. Follow Up Modal */}
+      <Modal visible={showFollowUpModal} transparent animationType="slide" onRequestClose={() => setShowFollowUpModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Schedule Follow-up</Text>
+              <TouchableOpacity onPress={() => setShowFollowUpModal(false)}>
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+              <Text style={s.label}>Follow-up Type</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                {FOLLOWUP_TYPES.map((opt) => (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[s.optionChip, followUpForm.type === opt && s.optionChipActive]}
+                    onPress={() => setFollowUpForm({ ...followUpForm, type: opt })}
+                  >
+                    <Text style={[s.optionChipText, followUpForm.type === opt && s.optionChipTextActive]}>{opt}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={s.label}>Date & Time *</Text>
+              <TouchableOpacity style={s.dateInput} onPress={openScheduleDatePicker}>
+                <Text style={[s.dateInputText, !followUpForm.scheduledDate && { color: '#94A3B8' }]}>
+                  {followUpForm.scheduledDate
+                    ? followUpForm.scheduledDate.toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                    : 'Select date & time'}
+                </Text>
+                <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+              {Platform.OS === 'ios' && showDatePicker && (
+                <DateTimePicker
+                  value={followUpForm.scheduledDate || new Date()}
+                  mode="datetime"
+                  display="spinner"
+                  onChange={(e, d) => {
+                    setShowDatePicker(false);
+                    if (d) setFollowUpForm((prev) => ({ ...prev, scheduledDate: d }));
+                  }}
+                />
+              )}
+
+              <Text style={s.label}>Assign Member *</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                {users.map((u) => {
+                  const uId = u._id || u.id;
+                  const active = followUpForm.assignedSalesExecutive === uId;
+                  return (
+                    <TouchableOpacity
+                      key={uId}
+                      style={[s.optionChip, active && s.optionChipActive]}
+                      onPress={() => setFollowUpForm({ ...followUpForm, assignedSalesExecutive: uId })}
+                    >
+                      <Text style={[s.optionChipText, active && s.optionChipTextActive]}>{userLabel(u)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={s.label}>Follow-up Notes / Goal *</Text>
+              <TextInput
+                style={[s.input, { height: 80 }]}
+                multiline
+                placeholder="e.g. Call client to confirm design meeting..."
+                placeholderTextColor="#94A3B8"
+                value={followUpForm.remarks}
+                onChangeText={(v) => setFollowUpForm({ ...followUpForm, remarks: v })}
+              />
+
+              <TouchableOpacity style={s.submitBtn} onPress={handleScheduleFollowUp} disabled={submittingAct}>
+                <Text style={s.submitBtnText}>{submittingAct ? 'Scheduling...' : 'Schedule Follow-up'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* 4. Site Visit Modal */}
+      <LogSiteVisitModal
+        visible={showSiteModal}
+        onClose={() => setShowSiteModal(false)}
+        customerId={id}
+        initialMeasurements={lead?.siteMeasurements}
+        initialPhotos={lead?.sitePhotos}
+        instructions={lead?.remarks}
+        isReadOnly={isReadOnly}
+        onSuccess={() => {
+          showToast('Site visit logged successfully!', 'success');
+          fetchData();
+        }}
+      />
+
+      {/* Reschedule Follow-up Modal */}
+      <Modal visible={showRescheduleModal} transparent animationType="slide" onRequestClose={() => setShowRescheduleModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Reschedule Follow-up</Text>
+              <TouchableOpacity onPress={() => setShowRescheduleModal(false)}>
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={s.label}>Follow-up Type</Text>
+              <View style={[s.chipOptions, { marginBottom: 12 }]}>
+                {FOLLOWUP_TYPES.map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[s.optionChip, rescheduleForm.type === t && s.optionChipActive]}
+                    onPress={() => setRescheduleForm({ ...rescheduleForm, type: t })}
+                  >
+                    <Text style={[s.optionChipText, rescheduleForm.type === t && s.optionChipTextActive]}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={s.label}>New Date & Time *</Text>
+              <TouchableOpacity
+                style={[s.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                onPress={openRescheduleDatePicker}
+              >
+                <Text style={{ color: rescheduleForm.scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+                  {rescheduleForm.scheduledDate
+                    ? new Date(rescheduleForm.scheduledDate).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                    : 'Select date & time'}
+                </Text>
+                <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+              {Platform.OS === 'ios' && showRescheduleDatePicker && (
+                <DateTimePicker
+                  value={rescheduleForm.scheduledDate || new Date()}
+                  mode="datetime"
+                  display="spinner"
+                  onChange={(e, d) => {
+                    setShowRescheduleDatePicker(false);
+                    if (d) setRescheduleForm((prev) => ({ ...prev, scheduledDate: d }));
+                  }}
+                />
+              )}
+
+              <Text style={s.label}>Assign Member *</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                {users.map((u) => {
+                  const uId = u._id || u.id;
+                  const active = rescheduleForm.assignedSalesExecutive === uId;
+                  return (
+                    <TouchableOpacity
+                      key={uId}
+                      style={[s.optionChip, active && s.optionChipActive]}
+                      onPress={() => setRescheduleForm({ ...rescheduleForm, assignedSalesExecutive: uId })}
+                    >
+                      <Text style={[s.optionChipText, active && s.optionChipTextActive]}>{userLabel(u)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={s.label}>Updated Notes / Goal *</Text>
+              <TextInput
+                style={[s.input, { height: 80 }]}
+                multiline
+                placeholder="e.g. Call client to confirm revised meeting time..."
+                placeholderTextColor="#94A3B8"
+                value={rescheduleForm.remarks}
+                onChangeText={(v) => setRescheduleForm({ ...rescheduleForm, remarks: v })}
+              />
+
+              <TouchableOpacity
+                style={[s.submitBtn, { backgroundColor: '#7C3AED' }, submittingReschedule && { opacity: 0.6 }]}
+                onPress={handleRescheduleFollowUp}
+                disabled={submittingReschedule}
+              >
+                <Text style={s.submitBtnText}>{submittingReschedule ? 'Rescheduling...' : 'Save & Reschedule'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* 5. Requirements Modal */}
+      <LogRequirementsModal
+        visible={showReqModal}
+        onClose={() => setShowReqModal(false)}
+        customerId={id}
+        initialBudgetRange={lead?.budgetRange}
+        initialRequirements={lead?.requirements}
+        isReadOnly={isReadOnly}
+        onSuccess={() => {
+          showToast('Requirements logged successfully!', 'success');
+          fetchData();
+        }}
+      />
+
+      {/* 6. Upload Design Modal */}
+      <UploadDesignModal
+        visible={showDesignModal}
+        onClose={() => setShowDesignModal(false)}
+        customerId={id}
+        existingDesigns={lead?.designFiles}
+        users={users}
+        requirements={lead?.requirements}
+        isReadOnly={isReadOnly}
+        onSuccess={() => {
+          showToast('Design file uploaded successfully!', 'success');
+          fetchData();
+        }}
+      />
+
+      {/* 6b. Drawing Two-Step Approval Workflow Modals */}
+      <SendDrawingForApprovalModal
+        isOpen={!!sendApprovalDrawing}
+        onClose={() => setSendApprovalDrawing(null)}
+        customerId={id}
+        drawing={sendApprovalDrawing}
+        users={users}
+        onSuccess={() => {
+          showToast('Drawing sent for internal approval!', 'success');
+          fetchData();
+        }}
+      />
+
+      <DrawingApprovalModal
+        isOpen={!!approvalModalDrawing}
+        onClose={() => setApprovalModalDrawing(null)}
+        customerId={id}
+        drawing={approvalModalDrawing}
+        initialAction={approvalModalAction}
+        onSuccess={(action) => {
+          showToast(action === 'approve' ? 'Drawing approved and published to client portal!' : 'Drawing rejected.', 'success');
+          fetchData();
+        }}
+      />
+
+      <UploadRevisionModal
+        isOpen={!!revisionDrawing}
+        onClose={() => setRevisionDrawing(null)}
+        customerId={id}
+        drawing={revisionDrawing}
+        users={users}
+        onSuccess={() => {
+          showToast('Revision uploaded and sent for review!', 'success');
+          fetchData();
+        }}
+      />
+
+      <CrmShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        customerId={id}
+        lead={lead}
+        onSuccess={() => fetchData()}
+      />
+
+      {/* 7. Advanced Quotation Builder Modal */}
+      <QuotationBuilderModal
+        visible={showQuoteModal}
+        onClose={() => {
+          setShowQuoteModal(false);
+          setEditingQuoteIdx(null);
+        }}
+        customerId={id}
+        existingQuotations={lead?.quotations || []}
+        existingBoqs={lead?.boqs || []}
+        editingQuoteIndex={editingQuoteIdx}
+        budgetRange={lead?.budgetRange || lead?.estimatedBudget || lead?.budget}
+        isReadOnly={isReadOnly}
+        onSuccess={() => {
+          showToast('Quotation saved successfully!', 'success');
+          fetchData();
+        }}
+      />
+
+      {/* 7b. Send Quotation Modal */}
+      <SendQuotationModal
+        isOpen={Boolean(sendQuoteModalQuote)}
+        onClose={() => setSendQuoteModalQuote(null)}
+        customerId={id}
+        customerName={lead?.name}
+        customerEmail={lead?.email}
+        customerPhone={lead?.phone}
+        quotation={sendQuoteModalQuote}
+        onSuccess={() => {
+          showToast('Quotation dispatched successfully!', 'success');
+          fetchData();
+        }}
+      />
+
+      {/* 8. Multi-Section BOQ Builder Modal */}
+      <BoqBuilderModal
+        visible={showBoqModal}
+        onClose={() => setShowBoqModal(false)}
+        customerId={id}
+        customerName={lead?.name}
+        drawings={lead?.designFiles || lead?.drawings || []}
+        existingBoqs={lead?.boqs || []}
+        editingBoqIndex={editingBoqIdx}
+        budgetRange={lead?.budgetRange || lead?.estimatedBudget || lead?.budget}
+        isReadOnly={isReadOnly || Boolean(
+          (lead?.quotations && lead.quotations.some((q) => ['accepted', 'approved', 'converted', 'signed & accepted'].includes(String(q.status || '').toLowerCase()))) ||
+          ['Booking Pending', 'Won', 'Converted'].includes(lead?.status) ||
+          lead?.linkedProject
+        )}
+        onSuccess={() => {
+          showToast('BOQ saved successfully!', 'success');
+          fetchData();
+        }}
+      />
+
+      {/* 8b. Drawing Approval Confirmation Modal */}
+      <DrawingConfirmApproveModal
+        isOpen={Boolean(confirmApproveDrawing)}
+        onClose={() => setConfirmApproveDrawing(null)}
+        onConfirm={async () => {
+          const d = confirmApproveDrawing;
+          setConfirmApproveDrawing(null);
+          if (d) await handleDirectApproveDrawing(d);
+        }}
+        drawing={confirmApproveDrawing}
+        leadName={lead?.name}
+      />
+
+      {/* 8c. BOQ & Drawing Lightbox Viewer Modal */}
+      <BoqDrawingViewerModal
+        isOpen={Boolean(previewLightboxDrawing)}
+        onClose={() => setPreviewLightboxDrawing(null)}
+        drawing={previewLightboxDrawing}
+        title={previewLightboxDrawing?.title || previewLightboxDrawing?.name}
+      />
+
+      {/* 9. Stage Advancement Guided Modals */}
+      <SendToSiteVisitModal
+        isOpen={showSendSiteModal}
+        onClose={() => { setShowSendSiteModal(false); setSendSiteInitialData(null); }}
+        customerId={id}
+        users={users}
+        initialData={sendSiteInitialData}
+        isFollowUpCompleted={activities.some(
+          (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && ['completed', 'pending'].includes(a.status?.toLowerCase())
+        )}
+        onSuccess={() => {
+          showToast(sendSiteInitialData ? 'Site visit rescheduled successfully!' : 'Passed to Site Visit phase!', 'success');
+          setSendSiteInitialData(null);
+          fetchData();
+        }}
+      />
+
+      <SendToRequirementsModal
+        isOpen={showSendReqModal}
+        onClose={() => { setShowSendReqModal(false); setSendReqInitialData(null); }}
+        customerId={id}
+        users={users}
+        initialData={sendReqInitialData}
+        onSuccess={() => {
+          showToast(sendReqInitialData ? 'Requirements session rescheduled!' : 'Passed to Requirements phase!', 'success');
+          setSendReqInitialData(null);
+          fetchData();
+        }}
+      />
+
+      <SendToDrawingModal
+        isOpen={showSendDrawingModal}
+        onClose={() => { setShowSendDrawingModal(false); setSendDrawingInitialData(null); }}
+        customerId={id}
+        users={users}
+        initialData={sendDrawingInitialData}
+        onSuccess={() => {
+          showToast(sendDrawingInitialData ? 'Drawing schedule updated!' : 'Passed to Drawing phase!', 'success');
+          setSendDrawingInitialData(null);
+          fetchData();
+        }}
+      />
+
+      <SendToBoqModal
+        isOpen={showSendBoqModal}
+        onClose={() => setShowSendBoqModal(false)}
+        customerId={id}
+        users={users}
+        lead={lead}
+        onSuccess={() => {
+          showToast('Passed to BOQ Estimation phase!', 'success');
+          fetchData();
+        }}
+      />
+
+      <SendToQuotationsModal
+        isOpen={showSendQuoteModal}
+        onClose={() => setShowSendQuoteModal(false)}
+        customerId={id}
+        users={users}
+        onSuccess={() => {
+          showToast('Passed to Quotation phase!', 'success');
+          fetchData();
+        }}
+      />
+
+      <ConvertToProjectModal
+        isOpen={showConvertModal}
+        onClose={() => setShowConvertModal(false)}
+        customerId={id}
+        onSuccess={() => {
+          showToast('🎉 Converted to active project!', 'success');
+          fetchData();
+          router.push('/(tabs)/crm');
+        }}
+      />
+
+      {/* 8. Quotation Document Preview Modal */}
+      <Modal
+        visible={showQuoteDocModal}
+        animationType="slide"
+        onRequestClose={() => setShowQuoteDocModal(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F5F9' }}>
+          <View style={s.quoteDocHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.quoteDocHeaderTitle}>Quotation Document</Text>
+              <Text style={s.quoteDocHeaderSub}>
+                {currentQuote ? `Version ${currentQuote.version} · ${currentQuote.status || 'Sent'}` : ''}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setSendQuoteModalQuote(currentQuote)}
+              disabled={sendingQuoteEmail}
+              style={s.quoteDocHeaderBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="paper-plane-outline" size={18} color="#4F46E5" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDownloadQuotationPdf}
+              disabled={downloadingQuotePdf}
+              style={s.quoteDocHeaderBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {downloadingQuotePdf ? <ActivityIndicator size="small" color="#4F46E5" /> : <Ionicons name="download-outline" size={18} color="#4F46E5" />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowQuoteDocModal(false)}
+              style={s.quoteDocHeaderBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={20} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+          {currentQuote && (
+            <WebView
+              originWhitelist={['*']}
+              source={{ html: buildQuotationHtml(lead, currentQuote) }}
+              style={{ flex: 1, backgroundColor: '#F1F5F9' }}
+            />
+          )}
+          {currentQuote && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              backgroundColor: '#FFFFFF',
+              borderTopWidth: 1,
+              borderTopColor: '#E2E8F0',
+              gap: 10,
+            }}>
+              {currentQuote.status === 'Accepted' && !isConverted && !isLost ? (
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#4F46E5',
+                    borderRadius: 10,
+                    paddingVertical: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                  onPress={() => {
+                    setShowQuoteDocModal(false);
+                    handleConvertToProject(activeQuoteIdx);
+                  }}
+                >
+                  <Ionicons name="rocket-outline" size={17} color="#FFFFFF" />
+                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>Convert to Project</Text>
+                </TouchableOpacity>
+              ) : !isReadOnly && currentQuote.status !== 'Accepted' && currentQuote.status !== 'Rejected' ? (
+                <>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#DCFCE7',
+                      borderWidth: 1,
+                      borderColor: '#86EFAC',
+                      borderRadius: 10,
+                      paddingVertical: 11,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                    onPress={async () => {
+                      await handleQuoteStatus(activeQuoteIdx, 'Accepted');
+                    }}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={16} color="#15803D" />
+                    <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#15803D' }}>Accept</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#FEE2E2',
+                      borderWidth: 1,
+                      borderColor: '#FCA5A5',
+                      borderRadius: 10,
+                      paddingVertical: 11,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                    onPress={async () => {
+                      await handleQuoteStatus(activeQuoteIdx, 'Rejected');
+                    }}
+                  >
+                    <Ionicons name="close-circle-outline" size={16} color="#B91C1C" />
+                    <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#B91C1C' }}>Reject</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+              <TouchableOpacity
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 11,
+                  backgroundColor: '#4F46E5',
+                  borderRadius: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+                onPress={() => {
+                  setSendQuoteModalQuote(currentQuote);
+                }}
+              >
+                <Ionicons name="mail-outline" size={16} color="#FFFFFF" />
+                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>Email</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F8FAFF' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  loadingText: { marginTop: 10, fontSize: 14, color: '#64748B', fontWeight: '500' },
+  errorText: { fontSize: 16, color: '#EF4444', fontWeight: '700' },
+  header: {
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#BFDBFE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
+    width: 38,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  headerRight: {
+    minWidth: 38,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  headerLeadInfoCenter: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 1,
+    maxWidth: '100%',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Black',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+    flexShrink: 1,
+    textAlign: 'center',
+  },
+  headerPhoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: 2,
+    maxWidth: '100%',
+  },
+  statusBadgeBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    maxWidth: 105,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  headerIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  headerGreeting: {
+    fontSize: 11,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1D4ED8',
+    marginBottom: 1,
+  },
+  headerSub: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1D4ED8',
+  },
+  leadIdBadge: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    flexShrink: 0,
+  },
+  leadIdText: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#1D4ED8',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+  },
+
+  tabRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    gap: 6,
+  },
+  tabItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
+  },
+  tabItemActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
+  tabText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#64748B',
+  },
+  tabTextActive: {
+    color: '#2563EB',
+    fontFamily: 'Inter-Bold',
+  },
+  tabContent: { padding: 16 },
+  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  metricCard: {
+    width: '48.5%',
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+  },
+  metricCardFull: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+  },
+  metricHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  metricLabel: {
+    fontSize: 9.5,
+    fontFamily: 'Inter-Bold',
+    color: '#64748B',
+    letterSpacing: 0.3,
+  },
+  metricVal: {
+    fontSize: 13,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0F172A',
+  },
+  quickActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  quickActionPillText: {
+    fontSize: 10.5,
+    fontFamily: 'Inter-Bold',
+    color: '#2563EB',
+  },
+  actionIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' },
+  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  cardTitle: { fontSize: 14, fontWeight: '800', color: '#0F172A', flex: 1 },
+  cardSubText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  smallBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#EFF6FF', borderRadius: 8 },
+  smallBtnText: { fontSize: 11, fontWeight: '700', color: '#2563EB' },
+
+  shareRibbon: { backgroundColor: '#FAF5FF', borderWidth: 1, borderColor: '#E9D5FF', borderRadius: 14, padding: 12 },
+  shareRibbonIconBox: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center' },
+  shareRibbonTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  shareRibbonSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#7C3AED', marginTop: 1 },
+  shareRibbonBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  shareRibbonBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
+  shareRibbonBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: '#7C3AED', borderRadius: 10, paddingVertical: 9 },
+  shareRibbonBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  shareRibbonBtnOutline: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E9D5FF', borderRadius: 10, paddingVertical: 9 },
+  shareRibbonBtnOutlineText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#7C3AED' },
+  emptySubText: { fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', marginVertical: 12 },
+  followUpCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#E2E8F0', marginTop: 10 },
+  dateInput: {
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  dateInputText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  saveBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#2563EB', borderRadius: 14, paddingVertical: 14, marginTop: 20, marginBottom: 10,
+  },
+  saveBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  dropdownBtn: {
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  dropdownBtnActive: { borderColor: '#2563EB', backgroundColor: '#EFF6FF20' },
+  dropdownBtnContent: { flexDirection: 'row', alignItems: 'center' },
+  dropdownBtnText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  dropdownMenu: {
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
+    marginTop: 4, marginBottom: 10, overflow: 'hidden',
+    shadowColor: '#0F172A', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+  },
+  dropdownItem: {
+    paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+  },
+  dropdownItemActive: { backgroundColor: '#EFF6FF' },
+  dropdownItemText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155' },
+  dropdownItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
+  timelineItem: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
+  timelineBody: { flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' },
+  actType: { fontSize: 11, fontWeight: '800', color: '#334155' },
+  actTime: { fontSize: 10, color: '#94A3B8' },
+  actRemarks: { fontSize: 12, color: '#475569', marginTop: 4 },
+  actMetaLine: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' },
+  actAuthor: { fontSize: 10, color: '#64748B', marginTop: 6, fontWeight: '600' },
+  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', gap: 8 },
+  emptyCardTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  actionBtnPrimary: { backgroundColor: '#7C3AED', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, marginTop: 8 },
+  actionBtnText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  measureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
+  measureItem: { width: '48%', backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10 },
+  measureVal: { fontSize: 14, fontWeight: '800', color: '#0F172A', marginTop: 2 },
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  photoThumb: { width: 80, height: 80, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0' },
+  reqRoomName: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
+  reqThemeBadge: { fontSize: 10, fontWeight: '800', color: '#059669', backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  reqDesc: { fontSize: 13, color: '#475569', marginTop: 6, lineHeight: 18 },
+  fileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+  fileIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
+  fileName: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
+  fileSub: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
+  versionChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: '#F1F5F9' },
+  versionChipActive: { backgroundColor: '#0F172A' },
+  versionChipText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
+  versionChipTextActive: { color: '#FFFFFF' },
+  addVersionBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: '#FFF1F2', justifyContent: 'center' },
+  // Quotation Document Preview Modal
+  quoteDocHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  quoteDocHeaderTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  quoteDocHeaderSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  quoteDocHeaderBtn: {
+    width: 34, height: 34, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0',
+  },
+  // Quotation Tab Layout Styles
+  quoteDocActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  quoteDocActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
+    borderRadius: 10,
+    paddingVertical: 9,
+  },
+  quoteDocActionText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#4F46E5' },
+  quoteMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    gap: 12,
+  },
+  quoteMetaLabel: { fontSize: 9.5, fontFamily: 'Inter-ExtraBold', color: '#94A3B8', letterSpacing: 0.3, marginBottom: 4 },
+  quoteMetaName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  quoteMetaSub: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 1 },
+  quoteTable: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  quoteHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  quoteCol: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  quoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  quoteCell: {
+    fontSize: 12.5,
+    color: '#334155',
+  },
+  quoteTotalsBox: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalLabel: {
+    fontSize: 12.5,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+  },
+  totalVal: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  grandTotalTitle: {
+    fontSize: 15,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  grandTotalVal: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    color: '#2563EB',
+  },
+  quoteNotesBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 10,
+  },
+  quoteNotesHeader: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  quoteNotesBody: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#334155',
+    lineHeight: 17,
+  },
+  quoteAcceptedBanner: {
+    backgroundColor: '#DCFCE7',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  quoteAcceptedTitle: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#15803D',
+  },
+  quoteAcceptedSubtitle: {
+    fontSize: 11,
+    fontFamily: 'Inter-Regular',
+    color: '#166534',
+    marginTop: 1,
+  },
+  quoteRejectedBanner: {
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  quoteRejectedTitle: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#B91C1C',
+  },
+  quoteRejectedSubtitle: {
+    fontSize: 11,
+    fontFamily: 'Inter-Regular',
+    color: '#991B1B',
+    marginTop: 1,
+  },
+  quoteConvertBtn: {
+    backgroundColor: '#16A34A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  quoteRevisionBtn: {
+    backgroundColor: '#2563EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  quoteConvertBtnText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#FFFFFF',
+  },
+  smallActionBtn: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, justifyContent: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.5)', justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 12 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  stageOption: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#F1F5F9' },
+  stageOptionText: { fontSize: 13, color: '#334155' },
+  label: { fontSize: 11, fontWeight: '700', color: '#64748B', uppercase: true, marginTop: 4 },
+  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 13, color: '#0F172A', marginBottom: 6 },
+  inputError: { borderColor: '#DC2626' },
+  fieldErrorText: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#DC2626', marginTop: -4, marginBottom: 6 },
+  chipOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  optionChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#F1F5F9' },
+  optionChipActive: { backgroundColor: '#2563EB' },
+  optionChipText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
+  optionChipTextActive: { color: '#FFFFFF' },
+  submitBtn: { backgroundColor: '#2563EB', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 12 },
+  submitBtnText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  photoPickBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#EFF6FF', padding: 12, borderRadius: 10, justifyContent: 'center' },
+  photoPickText: { fontSize: 12, fontWeight: '700', color: '#2563EB' },
+  // Quotation Builder Modal (Web Match)
+  quoteModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    marginBottom: 10,
+  },
+  quoteHeaderIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quoteModalTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+    letterSpacing: -0.2,
+  },
+  quoteModalSubtitle: {
+    fontSize: 11.5,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 1,
+  },
+  quoteCloseBtn: {
+    padding: 4,
+  },
+  quoteItemsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    padding: 10,
+    gap: 8,
+    marginTop: 4,
+  },
+  quoteItemCard: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    padding: 8,
+  },
+  quoteTrashBtn: {
+    width: 28,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quoteFieldLabel: {
+    fontSize: 9,
+    fontFamily: 'Inter-Bold',
+    color: '#94A3B8',
+    letterSpacing: 0.3,
+    marginBottom: 3,
+  },
+  quoteDescInput: {
+    height: 38,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#0F172A',
+  },
+  quoteQtyInput: {
+    height: 38,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    textAlign: 'center',
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0F172A',
+    paddingHorizontal: 4,
+  },
+  quoteRateInput: {
+    height: 38,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    textAlign: 'center',
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0F172A',
+    paddingHorizontal: 6,
+  },
+  quoteRowTotalBox: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingRight: 2,
+    paddingBottom: 2,
+  },
+  quoteRowTotalText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  addLineItemBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 10,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  addLineItemText: {
+    fontSize: 12.5,
+    fontFamily: 'Inter-Bold',
+    color: '#4F46E5',
+  },
+  clientNotesLabel: {
+    fontSize: 10.5,
+    fontFamily: 'Inter-Bold',
+    color: '#334155',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  clientNotesInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 12.5,
+    fontFamily: 'Inter-Regular',
+    color: '#0F172A',
+    minHeight: 70,
+    textAlignVertical: 'top',
+  },
+  quoteFinancialCard: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  quoteFinRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  quoteFinLabel: {
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
+    color: '#475569',
+  },
+  quoteFinVal: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  quoteInlineInput: {
+    width: 48,
+    height: 30,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    textAlign: 'center',
+    fontSize: 12.5,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0F172A',
+    paddingVertical: 0,
+    paddingHorizontal: 4,
+  },
+  quoteTaxVal: {
+    fontSize: 13,
+    fontFamily: 'Inter-SemiBold',
+    color: '#475569',
+  },
+  quoteGrandTotalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    marginTop: 4,
+  },
+  quoteGrandTotalLabel: {
+    fontSize: 15,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  quoteGrandTotalVal: {
+    fontSize: 20,
+    fontFamily: 'Inter-Black',
+    color: '#4F46E5',
+    letterSpacing: -0.3,
+  },
+  quoteModalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginTop: 8,
+  },
+  quoteCancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  quoteCancelText: {
+    fontSize: 13,
+    fontFamily: 'Inter-SemiBold',
+    color: '#64748B',
+  },
+  quoteSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#4F46E5',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  quoteSaveText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#FFFFFF',
+  },
+
+  // Stage Advancement Banner
+  advanceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  advanceBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  advanceIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  advanceBannerTitle: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  advanceBannerSub: {
+    fontSize: 10,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 1,
+  },
+
+  // Locked Phase Card
+  lockedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 10,
+  },
+  lockedIconBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockedTitle: {
+    fontSize: 15,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  lockedSub: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 280,
+  },
+  unlockActionBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  unlockActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+  },
+
+  // BOQ Component Styles
+  boqHeaderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+  },
+  boqNumberText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  versionTag: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  versionTagText: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#059669',
+  },
+  boqDateText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  specBox: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderRadius: 10,
+    padding: 8,
+  },
+  specLabel: {
+    fontSize: 8.5,
+    fontFamily: 'Inter-Bold',
+    color: '#94A3B8',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  specVal: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
+    maxWidth: 160,
+  },
+  catChipText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#4F46E5',
+    flexShrink: 1,
+  },
+  catChipCount: {
+    fontSize: 10,
+    fontFamily: 'Inter-Medium',
+    color: '#818CF8',
+  },
+  boqLockedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  boqLockedPillText: {
+    fontSize: 10.5,
+    fontFamily: 'Inter-Bold',
+    color: '#64748B',
+  },
+  editBoqBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+  },
+  editBoqBtnText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#2563EB',
+  },
+  newBoqBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#059669',
+  },
+  newBoqBtnText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#FFFFFF',
+  },
+  costSummaryCard: {
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
+  },
+  costRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  costRowTotal: {
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginTop: 4,
+  },
+  costLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+  },
+  costVal: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  grandTotalTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  grandTotalAmount: {
+    fontSize: 16,
+    fontFamily: 'Inter-Black',
+    color: '#059669',
+  },
+  boqItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  catBadgeSmall: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    maxWidth: 110,
+  },
+  catBadgeSmallText: {
+    fontSize: 9,
+    fontFamily: 'Inter-Bold',
+    color: '#475569',
+    textTransform: 'uppercase',
+  },
+  itemNameText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+    flex: 1,
+    flexShrink: 1,
+  },
+  itemDescText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  itemQtyRateText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#94A3B8',
+    marginTop: 3,
+  },
+  itemTotalText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+    marginLeft: 8,
+    flexShrink: 0,
+  },
+  siteOverdueBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: 'rgba(220,38,38,0.3)',
+    borderRadius: 18,
+    padding: 14,
+  },
+  siteOverdueIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(220,38,38,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  siteOverdueTitle: {
+    fontSize: 13.5,
+    fontFamily: 'Inter-ExtraBold',
+    color: '#7F1D1D',
+  },
+  siteOverdueSub: {
+    fontSize: 11.5,
+    fontFamily: 'Inter-Medium',
+    color: '#991B1B',
+    marginTop: 3,
+    lineHeight: 16,
+  },
+  siteOverdueRescheduleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  siteOverdueRescheduleBtnText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#FFFFFF',
+  },
+  overBudgetBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1.5,
+    borderColor: 'rgba(225,29,72,0.3)',
+    borderRadius: 16,
+    padding: 14,
+  },
+  overBudgetTitle: {
+    fontSize: 12.5,
+    fontFamily: 'Inter-ExtraBold',
+    color: '#BE123C',
+  },
+  overBudgetPill: {
+    backgroundColor: 'rgba(225,29,72,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(225,29,72,0.3)',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  overBudgetPillText: {
+    fontSize: 9,
+    fontFamily: 'Inter-ExtraBold',
+    color: '#BE123C',
+    textTransform: 'uppercase',
+  },
+  overBudgetSub: {
+    fontSize: 11.5,
+    fontFamily: 'Inter-Medium',
+    color: '#9F1239',
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  stageLostActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
+  stageLostActionBtnText: {
+    fontSize: 12.5,
+    fontFamily: 'Inter-Bold',
+    color: '#DC2626',
+  },
+  lostAlertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FEF2F2',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    gap: 10,
+  },
+  lostAlertIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lostAlertTitle: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#991B1B',
+  },
+  lostAlertReason: {
+    fontSize: 11.5,
+    fontFamily: 'Inter-Medium',
+    color: '#B91C1C',
+    marginTop: 1,
+  },
+  reopenLeadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  reopenLeadBtnText: {
+    fontSize: 11.5,
+    fontFamily: 'Inter-Bold',
+    color: '#2563EB',
+  },
+
+  // Overdue Badge
+  overdueBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  overdueDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#DC2626',
+  },
+  overdueBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#DC2626',
+    textTransform: 'uppercase',
+  },
+
+  // Reschedule Button
+  rescheduleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#F3E8FF',
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  rescheduleBtnText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#7C3AED',
+  },
+
+  // Site Visit Briefing Banner
+  siteVisitBriefingCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#F3E8FF',
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 4,
+  },
+  siteVisitBriefingIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  siteVisitBriefingLabel: {
+    fontSize: 9.5,
+    fontFamily: 'Inter-Bold',
+    color: '#6D28D9',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  siteVisitBriefingText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#1E1B4B',
+    lineHeight: 17,
+  },
+  briefingCardGreen: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 14,
+    padding: 14,
+  },
+  briefingIconBoxGreen: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  briefingLabelGreen: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#047857',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  briefingTextGreen: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#064E3B',
+    lineHeight: 17,
+  },
+  briefingCardBlue: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 14,
+    padding: 14,
+  },
+  briefingIconBoxBlue: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  briefingLabelBlue: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#1D4ED8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  briefingTextBlue: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#1E3A8A',
+    lineHeight: 17,
+  },
+});
+
+

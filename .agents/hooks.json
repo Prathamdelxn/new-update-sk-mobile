@@ -1,0 +1,31 @@
+{
+  "mobile-remote-control": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "node C:/Users/Admin/Desktop/Projects/remot/antigravity-remote-backend/scripts/antigravity-hook.mjs pre",
+        "timeout": 10
+      }
+    ],
+    "PostInvocation": [
+      {
+        "type": "command",
+        "command": "node C:/Users/Admin/Desktop/Projects/remot/antigravity-remote-backend/scripts/antigravity-hook.mjs post",
+        "timeout": 10
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/Admin/Desktop/Projects/remot/antigravity-remote-backend/scripts/approval-hook.mjs",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -6,6 +6,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 
@@ -14,6 +15,54 @@ function fmt(d) {
 }
 
 const emptyAction = { description: '', status: 'open' };
+
+// Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
+function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
+  const [showIosPicker, setShowIosPicker] = useState(false);
+
+  const open = () => {
+    const base = value ? new Date(value) : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, d) => {
+          if (event.type === 'set' && d) onChange(d.toISOString().split('T')[0]);
+        },
+      });
+    } else {
+      setShowIosPicker(true);
+    }
+  };
+
+  return (
+    <>
+      <TouchableOpacity style={[inputStyle, dfStyles.row]} onPress={open}>
+        <Text style={[dfStyles.text, !value && dfStyles.placeholder]} numberOfLines={1}>
+          {value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : placeholder}
+        </Text>
+        <Ionicons name="calendar-outline" size={16} color="#64748B" />
+      </TouchableOpacity>
+      {Platform.OS === 'ios' && showIosPicker && (
+        <DateTimePicker
+          value={value ? new Date(value) : new Date()}
+          mode="date"
+          display="spinner"
+          onChange={(e, d) => {
+            setShowIosPicker(false);
+            if (d) onChange(d.toISOString().split('T')[0]);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+const dfStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  placeholder: { color: '#94A3B8' },
+});
 
 export default function InteriorMomScreen() {
   const insets = useSafeAreaInsets();
@@ -165,7 +214,7 @@ export default function InteriorMomScreen() {
               <TextInput style={s.input} placeholder="e.g. Weekly MEP Coordination" placeholderTextColor="#94A3B8" value={title} onChangeText={setTitle} />
 
               <Text style={s.label}>Meeting Date</Text>
-              <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={date} onChangeText={setDate} />
+              <DateField value={date} onChange={setDate} inputStyle={s.input} />
 
               <Text style={s.label}>Attendees (comma-separated)</Text>
               <TextInput style={s.input} placeholder="e.g. Sameer PM, Consultant A" placeholderTextColor="#94A3B8" value={attendees} onChangeText={setAttendees} />

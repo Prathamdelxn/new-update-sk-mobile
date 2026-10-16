@@ -5,7 +5,8 @@
     "flag": "🇦🇫",
     "currencyCode": "AFN",
     "currencyName": "Afghan afghani",
-    "currencySymbol": "؋"
+    "currencySymbol": "؋",
+    "phoneCode": "+93"
   },
   {
     "cca2": "AX",
@@ -13,7 +14,8 @@
     "flag": "🇦🇽",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+358"
   },
   {
     "cca2": "AL",
@@ -21,7 +23,8 @@
     "flag": "🇦🇱",
     "currencyCode": "ALL",
     "currencyName": "Albanian lek",
-    "currencySymbol": "L"
+    "currencySymbol": "L",
+    "phoneCode": "+355"
   },
   {
     "cca2": "DZ",
@@ -29,7 +32,8 @@
     "flag": "🇩🇿",
     "currencyCode": "DZD",
     "currencyName": "Algerian dinar",
-    "currencySymbol": "د.ج"
+    "currencySymbol": "د.ج",
+    "phoneCode": "+213"
   },
   {
     "cca2": "AS",
@@ -37,7 +41,8 @@
     "flag": "🇦🇸",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "AD",
@@ -45,7 +50,8 @@
     "flag": "🇦🇩",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+376"
   },
   {
     "cca2": "AO",
@@ -53,7 +59,8 @@
     "flag": "🇦🇴",
     "currencyCode": "AOA",
     "currencyName": "Angolan kwanza",
-    "currencySymbol": "Kz"
+    "currencySymbol": "Kz",
+    "phoneCode": "+244"
   },
   {
     "cca2": "AI",
@@ -61,7 +68,8 @@
     "flag": "🇦🇮",
     "currencyCode": "XCD",
     "currencyName": "Eastern Caribbean dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "AG",
@@ -69,7 +77,8 @@
     "flag": "🇦🇬",
     "currencyCode": "XCD",
     "currencyName": "Eastern Caribbean dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "AR",
@@ -77,7 +86,8 @@
     "flag": "🇦🇷",
     "currencyCode": "ARS",
     "currencyName": "Argentine peso",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+54"
   },
   {
     "cca2": "AM",
@@ -85,7 +95,8 @@
     "flag": "🇦🇲",
     "currencyCode": "AMD",
     "currencyName": "Armenian dram",
-    "currencySymbol": "֏"
+    "currencySymbol": "֏",
+    "phoneCode": "+374"
   },
   {
     "cca2": "AW",
@@ -93,7 +104,8 @@
     "flag": "🇦🇼",
     "currencyCode": "AWG",
     "currencyName": "Aruban florin",
-    "currencySymbol": "ƒ"
+    "currencySymbol": "ƒ",
+    "phoneCode": "+297"
   },
   {
     "cca2": "AU",
@@ -101,7 +113,8 @@
     "flag": "🇦🇺",
     "currencyCode": "AUD",
     "currencyName": "Australian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+61"
   },
   {
     "cca2": "AT",
@@ -109,7 +122,8 @@
     "flag": "🇦🇹",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+43"
   },
   {
     "cca2": "AZ",
@@ -117,7 +131,8 @@
     "flag": "🇦🇿",
     "currencyCode": "AZN",
     "currencyName": "Azerbaijani manat",
-    "currencySymbol": "₼"
+    "currencySymbol": "₼",
+    "phoneCode": "+994"
   },
   {
     "cca2": "BS",
@@ -125,7 +140,8 @@
     "flag": "🇧🇸",
     "currencyCode": "BSD",
     "currencyName": "Bahamian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "BH",
@@ -133,7 +149,8 @@
     "flag": "🇧🇭",
     "currencyCode": "BHD",
     "currencyName": "Bahraini dinar",
-    "currencySymbol": ".د.ب"
+    "currencySymbol": ".د.ب",
+    "phoneCode": "+973"
   },
   {
     "cca2": "BD",
@@ -141,7 +158,8 @@
     "flag": "🇧🇩",
     "currencyCode": "BDT",
     "currencyName": "Bangladeshi taka",
-    "currencySymbol": "৳"
+    "currencySymbol": "৳",
+    "phoneCode": "+880"
   },
   {
     "cca2": "BB",
@@ -149,7 +167,8 @@
     "flag": "🇧🇧",
     "currencyCode": "BBD",
     "currencyName": "Barbadian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "BY",
@@ -157,7 +176,8 @@
     "flag": "🇧🇾",
     "currencyCode": "BYN",
     "currencyName": "Belarusian ruble",
-    "currencySymbol": "Br"
+    "currencySymbol": "Br",
+    "phoneCode": "+375"
   },
   {
     "cca2": "BE",
@@ -165,7 +185,8 @@
     "flag": "🇧🇪",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+32"
   },
   {
     "cca2": "BZ",
@@ -173,7 +194,8 @@
     "flag": "🇧🇿",
     "currencyCode": "BZD",
     "currencyName": "Belize dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+501"
   },
   {
     "cca2": "BJ",
@@ -181,7 +203,8 @@
     "flag": "🇧🇯",
     "currencyCode": "XOF",
     "currencyName": "West African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+229"
   },
   {
     "cca2": "BM",
@@ -189,7 +212,8 @@
     "flag": "🇧🇲",
     "currencyCode": "BMD",
     "currencyName": "Bermudian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "BT",
@@ -197,7 +221,8 @@
     "flag": "🇧🇹",
     "currencyCode": "BTN",
     "currencyName": "Bhutanese ngultrum",
-    "currencySymbol": "Nu."
+    "currencySymbol": "Nu.",
+    "phoneCode": "+975"
   },
   {
     "cca2": "BO",
@@ -205,7 +230,8 @@
     "flag": "🇧🇴",
     "currencyCode": "BOB",
     "currencyName": "Bolivian boliviano",
-    "currencySymbol": "Bs."
+    "currencySymbol": "Bs.",
+    "phoneCode": "+591"
   },
   {
     "cca2": "BA",
@@ -213,7 +239,8 @@
     "flag": "🇧🇦",
     "currencyCode": "BAM",
     "currencyName": "Bosnia and Herzegovina convertible mark",
-    "currencySymbol": "KM"
+    "currencySymbol": "KM",
+    "phoneCode": "+387"
   },
   {
     "cca2": "BW",
@@ -221,7 +248,8 @@
     "flag": "🇧🇼",
     "currencyCode": "BWP",
     "currencyName": "Botswana pula",
-    "currencySymbol": "P"
+    "currencySymbol": "P",
+    "phoneCode": "+267"
   },
   {
     "cca2": "BR",
@@ -229,7 +257,8 @@
     "flag": "🇧🇷",
     "currencyCode": "BRL",
     "currencyName": "Brazilian real",
-    "currencySymbol": "R$"
+    "currencySymbol": "R$",
+    "phoneCode": "+55"
   },
   {
     "cca2": "IO",
@@ -237,7 +266,8 @@
     "flag": "🇮🇴",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+246"
   },
   {
     "cca2": "VG",
@@ -245,7 +275,8 @@
     "flag": "🇻🇬",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "BN",
@@ -253,7 +284,8 @@
     "flag": "🇧🇳",
     "currencyCode": "BND",
     "currencyName": "Brunei dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+673"
   },
   {
     "cca2": "BG",
@@ -261,7 +293,8 @@
     "flag": "🇧🇬",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+359"
   },
   {
     "cca2": "BF",
@@ -269,7 +302,8 @@
     "flag": "🇧🇫",
     "currencyCode": "XOF",
     "currencyName": "West African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+226"
   },
   {
     "cca2": "BI",
@@ -277,7 +311,8 @@
     "flag": "🇧🇮",
     "currencyCode": "BIF",
     "currencyName": "Burundian franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+257"
   },
   {
     "cca2": "KH",
@@ -285,7 +320,8 @@
     "flag": "🇰🇭",
     "currencyCode": "KHR",
     "currencyName": "Cambodian riel",
-    "currencySymbol": "៛"
+    "currencySymbol": "៛",
+    "phoneCode": "+855"
   },
   {
     "cca2": "CM",
@@ -293,7 +329,8 @@
     "flag": "🇨🇲",
     "currencyCode": "XAF",
     "currencyName": "Central African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+237"
   },
   {
     "cca2": "CA",
@@ -301,7 +338,8 @@
     "flag": "🇨🇦",
     "currencyCode": "CAD",
     "currencyName": "Canadian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "CV",
@@ -309,7 +347,8 @@
     "flag": "🇨🇻",
     "currencyCode": "CVE",
     "currencyName": "Cape Verdean escudo",
-    "currencySymbol": "Esc"
+    "currencySymbol": "Esc",
+    "phoneCode": "+238"
   },
   {
     "cca2": "BQ",
@@ -317,7 +356,8 @@
     "flag": "🏳️",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+599"
   },
   {
     "cca2": "KY",
@@ -325,7 +365,8 @@
     "flag": "🇰🇾",
     "currencyCode": "KYD",
     "currencyName": "Cayman Islands dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "CF",
@@ -333,7 +374,8 @@
     "flag": "🇨🇫",
     "currencyCode": "XAF",
     "currencyName": "Central African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+236"
   },
   {
     "cca2": "TD",
@@ -341,7 +383,8 @@
     "flag": "🇹🇩",
     "currencyCode": "XAF",
     "currencyName": "Central African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+235"
   },
   {
     "cca2": "CL",
@@ -349,7 +392,8 @@
     "flag": "🇨🇱",
     "currencyCode": "CLP",
     "currencyName": "Chilean peso",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+56"
   },
   {
     "cca2": "CN",
@@ -357,7 +401,8 @@
     "flag": "🇨🇳",
     "currencyCode": "CNY",
     "currencyName": "Chinese yuan",
-    "currencySymbol": "¥"
+    "currencySymbol": "¥",
+    "phoneCode": "+86"
   },
   {
     "cca2": "CX",
@@ -365,7 +410,8 @@
     "flag": "🇨🇽",
     "currencyCode": "AUD",
     "currencyName": "Australian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+61"
   },
   {
     "cca2": "CC",
@@ -373,7 +419,8 @@
     "flag": "🇨🇨",
     "currencyCode": "AUD",
     "currencyName": "Australian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+61"
   },
   {
     "cca2": "CO",
@@ -381,7 +428,8 @@
     "flag": "🇨🇴",
     "currencyCode": "COP",
     "currencyName": "Colombian peso",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+57"
   },
   {
     "cca2": "KM",
@@ -389,7 +437,8 @@
     "flag": "🇰🇲",
     "currencyCode": "KMF",
     "currencyName": "Comorian franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+269"
   },
   {
     "cca2": "CG",
@@ -397,7 +446,8 @@
     "flag": "🇨🇬",
     "currencyCode": "XAF",
     "currencyName": "Central African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+242"
   },
   {
     "cca2": "CK",
@@ -405,7 +455,8 @@
     "flag": "🇨🇰",
     "currencyCode": "CKD",
     "currencyName": "Cook Islands dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+682"
   },
   {
     "cca2": "CR",
@@ -413,7 +464,8 @@
     "flag": "🇨🇷",
     "currencyCode": "CRC",
     "currencyName": "Costa Rican colón",
-    "currencySymbol": "₡"
+    "currencySymbol": "₡",
+    "phoneCode": "+506"
   },
   {
     "cca2": "HR",
@@ -421,7 +473,8 @@
     "flag": "🇭🇷",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+385"
   },
   {
     "cca2": "CU",
@@ -429,7 +482,8 @@
     "flag": "🇨🇺",
     "currencyCode": "CUC",
     "currencyName": "Cuban convertible peso",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+53"
   },
   {
     "cca2": "CW",
@@ -437,7 +491,8 @@
     "flag": "🇨🇼",
     "currencyCode": "ANG",
     "currencyName": "Netherlands Antillean guilder",
-    "currencySymbol": "ƒ"
+    "currencySymbol": "ƒ",
+    "phoneCode": "+599"
   },
   {
     "cca2": "CY",
@@ -445,7 +500,8 @@
     "flag": "🇨🇾",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+357"
   },
   {
     "cca2": "CZ",
@@ -453,7 +509,8 @@
     "flag": "🇨🇿",
     "currencyCode": "CZK",
     "currencyName": "Czech koruna",
-    "currencySymbol": "Kč"
+    "currencySymbol": "Kč",
+    "phoneCode": "+420"
   },
   {
     "cca2": "DK",
@@ -461,7 +518,8 @@
     "flag": "🇩🇰",
     "currencyCode": "DKK",
     "currencyName": "Danish krone",
-    "currencySymbol": "kr"
+    "currencySymbol": "kr",
+    "phoneCode": "+45"
   },
   {
     "cca2": "DJ",
@@ -469,7 +527,8 @@
     "flag": "🇩🇯",
     "currencyCode": "DJF",
     "currencyName": "Djiboutian franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+253"
   },
   {
     "cca2": "DM",
@@ -477,7 +536,8 @@
     "flag": "🇩🇲",
     "currencyCode": "XCD",
     "currencyName": "Eastern Caribbean dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "DO",
@@ -485,7 +545,8 @@
     "flag": "🇩🇴",
     "currencyCode": "DOP",
     "currencyName": "Dominican peso",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "CD",
@@ -493,7 +554,8 @@
     "flag": "🇨🇩",
     "currencyCode": "CDF",
     "currencyName": "Congolese franc",
-    "currencySymbol": "FC"
+    "currencySymbol": "FC",
+    "phoneCode": "+243"
   },
   {
     "cca2": "EC",
@@ -501,7 +563,8 @@
     "flag": "🇪🇨",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+593"
   },
   {
     "cca2": "EG",
@@ -509,7 +572,8 @@
     "flag": "🇪🇬",
     "currencyCode": "EGP",
     "currencyName": "Egyptian pound",
-    "currencySymbol": "£"
+    "currencySymbol": "£",
+    "phoneCode": "+20"
   },
   {
     "cca2": "SV",
@@ -517,7 +581,8 @@
     "flag": "🇸🇻",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+503"
   },
   {
     "cca2": "GQ",
@@ -525,7 +590,8 @@
     "flag": "🇬🇶",
     "currencyCode": "XAF",
     "currencyName": "Central African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+240"
   },
   {
     "cca2": "ER",
@@ -533,7 +599,8 @@
     "flag": "🇪🇷",
     "currencyCode": "ERN",
     "currencyName": "Eritrean nakfa",
-    "currencySymbol": "Nfk"
+    "currencySymbol": "Nfk",
+    "phoneCode": "+291"
   },
   {
     "cca2": "EE",
@@ -541,7 +608,8 @@
     "flag": "🇪🇪",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+372"
   },
   {
     "cca2": "SZ",
@@ -549,7 +617,8 @@
     "flag": "🇸🇿",
     "currencyCode": "SZL",
     "currencyName": "Swazi lilangeni",
-    "currencySymbol": "L"
+    "currencySymbol": "L",
+    "phoneCode": "+268"
   },
   {
     "cca2": "ET",
@@ -557,7 +626,8 @@
     "flag": "🇪🇹",
     "currencyCode": "ETB",
     "currencyName": "Ethiopian birr",
-    "currencySymbol": "Br"
+    "currencySymbol": "Br",
+    "phoneCode": "+251"
   },
   {
     "cca2": "FK",
@@ -565,7 +635,8 @@
     "flag": "🇫🇰",
     "currencyCode": "FKP",
     "currencyName": "Falkland Islands pound",
-    "currencySymbol": "£"
+    "currencySymbol": "£",
+    "phoneCode": "+500"
   },
   {
     "cca2": "FO",
@@ -573,7 +644,8 @@
     "flag": "🇫🇴",
     "currencyCode": "DKK",
     "currencyName": "Danish krone",
-    "currencySymbol": "kr"
+    "currencySymbol": "kr",
+    "phoneCode": "+298"
   },
   {
     "cca2": "FJ",
@@ -581,7 +653,8 @@
     "flag": "🇫🇯",
     "currencyCode": "FJD",
     "currencyName": "Fijian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+679"
   },
   {
     "cca2": "FI",
@@ -589,7 +662,8 @@
     "flag": "🇫🇮",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+358"
   },
   {
     "cca2": "FR",
@@ -597,7 +671,8 @@
     "flag": "🇫🇷",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+33"
   },
   {
     "cca2": "GF",
@@ -605,7 +680,8 @@
     "flag": "🇬🇫",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+594"
   },
   {
     "cca2": "PF",
@@ -613,7 +689,8 @@
     "flag": "🇵🇫",
     "currencyCode": "XPF",
     "currencyName": "CFP franc",
-    "currencySymbol": "₣"
+    "currencySymbol": "₣",
+    "phoneCode": "+689"
   },
   {
     "cca2": "TF",
@@ -621,7 +698,8 @@
     "flag": "🇹🇫",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+262"
   },
   {
     "cca2": "GA",
@@ -629,7 +707,8 @@
     "flag": "🇬🇦",
     "currencyCode": "XAF",
     "currencyName": "Central African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+241"
   },
   {
     "cca2": "GM",
@@ -637,7 +716,8 @@
     "flag": "🇬🇲",
     "currencyCode": "GMD",
     "currencyName": "dalasi",
-    "currencySymbol": "D"
+    "currencySymbol": "D",
+    "phoneCode": "+220"
   },
   {
     "cca2": "GE",
@@ -645,7 +725,8 @@
     "flag": "🇬🇪",
     "currencyCode": "GEL",
     "currencyName": "lari",
-    "currencySymbol": "₾"
+    "currencySymbol": "₾",
+    "phoneCode": "+995"
   },
   {
     "cca2": "DE",
@@ -653,7 +734,8 @@
     "flag": "🇩🇪",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+49"
   },
   {
     "cca2": "GH",
@@ -661,7 +743,8 @@
     "flag": "🇬🇭",
     "currencyCode": "GHS",
     "currencyName": "Ghanaian cedi",
-    "currencySymbol": "₵"
+    "currencySymbol": "₵",
+    "phoneCode": "+233"
   },
   {
     "cca2": "GI",
@@ -669,7 +752,8 @@
     "flag": "🇬🇮",
     "currencyCode": "GIP",
     "currencyName": "Gibraltar pound",
-    "currencySymbol": "£"
+    "currencySymbol": "£",
+    "phoneCode": "+350"
   },
   {
     "cca2": "GR",
@@ -677,7 +761,8 @@
     "flag": "🇬🇷",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+30"
   },
   {
     "cca2": "GL",
@@ -685,7 +770,8 @@
     "flag": "🇬🇱",
     "currencyCode": "DKK",
     "currencyName": "krone",
-    "currencySymbol": "kr."
+    "currencySymbol": "kr.",
+    "phoneCode": "+299"
   },
   {
     "cca2": "GD",
@@ -693,7 +779,8 @@
     "flag": "🇬🇩",
     "currencyCode": "XCD",
     "currencyName": "Eastern Caribbean dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "GP",
@@ -701,7 +788,8 @@
     "flag": "🇬🇵",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+590"
   },
   {
     "cca2": "GU",
@@ -709,7 +797,8 @@
     "flag": "🇬🇺",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "GT",
@@ -717,7 +806,8 @@
     "flag": "🇬🇹",
     "currencyCode": "GTQ",
     "currencyName": "Guatemalan quetzal",
-    "currencySymbol": "Q"
+    "currencySymbol": "Q",
+    "phoneCode": "+502"
   },
   {
     "cca2": "GG",
@@ -725,7 +815,8 @@
     "flag": "🇬🇬",
     "currencyCode": "GBP",
     "currencyName": "British pound",
-    "currencySymbol": "£"
+    "currencySymbol": "£",
+    "phoneCode": "+44"
   },
   {
     "cca2": "GN",
@@ -733,7 +824,8 @@
     "flag": "🇬🇳",
     "currencyCode": "GNF",
     "currencyName": "Guinean franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+224"
   },
   {
     "cca2": "GW",
@@ -741,7 +833,8 @@
     "flag": "🇬🇼",
     "currencyCode": "XOF",
     "currencyName": "West African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+245"
   },
   {
     "cca2": "GY",
@@ -749,7 +842,8 @@
     "flag": "🇬🇾",
     "currencyCode": "GYD",
     "currencyName": "Guyanese dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+592"
   },
   {
     "cca2": "HT",
@@ -757,7 +851,8 @@
     "flag": "🇭🇹",
     "currencyCode": "HTG",
     "currencyName": "Haitian gourde",
-    "currencySymbol": "G"
+    "currencySymbol": "G",
+    "phoneCode": "+509"
   },
   {
     "cca2": "HN",
@@ -765,7 +860,8 @@
     "flag": "🇭🇳",
     "currencyCode": "HNL",
     "currencyName": "Honduran lempira",
-    "currencySymbol": "L"
+    "currencySymbol": "L",
+    "phoneCode": "+504"
   },
   {
     "cca2": "HK",
@@ -773,7 +869,8 @@
     "flag": "🇭🇰",
     "currencyCode": "HKD",
     "currencyName": "Hong Kong dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+852"
   },
   {
     "cca2": "HU",
@@ -781,7 +878,8 @@
     "flag": "🇭🇺",
     "currencyCode": "HUF",
     "currencyName": "Hungarian forint",
-    "currencySymbol": "Ft"
+    "currencySymbol": "Ft",
+    "phoneCode": "+36"
   },
   {
     "cca2": "IS",
@@ -789,7 +887,8 @@
     "flag": "🇮🇸",
     "currencyCode": "ISK",
     "currencyName": "Icelandic króna",
-    "currencySymbol": "kr"
+    "currencySymbol": "kr",
+    "phoneCode": "+354"
   },
   {
     "cca2": "IN",
@@ -797,7 +896,8 @@
     "flag": "🇮🇳",
     "currencyCode": "INR",
     "currencyName": "Indian rupee",
-    "currencySymbol": "₹"
+    "currencySymbol": "₹",
+    "phoneCode": "+91"
   },
   {
     "cca2": "ID",
@@ -805,7 +905,8 @@
     "flag": "🇮🇩",
     "currencyCode": "IDR",
     "currencyName": "Indonesian rupiah",
-    "currencySymbol": "Rp"
+    "currencySymbol": "Rp",
+    "phoneCode": "+62"
   },
   {
     "cca2": "IR",
@@ -813,7 +914,8 @@
     "flag": "🇮🇷",
     "currencyCode": "IRR",
     "currencyName": "Iranian rial",
-    "currencySymbol": "﷼"
+    "currencySymbol": "﷼",
+    "phoneCode": "+98"
   },
   {
     "cca2": "IQ",
@@ -821,7 +923,8 @@
     "flag": "🇮🇶",
     "currencyCode": "IQD",
     "currencyName": "Iraqi dinar",
-    "currencySymbol": "ع.د"
+    "currencySymbol": "ع.د",
+    "phoneCode": "+964"
   },
   {
     "cca2": "IE",
@@ -829,7 +932,8 @@
     "flag": "🇮🇪",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+353"
   },
   {
     "cca2": "IM",
@@ -837,7 +941,8 @@
     "flag": "🇮🇲",
     "currencyCode": "GBP",
     "currencyName": "British pound",
-    "currencySymbol": "£"
+    "currencySymbol": "£",
+    "phoneCode": "+44"
   },
   {
     "cca2": "IL",
@@ -845,7 +950,8 @@
     "flag": "🇮🇱",
     "currencyCode": "ILS",
     "currencyName": "Israeli new shekel",
-    "currencySymbol": "₪"
+    "currencySymbol": "₪",
+    "phoneCode": "+972"
   },
   {
     "cca2": "IT",
@@ -853,7 +959,8 @@
     "flag": "🇮🇹",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+39"
   },
   {
     "cca2": "CI",
@@ -861,7 +968,8 @@
     "flag": "🇨🇮",
     "currencyCode": "XOF",
     "currencyName": "West African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+225"
   },
   {
     "cca2": "JM",
@@ -869,7 +977,8 @@
     "flag": "🇯🇲",
     "currencyCode": "JMD",
     "currencyName": "Jamaican dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "JP",
@@ -877,7 +986,8 @@
     "flag": "🇯🇵",
     "currencyCode": "JPY",
     "currencyName": "Japanese yen",
-    "currencySymbol": "¥"
+    "currencySymbol": "¥",
+    "phoneCode": "+81"
   },
   {
     "cca2": "JE",
@@ -885,7 +995,8 @@
     "flag": "🇯🇪",
     "currencyCode": "GBP",
     "currencyName": "British pound",
-    "currencySymbol": "£"
+    "currencySymbol": "£",
+    "phoneCode": "+44"
   },
   {
     "cca2": "JO",
@@ -893,7 +1004,8 @@
     "flag": "🇯🇴",
     "currencyCode": "JOD",
     "currencyName": "Jordanian dinar",
-    "currencySymbol": "د.ا"
+    "currencySymbol": "د.ا",
+    "phoneCode": "+962"
   },
   {
     "cca2": "KZ",
@@ -901,7 +1013,8 @@
     "flag": "🇰🇿",
     "currencyCode": "KZT",
     "currencyName": "Kazakhstani tenge",
-    "currencySymbol": "₸"
+    "currencySymbol": "₸",
+    "phoneCode": "+7"
   },
   {
     "cca2": "KE",
@@ -909,7 +1022,8 @@
     "flag": "🇰🇪",
     "currencyCode": "KES",
     "currencyName": "Kenyan shilling",
-    "currencySymbol": "Sh"
+    "currencySymbol": "Sh",
+    "phoneCode": "+254"
   },
   {
     "cca2": "KI",
@@ -917,7 +1031,8 @@
     "flag": "🇰🇮",
     "currencyCode": "AUD",
     "currencyName": "Australian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+686"
   },
   {
     "cca2": "XK",
@@ -925,7 +1040,8 @@
     "flag": "🇽🇰",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+383"
   },
   {
     "cca2": "KW",
@@ -933,7 +1049,8 @@
     "flag": "🇰🇼",
     "currencyCode": "KWD",
     "currencyName": "Kuwaiti dinar",
-    "currencySymbol": "د.ك"
+    "currencySymbol": "د.ك",
+    "phoneCode": "+965"
   },
   {
     "cca2": "KG",
@@ -941,7 +1058,8 @@
     "flag": "🇰🇬",
     "currencyCode": "KGS",
     "currencyName": "Kyrgyzstani som",
-    "currencySymbol": "с"
+    "currencySymbol": "с",
+    "phoneCode": "+996"
   },
   {
     "cca2": "LA",
@@ -949,7 +1067,8 @@
     "flag": "🇱🇦",
     "currencyCode": "LAK",
     "currencyName": "Lao kip",
-    "currencySymbol": "₭"
+    "currencySymbol": "₭",
+    "phoneCode": "+856"
   },
   {
     "cca2": "LV",
@@ -957,7 +1076,8 @@
     "flag": "🇱🇻",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+371"
   },
   {
     "cca2": "LB",
@@ -965,7 +1085,8 @@
     "flag": "🇱🇧",
     "currencyCode": "LBP",
     "currencyName": "Lebanese pound",
-    "currencySymbol": "ل.ل"
+    "currencySymbol": "ل.ل",
+    "phoneCode": "+961"
   },
   {
     "cca2": "LS",
@@ -973,7 +1094,8 @@
     "flag": "🇱🇸",
     "currencyCode": "LSL",
     "currencyName": "Lesotho loti",
-    "currencySymbol": "L"
+    "currencySymbol": "L",
+    "phoneCode": "+266"
   },
   {
     "cca2": "LR",
@@ -981,7 +1103,8 @@
     "flag": "🇱🇷",
     "currencyCode": "LRD",
     "currencyName": "Liberian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+231"
   },
   {
     "cca2": "LY",
@@ -989,7 +1112,8 @@
     "flag": "🇱🇾",
     "currencyCode": "LYD",
     "currencyName": "Libyan dinar",
-    "currencySymbol": "ل.د"
+    "currencySymbol": "ل.د",
+    "phoneCode": "+218"
   },
   {
     "cca2": "LI",
@@ -997,7 +1121,8 @@
     "flag": "🇱🇮",
     "currencyCode": "CHF",
     "currencyName": "Swiss franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+423"
   },
   {
     "cca2": "LT",
@@ -1005,7 +1130,8 @@
     "flag": "🇱🇹",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+370"
   },
   {
     "cca2": "LU",
@@ -1013,7 +1139,8 @@
     "flag": "🇱🇺",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+352"
   },
   {
     "cca2": "MO",
@@ -1021,7 +1148,8 @@
     "flag": "🇲🇴",
     "currencyCode": "MOP",
     "currencyName": "Macanese pataca",
-    "currencySymbol": "P"
+    "currencySymbol": "P",
+    "phoneCode": "+853"
   },
   {
     "cca2": "MG",
@@ -1029,7 +1157,8 @@
     "flag": "🇲🇬",
     "currencyCode": "MGA",
     "currencyName": "Malagasy ariary",
-    "currencySymbol": "Ar"
+    "currencySymbol": "Ar",
+    "phoneCode": "+261"
   },
   {
     "cca2": "MW",
@@ -1037,7 +1166,8 @@
     "flag": "🇲🇼",
     "currencyCode": "MWK",
     "currencyName": "Malawian kwacha",
-    "currencySymbol": "MK"
+    "currencySymbol": "MK",
+    "phoneCode": "+265"
   },
   {
     "cca2": "MY",
@@ -1045,7 +1175,8 @@
     "flag": "🇲🇾",
     "currencyCode": "MYR",
     "currencyName": "Malaysian ringgit",
-    "currencySymbol": "RM"
+    "currencySymbol": "RM",
+    "phoneCode": "+60"
   },
   {
     "cca2": "MV",
@@ -1053,7 +1184,8 @@
     "flag": "🇲🇻",
     "currencyCode": "MVR",
     "currencyName": "Maldivian rufiyaa",
-    "currencySymbol": ".ރ"
+    "currencySymbol": ".ރ",
+    "phoneCode": "+960"
   },
   {
     "cca2": "ML",
@@ -1061,7 +1193,8 @@
     "flag": "🇲🇱",
     "currencyCode": "XOF",
     "currencyName": "West African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+223"
   },
   {
     "cca2": "MT",
@@ -1069,7 +1202,8 @@
     "flag": "🇲🇹",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+356"
   },
   {
     "cca2": "MH",
@@ -1077,7 +1211,8 @@
     "flag": "🇲🇭",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+692"
   },
   {
     "cca2": "MQ",
@@ -1085,7 +1220,8 @@
     "flag": "🇲🇶",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+596"
   },
   {
     "cca2": "MR",
@@ -1093,7 +1229,8 @@
     "flag": "🇲🇷",
     "currencyCode": "MRU",
     "currencyName": "Mauritanian ouguiya",
-    "currencySymbol": "UM"
+    "currencySymbol": "UM",
+    "phoneCode": "+222"
   },
   {
     "cca2": "MU",
@@ -1101,7 +1238,8 @@
     "flag": "🇲🇺",
     "currencyCode": "MUR",
     "currencyName": "Mauritian rupee",
-    "currencySymbol": "₨"
+    "currencySymbol": "₨",
+    "phoneCode": "+230"
   },
   {
     "cca2": "YT",
@@ -1109,7 +1247,8 @@
     "flag": "🇾🇹",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+262"
   },
   {
     "cca2": "MX",
@@ -1117,7 +1256,8 @@
     "flag": "🇲🇽",
     "currencyCode": "MXN",
     "currencyName": "Mexican peso",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+52"
   },
   {
     "cca2": "MD",
@@ -1125,7 +1265,8 @@
     "flag": "🇲🇩",
     "currencyCode": "MDL",
     "currencyName": "Moldovan leu",
-    "currencySymbol": "L"
+    "currencySymbol": "L",
+    "phoneCode": "+373"
   },
   {
     "cca2": "MC",
@@ -1133,7 +1274,8 @@
     "flag": "🇲🇨",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+377"
   },
   {
     "cca2": "MN",
@@ -1141,7 +1283,8 @@
     "flag": "🇲🇳",
     "currencyCode": "MNT",
     "currencyName": "Mongolian tögrög",
-    "currencySymbol": "₮"
+    "currencySymbol": "₮",
+    "phoneCode": "+976"
   },
   {
     "cca2": "ME",
@@ -1149,7 +1292,8 @@
     "flag": "🇲🇪",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+382"
   },
   {
     "cca2": "MS",
@@ -1157,7 +1301,8 @@
     "flag": "🇲🇸",
     "currencyCode": "XCD",
     "currencyName": "Eastern Caribbean dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "MA",
@@ -1165,7 +1310,8 @@
     "flag": "🇲🇦",
     "currencyCode": "MAD",
     "currencyName": "Moroccan dirham",
-    "currencySymbol": "د.م."
+    "currencySymbol": "د.م.",
+    "phoneCode": "+212"
   },
   {
     "cca2": "MZ",
@@ -1173,7 +1319,8 @@
     "flag": "🇲🇿",
     "currencyCode": "MZN",
     "currencyName": "Mozambican metical",
-    "currencySymbol": "MT"
+    "currencySymbol": "MT",
+    "phoneCode": "+258"
   },
   {
     "cca2": "MM",
@@ -1181,7 +1328,8 @@
     "flag": "🇲🇲",
     "currencyCode": "MMK",
     "currencyName": "Burmese kyat",
-    "currencySymbol": "Ks"
+    "currencySymbol": "Ks",
+    "phoneCode": "+95"
   },
   {
     "cca2": "NA",
@@ -1189,7 +1337,8 @@
     "flag": "🇳🇦",
     "currencyCode": "NAD",
     "currencyName": "Namibian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+264"
   },
   {
     "cca2": "NR",
@@ -1197,7 +1346,8 @@
     "flag": "🇳🇷",
     "currencyCode": "AUD",
     "currencyName": "Australian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+674"
   },
   {
     "cca2": "NP",
@@ -1205,7 +1355,8 @@
     "flag": "🇳🇵",
     "currencyCode": "NPR",
     "currencyName": "Nepalese rupee",
-    "currencySymbol": "₨"
+    "currencySymbol": "₨",
+    "phoneCode": "+977"
   },
   {
     "cca2": "NL",
@@ -1213,7 +1364,8 @@
     "flag": "🇳🇱",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+31"
   },
   {
     "cca2": "NC",
@@ -1221,7 +1373,8 @@
     "flag": "🇳🇨",
     "currencyCode": "XPF",
     "currencyName": "CFP franc",
-    "currencySymbol": "₣"
+    "currencySymbol": "₣",
+    "phoneCode": "+687"
   },
   {
     "cca2": "NZ",
@@ -1229,7 +1382,8 @@
     "flag": "🇳🇿",
     "currencyCode": "NZD",
     "currencyName": "New Zealand dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+64"
   },
   {
     "cca2": "NI",
@@ -1237,7 +1391,8 @@
     "flag": "🇳🇮",
     "currencyCode": "NIO",
     "currencyName": "Nicaraguan córdoba",
-    "currencySymbol": "C$"
+    "currencySymbol": "C$",
+    "phoneCode": "+505"
   },
   {
     "cca2": "NE",
@@ -1245,7 +1400,8 @@
     "flag": "🇳🇪",
     "currencyCode": "XOF",
     "currencyName": "West African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+227"
   },
   {
     "cca2": "NG",
@@ -1253,7 +1409,8 @@
     "flag": "🇳🇬",
     "currencyCode": "NGN",
     "currencyName": "Nigerian naira",
-    "currencySymbol": "₦"
+    "currencySymbol": "₦",
+    "phoneCode": "+234"
   },
   {
     "cca2": "NU",
@@ -1261,7 +1418,8 @@
     "flag": "🇳🇺",
     "currencyCode": "NZD",
     "currencyName": "New Zealand dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+683"
   },
   {
     "cca2": "NF",
@@ -1269,7 +1427,8 @@
     "flag": "🇳🇫",
     "currencyCode": "AUD",
     "currencyName": "Australian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+672"
   },
   {
     "cca2": "KP",
@@ -1277,7 +1436,8 @@
     "flag": "🇰🇵",
     "currencyCode": "KPW",
     "currencyName": "North Korean won",
-    "currencySymbol": "₩"
+    "currencySymbol": "₩",
+    "phoneCode": "+850"
   },
   {
     "cca2": "MK",
@@ -1285,7 +1445,8 @@
     "flag": "🇲🇰",
     "currencyCode": "MKD",
     "currencyName": "denar",
-    "currencySymbol": "den"
+    "currencySymbol": "den",
+    "phoneCode": "+389"
   },
   {
     "cca2": "MP",
@@ -1293,7 +1454,8 @@
     "flag": "🇲🇵",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "NO",
@@ -1301,7 +1463,8 @@
     "flag": "🇳🇴",
     "currencyCode": "NOK",
     "currencyName": "Norwegian krone",
-    "currencySymbol": "kr"
+    "currencySymbol": "kr",
+    "phoneCode": "+47"
   },
   {
     "cca2": "OM",
@@ -1309,7 +1472,8 @@
     "flag": "🇴🇲",
     "currencyCode": "OMR",
     "currencyName": "Omani rial",
-    "currencySymbol": "ر.ع."
+    "currencySymbol": "ر.ع.",
+    "phoneCode": "+968"
   },
   {
     "cca2": "PK",
@@ -1317,7 +1481,8 @@
     "flag": "🇵🇰",
     "currencyCode": "PKR",
     "currencyName": "Pakistani rupee",
-    "currencySymbol": "₨"
+    "currencySymbol": "₨",
+    "phoneCode": "+92"
   },
   {
     "cca2": "PW",
@@ -1325,7 +1490,8 @@
     "flag": "🇵🇼",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+680"
   },
   {
     "cca2": "PS",
@@ -1333,7 +1499,8 @@
     "flag": "🇵🇸",
     "currencyCode": "EGP",
     "currencyName": "Egyptian pound",
-    "currencySymbol": "E£"
+    "currencySymbol": "E£",
+    "phoneCode": "+970"
   },
   {
     "cca2": "PA",
@@ -1341,7 +1508,8 @@
     "flag": "🇵🇦",
     "currencyCode": "PAB",
     "currencyName": "Panamanian balboa",
-    "currencySymbol": "B/."
+    "currencySymbol": "B/.",
+    "phoneCode": "+507"
   },
   {
     "cca2": "PG",
@@ -1349,7 +1517,8 @@
     "flag": "🇵🇬",
     "currencyCode": "PGK",
     "currencyName": "Papua New Guinean kina",
-    "currencySymbol": "K"
+    "currencySymbol": "K",
+    "phoneCode": "+675"
   },
   {
     "cca2": "PY",
@@ -1357,7 +1526,8 @@
     "flag": "🇵🇾",
     "currencyCode": "PYG",
     "currencyName": "Paraguayan guaraní",
-    "currencySymbol": "₲"
+    "currencySymbol": "₲",
+    "phoneCode": "+595"
   },
   {
     "cca2": "PE",
@@ -1365,7 +1535,8 @@
     "flag": "🇵🇪",
     "currencyCode": "PEN",
     "currencyName": "Peruvian sol",
-    "currencySymbol": "S/."
+    "currencySymbol": "S/.",
+    "phoneCode": "+51"
   },
   {
     "cca2": "PH",
@@ -1373,7 +1544,8 @@
     "flag": "🇵🇭",
     "currencyCode": "PHP",
     "currencyName": "Philippine peso",
-    "currencySymbol": "₱"
+    "currencySymbol": "₱",
+    "phoneCode": "+63"
   },
   {
     "cca2": "PN",
@@ -1381,7 +1553,8 @@
     "flag": "🇵🇳",
     "currencyCode": "NZD",
     "currencyName": "New Zealand dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+64"
   },
   {
     "cca2": "PL",
@@ -1389,7 +1562,8 @@
     "flag": "🇵🇱",
     "currencyCode": "PLN",
     "currencyName": "Polish złoty",
-    "currencySymbol": "zł"
+    "currencySymbol": "zł",
+    "phoneCode": "+48"
   },
   {
     "cca2": "PT",
@@ -1397,7 +1571,8 @@
     "flag": "🇵🇹",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+351"
   },
   {
     "cca2": "PR",
@@ -1405,7 +1580,8 @@
     "flag": "🇵🇷",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "QA",
@@ -1413,7 +1589,8 @@
     "flag": "🇶🇦",
     "currencyCode": "QAR",
     "currencyName": "Qatari riyal",
-    "currencySymbol": "ر.ق"
+    "currencySymbol": "ر.ق",
+    "phoneCode": "+974"
   },
   {
     "cca2": "RE",
@@ -1421,7 +1598,8 @@
     "flag": "🇷🇪",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+262"
   },
   {
     "cca2": "RO",
@@ -1429,7 +1607,8 @@
     "flag": "🇷🇴",
     "currencyCode": "RON",
     "currencyName": "Romanian leu",
-    "currencySymbol": "lei"
+    "currencySymbol": "lei",
+    "phoneCode": "+40"
   },
   {
     "cca2": "RU",
@@ -1437,7 +1616,8 @@
     "flag": "🇷🇺",
     "currencyCode": "RUB",
     "currencyName": "Russian ruble",
-    "currencySymbol": "₽"
+    "currencySymbol": "₽",
+    "phoneCode": "+7"
   },
   {
     "cca2": "RW",
@@ -1445,7 +1625,8 @@
     "flag": "🇷🇼",
     "currencyCode": "RWF",
     "currencyName": "Rwandan franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+250"
   },
   {
     "cca2": "BL",
@@ -1453,7 +1634,8 @@
     "flag": "🇧🇱",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+590"
   },
   {
     "cca2": "SH",
@@ -1461,7 +1643,8 @@
     "flag": "🇸🇭",
     "currencyCode": "GBP",
     "currencyName": "Pound sterling",
-    "currencySymbol": "£"
+    "currencySymbol": "£",
+    "phoneCode": "+290"
   },
   {
     "cca2": "KN",
@@ -1469,7 +1652,8 @@
     "flag": "🇰🇳",
     "currencyCode": "XCD",
     "currencyName": "Eastern Caribbean dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "LC",
@@ -1477,7 +1661,8 @@
     "flag": "🇱🇨",
     "currencyCode": "XCD",
     "currencyName": "Eastern Caribbean dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "MF",
@@ -1485,7 +1670,8 @@
     "flag": "🇲🇫",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+590"
   },
   {
     "cca2": "PM",
@@ -1493,7 +1679,8 @@
     "flag": "🇵🇲",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+508"
   },
   {
     "cca2": "VC",
@@ -1501,7 +1688,8 @@
     "flag": "🇻🇨",
     "currencyCode": "XCD",
     "currencyName": "Eastern Caribbean dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "WS",
@@ -1509,7 +1697,8 @@
     "flag": "🇼🇸",
     "currencyCode": "WST",
     "currencyName": "Samoan tālā",
-    "currencySymbol": "T"
+    "currencySymbol": "T",
+    "phoneCode": "+685"
   },
   {
     "cca2": "SM",
@@ -1517,7 +1706,8 @@
     "flag": "🇸🇲",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+378"
   },
   {
     "cca2": "ST",
@@ -1525,7 +1715,8 @@
     "flag": "🇸🇹",
     "currencyCode": "STN",
     "currencyName": "São Tomé and Príncipe dobra",
-    "currencySymbol": "Db"
+    "currencySymbol": "Db",
+    "phoneCode": "+239"
   },
   {
     "cca2": "SA",
@@ -1533,7 +1724,8 @@
     "flag": "🇸🇦",
     "currencyCode": "SAR",
     "currencyName": "Saudi riyal",
-    "currencySymbol": "ر.س"
+    "currencySymbol": "ر.س",
+    "phoneCode": "+966"
   },
   {
     "cca2": "SN",
@@ -1541,7 +1733,8 @@
     "flag": "🇸🇳",
     "currencyCode": "XOF",
     "currencyName": "West African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+221"
   },
   {
     "cca2": "RS",
@@ -1549,7 +1742,8 @@
     "flag": "🇷🇸",
     "currencyCode": "RSD",
     "currencyName": "Serbian dinar",
-    "currencySymbol": "дин."
+    "currencySymbol": "дин.",
+    "phoneCode": "+381"
   },
   {
     "cca2": "SC",
@@ -1557,7 +1751,8 @@
     "flag": "🇸🇨",
     "currencyCode": "SCR",
     "currencyName": "Seychellois rupee",
-    "currencySymbol": "₨"
+    "currencySymbol": "₨",
+    "phoneCode": "+248"
   },
   {
     "cca2": "SL",
@@ -1565,7 +1760,8 @@
     "flag": "🇸🇱",
     "currencyCode": "SLL",
     "currencyName": "Sierra Leonean leone",
-    "currencySymbol": "Le"
+    "currencySymbol": "Le",
+    "phoneCode": "+232"
   },
   {
     "cca2": "SG",
@@ -1573,7 +1769,8 @@
     "flag": "🇸🇬",
     "currencyCode": "SGD",
     "currencyName": "Singapore dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+65"
   },
   {
     "cca2": "SX",
@@ -1581,7 +1778,8 @@
     "flag": "🇸🇽",
     "currencyCode": "ANG",
     "currencyName": "Netherlands Antillean guilder",
-    "currencySymbol": "ƒ"
+    "currencySymbol": "ƒ",
+    "phoneCode": "+1"
   },
   {
     "cca2": "SK",
@@ -1589,7 +1787,8 @@
     "flag": "🇸🇰",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+421"
   },
   {
     "cca2": "SI",
@@ -1597,7 +1796,8 @@
     "flag": "🇸🇮",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+386"
   },
   {
     "cca2": "SB",
@@ -1605,7 +1805,8 @@
     "flag": "🇸🇧",
     "currencyCode": "SBD",
     "currencyName": "Solomon Islands dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+677"
   },
   {
     "cca2": "SO",
@@ -1613,7 +1814,8 @@
     "flag": "🇸🇴",
     "currencyCode": "SOS",
     "currencyName": "Somali shilling",
-    "currencySymbol": "Sh"
+    "currencySymbol": "Sh",
+    "phoneCode": "+252"
   },
   {
     "cca2": "ZA",
@@ -1621,7 +1823,8 @@
     "flag": "🇿🇦",
     "currencyCode": "ZAR",
     "currencyName": "South African rand",
-    "currencySymbol": "R"
+    "currencySymbol": "R",
+    "phoneCode": "+27"
   },
   {
     "cca2": "GS",
@@ -1629,7 +1832,8 @@
     "flag": "🇬🇸",
     "currencyCode": "SHP",
     "currencyName": "Saint Helena pound",
-    "currencySymbol": "£"
+    "currencySymbol": "£",
+    "phoneCode": "+500"
   },
   {
     "cca2": "KR",
@@ -1637,7 +1841,8 @@
     "flag": "🇰🇷",
     "currencyCode": "KRW",
     "currencyName": "South Korean won",
-    "currencySymbol": "₩"
+    "currencySymbol": "₩",
+    "phoneCode": "+82"
   },
   {
     "cca2": "SS",
@@ -1645,7 +1850,8 @@
     "flag": "🇸🇸",
     "currencyCode": "SSP",
     "currencyName": "South Sudanese pound",
-    "currencySymbol": "£"
+    "currencySymbol": "£",
+    "phoneCode": "+211"
   },
   {
     "cca2": "ES",
@@ -1653,7 +1859,8 @@
     "flag": "🇪🇸",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+34"
   },
   {
     "cca2": "LK",
@@ -1661,7 +1868,8 @@
     "flag": "🇱🇰",
     "currencyCode": "LKR",
     "currencyName": "Sri Lankan rupee",
-    "currencySymbol": "Rs රු"
+    "currencySymbol": "Rs රු",
+    "phoneCode": "+94"
   },
   {
     "cca2": "SD",
@@ -1669,7 +1877,8 @@
     "flag": "🇸🇩",
     "currencyCode": "SDG",
     "currencyName": "Sudanese pound",
-    "currencySymbol": "PT"
+    "currencySymbol": "PT",
+    "phoneCode": "+249"
   },
   {
     "cca2": "SR",
@@ -1677,7 +1886,8 @@
     "flag": "🇸🇷",
     "currencyCode": "SRD",
     "currencyName": "Surinamese dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+597"
   },
   {
     "cca2": "SJ",
@@ -1685,7 +1895,8 @@
     "flag": "🇸🇯",
     "currencyCode": "NOK",
     "currencyName": "krone",
-    "currencySymbol": "kr"
+    "currencySymbol": "kr",
+    "phoneCode": "+47"
   },
   {
     "cca2": "SE",
@@ -1693,7 +1904,8 @@
     "flag": "🇸🇪",
     "currencyCode": "SEK",
     "currencyName": "Swedish krona",
-    "currencySymbol": "kr"
+    "currencySymbol": "kr",
+    "phoneCode": "+46"
   },
   {
     "cca2": "CH",
@@ -1701,7 +1913,8 @@
     "flag": "🇨🇭",
     "currencyCode": "CHF",
     "currencyName": "Swiss franc",
-    "currencySymbol": "Fr."
+    "currencySymbol": "Fr.",
+    "phoneCode": "+41"
   },
   {
     "cca2": "SY",
@@ -1709,7 +1922,8 @@
     "flag": "🇸🇾",
     "currencyCode": "SYP",
     "currencyName": "Syrian pound",
-    "currencySymbol": "£"
+    "currencySymbol": "£",
+    "phoneCode": "+963"
   },
   {
     "cca2": "TW",
@@ -1717,7 +1931,8 @@
     "flag": "🇹🇼",
     "currencyCode": "TWD",
     "currencyName": "New Taiwan dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+886"
   },
   {
     "cca2": "TJ",
@@ -1725,7 +1940,8 @@
     "flag": "🇹🇯",
     "currencyCode": "TJS",
     "currencyName": "Tajikistani somoni",
-    "currencySymbol": "ЅМ"
+    "currencySymbol": "ЅМ",
+    "phoneCode": "+992"
   },
   {
     "cca2": "TZ",
@@ -1733,7 +1949,8 @@
     "flag": "🇹🇿",
     "currencyCode": "TZS",
     "currencyName": "Tanzanian shilling",
-    "currencySymbol": "Sh"
+    "currencySymbol": "Sh",
+    "phoneCode": "+255"
   },
   {
     "cca2": "TH",
@@ -1741,7 +1958,8 @@
     "flag": "🇹🇭",
     "currencyCode": "THB",
     "currencyName": "Thai baht",
-    "currencySymbol": "฿"
+    "currencySymbol": "฿",
+    "phoneCode": "+66"
   },
   {
     "cca2": "TL",
@@ -1749,7 +1967,8 @@
     "flag": "🇹🇱",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+670"
   },
   {
     "cca2": "TG",
@@ -1757,7 +1976,8 @@
     "flag": "🇹🇬",
     "currencyCode": "XOF",
     "currencyName": "West African CFA franc",
-    "currencySymbol": "Fr"
+    "currencySymbol": "Fr",
+    "phoneCode": "+228"
   },
   {
     "cca2": "TK",
@@ -1765,7 +1985,8 @@
     "flag": "🇹🇰",
     "currencyCode": "NZD",
     "currencyName": "New Zealand dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+690"
   },
   {
     "cca2": "TO",
@@ -1773,7 +1994,8 @@
     "flag": "🇹🇴",
     "currencyCode": "TOP",
     "currencyName": "Tongan paʻanga",
-    "currencySymbol": "T$"
+    "currencySymbol": "T$",
+    "phoneCode": "+676"
   },
   {
     "cca2": "TT",
@@ -1781,7 +2003,8 @@
     "flag": "🇹🇹",
     "currencyCode": "TTD",
     "currencyName": "Trinidad and Tobago dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "TN",
@@ -1789,7 +2012,8 @@
     "flag": "🇹🇳",
     "currencyCode": "TND",
     "currencyName": "Tunisian dinar",
-    "currencySymbol": "د.ت"
+    "currencySymbol": "د.ت",
+    "phoneCode": "+216"
   },
   {
     "cca2": "TR",
@@ -1797,7 +2021,8 @@
     "flag": "🇹🇷",
     "currencyCode": "TRY",
     "currencyName": "Turkish lira",
-    "currencySymbol": "₺"
+    "currencySymbol": "₺",
+    "phoneCode": "+90"
   },
   {
     "cca2": "TM",
@@ -1805,7 +2030,8 @@
     "flag": "🇹🇲",
     "currencyCode": "TMT",
     "currencyName": "Turkmenistan manat",
-    "currencySymbol": "m"
+    "currencySymbol": "m",
+    "phoneCode": "+993"
   },
   {
     "cca2": "TC",
@@ -1813,7 +2039,8 @@
     "flag": "🇹🇨",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "TV",
@@ -1821,7 +2048,8 @@
     "flag": "🇹🇻",
     "currencyCode": "AUD",
     "currencyName": "Australian dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+688"
   },
   {
     "cca2": "UG",
@@ -1829,7 +2057,8 @@
     "flag": "🇺🇬",
     "currencyCode": "UGX",
     "currencyName": "Ugandan shilling",
-    "currencySymbol": "Sh"
+    "currencySymbol": "Sh",
+    "phoneCode": "+256"
   },
   {
     "cca2": "UA",
@@ -1837,7 +2066,8 @@
     "flag": "🇺🇦",
     "currencyCode": "UAH",
     "currencyName": "Ukrainian hryvnia",
-    "currencySymbol": "₴"
+    "currencySymbol": "₴",
+    "phoneCode": "+380"
   },
   {
     "cca2": "AE",
@@ -1845,7 +2075,8 @@
     "flag": "🇦🇪",
     "currencyCode": "AED",
     "currencyName": "United Arab Emirates dirham",
-    "currencySymbol": "د.إ"
+    "currencySymbol": "د.إ",
+    "phoneCode": "+971"
   },
   {
     "cca2": "GB",
@@ -1853,7 +2084,8 @@
     "flag": "🇬🇧",
     "currencyCode": "GBP",
     "currencyName": "British pound",
-    "currencySymbol": "£"
+    "currencySymbol": "£",
+    "phoneCode": "+44"
   },
   {
     "cca2": "US",
@@ -1861,7 +2093,8 @@
     "flag": "🇺🇸",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "UM",
@@ -1869,7 +2102,8 @@
     "flag": "🇺🇲",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "VI",
@@ -1877,7 +2111,8 @@
     "flag": "🇻🇮",
     "currencyCode": "USD",
     "currencyName": "United States dollar",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+1"
   },
   {
     "cca2": "UY",
@@ -1885,7 +2120,8 @@
     "flag": "🇺🇾",
     "currencyCode": "UYU",
     "currencyName": "Uruguayan peso",
-    "currencySymbol": "$"
+    "currencySymbol": "$",
+    "phoneCode": "+598"
   },
   {
     "cca2": "UZ",
@@ -1893,7 +2129,8 @@
     "flag": "🇺🇿",
     "currencyCode": "UZS",
     "currencyName": "Uzbekistani soʻm",
-    "currencySymbol": "so'm"
+    "currencySymbol": "so'm",
+    "phoneCode": "+998"
   },
   {
     "cca2": "VU",
@@ -1901,7 +2138,8 @@
     "flag": "🇻🇺",
     "currencyCode": "VUV",
     "currencyName": "Vanuatu vatu",
-    "currencySymbol": "Vt"
+    "currencySymbol": "Vt",
+    "phoneCode": "+678"
   },
   {
     "cca2": "VA",
@@ -1909,7 +2147,8 @@
     "flag": "🇻🇦",
     "currencyCode": "EUR",
     "currencyName": "Euro",
-    "currencySymbol": "€"
+    "currencySymbol": "€",
+    "phoneCode": "+39"
   },
   {
     "cca2": "VE",
@@ -1917,7 +2156,8 @@
     "flag": "🇻🇪",
     "currencyCode": "VES",
     "currencyName": "Venezuelan bolívar soberano",
-    "currencySymbol": "Bs.S."
+    "currencySymbol": "Bs.S.",
+    "phoneCode": "+58"
   },
   {
     "cca2": "VN",
@@ -1925,7 +2165,8 @@
     "flag": "🇻🇳",
     "currencyCode": "VND",
     "currencyName": "Vietnamese đồng",
-    "currencySymbol": "₫"
+    "currencySymbol": "₫",
+    "phoneCode": "+84"
   },
   {
     "cca2": "WF",
@@ -1933,7 +2174,8 @@
     "flag": "🇼🇫",
     "currencyCode": "XPF",
     "currencyName": "CFP franc",
-    "currencySymbol": "₣"
+    "currencySymbol": "₣",
+    "phoneCode": "+681"
   },
   {
     "cca2": "EH",
@@ -1941,7 +2183,8 @@
     "flag": "🇪🇭",
     "currencyCode": "DZD",
     "currencyName": "Algerian dinar",
-    "currencySymbol": "دج"
+    "currencySymbol": "دج",
+    "phoneCode": "+212"
   },
   {
     "cca2": "YE",
@@ -1949,7 +2192,8 @@
     "flag": "🇾🇪",
     "currencyCode": "YER",
     "currencyName": "Yemeni rial",
-    "currencySymbol": "﷼"
+    "currencySymbol": "﷼",
+    "phoneCode": "+967"
   },
   {
     "cca2": "ZM",
@@ -1957,7 +2201,8 @@
     "flag": "🇿🇲",
     "currencyCode": "ZMW",
     "currencyName": "Zambian kwacha",
-    "currencySymbol": "ZK"
+    "currencySymbol": "ZK",
+    "phoneCode": "+260"
   },
   {
     "cca2": "ZW",
@@ -1965,6 +2210,7 @@
     "flag": "🇿🇼",
     "currencyCode": "BWP",
     "currencyName": "Botswana pula",
-    "currencySymbol": "P"
+    "currencySymbol": "P",
+    "phoneCode": "+263"
   }
 ]

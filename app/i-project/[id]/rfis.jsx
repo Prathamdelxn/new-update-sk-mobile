@@ -6,8 +6,57 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+
+// Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
+function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
+  const [showIosPicker, setShowIosPicker] = useState(false);
+
+  const open = () => {
+    const base = value ? new Date(value) : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, d) => {
+          if (event.type === 'set' && d) onChange(d.toISOString().split('T')[0]);
+        },
+      });
+    } else {
+      setShowIosPicker(true);
+    }
+  };
+
+  return (
+    <>
+      <TouchableOpacity style={[inputStyle, dfStyles.row]} onPress={open}>
+        <Text style={[dfStyles.text, !value && dfStyles.placeholder]} numberOfLines={1}>
+          {value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : placeholder}
+        </Text>
+        <Ionicons name="calendar-outline" size={16} color="#64748B" />
+      </TouchableOpacity>
+      {Platform.OS === 'ios' && showIosPicker && (
+        <DateTimePicker
+          value={value ? new Date(value) : new Date()}
+          mode="date"
+          display="spinner"
+          onChange={(e, d) => {
+            setShowIosPicker(false);
+            if (d) onChange(d.toISOString().split('T')[0]);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+const dfStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  placeholder: { color: '#94A3B8' },
+});
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 const PRIORITY_META = {
@@ -214,7 +263,7 @@ export default function InteriorRfisScreen() {
               </View>
 
               <Text style={s.label}>Due Date</Text>
-              <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={form.dueDate} onChangeText={(v) => setForm({ ...form, dueDate: v })} />
+              <DateField value={form.dueDate} onChange={(v) => setForm({ ...form, dueDate: v })} inputStyle={s.input} />
 
               <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleCreate} disabled={submitting}>
                 {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Submit RFI</Text>}

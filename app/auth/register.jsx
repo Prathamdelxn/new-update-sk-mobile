@@ -1,59 +1,123 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Dimensions, StatusBar, ActivityIndicator, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
+  ActivityIndicator,
+  ScrollView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import AdaptiveGlass from '../components/AdaptiveGlass';
-import PhoneInput from '../components/PhoneInput';
+import * as NavigationBar from 'expo-navigation-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import CountryCodeModal from '../components/CountryCodeModal';
+import { getCountryByCode } from '../services/countryService';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
-const { width, height } = Dimensions.get('window');
-
-const SimpleBackground = () => (
-  <View style={styles.bgBase} />
-);
 
 export default function RegisterScreen() {
   const { t } = useTranslation();
-  const [industryType, setIndustryType] = useState('construction');
-  const [name, setName] = useState('');
+  const insets = useSafeAreaInsets();
+  const [industryType, setIndustryType] = useState('interior');
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      try {
+        NavigationBar.setPositionAsync('relative').catch(() => {});
+        NavigationBar.setVisibilityAsync('hidden').catch(() => {});
+        NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => {});
+        NavigationBar.setBackgroundColorAsync('#F8FAFC').catch(() => {});
+        NavigationBar.setButtonStyleAsync('dark').catch(() => {});
+      } catch (e) {}
+    }
+  }, []);
+
+  // Shared state
+  const [selectedCountry, setSelectedCountry] = useState(() => getCountryByCode('IN'));
+  const [isCountryModalVisible, setIsCountryModalVisible] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Construction fields
+  const [name, setName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [isPhoneValid, setIsPhoneValid] = useState(true);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [constructionPhone, setConstructionPhone] = useState('');
+
+  // Interior fields (matching web /register)
   const [organizationName, setOrganizationName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [interiorPhone, setInteriorPhone] = useState('');
+
   const { register } = useAuth();
   const router = useRouter();
   const isInterior = industryType === 'interior';
 
   const handleRegister = async () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (isInterior) {
       if (!organizationName || !firstName || !lastName || !email || !password) {
         setError('Please fill in all required fields');
         return;
       }
-      const strongEnough = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /[0-9]/.test(password);
+      if (!emailRegex.test(email.trim().toLowerCase())) {
+        setError('Enter a valid email address');
+        return;
+      }
+      const strongEnough =
+        password.length >= 8 &&
+        /[A-Z]/.test(password) &&
+        /[a-z]/.test(password) &&
+        /[0-9]/.test(password);
       if (!strongEnough) {
-        setError('Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number');
+        setError('Password must be 8+ chars with uppercase, lowercase & number');
         return;
       }
 
+      const fullPhone = interiorPhone.trim()
+        ? `${selectedCountry?.phoneCode || '+91'} ${interiorPhone.trim()}`
+        : '';
+
       setIsLoading(true);
       setError('');
-      const result = await register(null, email, password, null, 'interior', { organizationName, firstName, lastName });
+      const result = await register(null, email, password, null, 'interior', {
+        organizationName,
+        firstName,
+        lastName,
+        phone: fullPhone,
+        country: selectedCountry?.name || 'India',
+        currency: selectedCountry?.currencyCode || 'INR',
+        timezone: selectedCountry?.primaryTimezone || 'Asia/Kolkata',
+      });
       setIsLoading(false);
 
       if (result.success) {
         router.push({
           pathname: '/auth/verify-registration-otp',
-          params: { email, password, industryType: 'interior' }
+          params: {
+            email,
+            password,
+            industryType: 'interior',
+            organizationName,
+            firstName,
+            lastName,
+            phone: fullPhone,
+            country: selectedCountry?.name || 'India',
+            currency: selectedCountry?.currencyCode || 'INR',
+            timezone: selectedCountry?.primaryTimezone || 'Asia/Kolkata',
+          },
         });
       } else {
         setError(result.message);
@@ -61,36 +125,43 @@ export default function RegisterScreen() {
       return;
     }
 
+    // Construction validation (matching web parity)
     if (!name || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields');
+      setError('Please fill in all required fields');
       return;
     }
-    if (!email.includes('@')) {
+    if (!emailRegex.test(email.trim().toLowerCase())) {
       setError('Enter a valid email address');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-    if (phoneNumber && !isPhoneValid) {
-      setError('Please enter a valid phone number');
-      return;
-    }
+
+    const fullPhone = constructionPhone.trim()
+      ? `${selectedCountry?.phoneCode || '+91'} ${constructionPhone.trim()}`
+      : '';
 
     setIsLoading(true);
     setError('');
-    const result = await register(name, email, password, phoneNumber, industryType);
+    const result = await register(name, email, password, fullPhone, 'construction');
     setIsLoading(false);
 
     if (result.success) {
       router.push({
         pathname: '/auth/verify-registration-otp',
-        params: { email, password, industryType: 'construction' }
+        params: {
+          email,
+          password,
+          industryType: 'construction',
+          name,
+          phoneNumber: fullPhone,
+        },
       });
     } else {
       setError(result.message);
@@ -99,84 +170,125 @@ export default function RegisterScreen() {
 
   return (
     <View style={styles.outerContainer}>
-      <StatusBar barStyle="dark-content" />
-      <SimpleBackground />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+
+      {/* Floating Language Button on top-left (Fixed position) */}
+      <TouchableOpacity
+        style={[
+          styles.langBtn,
+          {
+            top: Math.max(insets.top + 6, Platform.OS === 'ios' ? 44 : 20),
+          },
+        ]}
+        onPress={() => router.push('/auth/language-select')}
+        onLongPress={async () => {
+          await SecureStore.deleteItemAsync('hasSeenOnboarding');
+          await SecureStore.deleteItemAsync('hasSelectedLanguage');
+          alert('App state reset! Restart the app to see the intro sequence again.');
+        }}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="language" size={16} color="#475569" />
+      </TouchableOpacity>
+
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent} 
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: Math.max(insets.top + 16, Platform.OS === 'ios' ? 48 : 24),
+              paddingBottom: Math.max(insets.bottom + 16, 20),
+            },
+          ]}
           showsVerticalScrollIndicator={false}
+          bounces={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.header}>
+          {/* Centered Header: Logo in Center, then Title directly under that Logo */}
+          <View style={styles.headerSection}>
             <Image
               source={require('../../assets/logo.svg')}
-              style={styles.logo}
+              style={styles.centeredLogo}
               contentFit="contain"
             />
-            <Text style={styles.eliteGreeting}>{t('createWorkspaceAccount')}</Text>
-            <Text style={styles.eliteTitle}>Skystruct</Text>
+            <Text style={styles.mainTitle}>Create Workspace</Text>
+            <Text style={styles.subTitle}>
+              {isInterior ? 'Set up your studio command centre' : 'Set up your project command centre'}
+            </Text>
           </View>
 
-          <View style={styles.glassCard}>
-            {error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
+          {/* Error Banner */}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={15} color="#DC2626" style={{ marginRight: 6 }} />
+              <Text style={styles.errorText} numberOfLines={2}>
+                {error}
+              </Text>
+            </View>
+          ) : null}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Industry / Business Type</Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setIndustryType('construction')}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 10,
-                    paddingHorizontal: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: industryType === 'construction' ? '#2563EB' : '#E2E8F0',
-                    backgroundColor: industryType === 'construction' ? '#EFF6FF' : '#F8FAFC',
-                    alignItems: 'center',
-                  }}
+          {/* Form Card */}
+          <View style={styles.card}>
+            {/* Segmented Industry Switcher */}
+            <View style={styles.industrySegment}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setIndustryType('construction');
+                  setError('');
+                }}
+                style={[
+                  styles.segmentBtn,
+                  industryType === 'construction' && styles.segmentBtnActive,
+                ]}
+              >
+                <Text style={styles.segmentEmoji}>🏗️</Text>
+                <Text
+                  style={[
+                    styles.segmentText,
+                    industryType === 'construction' && styles.segmentTextActive,
+                  ]}
+                  numberOfLines={1}
                 >
-                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: industryType === 'construction' ? '#1E40AF' : '#64748B' }}>
-                    🏗️ Construction
-                  </Text>
-                </TouchableOpacity>
+                  Construction
+                </Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setIndustryType('interior')}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 10,
-                    paddingHorizontal: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: industryType === 'interior' ? '#2563EB' : '#E2E8F0',
-                    backgroundColor: industryType === 'interior' ? '#DBEAFE' : '#F8FAFC',
-                    alignItems: 'center',
-                  }}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setIndustryType('interior');
+                  setError('');
+                }}
+                style={[
+                  styles.segmentBtn,
+                  industryType === 'interior' && styles.segmentBtnActive,
+                ]}
+              >
+                <Text style={styles.segmentEmoji}>🎨</Text>
+                <Text
+                  style={[
+                    styles.segmentText,
+                    industryType === 'interior' && styles.segmentTextActive,
+                  ]}
+                  numberOfLines={1}
                 >
-                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: industryType === 'interior' ? '#6B21A8' : '#64748B' }}>
-                    🎨 Interior Design
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                  Interior Design
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {isInterior ? (
               <>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Company / Organization</Text>
-                  <View style={[styles.inputWrapper, { gap: 12 }]}>
-                    <Ionicons name="business-outline" size={20} color="#94A3B8" />
+                {/* INTERIOR FORM */}
+                {/* Organization */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Company / Organization</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="business-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                     <TextInput
                       style={styles.input}
                       placeholder="Acme Interior Solutions"
@@ -187,11 +299,12 @@ export default function RegisterScreen() {
                   </View>
                 </View>
 
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.inputLabel}>First name</Text>
-                    <View style={[styles.inputWrapper, { gap: 12 }]}>
-                      <Ionicons name="person-outline" size={20} color="#94A3B8" />
+                {/* First name & Last name */}
+                <View style={styles.nameRow}>
+                  <View style={[styles.fieldGroup, { flex: 1 }]}>
+                    <Text style={styles.fieldLabel}>First name</Text>
+                    <View style={styles.inputWrapper}>
+                      <Ionicons name="person-outline" size={15} color="#94A3B8" style={styles.fieldIconSmall} />
                       <TextInput
                         style={styles.input}
                         placeholder="John"
@@ -202,11 +315,12 @@ export default function RegisterScreen() {
                       />
                     </View>
                   </View>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.inputLabel}>Last name</Text>
-                    <View style={[styles.inputWrapper, { gap: 12 }]}>
+
+                  <View style={[styles.fieldGroup, { flex: 1 }]}>
+                    <Text style={styles.fieldLabel}>Last name</Text>
+                    <View style={styles.inputWrapper}>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, { paddingLeft: 4 }]}
                         placeholder="Doe"
                         placeholderTextColor="#94A3B8"
                         value={lastName}
@@ -217,10 +331,11 @@ export default function RegisterScreen() {
                   </View>
                 </View>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Work email</Text>
-                  <View style={[styles.inputWrapper, { gap: 12 }]}>
-                    <Ionicons name="mail-outline" size={20} color="#94A3B8" />
+                {/* Work email */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Work email</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="mail-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                     <TextInput
                       style={styles.input}
                       placeholder="john@acme.com"
@@ -229,37 +344,87 @@ export default function RegisterScreen() {
                       onChangeText={setEmail}
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      autoCorrect={false}
                     />
                   </View>
                 </View>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>{t('password')}</Text>
-                  <View style={[styles.inputWrapper, { gap: 12 }]}>
-                    <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" />
+                {/* Contact Number with Country Code */}
+                <View style={styles.fieldGroup}>
+                  <View style={styles.phoneLabelRow}>
+                    <Text style={styles.fieldLabel}>Contact Number</Text>
+                    <View style={styles.currencyPill}>
+                      <Text style={styles.currencyPillText}>
+                        {selectedCountry?.currencySymbol} {selectedCountry?.currencyCode}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.phoneRow}>
+                    <TouchableOpacity
+                      style={styles.countryBtn}
+                      onPress={() => setIsCountryModalVisible(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.countryFlag}>{selectedCountry?.flag}</Text>
+                      <Text style={styles.countryCode}>{selectedCountry?.phoneCode}</Text>
+                      <Ionicons name="chevron-down" size={12} color="#64748B" />
+                    </TouchableOpacity>
+
+                    <View style={[styles.inputWrapper, { flex: 1 }]}>
+                      <Ionicons name="call-outline" size={15} color="#94A3B8" style={styles.fieldIconSmall} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="555 019 2834"
+                        placeholderTextColor="#94A3B8"
+                        value={interiorPhone}
+                        onChangeText={(text) => setInteriorPhone(text.replace(/[^\d\s-]/g, ''))}
+                        keyboardType="phone-pad"
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                {/* Password */}
+                <View style={[styles.fieldGroup, { marginBottom: 4 }]}>
+                  <Text style={styles.fieldLabel}>{t('password')}</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="lock-closed-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                     <TextInput
                       style={styles.input}
                       placeholder="Min. 8 characters"
                       placeholderTextColor="#94A3B8"
                       value={password}
                       onChangeText={setPassword}
-                      secureTextEntry
+                      secureTextEntry={!showPassword}
                     />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      activeOpacity={0.7}
+                      style={styles.eyeBtn}
+                    >
+                      <Ionicons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={17}
+                        color="#64748B"
+                      />
+                    </TouchableOpacity>
                   </View>
-                  <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
-                    Must include an uppercase letter, a lowercase letter, and a number.
+                  <Text style={styles.passwordHint}>
+                    8+ chars with uppercase, lowercase &amp; number
                   </Text>
                 </View>
               </>
             ) : (
               <>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>{t('fullName')}</Text>
-                  <View style={[styles.inputWrapper, { gap: 12 }]}>
-                    <Ionicons name="person-outline" size={20} color="#94A3B8" />
+                {/* CONSTRUCTION FORM - 100% Matching Structure & Styling */}
+                {/* Full Name */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Full name</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="person-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder={t('johnDoePlaceholder')}
+                      placeholder="John Doe"
                       placeholderTextColor="#94A3B8"
                       value={name}
                       onChangeText={setName}
@@ -268,109 +433,160 @@ export default function RegisterScreen() {
                   </View>
                 </View>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>{t('email')}</Text>
-                  <View style={[styles.inputWrapper, { gap: 12 }]}>
-                    <Ionicons name="mail-outline" size={20} color="#94A3B8" />
+                {/* Work email */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Work email</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="mail-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder={t('emailPlaceholder')}
+                      placeholder="name@company.com"
                       placeholderTextColor="#94A3B8"
                       value={email}
                       onChangeText={setEmail}
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      autoCorrect={false}
                     />
                   </View>
                 </View>
 
-                <View style={[styles.inputGroup, { marginBottom: 0 }]}>
-                  <Text style={styles.inputLabel}>{t('mobileNumber')}</Text>
-                  <PhoneInput
-                    value={phoneNumber}
-                    onChange={setPhoneNumber}
-                    onValidate={setIsPhoneValid}
-                    placeholder="Enter mobile number"
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
+                {/* Contact Number with Same Country Picker */}
+                <View style={styles.fieldGroup}>
+                  <View style={styles.phoneLabelRow}>
+                    <Text style={styles.fieldLabel}>Contact Number</Text>
+                    <View style={styles.currencyPill}>
+                      <Text style={styles.currencyPillText}>
+                        {selectedCountry?.currencySymbol} {selectedCountry?.currencyCode}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.phoneRow}>
+                    <TouchableOpacity
+                      style={styles.countryBtn}
+                      onPress={() => setIsCountryModalVisible(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.countryFlag}>{selectedCountry?.flag}</Text>
+                      <Text style={styles.countryCode}>{selectedCountry?.phoneCode}</Text>
+                      <Ionicons name="chevron-down" size={12} color="#64748B" />
+                    </TouchableOpacity>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>{t('password')}</Text>
-                  <View style={[styles.inputWrapper, { gap: 12 }]}>
-                    <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="••••••••"
-                      placeholderTextColor="#94A3B8"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry
-                    />
+                    <View style={[styles.inputWrapper, { flex: 1 }]}>
+                      <Ionicons name="call-outline" size={15} color="#94A3B8" style={styles.fieldIconSmall} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="555 019 2834"
+                        placeholderTextColor="#94A3B8"
+                        value={constructionPhone}
+                        onChangeText={(text) => setConstructionPhone(text.replace(/[^\d\s-]/g, ''))}
+                        keyboardType="phone-pad"
+                      />
+                    </View>
                   </View>
                 </View>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>{t('confirmPassword')}</Text>
-                  <View style={[styles.inputWrapper, { gap: 12 }]}>
-                    <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="••••••••"
-                      placeholderTextColor="#94A3B8"
-                      value={confirmPassword}
-                      onChangeText={setConfirmPassword}
-                      secureTextEntry
-                    />
+                {/* Password & Confirm Password (Side-by-side matching web layout) */}
+                <View style={[styles.fieldGroup, { marginBottom: 4 }]}>
+                  <View style={styles.nameRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.fieldLabel}>Password</Text>
+                      <View style={styles.inputWrapper}>
+                        <Ionicons name="lock-closed-outline" size={15} color="#94A3B8" style={styles.fieldIconSmall} />
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Min. 8 chars"
+                          placeholderTextColor="#94A3B8"
+                          value={password}
+                          onChangeText={setPassword}
+                          secureTextEntry={!showPassword}
+                        />
+                        <TouchableOpacity
+                          onPress={() => setShowPassword(!showPassword)}
+                          activeOpacity={0.7}
+                          style={styles.eyeBtn}
+                        >
+                          <Ionicons
+                            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                            size={16}
+                            color="#64748B"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.fieldLabel}>Confirm password</Text>
+                      <View style={styles.inputWrapper}>
+                        <Ionicons name="lock-closed-outline" size={15} color="#94A3B8" style={styles.fieldIconSmall} />
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Confirm"
+                          placeholderTextColor="#94A3B8"
+                          value={confirmPassword}
+                          onChangeText={setConfirmPassword}
+                          secureTextEntry={!showConfirmPassword}
+                        />
+                        <TouchableOpacity
+                          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                          activeOpacity={0.7}
+                          style={styles.eyeBtn}
+                        >
+                          <Ionicons
+                            name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                            size={16}
+                            color="#64748B"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                   </View>
+                  <Text style={styles.passwordHint}>
+                    8+ chars with uppercase, lowercase, number &amp; symbol
+                  </Text>
                 </View>
               </>
             )}
 
+            {/* Submit Button */}
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={handleRegister}
               disabled={isLoading}
+              style={[styles.submitBtn, isLoading && { opacity: 0.75 }]}
             >
-              <View style={[styles.buttonContainer, isLoading && { opacity: 0.7 }]}>
-                <View style={styles.registerButton}>
-                  <Text style={styles.registerButtonText}>
-                    {isLoading ? (
-                      <ActivityIndicator color="#FFFFFF" size="small" />
-                    ) : (
-                      t('createAccount')
-                    )}
-                  </Text>
+              {isLoading ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <Text style={styles.submitBtnText}>Creating workspace...</Text>
                 </View>
-              </View>
+              ) : (
+                <Text style={styles.submitBtnText}>Create workspace</Text>
+              )}
             </TouchableOpacity>
 
+            {/* Login Link */}
             <TouchableOpacity
               onPress={() => router.replace('/auth/login')}
               activeOpacity={0.7}
-              style={styles.loginLink}
+              style={styles.loginRow}
             >
-              <Text style={styles.loginLinkText}>
-                {t('alreadyHaveAccount')}{' '}
-                <Text style={styles.loginLinkHighlight}>{t('login')}</Text>
+              <Text style={styles.loginRowText}>
+                Already have a workspace?{' '}
+                <Text style={styles.loginRowHighlight}>Sign in</Text>
               </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <TouchableOpacity
-        style={styles.languageBtn}
-        onPress={() => router.push('/auth/language-select')}
-        onLongPress={async () => {
-          await SecureStore.deleteItemAsync('hasSeenOnboarding');
-          await SecureStore.deleteItemAsync('hasSelectedLanguage');
-          alert('App state reset! Restart the app to see the intro sequence again.');
-        }}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="language" size={24} color="#1E293B" />
-      </TouchableOpacity>
+      {/* Country Code Picker Modal */}
+      <CountryCodeModal
+        visible={isCountryModalVisible}
+        onClose={() => setIsCountryModalVisible(false)}
+        selectedCode={selectedCountry?.cca2}
+        onSelectCountry={(country) => setSelectedCountry(country)}
+      />
     </View>
   );
 }
@@ -378,137 +594,228 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: '#F0F9FF',
+    backgroundColor: '#F8FAFC',
   },
-  bgBase: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#F8FAFF',
-  },
-
   container: {
     flex: 1,
   },
   scrollContent: {
+    paddingHorizontal: 16,
     flexGrow: 1,
-    padding: 24,
-    paddingTop: Platform.OS === 'ios' ? 70 : 48,
-    paddingBottom: 12,
-  },
-  header: {
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  logo: {
-    width: 130,
-    height: 130,
-    marginBottom: 16,
-  },
-  eliteGreeting: {
-    fontSize: 13,
-    color: '#3B82F6',
-    fontFamily: 'Inter-Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 2.5,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  eliteTitle: {
-    fontSize: 38,
-    fontFamily: 'Inter-Bold',
-    color: '#0F172A',
-    letterSpacing: -1.5,
-    textAlign: 'center',
-  },
-  glassCard: {
-    borderRadius: 24,
-    padding: 28,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    backgroundColor: '#FFFFFF',
-  },
-  languageBtn: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 65 : 45,
-    left: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
+  },
+  langBtn: {
+    position: 'absolute',
+    left: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    justifyContent: 'center',
     zIndex: 10,
   },
-  inputGroup: {
-    marginBottom: 12,
+  headerSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
   },
-  inputLabel: {
-    fontSize: 13,
+  centeredLogo: {
+    width: 72,
+    height: 40,
+    marginBottom: 6,
+  },
+  mainTitle: {
+    fontSize: 26,
     fontFamily: 'Inter-Bold',
-    color: '#334155',
-    marginBottom: 8,
+    color: '#0F172A',
+    letterSpacing: -0.7,
+    textAlign: 'center',
   },
-  inputWrapper: {
+  subTitle: {
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 50,
-    borderRadius: 16,
+    backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#E0F2FE',
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginBottom: 8,
+  },
+  errorText: {
+    flex: 1,
+    color: '#DC2626',
+    fontSize: 11.5,
+    fontFamily: 'Inter-Medium',
+  },
+  card: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  industrySegment: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 10,
+    gap: 4,
+  },
+  segmentBtn: {
+    flex: 1,
+    height: 34,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  segmentBtnActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  segmentEmoji: {
+    fontSize: 13,
+  },
+  segmentText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+    color: '#64748B',
+  },
+  segmentTextActive: {
+    color: '#1D4ED8',
+  },
+  fieldGroup: {
+    marginBottom: 8,
+  },
+  fieldLabel: {
+    fontSize: 11.5,
+    fontFamily: 'Inter-SemiBold',
+    color: '#334155',
+    marginBottom: 4,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  inputWrapper: {
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fieldIcon: {
+    marginRight: 7,
+  },
+  fieldIconSmall: {
+    marginRight: 5,
   },
   input: {
     flex: 1,
-    fontSize: 15,
-    fontFamily: 'Inter-SemiBold',
-    color: '#0F172A',
     height: '100%',
+    fontSize: 13.5,
+    fontFamily: 'Inter-Medium',
+    color: '#0F172A',
     paddingVertical: 0,
   },
-  buttonContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
+  eyeBtn: {
+    padding: 4,
   },
-  registerButton: {
-    paddingVertical: 18,
+  passwordHint: {
+    fontSize: 10,
+    fontFamily: 'Inter-Regular',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  phoneLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#2563EB', // Bluish color theme
+    marginBottom: 4,
   },
-  registerButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-  },
-  loginLink: {
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  loginLinkText: {
-    color: '#475569',
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-  },
-  loginLinkHighlight: {
-    color: '#3B82F6',
-    fontFamily: 'Inter-Black',
-  },
-  errorContainer: {
-    backgroundColor: '#FEF2F2',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 24,
+  currencyPill: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#DBEAFE',
   },
-  errorText: {
-    color: '#DC2626',
+  currencyPillText: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#2563EB',
+  },
+  phoneRow: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  countryBtn: {
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  countryFlag: {
+    fontSize: 16,
+  },
+  countryCode: {
+    fontSize: 13,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0F172A',
+  },
+  submitBtn: {
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  submitBtnText: {
+    color: '#FFFFFF',
     fontSize: 14,
     fontFamily: 'Inter-Bold',
-    textAlign: 'center',
+  },
+  loginRow: {
+    alignItems: 'center',
+    marginTop: 10,
+    paddingVertical: 2,
+  },
+  loginRowText: {
+    color: '#64748B',
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+  },
+  loginRowHighlight: {
+    color: '#2563EB',
+    fontFamily: 'Inter-Bold',
   },
 });

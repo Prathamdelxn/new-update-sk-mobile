@@ -13,7 +13,21 @@ import { useToast } from '../../context/ToastContext';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-const CURRENCIES = ['USD ($)', 'EUR (€)', 'GBP (£)', 'INR (₹)', 'AED (AED)'];
+const CURRENCIES = [
+  'INR (₹)',
+  'AED (AED)',
+  'USD ($)',
+  'EUR (€)',
+  'GBP (£)',
+  'SAR (SAR)',
+  'QAR (QAR)',
+  'OMR (OMR)',
+  'KWD (KWD)',
+  'BHD (BHD)',
+  'SGD (S$)',
+  'CAD (C$)',
+  'AUD (A$)',
+];
 const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
 
 const SettingItem = ({ icon, iconBg, iconColor, title, subtitle, type = 'chevron', value, onPress }) => (
@@ -32,30 +46,37 @@ const SettingItem = ({ icon, iconBg, iconColor, title, subtitle, type = 'chevron
   </TouchableOpacity>
 );
 
-const Sheet = ({ visible, onClose, title, children }) => (
-  <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
-    <View style={s.sheetOverlay}>
-      <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={onClose} />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <AdaptiveGlass intensity={90} tint="light" style={s.sheetContent}>
-          <View style={s.sheetHeader}>
-            <View style={s.sheetHandle} />
-            <View style={s.sheetTitleRow}>
-              <Text style={s.sheetTitle}>{title}</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close-circle" size={26} color="#CBD5E1" />
-              </TouchableOpacity>
+const Sheet = ({ visible, onClose, title, children }) => {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
+      <View style={s.sheetOverlay}>
+        <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={onClose} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          enabled={Platform.OS === 'ios'}
+          style={s.sheetAvoidingView}
+        >
+          <AdaptiveGlass intensity={90} tint="light" style={[s.sheetContent, { paddingBottom: Math.max(insets.bottom + 16, 28) }]}>
+            <View style={s.sheetHeader}>
+              <View style={s.sheetHandle} />
+              <View style={s.sheetTitleRow}>
+                <Text style={s.sheetTitle}>{title}</Text>
+                <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                  <Ionicons name="close-circle" size={26} color="#CBD5E1" />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {children}
-            <View style={{ height: 24 }} />
-          </ScrollView>
-        </AdaptiveGlass>
-      </KeyboardAvoidingView>
-    </View>
-  </Modal>
-);
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 16 }}>
+              {children}
+            </ScrollView>
+          </AdaptiveGlass>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+};
 
 export default function InteriorSettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -442,11 +463,13 @@ const s = StyleSheet.create({
   },
   logoutText: { color: '#EF4444', fontSize: 14, fontFamily: 'Inter-Bold' },
 
-  sheetOverlay: { flex: 1, justifyContent: 'flex-end' },
-  modalDismiss: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15, 23, 42, 0.4)' },
+  sheetOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15, 23, 42, 0.45)' },
+  modalDismiss: { ...StyleSheet.absoluteFillObject },
+  sheetAvoidingView: { width: '100%', justifyContent: 'flex-end' },
   sheetContent: {
-    width: '100%', maxHeight: '85%', borderTopLeftRadius: 32, borderTopRightRadius: 32,
-    padding: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DBEAFE', borderBottomWidth: 0,
+    width: '100%', maxHeight: '88%', borderTopLeftRadius: 32, borderTopRightRadius: 32,
+    borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
+    paddingTop: 20, paddingHorizontal: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DBEAFE', borderBottomWidth: 0,
   },
   sheetHeader: { alignItems: 'center', marginBottom: 18 },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', marginBottom: 18 },

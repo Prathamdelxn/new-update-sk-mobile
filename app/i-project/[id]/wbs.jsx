@@ -165,6 +165,11 @@ export default function InteriorWbsScreen() {
                     <Text style={s.tradeTagText}>{node.trade}</Text>
                   </View>
                 )}
+                {node.type === 'package' && node.taskCount !== undefined && (
+                  <View style={s.taskBadge}>
+                    <Text style={s.taskBadgeText}>{node.completedTaskCount ?? 0}/{node.taskCount} tasks</Text>
+                  </View>
+                )}
               </TouchableOpacity>
 
               <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -297,6 +302,8 @@ const s = StyleSheet.create({
   nodeName: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', flexShrink: 1 },
   tradeTag: { backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   tradeTagText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase' },
+  taskBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#DBEAFE' },
+  taskBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Medium', color: '#2563EB' },
   childrenWrap: { borderLeftWidth: 1, borderLeftColor: '#F1F5F9', marginTop: 8, paddingLeft: 4 },
 
   fab: {

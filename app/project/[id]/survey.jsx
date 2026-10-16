@@ -6,7 +6,7 @@
 // import { useAuth } from '../../context/AuthContext';
 // import { useToast } from '../../context/ToastContext';
 // import { useSocket } from '../../context/SocketContext';
-// import { formatCompact, formatCurrency } from '../../utils/format';
+// import { formatCompact, formatCurrency, getCurrentApprovedBudget } from '../../utils/format';
 // import { useTranslation } from 'react-i18next';
 
 // const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -576,7 +576,7 @@ const AdaptiveGlass = ({ style, children }) => <View style={[{ backgroundColor: 
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useSocket } from '../../context/SocketContext';
-import { formatCompact, formatCurrency } from '../../utils/format';
+import { formatCompact, formatCurrency, getCurrentApprovedBudget } from '../../utils/format';
 import { useTranslation } from 'react-i18next';
 import { hasProjectPermission, isProjectLocked } from '../../utils/permissions';
 import { useRouter } from 'expo-router';
@@ -604,6 +604,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
   const [selectedApprover, setSelectedApprover] = useState(null);
   const [isFetchingApprovers, setIsFetchingApprovers] = useState(false);
   const [isSendingBudgetReq, setIsSendingBudgetReq] = useState(false);
+  const [isProcessingBudgetAction, setIsProcessingBudgetAction] = useState(false);
 
   // Modern Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
@@ -621,12 +622,51 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
 
   // Authorization Check
   const isLocked = isProjectLocked(project);
-  const isAdminOrManager = !isLocked && hasProjectPermission(user, project, 'sitesurvey:manage');
-  const isAssignedSurveyor = !!(
-    project?.siteSurveyor &&
-    (user?.id === (project.siteSurveyor?._id || project.siteSurveyor) || user?._id === (project.siteSurveyor?._id || project.siteSurveyor))
+  // Each action follows its own Site Survey permission (role editor actions);
+  // the API enforces the same rules.
+  const canCreateSurvey = !isLocked && hasProjectPermission(user, project, 'sitesurvey:create');
+  const canUpdateSurvey = !isLocked && hasProjectPermission(user, project, 'sitesurvey:update');
+  const canApproveSurvey = !isLocked && hasProjectPermission(user, project, 'sitesurvey:approve');
+  const canApproveBudget = !isLocked && (
+    hasProjectPermission(user, project, 'budget:approve') ||
+    user?.role === 'Admin' ||
+    user?.role?.name === 'Admin'
   );
-  const canView = hasProjectPermission(user, project, 'sitesurvey:view') || isAdminOrManager || isAssignedSurveyor;
+
+  const pendingBudgetReq = project?.budgetHistory?.find(
+    (bh) => bh.approvalStatus === 'Pending'
+  );
+
+  // Being the assigned surveyor doesn't grant access — View must be on the role
+  const canView = hasProjectPermission(user, project, 'sitesurvey:view');
+
+  const handleBudgetActionSubmit = async (budgetId, action) => {
+    if (isProcessingBudgetAction) return;
+    try {
+      setIsProcessingBudgetAction(true);
+      const res = await fetch(`${API_BASE_URL}/projects/${project._id}/budget-action`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ budgetId, action })
+      });
+
+      if (res.ok) {
+        showToast(`Budget request ${action.toLowerCase()}ed successfully`, 'success');
+        await fetchSurvey();
+        if (fetchProjectData) await fetchProjectData();
+      } else {
+        const err = await res.json();
+        showToast(err.message || 'Failed to update budget status', 'error');
+      }
+    } catch (e) {
+      showToast(t('networkErrorProcessing', 'Network Error'), 'error');
+    } finally {
+      setIsProcessingBudgetAction(false);
+    }
+  };
 
   const fetchSurvey = useCallback(async () => {
     try {
@@ -755,7 +795,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
     }
   };
 
-  const currentBudget = project?.budgetHistory?.length ? project.budgetHistory[project.budgetHistory.length - 1].amount : 0;
+  const currentBudget = getCurrentApprovedBudget(project);
 
   if (isLoading) {
     return (
@@ -778,7 +818,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
     const surveyorId = project?.siteSurveyor?._id || project?.siteSurveyor;
     const currentUserId = user?._id || user?.id;
     const isSurveyor = surveyorId && currentUserId && (surveyorId === currentUserId);
-    const canManageSurvey = isAdminOrManager || isSurveyor;
+    const canManageSurvey = canCreateSurvey;
 
     return (
       <View style={styles.centerContainer}>
@@ -862,7 +902,9 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
           </View>
         )}
 
-        {(survey.surveyor?._id === user?._id || survey.surveyor === user?._id) && survey.status !== 'Approved' && (
+        {/* Edit: Site Survey > Update, and only the original surveyor (API rule).
+            Mobile users carry `id` (not `_id`), so compare against both. */}
+        {canUpdateSurvey && [user?.id, user?._id].filter(Boolean).map(String).includes(String(survey.surveyor?._id || survey.surveyor)) && survey.status !== 'Approved' && (
           <TouchableOpacity 
             style={styles.editSurveyBtn}
             onPress={() => router.push({
@@ -997,17 +1039,120 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
               <Text style={styles.approveBtnText}>{t('sendBudgetChangeRequest', 'Send Budget Change Request')}</Text>
             </TouchableOpacity>
           )}
-          {survey.status === 'Approved' && survey.budgetRequestSent && (
-            <View style={[styles.statusBadge, { backgroundColor: '#FEF3C7', alignSelf: 'flex-start', marginTop: 16 }]}>
-              <Ionicons name="time" size={14} color="#D97706" />
-              <Text style={[styles.statusBadgeText, { color: '#D97706' }]}>{t('requestSentToApprover', 'Request Sent to Approver')}</Text>
-            </View>
-          )}
+          {survey.status === 'Approved' && survey.budgetRequestSent && (() => {
+            const latestReq = project?.budgetHistory?.slice().reverse().find(
+              (bh) => (bh.reason && bh.reason.toLowerCase().includes('survey')) || bh.approvalStatus === 'Pending' || bh.approvalStatus === 'Approved' || bh.approvalStatus === 'Rejected'
+            );
+            const status = latestReq?.approvalStatus || 'Pending';
+            const updatedBy = latestReq?.updatedByName || 'Admin';
+
+            let assignedTo = null;
+            if (latestReq?.reason) {
+              const match = latestReq.reason.match(/sent to ([^:]+)/i);
+              if (match) assignedTo = match[1].trim();
+            }
+
+            if (status === 'Approved') {
+              return (
+                <View style={{ marginTop: 16, gap: 4 }}>
+                  <View style={[styles.statusBadge, { backgroundColor: '#D1FAE5', alignSelf: 'flex-start' }]}>
+                    <Ionicons name="checkmark-circle" size={14} color="#059669" />
+                    <Text style={[styles.statusBadgeText, { color: '#059669' }]}>Budget Approved</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#059669', marginTop: 2 }}>
+                    Approved by {updatedBy}
+                  </Text>
+                </View>
+              );
+            }
+
+            if (status === 'Rejected') {
+              return (
+                <View style={{ marginTop: 16, gap: 4 }}>
+                  <View style={[styles.statusBadge, { backgroundColor: '#FEE2E2', alignSelf: 'flex-start' }]}>
+                    <Ionicons name="close-circle" size={14} color="#DC2626" />
+                    <Text style={[styles.statusBadgeText, { color: '#DC2626' }]}>Budget Rejected</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#DC2626', marginTop: 2 }}>
+                    Rejected by {updatedBy}
+                  </Text>
+                </View>
+              );
+            }
+
+            return (
+              <View style={{ marginTop: 16, gap: 10 }}>
+                <View style={{ gap: 4 }}>
+                  <View style={[styles.statusBadge, { backgroundColor: '#FEF3C7', alignSelf: 'flex-start' }]}>
+                    <Ionicons name="time" size={14} color="#D97706" />
+                    <Text style={[styles.statusBadgeText, { color: '#D97706' }]}>{t('requestSentToApprover', 'Request Sent to Approver')}</Text>
+                  </View>
+                  {assignedTo && (
+                    <Text style={{ fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#D97706', marginTop: 2 }}>
+                      Assigned to: {assignedTo}
+                    </Text>
+                  )}
+                </View>
+
+                {pendingBudgetReq && canApproveBudget && (
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                    <TouchableOpacity
+                      style={[styles.rejectBtn, { height: 48, flex: 1 }]}
+                      onPress={() => {
+                        setConfirmModal({
+                          visible: true,
+                          title: 'Reject Budget Request',
+                          message: 'Are you sure you want to reject this budget modification request?',
+                          confirmText: 'Reject',
+                          type: 'destructive',
+                          onConfirm: () => {
+                            setConfirmModal(prev => ({ ...prev, visible: false }));
+                            handleBudgetActionSubmit(pendingBudgetReq._id, 'Rejected');
+                          }
+                        });
+                      }}
+                      disabled={isProcessingBudgetAction}
+                    >
+                      <Ionicons name="close-circle-outline" size={18} color="#DC2626" />
+                      <Text style={[styles.rejectBtnText, { fontSize: 13 }]}>{t('reject', 'Reject')}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.approveBtn, { height: 48, flex: 1, backgroundColor: '#059669' }]}
+                      onPress={() => {
+                        setConfirmModal({
+                          visible: true,
+                          title: 'Approve Budget Request',
+                          message: `Are you sure you want to approve this budget change to ${formatCurrency(survey.recommendedBudget, project?.currency)}?`,
+                          confirmText: 'Approve',
+                          type: 'success',
+                          onConfirm: () => {
+                            setConfirmModal(prev => ({ ...prev, visible: false }));
+                            handleBudgetActionSubmit(pendingBudgetReq._id, 'Approved');
+                          }
+                        });
+                      }}
+                      disabled={isProcessingBudgetAction}
+                    >
+                      {isProcessingBudgetAction ? (
+                        <ActivityIndicator color="#FFF" size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
+                          <Text style={[styles.approveBtnText, { fontSize: 13 }]}>{t('approveBudget', 'Approve Budget')}</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            );
+          })()}
         </AdaptiveGlass>
       )}
 
-      {/* Action Buttons for Admins */}
-      {isAdminOrManager && survey.status === 'Submitted' && (
+      {/* Approve / Reject — needs Site Survey > Approve */}
+      {canApproveSurvey && survey.status === 'Submitted' && (
         <View style={styles.actionRow}>
           <TouchableOpacity style={styles.rejectBtn} onPress={() => setIsRejectModalVisible(true)}>
             <Ionicons name="close" size={18} color="#EF4444" />

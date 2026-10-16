@@ -6,11 +6,16 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import HeaderNotification from '../../components/HeaderNotification';
 import interiorApiClient from '../../services/interiorApiClient';
+import interiorCrmService from '../../services/interiorCrmService';
+import CrmFlowTabs from '../../components/crm/CrmFlowTabs';
+import { queryKeys, invalidateCrmQueries, useRefreshOnFocus } from '../../context/QueryProvider';
+import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../../utils/crmValidation';
 
 const FOLLOWUP_TYPES = ['Phone Call', 'WhatsApp', 'Meeting', 'Office Visit', 'Site Visit'];
 
@@ -42,6 +47,19 @@ const LEAD_SOURCES = ['Phone Call', 'Walk-in', 'Referral', 'Existing Customer', 
 const PROPERTY_TYPES = ['Flat', 'Villa', 'Office', 'Shop', 'Other'];
 
 const emptyForm = { name: '', mobileNumber: '', email: '', leadSource: 'Phone Call', propertyType: 'Flat', projectLocation: '' };
+
+// Matches web's crmValidation.ts field map for the 6-field Create Lead form.
+function validateLeadField(field, value) {
+  switch (field) {
+    case 'name': return validateName(value);
+    case 'mobileNumber': return validateMobileNumber(value);
+    case 'email': return validateEmail(value);
+    case 'leadSource': return validateLeadSource(value);
+    case 'propertyType': return validatePropertyType(value);
+    case 'projectLocation': return validateProjectLocation(value);
+    default: return null;
+  }
+}
 const emptyFollowUpForm = { type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' };
 
 export default function CRMScreen() {
@@ -49,69 +67,141 @@ export default function CRMScreen() {
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
 
-  const [leads, setLeads] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const leadsQuery = useQuery({
+    queryKey: queryKeys.crmLeads,
+    queryFn: async () => {
+      const list = await interiorCrmService.getCustomers({ all: true });
+      return Array.isArray(list) ? list : [];
+    },
+  });
+  const usersQuery = useQuery({
+    queryKey: queryKeys.crmUsers,
+    queryFn: async () => {
+      const list = await interiorCrmService.getUsers();
+      return Array.isArray(list) ? list : [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+  const leads = leadsQuery.data ?? [];
+  const users = usersQuery.data ?? [];
+  const loading = leadsQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [stageFilter, setStageFilter] = useState('All');
+  const [activeFlowTab, setActiveFlowTab] = useState('leads');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [formErrors, setFormErrors] = useState({});
+  const [formTouched, setFormTouched] = useState({});
 
   const [followUpLead, setFollowUpLead] = useState(null);
   const [followUpForm, setFollowUpForm] = useState(emptyFollowUpForm);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [schedulingFollowUp, setSchedulingFollowUp] = useState(false);
 
+  // Leads are cached (see QueryProvider) — reopening the tab shows them instantly.
+  // Called after mutations and on pull-to-refresh to force fresh data.
   const loadLeads = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
+    if (isRefresh) setRefreshing(true);
     try {
-      const res = await interiorApiClient.get('/crm/customers');
-      const list = res?.success && res?.data ? res.data : Array.isArray(res) ? res : [];
-      setLeads(list);
-    } catch (e) {
-      console.error('Failed to load leads', e);
-      setLeads([]);
+      await invalidateCrmQueries(queryClient);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [queryClient]);
 
-  const loadUsers = useCallback(async () => {
-    try {
-      const res = await interiorApiClient.get('/users');
-      setUsers(res?.success && res?.data ? res.data : Array.isArray(res) ? res : []);
-    } catch (e) {
-      setUsers([]);
-    }
-  }, []);
+  useRefreshOnFocus([queryKeys.crmLeads, queryKeys.crmUsers]);
 
-  useFocusEffect(useCallback(() => { loadLeads(); loadUsers(); }, [loadLeads, loadUsers]));
+  const flowCounts = {
+    leads: leads.filter((l) => l.status !== 'Lost').length,
+    follow_ups: leads.filter((l) => l.status !== 'Lost' && ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status)).length,
+    site_visits: leads.filter((l) => l.status !== 'Lost' && (['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0))).length,
+    requirement_design: leads.filter((l) => l.status !== 'Lost' && (['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0))).length,
+    drawing: leads.filter((l) => l.status !== 'Lost' && (['Under Drawing', 'Design Approved'].includes(l.status) || (l.designFiles && l.designFiles.length > 0))).length,
+    boq: leads.filter((l) => l.status !== 'Lost' && (['Under BOQ Creation', 'BOQ Approved'].includes(l.status) || (l.boqs && l.boqs.length > 0))).length,
+    quotations: leads.filter((l) => l.status !== 'Lost' && (['Under Quotation', 'Quotation Sent', 'Booking Pending'].includes(l.status) || (l.quotations && l.quotations.length > 0))).length,
+    won_projects: leads.filter((l) => l.status !== 'Lost' && (l.status === 'Won' || l.status === 'Converted' || !!l.linkedProject)).length,
+    lost_leads: leads.filter((l) => l.status === 'Lost').length,
+  };
 
   const filteredLeads = leads.filter((l) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
+      !q ||
       l.name?.toLowerCase().includes(q) ||
       l.email?.toLowerCase().includes(q) ||
-      l.mobileNumber?.toLowerCase().includes(q);
-    const matchesStage = stageFilter === 'All' || l.status === stageFilter;
-    return matchesSearch && matchesStage;
+      l.mobileNumber?.toLowerCase().includes(q) ||
+      l.lostReason?.toLowerCase().includes(q);
+
+    if (!matchesSearch) return false;
+
+    // Dedicated Lost Leads tab explicitly displays only leads where status === 'Lost'
+    if (activeFlowTab === 'lost_leads') {
+      return l.status === 'Lost';
+    }
+
+    // Active stages strictly EXCLUDE Lost leads to prevent pipeline clutter
+    if (l.status === 'Lost') return false;
+
+    // Active stage filters
+    if (activeFlowTab === 'leads') return true;
+    if (activeFlowTab === 'follow_ups') return ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status);
+    if (activeFlowTab === 'site_visits') return ['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0);
+    if (activeFlowTab === 'requirement_design') return ['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0);
+    if (activeFlowTab === 'drawing') return ['Under Drawing', 'Design Approved'].includes(l.status) || (l.designFiles && l.designFiles.length > 0);
+    if (activeFlowTab === 'boq') return ['Under BOQ Creation', 'BOQ Approved'].includes(l.status) || (l.boqs && l.boqs.length > 0);
+    if (activeFlowTab === 'quotations') return ['Under Quotation', 'Quotation Sent', 'Booking Pending'].includes(l.status) || (l.quotations && l.quotations.length > 0);
+    if (activeFlowTab === 'won_projects') return l.status === 'Won' || l.status === 'Converted' || !!l.linkedProject;
+    return true;
   });
 
+  const handleLeadFieldChange = (field, value) => {
+    setForm((f) => ({ ...f, [field]: value }));
+    if (formTouched[field] || formErrors[field]) {
+      setFormErrors((prev) => ({ ...prev, [field]: validateLeadField(field, value) }));
+    }
+  };
+
+  const handleLeadFieldBlur = (field) => {
+    setFormTouched((prev) => ({ ...prev, [field]: true }));
+    setFormErrors((prev) => ({ ...prev, [field]: validateLeadField(field, form[field]) }));
+  };
+
   const handleAddLead = async () => {
-    if (!form.name.trim() || !form.mobileNumber.trim()) {
-      showToast('Name and Mobile Number are required', 'error');
+    const fields = ['name', 'mobileNumber', 'email', 'leadSource', 'propertyType', 'projectLocation'];
+    const nextErrors = {};
+    fields.forEach((f) => { nextErrors[f] = validateLeadField(f, form[f]); });
+    setFormErrors(nextErrors);
+    setFormTouched(fields.reduce((acc, f) => ({ ...acc, [f]: true }), {}));
+    if (Object.values(nextErrors).some(Boolean)) {
+      showToast('Please fix the validation errors before creating the lead', 'error');
       return;
     }
+
     setCreateLoading(true);
     try {
-      await interiorApiClient.post('/crm/customers', form);
+      const res = await interiorApiClient.post('/crm/customers', {
+        ...form,
+        name: form.name.trim(),
+        mobileNumber: form.mobileNumber.trim(),
+        email: form.email.trim(),
+        projectLocation: form.projectLocation.trim(),
+      });
       showToast('Lead created successfully!', 'success');
+      const createdLead = res?.data || res?.customer || res;
+      const createdId = createdLead?._id || createdLead?.id;
       setForm(emptyForm);
+      setFormErrors({});
+      setFormTouched({});
       setIsModalVisible(false);
       loadLeads();
+      if (createdId) {
+        router.push({
+          pathname: `/crm-lead/${createdId}`,
+          params: { tab: 'follow_ups' },
+        });
+      }
     } catch (e) {
       showToast(e.message || 'Failed to create lead', 'error');
     } finally {
@@ -119,9 +209,31 @@ export default function CRMScreen() {
     }
   };
 
+  const closeAddLeadModal = () => {
+    setIsModalVisible(false);
+    setForm(emptyForm);
+    setFormErrors({});
+    setFormTouched({});
+  };
+
   const openFollowUpModal = (lead) => {
+    // Web flow: exactly 1 active follow-up until done.
+    // If already contacted/scheduled, direct user straight to the lead's follow-up tab to complete it.
+    if (lead?.status === 'Contacted') {
+      router.push({
+        pathname: `/crm-lead/${lead._id}`,
+        params: { tab: 'follow_ups' },
+      });
+      return;
+    }
     setFollowUpLead(lead);
-    setFollowUpForm(emptyFollowUpForm);
+    const currExecId = typeof lead?.assignedSalesExecutive === 'object'
+      ? (lead?.assignedSalesExecutive?._id || '')
+      : (lead?.assignedSalesExecutive || '');
+    setFollowUpForm({
+      ...emptyFollowUpForm,
+      assignedSalesExecutive: currExecId,
+    });
   };
 
   // Android has no native combined date+time dialog, and its imperative
@@ -160,7 +272,8 @@ export default function CRMScreen() {
   };
 
   const handleScheduleFollowUp = async () => {
-    if (!followUpForm.scheduledDate) return showToast('Date is required', 'error');
+    const dateError = validateFutureDate(followUpForm.scheduledDate, 'Follow-up date');
+    if (dateError) return showToast(dateError, 'error');
     if (!followUpForm.remarks.trim()) return showToast('Remarks are required', 'error');
 
     setSchedulingFollowUp(true);
@@ -197,30 +310,30 @@ export default function CRMScreen() {
     }
   };
 
-  const pipelineValue = leads.length;
-  const converted = leads.filter((l) => l.status === 'Won').length;
-  const conversionRate = leads.length ? Math.round((converted / leads.length) * 100) : 0;
-
   return (
     <View style={s.outerContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#DBEAFE" translucent={false} />
       <View style={s.bgBase} />
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={s.headerGreeting}>Workspace</Text>
             <Text style={s.pageTitle}>CRM Workspace</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <TouchableOpacity style={s.followUpsBtn} onPress={() => router.push('/crm-pipeline')}>
-              <Ionicons name="funnel-outline" size={16} color="#1D4ED8" />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.followUpsBtn} onPress={() => router.push('/crm-followups')}>
-              <Ionicons name="time-outline" size={17} color="#1D4ED8" />
-            </TouchableOpacity>
-            <HeaderNotification />
-          </View>
+          <TouchableOpacity
+            style={s.followUpsBtn}
+            onPress={() => router.push('/crm-followups')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="calendar-outline" size={18} color="#2563EB" />
+          </TouchableOpacity>
         </View>
+
+        <CrmFlowTabs
+          activeTab={activeFlowTab}
+          onSelectTab={setActiveFlowTab}
+          counts={flowCounts}
+        />
 
         {loading ? (
           <View style={s.center}>
@@ -232,14 +345,6 @@ export default function CRMScreen() {
             contentContainerStyle={s.scroll}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadLeads(true)} tintColor="#2563EB" colors={['#2563EB']} />}
           >
-            {/* Stat cards */}
-            <View style={s.statsGrid}>
-              <StatCard icon="people-outline" iconBg="#F0F9FF" iconColor="#0284C7" label="Total Pipeline" value={`${pipelineValue}`} sub="leads" />
-              <StatCard icon="trending-up-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Conversion" value={`${conversionRate}%`} />
-              <StatCard icon="checkmark-circle-outline" iconBg="#F0FDF4" iconColor="#16A34A" label="Converted" value={`${converted}`} onPress={() => router.push('/crm-won-projects')} />
-              <StatCard icon="hourglass-outline" iconBg="#EEF2FF" iconColor="#4F46E5" label="In Progress" value={`${leads.length - converted}`} />
-            </View>
-
             {/* Search */}
             <View style={s.searchRow}>
               <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
@@ -250,30 +355,78 @@ export default function CRMScreen() {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
+              {!!searchQuery && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
             </View>
 
-            {/* Stage filter chips */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
-              {['All', ...STAGES].map((stage) => {
-                const active = stageFilter === stage;
-                return (
-                  <TouchableOpacity key={stage} style={[s.chip, active && s.chipActive]} onPress={() => setStageFilter(stage)}>
-                    <Text style={[s.chipText, active && s.chipTextActive]}>{stage}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            {/* Follow-ups Board Banner when in follow_ups tab */}
+            {activeFlowTab === 'follow_ups' && (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: '#EFF6FF',
+                  borderWidth: 1,
+                  borderColor: '#BFDBFE',
+                  borderRadius: 14,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  marginBottom: 14,
+                }}
+                onPress={() => router.push('/crm-followups')}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                  <Ionicons name="calendar" size={18} color="#2563EB" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, fontFamily: 'Inter-Bold', color: '#1E40AF' }}>
+                      Follow-up Touchpoints Board
+                    </Text>
+                    <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#3B82F6' }}>
+                      View all scheduled calls, mark Done, or pass to Site Visit
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#2563EB" />
+              </TouchableOpacity>
+            )}
 
             {/* Lead list */}
-            <View style={{ marginTop: 16, gap: 12 }}>
+            <View style={{ gap: 12 }}>
               {filteredLeads.length === 0 ? (
                 <View style={s.empty}>
-                  <Ionicons name="people-outline" size={44} color="#94A3B8" />
-                  <Text style={s.emptyTitle}>No leads found</Text>
+                  <Ionicons name={activeFlowTab === 'lost_leads' ? 'shield-checkmark-outline' : 'people-outline'} size={44} color="#94A3B8" />
+                  <Text style={s.emptyTitle}>
+                    {activeFlowTab === 'lost_leads' ? 'No Lost Leads' : 'No leads found'}
+                  </Text>
+                  {activeFlowTab === 'lost_leads' && (
+                    <Text style={s.emptySub}>All leads in your workspace are active or won.</Text>
+                  )}
                 </View>
               ) : (
                 filteredLeads.map((lead) => {
                   const meta = STAGE_META[lead.status] || STAGE_META['Lost'];
+                  const isLost = lead.status === 'Lost';
+
+                  const isQuotationsTab = activeFlowTab === 'quotations';
+                  const latestQuote = isQuotationsTab && lead.quotations && lead.quotations.length > 0
+                    ? lead.quotations[lead.quotations.length - 1]
+                    : null;
+                  const isAcceptedQuoteStatus = (status) => ['accepted', 'approved', 'converted', 'signed & accepted'].includes(String(status || '').toLowerCase());
+                  const quoteBadge = isQuotationsTab
+                    ? (lead.status === 'Won' || lead.status === 'Converted')
+                      ? { label: 'Converted', color: '#16A34A', bg: '#F0FDF4' }
+                      : (isAcceptedQuoteStatus(latestQuote?.status) || lead.status === 'Booking Pending')
+                      ? { label: 'Approved', color: '#16A34A', bg: '#F0FDF4' }
+                      : latestQuote?.status === 'Rejected'
+                      ? { label: 'Rejected', color: '#E11D48', bg: '#FFF1F2' }
+                      : { label: 'Pending', color: '#4F46E5', bg: '#EEF2FF' }
+                    : null;
+
                   return (
                     <TouchableOpacity 
                       key={lead._id} 
@@ -282,35 +435,67 @@ export default function CRMScreen() {
                       activeOpacity={0.7}
                     >
                       <View style={s.leadTopRow}>
-                        <View style={s.avatar}>
-                          <Text style={s.avatarText}>{lead.name?.charAt(0).toUpperCase()}</Text>
+                        <View style={[s.avatar, isLost && { backgroundColor: '#F1F5F9' }]}>
+                          <Text style={[s.avatarText, isLost && { color: '#64748B' }]}>{lead.name?.charAt(0).toUpperCase()}</Text>
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Text style={s.leadName} numberOfLines={1}>{lead.name}</Text>
-                            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                              <Text style={[s.leadName, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{lead.name}</Text>
+                              <Text style={[s.leadNumber, { flexShrink: 0 }]}>{lead.leadNumber || 'LD-XXXX'}</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color="#94A3B8" style={{ flexShrink: 0 }} />
                           </View>
                           <Text style={s.leadSub} numberOfLines={1}>{lead.mobileNumber}{lead.propertyType ? ` · ${lead.propertyType}` : ''}</Text>
                         </View>
                       </View>
 
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 4 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}>
+                          <Ionicons name="person-circle-outline" size={15} color={lead.assignedSalesExecutive ? '#4F46E5' : '#94A3B8'} style={{ flexShrink: 0 }} />
+                          <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: lead.assignedSalesExecutive ? '#334155' : '#94A3B8', flexShrink: 1 }} numberOfLines={1}>
+                            {lead.assignedSalesExecutive
+                              ? (typeof lead.assignedSalesExecutive === 'object'
+                                  ? (lead.assignedSalesExecutive.fullName || `${lead.assignedSalesExecutive.firstName || ''} ${lead.assignedSalesExecutive.lastName || ''}`.trim() || lead.assignedSalesExecutive.name || 'Assigned')
+                                  : 'Assigned')
+                              : 'Unassigned'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Quotation Info (Quotations tab only) */}
+                      {isQuotationsTab && (
+                        <View style={s.quoteInfoRow}>
+                          {latestQuote ? (
+                            <>
+                              <Text style={s.quoteInfoTotal} numberOfLines={1}>
+                                Grand Total: ₹{(latestQuote.grandTotal || 0).toLocaleString('en-IN')}
+                              </Text>
+                              <Text style={s.quoteInfoVersion}>v{latestQuote.version}</Text>
+                            </>
+                          ) : (
+                            <Text style={s.quoteInfoEmpty}>No quotation generated</Text>
+                          )}
+                        </View>
+                      )}
+
+                      {/* Lost Reason Pill */}
+                      {isLost && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF1F2', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginTop: 4, borderWidth: 1, borderColor: '#FECACA' }}>
+                          <Ionicons name="alert-circle" size={14} color="#E11D48" />
+                          <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#9F1239', flex: 1 }} numberOfLines={2}>
+                            <Text style={{ fontFamily: 'Inter-Bold' }}>Reason: </Text>{lead.lostReason || 'Reason not recorded'}
+                          </Text>
+                        </View>
+                      )}
+
                       <View style={s.leadBottomRow}>
-                        <View style={[s.stageBadge, { backgroundColor: meta.bg }]}>
-                          <Text style={[s.stageBadgeText, { color: meta.color }]}>{lead.status}</Text>
+                        <View style={[s.stageBadge, { backgroundColor: isQuotationsTab ? quoteBadge.bg : meta.bg }]}>
+                          <Text style={[s.stageBadgeText, { color: isQuotationsTab ? quoteBadge.color : meta.color }]}>
+                            {isQuotationsTab ? quoteBadge.label : lead.status}
+                          </Text>
                         </View>
                         <Text style={s.leadDate} numberOfLines={1}>{lead.leadSource || 'N/A'}</Text>
-                        {lead.status === 'New Lead' && (
-                          <TouchableOpacity style={s.contactBtn} onPress={() => openFollowUpModal(lead)}>
-                            <Ionicons name="arrow-forward" size={13} color="#2563EB" />
-                            <Text style={s.contactBtnText}>Follow-up</Text>
-                          </TouchableOpacity>
-                        )}
-                        {lead.status === 'Contacted' && (
-                          <TouchableOpacity style={s.contactBtn} onPress={() => passToSiteVisit(lead)}>
-                            <Ionicons name="arrow-forward" size={13} color="#2563EB" />
-                            <Text style={s.contactBtnText}>Site Visit</Text>
-                          </TouchableOpacity>
-                        )}
                       </View>
                     </TouchableOpacity>
                   );
@@ -329,46 +514,99 @@ export default function CRMScreen() {
       </SafeAreaView>
 
       {/* Add Lead Modal */}
-      <Modal visible={isModalVisible} animationType="slide" transparent onRequestClose={() => setIsModalVisible(false)}>
+      <Modal visible={isModalVisible} animationType="slide" transparent onRequestClose={closeAddLeadModal}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>Add New Lead</Text>
-              <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+              <TouchableOpacity onPress={closeAddLeadModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Full Name *</Text>
-              <TextInput style={s.input} placeholder="e.g. John Doe" placeholderTextColor="#94A3B8" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
+            <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={s.label}>Full Name *</Text>
+                <Text style={s.charCount}>{form.name.length}/50</Text>
+              </View>
+              <TextInput
+                style={[s.input, formErrors.name && s.inputError]}
+                placeholder="e.g. John Doe"
+                placeholderTextColor="#94A3B8"
+                value={form.name}
+                maxLength={50}
+                onChangeText={(v) => handleLeadFieldChange('name', v)}
+                onBlur={() => handleLeadFieldBlur('name')}
+              />
+              {!!formErrors.name && <Text style={s.fieldErrorText}>{formErrors.name}</Text>}
 
-              <Text style={s.label}>Mobile Number *</Text>
-              <TextInput style={s.input} placeholder="+91 9876543210" placeholderTextColor="#94A3B8" value={form.mobileNumber} onChangeText={(v) => setForm({ ...form, mobileNumber: v })} keyboardType="phone-pad" />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+                <Text style={s.label}>Mobile Number *</Text>
+                <Text style={s.charCount}>10-15 digits</Text>
+              </View>
+              <TextInput
+                style={[s.input, formErrors.mobileNumber && s.inputError]}
+                placeholder="+91 9876543210"
+                placeholderTextColor="#94A3B8"
+                value={form.mobileNumber}
+                maxLength={16}
+                onChangeText={(v) => handleLeadFieldChange('mobileNumber', v)}
+                onBlur={() => handleLeadFieldBlur('mobileNumber')}
+                keyboardType="phone-pad"
+              />
+              {!!formErrors.mobileNumber && <Text style={s.fieldErrorText}>{formErrors.mobileNumber}</Text>}
 
-              <Text style={s.label}>Email Address</Text>
-              <TextInput style={s.input} placeholder="john@example.com" placeholderTextColor="#94A3B8" value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} keyboardType="email-address" autoCapitalize="none" />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+                <Text style={s.label}>Email Address</Text>
+                <Text style={s.charCount}>Optional (max 100)</Text>
+              </View>
+              <TextInput
+                style={[s.input, formErrors.email && s.inputError]}
+                placeholder="john@example.com"
+                placeholderTextColor="#94A3B8"
+                value={form.email}
+                maxLength={100}
+                onChangeText={(v) => handleLeadFieldChange('email', v)}
+                onBlur={() => handleLeadFieldBlur('email')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              {!!formErrors.email && <Text style={s.fieldErrorText}>{formErrors.email}</Text>}
 
-              <Text style={s.label}>Lead Source</Text>
+              <Text style={[s.label, { marginTop: 12 }]}>Lead Source</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                 {LEAD_SOURCES.map((opt) => (
-                  <TouchableOpacity key={opt} style={[s.optionChip, form.leadSource === opt && s.optionChipActive]} onPress={() => setForm({ ...form, leadSource: opt })}>
+                  <TouchableOpacity key={opt} style={[s.optionChip, form.leadSource === opt && s.optionChipActive]} onPress={() => handleLeadFieldChange('leadSource', opt)}>
                     <Text style={[s.optionChipText, form.leadSource === opt && s.optionChipTextActive]}>{opt}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+              {!!formErrors.leadSource && <Text style={s.fieldErrorText}>{formErrors.leadSource}</Text>}
 
               <Text style={s.label}>Property Type</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                 {PROPERTY_TYPES.map((opt) => (
-                  <TouchableOpacity key={opt} style={[s.optionChip, form.propertyType === opt && s.optionChipActive]} onPress={() => setForm({ ...form, propertyType: opt })}>
+                  <TouchableOpacity key={opt} style={[s.optionChip, form.propertyType === opt && s.optionChipActive]} onPress={() => handleLeadFieldChange('propertyType', opt)}>
                     <Text style={[s.optionChipText, form.propertyType === opt && s.optionChipTextActive]}>{opt}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+              {!!formErrors.propertyType && <Text style={s.fieldErrorText}>{formErrors.propertyType}</Text>}
 
-              <Text style={s.label}>Project Location</Text>
-              <TextInput style={s.input} placeholder="e.g. Hiranandani Estate, Thane" placeholderTextColor="#94A3B8" value={form.projectLocation} onChangeText={(v) => setForm({ ...form, projectLocation: v })} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={s.label}>Project Location *</Text>
+                <Text style={s.charCount}>{form.projectLocation.length}/150</Text>
+              </View>
+              <TextInput
+                style={[s.input, formErrors.projectLocation && s.inputError]}
+                placeholder="e.g. Hiranandani Estate, Thane"
+                placeholderTextColor="#94A3B8"
+                value={form.projectLocation}
+                maxLength={150}
+                onChangeText={(v) => handleLeadFieldChange('projectLocation', v)}
+                onBlur={() => handleLeadFieldBlur('projectLocation')}
+              />
+              {!!formErrors.projectLocation && <Text style={s.fieldErrorText}>{formErrors.projectLocation}</Text>}
 
               <TouchableOpacity style={[s.saveBtn, createLoading && { opacity: 0.7 }]} onPress={handleAddLead} disabled={createLoading}>
                 {createLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
@@ -436,7 +674,7 @@ export default function CRMScreen() {
                       style={[s.optionChip, !followUpForm.assignedSalesExecutive && s.optionChipActive]}
                       onPress={() => setFollowUpForm({ ...followUpForm, assignedSalesExecutive: '' })}
                     >
-                      <Text style={[s.optionChipText, !followUpForm.assignedSalesExecutive && s.optionChipTextActive]}>Unassigned (Keep Current)</Text>
+                      <Text style={[s.optionChipText, !followUpForm.assignedSalesExecutive && s.optionChipTextActive]}>Keep Current</Text>
                     </TouchableOpacity>
                     {users.map((u) => {
                       const uid = u._id || u.id;
@@ -491,11 +729,11 @@ const s = StyleSheet.create({
   bgBase: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { paddingHorizontal: 20, paddingTop: 16 },
+  scroll: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 },
 
   header: {
     backgroundColor: '#DBEAFE',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -504,7 +742,21 @@ const s = StyleSheet.create({
     borderBottomColor: '#DBEAFE',
   },
   headerGreeting: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#1D4ED8', marginBottom: 2 },
-  followUpsBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
+  followUpsBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   pageTitle: { fontSize: 22, fontFamily: 'Inter-Black', color: '#0F172A', letterSpacing: -0.5 },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -518,11 +770,25 @@ const s = StyleSheet.create({
   statValueSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   searchRow: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#DBEAFE',
-    paddingHorizontal: 14, paddingVertical: 10, marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    paddingHorizontal: 14,
+    height: 44,
+    marginBottom: 14,
   },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Inter-Regular',
+    color: '#0F172A',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    includeFontPadding: false,
+  },
 
   chipRow: { gap: 8, paddingVertical: 12 },
   chip: {
@@ -544,7 +810,17 @@ const s = StyleSheet.create({
   },
   avatarText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   leadName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  leadNumber: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' },
   leadSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+
+  quoteInfoRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9',
+    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
+  },
+  quoteInfoTotal: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#16A34A', flexShrink: 1 },
+  quoteInfoVersion: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#64748B', marginLeft: 8 },
+  quoteInfoEmpty: { fontSize: 11, fontFamily: 'Inter-MediumItalic', color: '#94A3B8' },
 
   leadBottomRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -582,15 +858,39 @@ const s = StyleSheet.create({
   modalSubtitle: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
   label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 12 },
+  charCount: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#94A3B8' },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
+  inputError: { borderColor: '#DC2626' },
+  fieldErrorText: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#DC2626', marginTop: 4 },
   dateInput: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   dateInputText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+
+  dropdownBtn: {
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  dropdownBtnActive: { borderColor: '#2563EB', backgroundColor: '#EFF6FF20' },
+  dropdownBtnContent: { flexDirection: 'row', alignItems: 'center' },
+  dropdownBtnText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  dropdownMenu: {
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
+    marginTop: 4, marginBottom: 10, overflow: 'hidden',
+    shadowColor: '#0F172A', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+  },
+  dropdownItem: {
+    paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+  },
+  dropdownItemActive: { backgroundColor: '#EFF6FF' },
+  dropdownItemText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155' },
+  dropdownItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   optionChip: {
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,

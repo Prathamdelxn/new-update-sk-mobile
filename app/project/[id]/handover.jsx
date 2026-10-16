@@ -49,13 +49,14 @@ export default function ProjectHandoverTab({ project, fetchProjectData }) {
   useEffect(() => {
     if (currentStatus === 'Pending Handover' && 
         (project?.handoverApprover?._id || project?.handoverApprover) === (user?.id || user?._id) && 
+        hasProjectPermission(user, project, 'handover:approve') && 
         !hasShownApproverAlert) {
       setShowApproverAlert(true);
       setHasShownApproverAlert(true);
     }
   }, [currentStatus, project?.handoverApprover, user?.id, user?._id, hasShownApproverAlert]);
   const isAssignedToMe = (project?.snaggedBy?._id || project?.snaggedBy) === (user?.id || user?._id);
-  const canAssignSnagging = !isProjectLocked(project) && hasProjectPermission(user, project, 'snag:assign');
+  const canAssignSnagging = !isProjectLocked(project) && hasProjectPermission(user, project, 'snags:assign');
   const [expandedSections, setExpandedSections] = useState({});
 
   const toggleSection = (sectionKey) => {
@@ -69,10 +70,9 @@ export default function ProjectHandoverTab({ project, fetchProjectData }) {
     try {
       setIsLoadingMembers(true);
       
-      // Fetch every project member — being selected as approver is itself the
-      // authorization, so this must not be pre-filtered to only members who
-      // already hold the handover:approve permission (that hid most members).
-      const response = await fetch(`${API_BASE_URL}/users?projectId=${projectId}`, {
+      // Only members whose role has Handover Management > Approve can approve,
+      // so only they are offered as approvers (the API enforces the same).
+      const response = await fetch(`${API_BASE_URL}/users?projectId=${projectId}&permission=handover:approve`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -826,7 +826,8 @@ export default function ProjectHandoverTab({ project, fetchProjectData }) {
                 <Text style={[styles.errorText, { color: '#065F46' }]}>Project handover process is fully completed.</Text>
               </View>
             ) : currentStatus === 'Pending Handover' ? (
-              (project?.handoverApprover?._id || project?.handoverApprover) === user?.id ? (
+              // Approve/Reject: the designated approver, and only with Handover > Approve
+              (project?.handoverApprover?._id || project?.handoverApprover) === user?.id && !isProjectLocked(project) && hasProjectPermission(user, project, 'handover:approve') ? (
                 <View style={{ gap: 12 }}>
                   <Text style={[styles.errorText, { color: '#0F172A', textAlign: 'center', marginBottom: 4 }]}>You have been requested to verify and approve this handover.</Text>
                   <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -885,6 +886,11 @@ export default function ProjectHandoverTab({ project, fetchProjectData }) {
                   const hasPerm = !isProjectLocked(project) && hasProjectPermission(user, project, 'handover:create');
                   if (!hasPerm) {
                     showToast("You don't have permission to initialize handover completion.", "error");
+                    return;
+                  }
+                  // Requesting includes choosing the approver, which is the Assign action
+                  if (!hasProjectPermission(user, project, 'handover:assign')) {
+                    showToast("You don't have permission to assign a handover approver.", "error");
                     return;
                   }
                   setIsUserModalVisible(true);

@@ -1,13 +1,105 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { formatExactCurrency, getCurrencySymbol } from '../../utils/format';
+
+// Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
+function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
+  const [showIosPicker, setShowIosPicker] = useState(false);
+
+  const open = () => {
+    const base = value ? new Date(value) : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: base,
+        mode: 'date',
+        onChange: (event, d) => {
+          if (event.type === 'set' && d) onChange(d.toISOString().split('T')[0]);
+        },
+      });
+    } else {
+      setShowIosPicker(true);
+    }
+  };
+
+  return (
+    <>
+      <TouchableOpacity style={[inputStyle, ctrlStyles.row]} onPress={open}>
+        <Text style={[ctrlStyles.text, !value && ctrlStyles.placeholder]} numberOfLines={1}>
+          {value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : placeholder}
+        </Text>
+        <Ionicons name="calendar-outline" size={16} color="#64748B" />
+      </TouchableOpacity>
+      {Platform.OS === 'ios' && showIosPicker && (
+        <DateTimePicker
+          value={value ? new Date(value) : new Date()}
+          mode="date"
+          display="spinner"
+          onChange={(e, d) => {
+            setShowIosPicker(false);
+            if (d) onChange(d.toISOString().split('T')[0]);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+// Reusable dropdown select field (replaces horizontal chip-scroll pickers for
+// single-choice fields like Contract Milestone / Payment Mode).
+function SelectDropdown({ value, options, onChange, placeholder = 'Select...', inputStyle }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <View>
+      <TouchableOpacity style={[inputStyle, ctrlStyles.row]} onPress={() => setOpen((v) => !v)}>
+        <Text style={[ctrlStyles.text, !selected && ctrlStyles.placeholder]} numberOfLines={1}>
+          {selected ? selected.label : placeholder}
+        </Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
+      </TouchableOpacity>
+      {open && (
+        <View style={ctrlStyles.menu}>
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
+            {options.map((o, idx) => {
+              const active = o.value === value;
+              return (
+                <TouchableOpacity
+                  key={`${o.value}-${idx}`}
+                  style={[ctrlStyles.menuItem, active && ctrlStyles.menuItemActive]}
+                  onPress={() => { onChange(o.value); setOpen(false); }}
+                >
+                  <Text style={[ctrlStyles.menuItemText, active && ctrlStyles.menuItemTextActive]} numberOfLines={1}>{o.label}</Text>
+                  {active && <Ionicons name="checkmark" size={14} color="#2563EB" />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const ctrlStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  placeholder: { color: '#94A3B8' },
+  menu: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, overflow: 'hidden' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  menuItemActive: { backgroundColor: '#EFF6FF' },
+  menuItemText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
+  menuItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
+});
 
 const CATEGORIES = [
   { key: 'incoming', label: 'Incoming', icon: 'arrow-down-circle-outline', color: '#16A34A' },
@@ -29,8 +121,8 @@ const EXPENSE_CATEGORIES = [
 
 const PAYMENT_METHODS = ['Bank Transfer', 'UPI', 'RTGS/NEFT', 'Cheque', 'Cash'];
 
-function formatAmount(amount) {
-  return `₹${Math.round(amount || 0).toLocaleString('en-IN')}`;
+function formatAmount(amount, currency = 'INR') {
+  return formatExactCurrency(amount, currency);
 }
 
 function formatDate(val) {
@@ -81,7 +173,10 @@ export default function InteriorPaymentsScreen() {
 
   const [activeCategory, setActiveCategory] = useState('incoming');
   const [payments, setPayments] = useState([]);
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [projectCurrency, setProjectCurrency] = useState('INR');
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [incomingModalOpen, setIncomingModalOpen] = useState(false);
   const [outgoingModalOpen, setOutgoingModalOpen] = useState(false);
@@ -91,12 +186,21 @@ export default function InteriorPaymentsScreen() {
   const [incomingForm, setIncomingForm] = useState(emptyIncoming());
   const [outgoingForm, setOutgoingForm] = useState(emptyOutgoing());
   const [debitNoteForm, setDebitNoteForm] = useState(emptyDebitNote());
+  const [selectedPoId, setSelectedPoId] = useState('');
 
   const loadPayments = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await interiorApiClient.get(`/projects/${projectId}/payments`);
-      setPayments(res?.success ? res.data || [] : []);
+      const [payRes, poRes, projRes] = await Promise.allSettled([
+        interiorApiClient.get(`/projects/${projectId}/payments`),
+        interiorApiClient.get(`/projects/${projectId}/procurement`),
+        interiorApiClient.get(`/projects/${projectId}`),
+      ]);
+      setPayments(payRes.status === 'fulfilled' && payRes.value?.success ? payRes.value.data || [] : []);
+      setPurchaseOrders(poRes.status === 'fulfilled' && poRes.value?.success ? poRes.value.data || [] : []);
+      if (projRes.status === 'fulfilled' && projRes.value?.data?.currency) {
+        setProjectCurrency(projRes.value.data.currency);
+      }
     } catch (e) {
       console.error('Failed to load payments', e);
       setPayments([]);
@@ -107,11 +211,60 @@ export default function InteriorPaymentsScreen() {
 
   useFocusEffect(useCallback(() => { loadPayments(); }, [loadPayments]));
 
-  const incoming = payments.filter((p) => p.type === 'incoming');
-  const outgoing = payments.filter((p) => p.type === 'outgoing');
-  const debitNotes = payments.filter((p) => p.type === 'debit_note');
+  const matchesSearch = (fields) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return fields.some((f) => (f || '').toLowerCase().includes(q));
+  };
 
-  const netBalance = incoming.reduce((s, p) => s + (p.amount || 0), 0) - outgoing.reduce((s, p) => s + (p.amount || 0), 0);
+  const incoming = payments.filter((p) => p.type === 'incoming' && matchesSearch([p.invoiceNo, p.milestoneName, p.referenceNo]));
+  const outgoing = payments.filter((p) => p.type === 'outgoing' && matchesSearch([p.poNo, p.vendorName, p.category, p.referenceNo]));
+  const debitNotes = payments.filter((p) => p.type === 'debit_note' && matchesSearch([p.debitNoteNo, p.vendorName, p.reason]));
+  const allIncoming = payments.filter((p) => p.type === 'incoming');
+  const allOutgoing = payments.filter((p) => p.type === 'outgoing');
+  const allDebitNotes = payments.filter((p) => p.type === 'debit_note');
+
+  const fmt = (amt) => formatAmount(amt, projectCurrency);
+
+  const handlePoSelect = (poId) => {
+    setSelectedPoId(poId);
+    if (!poId) {
+      setOutgoingForm((f) => ({ ...f, poNo: genRef('PO'), vendorName: '', category: EXPENSE_CATEGORIES[0], amount: '' }));
+      return;
+    }
+    const po = purchaseOrders.find((p) => p._id === poId || p.poNumber === poId);
+    if (po) {
+      const alreadyPaid = payments.filter((p) => p.type === 'outgoing' && p.poNo === po.poNumber).reduce((sum, p) => sum + (p.amount || 0), 0);
+      const remaining = Math.max(0, (po.amount || 0) - alreadyPaid);
+      setOutgoingForm((f) => ({
+        ...f,
+        poNo: po.poNumber || po._id,
+        vendorName: po.vendorName || po.vendorId?.name || '',
+        category: po.materialName || EXPENSE_CATEGORIES[0],
+        amount: remaining > 0 ? String(remaining) : String(po.amount || 0),
+        remarks: `Payment against PO ${po.poNumber} (${po.materialName || 'Materials'})`,
+      }));
+    }
+  };
+
+  const handleDeletePayment = (tx) => {
+    Alert.alert('Delete Payment Record', 'Are you sure you want to delete this payment record? This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await interiorApiClient.delete(`/projects/${projectId}/payments/${tx._id}`);
+            showToast('Payment record deleted successfully', 'success');
+            loadPayments();
+          } catch (e) {
+            showToast(e.message || 'Failed to delete payment', 'error');
+          }
+        },
+      },
+    ]);
+  };
+
+  const netBalance = allIncoming.reduce((s, p) => s + (p.amount || 0), 0) - allOutgoing.reduce((s, p) => s + (p.amount || 0), 0);
 
   const submitPayment = async (payload, onSuccess) => {
     setSubmitting(true);
@@ -200,15 +353,20 @@ export default function InteriorPaymentsScreen() {
         <View key={tx._id} style={s.card}>
           <View style={s.cardTopRow}>
             <Text style={s.cardTitle} numberOfLines={1}>{tx.invoiceNo}</Text>
-            <Text style={[s.cardAmount, { color: '#16A34A' }]}>+{formatAmount(tx.amount)}</Text>
+            <Text style={[s.cardAmount, { color: '#16A34A' }]}>+{fmt(tx.amount)}</Text>
           </View>
           <Text style={s.cardSub}>{tx.milestoneName}</Text>
           <View style={s.cardBottomRow}>
             <Text style={s.cardMeta}>{tx.paymentMethod} • Ref: {tx.referenceNo}</Text>
             <Text style={s.cardMeta}>{formatDate(tx.paymentDate)}</Text>
           </View>
-          <View style={[s.statusPill, { backgroundColor: '#F0FDF4', alignSelf: 'flex-start', marginTop: 8 }]}>
-            <Text style={[s.statusPillText, { color: '#16A34A' }]}>{tx.incomingStatus || 'Completed'}</Text>
+          <View style={s.cardFooterRow}>
+            <View style={[s.statusPill, { backgroundColor: '#F0FDF4' }]}>
+              <Text style={[s.statusPillText, { color: '#16A34A' }]}>{tx.incomingStatus || 'Completed'}</Text>
+            </View>
+            <TouchableOpacity onPress={() => handleDeletePayment(tx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            </TouchableOpacity>
           </View>
         </View>
       ));
@@ -220,15 +378,20 @@ export default function InteriorPaymentsScreen() {
         <View key={tx._id} style={s.card}>
           <View style={s.cardTopRow}>
             <Text style={s.cardTitle} numberOfLines={1}>{tx.vendorName}</Text>
-            <Text style={[s.cardAmount, { color: '#DC2626' }]}>-{formatAmount(tx.amount)}</Text>
+            <Text style={[s.cardAmount, { color: '#DC2626' }]}>-{fmt(tx.amount)}</Text>
           </View>
           <Text style={s.cardSub}>{tx.poNo} • {tx.category}</Text>
           <View style={s.cardBottomRow}>
             <Text style={s.cardMeta}>{tx.paymentMethod} • Ref: {tx.referenceNo}</Text>
             <Text style={s.cardMeta}>{formatDate(tx.paymentDate)}</Text>
           </View>
-          <View style={[s.statusPill, { backgroundColor: tx.outgoingStatus === 'Paid' ? '#F0FDF4' : '#FFFBEB', alignSelf: 'flex-start', marginTop: 8 }]}>
-            <Text style={[s.statusPillText, { color: tx.outgoingStatus === 'Paid' ? '#16A34A' : '#D97706' }]}>{tx.outgoingStatus || 'Paid'}</Text>
+          <View style={s.cardFooterRow}>
+            <View style={[s.statusPill, { backgroundColor: tx.outgoingStatus === 'Paid' ? '#F0FDF4' : '#FFFBEB' }]}>
+              <Text style={[s.statusPillText, { color: tx.outgoingStatus === 'Paid' ? '#16A34A' : '#D97706' }]}>{tx.outgoingStatus || 'Paid'}</Text>
+            </View>
+            <TouchableOpacity onPress={() => handleDeletePayment(tx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            </TouchableOpacity>
           </View>
         </View>
       ));
@@ -239,15 +402,20 @@ export default function InteriorPaymentsScreen() {
       <View key={dn._id} style={s.card}>
         <View style={s.cardTopRow}>
           <Text style={s.cardTitle} numberOfLines={1}>{dn.debitNoteNo}</Text>
-          <Text style={[s.cardAmount, { color: '#D97706' }]}>{formatAmount(dn.amount)}</Text>
+          <Text style={[s.cardAmount, { color: '#D97706' }]}>{fmt(dn.amount)}</Text>
         </View>
         <Text style={s.cardSub}>{dn.vendorName}</Text>
         <Text style={s.cardReason} numberOfLines={2}>{dn.reason}</Text>
         <View style={s.cardBottomRow}>
           <Text style={s.cardMeta}>{formatDate(dn.issueDate)}</Text>
         </View>
-        <View style={[s.statusPill, { backgroundColor: dn.debitNoteStatus === 'Settled' ? '#F0FDF4' : dn.debitNoteStatus === 'Adjusted' ? '#EFF6FF' : '#FFFBEB', alignSelf: 'flex-start', marginTop: 8 }]}>
-          <Text style={[s.statusPillText, { color: dn.debitNoteStatus === 'Settled' ? '#16A34A' : dn.debitNoteStatus === 'Adjusted' ? '#2563EB' : '#D97706' }]}>{dn.debitNoteStatus || 'Issued'}</Text>
+        <View style={s.cardFooterRow}>
+          <View style={[s.statusPill, { backgroundColor: dn.debitNoteStatus === 'Settled' ? '#F0FDF4' : dn.debitNoteStatus === 'Adjusted' ? '#EFF6FF' : '#FFFBEB' }]}>
+            <Text style={[s.statusPillText, { color: dn.debitNoteStatus === 'Settled' ? '#16A34A' : dn.debitNoteStatus === 'Adjusted' ? '#2563EB' : '#D97706' }]}>{dn.debitNoteStatus || 'Issued'}</Text>
+          </View>
+          <TouchableOpacity onPress={() => handleDeletePayment(dn)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="trash-outline" size={16} color="#EF4444" />
+          </TouchableOpacity>
         </View>
       </View>
     ));
@@ -273,32 +441,44 @@ export default function InteriorPaymentsScreen() {
           </View>
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-            <View style={s.summaryRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.summaryRow}>
               <View style={s.summaryCard}>
                 <Text style={s.summaryLabel}>Net Balance</Text>
-                <Text style={[s.summaryValue, { color: netBalance >= 0 ? '#16A34A' : '#DC2626' }]}>{formatAmount(Math.abs(netBalance))}</Text>
+                <Text style={[s.summaryValue, { color: netBalance >= 0 ? '#16A34A' : '#DC2626' }]}>{fmt(Math.abs(netBalance))}</Text>
               </View>
               <View style={s.summaryCard}>
                 <Text style={s.summaryLabel}>Incoming</Text>
-                <Text style={[s.summaryValue, { color: '#16A34A' }]}>{formatAmount(incoming.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
+                <Text style={[s.summaryValue, { color: '#16A34A' }]}>{fmt(allIncoming.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
               </View>
               <View style={s.summaryCard}>
                 <Text style={s.summaryLabel}>Outgoing</Text>
-                <Text style={[s.summaryValue, { color: '#DC2626' }]}>{formatAmount(outgoing.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
+                <Text style={[s.summaryValue, { color: '#DC2626' }]}>{fmt(allOutgoing.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
               </View>
-            </View>
+              <View style={s.summaryCard}>
+                <Text style={s.summaryLabel}>Debit Notes</Text>
+                <Text style={[s.summaryValue, { color: '#D97706' }]}>{fmt(allDebitNotes.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
+              </View>
+            </ScrollView>
 
             <View style={s.tabRow}>
-              {CATEGORIES.map((c) => (
-                <TouchableOpacity
-                  key={c.key}
-                  style={[s.tabBtn, activeCategory === c.key && { backgroundColor: c.color }]}
-                  onPress={() => setActiveCategory(c.key)}
-                >
-                  <Ionicons name={c.icon} size={14} color={activeCategory === c.key ? '#FFFFFF' : c.color} />
-                  <Text style={[s.tabBtnText, activeCategory === c.key && { color: '#FFFFFF' }]}>{c.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {CATEGORIES.map((c) => {
+                const count = c.key === 'incoming' ? allIncoming.length : c.key === 'outgoing' ? allOutgoing.length : allDebitNotes.length;
+                return (
+                  <TouchableOpacity
+                    key={c.key}
+                    style={[s.tabBtn, activeCategory === c.key && { backgroundColor: c.color }]}
+                    onPress={() => setActiveCategory(c.key)}
+                  >
+                    <Ionicons name={c.icon} size={14} color={activeCategory === c.key ? '#FFFFFF' : c.color} />
+                    <Text style={[s.tabBtnText, activeCategory === c.key && { color: '#FFFFFF' }]}>{c.label} ({count})</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={s.searchRow}>
+              <Ionicons name="search" size={15} color="#94A3B8" style={{ marginRight: 8 }} />
+              <TextInput style={s.searchInput} placeholder="Search by reference, vendor, invoice..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
             </View>
 
             {renderList()}
@@ -323,31 +503,31 @@ export default function InteriorPaymentsScreen() {
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={s.label}>Contract Milestone</Text>
-              <View style={s.pillWrap}>
-                {MILESTONE_OPTIONS.map((m) => (
-                  <TouchableOpacity key={m} style={[s.pill, incomingForm.milestoneName === m && s.pillActive]} onPress={() => setIncomingForm({ ...incomingForm, milestoneName: m })}>
-                    <Text style={[s.pillText, incomingForm.milestoneName === m && s.pillTextActive]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <SelectDropdown
+                value={incomingForm.milestoneName}
+                options={MILESTONE_OPTIONS.map((m) => ({ value: m, label: m }))}
+                onChange={(v) => setIncomingForm({ ...incomingForm, milestoneName: v })}
+                placeholder="Select milestone"
+                inputStyle={s.input}
+              />
 
-              <Text style={s.label}>Amount (₹)</Text>
+              <Text style={s.label}>Amount ({getCurrencySymbol(projectCurrency)})</Text>
               <TextInput style={s.input} placeholder="e.g. 250000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={incomingForm.amount} onChangeText={(v) => setIncomingForm({ ...incomingForm, amount: v })} />
 
               <Text style={s.label}>Payment Date</Text>
-              <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={incomingForm.paymentDate} onChangeText={(v) => setIncomingForm({ ...incomingForm, paymentDate: v })} />
+              <DateField value={incomingForm.paymentDate} onChange={(v) => setIncomingForm({ ...incomingForm, paymentDate: v })} inputStyle={s.input} />
 
               <Text style={s.label}>Payment Mode</Text>
-              <View style={s.pillWrap}>
-                {PAYMENT_METHODS.map((m) => (
-                  <TouchableOpacity key={m} style={[s.pill, incomingForm.paymentMethod === m && s.pillActive]} onPress={() => setIncomingForm({ ...incomingForm, paymentMethod: m })}>
-                    <Text style={[s.pillText, incomingForm.paymentMethod === m && s.pillTextActive]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <SelectDropdown
+                value={incomingForm.paymentMethod}
+                options={PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
+                onChange={(v) => setIncomingForm({ ...incomingForm, paymentMethod: v })}
+                placeholder="Select payment mode"
+                inputStyle={s.input}
+              />
 
-              <Text style={s.label}>Ref / UTR Number</Text>
-              <TextInput style={s.input} placeholder="e.g. HDFC10928301" placeholderTextColor="#94A3B8" value={incomingForm.referenceNo} onChangeText={(v) => setIncomingForm({ ...incomingForm, referenceNo: v })} />
+              <Text style={s.label}>Ref / Transaction Number</Text>
+              <TextInput style={s.input} placeholder="e.g. WIRE-89210928 / CHQ-4401" placeholderTextColor="#94A3B8" value={incomingForm.referenceNo} onChangeText={(v) => setIncomingForm({ ...incomingForm, referenceNo: v })} />
 
               <Text style={s.label}>Remarks</Text>
               <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholder="Enter transaction notes..." placeholderTextColor="#94A3B8" value={incomingForm.remarks} onChangeText={(v) => setIncomingForm({ ...incomingForm, remarks: v })} />
@@ -371,6 +551,22 @@ export default function InteriorPaymentsScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
+              {purchaseOrders.length > 0 && (
+                <>
+                  <Text style={s.label}>Link Purchase Order (Optional)</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
+                    <TouchableOpacity style={[s.pill, !selectedPoId && s.pillActive]} onPress={() => handlePoSelect('')}>
+                      <Text style={[s.pillText, !selectedPoId && s.pillTextActive]}>Direct Payment (No PO)</Text>
+                    </TouchableOpacity>
+                    {purchaseOrders.map((po) => (
+                      <TouchableOpacity key={po._id} style={[s.pill, selectedPoId === po._id && s.pillActive]} onPress={() => handlePoSelect(po._id)}>
+                        <Text style={[s.pillText, selectedPoId === po._id && s.pillTextActive]} numberOfLines={1}>{po.poNumber} · {po.materialName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+
               <Text style={s.label}>Vendor / Contractor Name</Text>
               <TextInput style={s.input} placeholder="e.g. Royal Wood Suppliers" placeholderTextColor="#94A3B8" value={outgoingForm.vendorName} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, vendorName: v })} />
 
@@ -383,23 +579,23 @@ export default function InteriorPaymentsScreen() {
                 ))}
               </View>
 
-              <Text style={s.label}>Amount (₹)</Text>
+              <Text style={s.label}>Amount ({getCurrencySymbol(projectCurrency)})</Text>
               <TextInput style={s.input} placeholder="e.g. 150000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={outgoingForm.amount} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, amount: v })} />
 
               <Text style={s.label}>Payment Date</Text>
-              <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={outgoingForm.paymentDate} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, paymentDate: v })} />
+              <DateField value={outgoingForm.paymentDate} onChange={(v) => setOutgoingForm({ ...outgoingForm, paymentDate: v })} inputStyle={s.input} />
 
               <Text style={s.label}>Payment Mode</Text>
-              <View style={s.pillWrap}>
-                {PAYMENT_METHODS.map((m) => (
-                  <TouchableOpacity key={m} style={[s.pill, outgoingForm.paymentMethod === m && s.pillActive]} onPress={() => setOutgoingForm({ ...outgoingForm, paymentMethod: m })}>
-                    <Text style={[s.pillText, outgoingForm.paymentMethod === m && s.pillTextActive]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <SelectDropdown
+                value={outgoingForm.paymentMethod}
+                options={PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
+                onChange={(v) => setOutgoingForm({ ...outgoingForm, paymentMethod: v })}
+                placeholder="Select payment mode"
+                inputStyle={s.input}
+              />
 
-              <Text style={s.label}>Ref / UTR Number</Text>
-              <TextInput style={s.input} placeholder="e.g. UTR-9812401" placeholderTextColor="#94A3B8" value={outgoingForm.referenceNo} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, referenceNo: v })} />
+              <Text style={s.label}>Ref / Transaction Number</Text>
+              <TextInput style={s.input} placeholder="e.g. TXN-9812401" placeholderTextColor="#94A3B8" value={outgoingForm.referenceNo} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, referenceNo: v })} />
 
               <Text style={s.label}>Remarks</Text>
               <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholder="Enter transaction notes..." placeholderTextColor="#94A3B8" value={outgoingForm.remarks} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, remarks: v })} />
@@ -429,11 +625,11 @@ export default function InteriorPaymentsScreen() {
               <Text style={s.label}>Reason / Defect Detail</Text>
               <TextInput style={[s.input, { height: 60, textAlignVertical: 'top' }]} multiline placeholder="e.g. Damaged plywood sheets returned (5 sheets)" placeholderTextColor="#94A3B8" value={debitNoteForm.reason} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, reason: v })} />
 
-              <Text style={s.label}>Amount (₹)</Text>
+              <Text style={s.label}>Amount ({getCurrencySymbol(projectCurrency)})</Text>
               <TextInput style={s.input} placeholder="e.g. 45000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={debitNoteForm.amount} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, amount: v })} />
 
               <Text style={s.label}>Issue Date</Text>
-              <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={debitNoteForm.issueDate} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, issueDate: v })} />
+              <DateField value={debitNoteForm.issueDate} onChange={(v) => setDebitNoteForm({ ...debitNoteForm, issueDate: v })} inputStyle={s.input} />
 
               <Text style={s.label}>Remarks</Text>
               <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholderTextColor="#94A3B8" value={debitNoteForm.remarks} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, remarks: v })} />
@@ -468,10 +664,15 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
   headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
 
-  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  summaryCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9' },
+  summaryRow: { gap: 8, marginBottom: 14 },
+  summaryCard: { width: 130, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9' },
   summaryLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8' },
   summaryValue: { fontSize: 14, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 4 },
+
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12, height: 40, marginBottom: 12 },
+  searchInput: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#0F172A' },
+
+  cardFooterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
 
   tabRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9' },

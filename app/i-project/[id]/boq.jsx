@@ -17,7 +17,11 @@ const STATUS_META = {
   superseded: { color: '#64748B', bg: '#F1F5F9' },
   draft: { color: '#2563EB', bg: '#EFF6FF' },
 };
-const ITEM_CATEGORIES = ['Flooring', 'Woodwork', 'False Ceiling', 'Painting', 'Electrical', 'Plumbing', 'HVAC', 'Masonry', 'Other'];
+const ITEM_CATEGORIES = [
+  'Flooring', 'Woodwork', 'False Ceiling', 'Painting', 'Electrical Works', 'Plumbing', 'HVAC', 'Masonry',
+  'Design & Planning', 'Architectural Design', 'Space Planning', '3D Visualization', 'Material Selection',
+  'Civil Works', 'Demolition', 'Waterproofing', 'Carpentry', 'Kitchen', 'Wardrobe', 'TV Unit', 'Handover', 'Other',
+];
 const AVA_STATUS_META = {
   over_budget: { color: '#DC2626', bg: '#FEF2F2' },
   completed: { color: '#16A34A', bg: '#F0FDF4' },
@@ -454,6 +458,13 @@ export default function InteriorBoqScreen() {
                       <Ionicons name="close-circle" size={17} color={newItems.length === 1 ? '#CBD5E1' : '#EF4444'} />
                     </TouchableOpacity>
                   </View>
+                  <TextInput
+                    style={[s.input, { marginBottom: 6 }]}
+                    placeholder="Type or select category..."
+                    placeholderTextColor="#94A3B8"
+                    value={item.category}
+                    onChangeText={(v) => updateItemRow(idx, 'category', v)}
+                  />
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
                     {ITEM_CATEGORIES.map((c) => (
                       <TouchableOpacity key={c} style={[s.miniChip, item.category === c && s.miniChipActive]} onPress={() => updateItemRow(idx, 'category', c)}>

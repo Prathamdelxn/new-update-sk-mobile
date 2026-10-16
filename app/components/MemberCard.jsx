@@ -40,22 +40,26 @@ const MemberCard = ({ name, email, role, onRemove, onChangeRole, showActions = t
           )}
         </View>
 
-        {showActions && (
+        {showActions && (onChangeRole || onRemove) && (
           <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.actionBtn}
-              onPress={onChangeRole}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="settings-outline" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.deleteBtn]}
-              onPress={onRemove}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={18} color="#EF4444" />
-            </TouchableOpacity>
+            {onChangeRole && (
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={onChangeRole}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="settings-outline" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
+            {onRemove && (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.deleteBtn]}
+                onPress={onRemove}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>

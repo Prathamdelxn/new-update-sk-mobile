@@ -1,13 +1,14 @@
-import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { queryKeys, useRefreshOnFocus } from '../../context/QueryProvider';
 import CategoryNav from './_components/CategoryNav';
 
 const HEALTH_META = {
@@ -33,29 +34,29 @@ export default function InteriorProjectOverviewScreen() {
   const { id } = useLocalSearchParams();
   const { showToast } = useToast();
 
-  const [project, setProject] = useState(null);
-  const [metrics, setMetrics] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Cached per project (see QueryProvider). Edits in the sub-screens (tasks,
+  // DPR, ...) mark these stale, so returning here refetches only after a change.
+  const projectQuery = useQuery({
+    queryKey: queryKeys.interiorProject(id),
+    queryFn: async () => {
+      const res = await interiorApiClient.get(`/projects/${id}`);
+      return res?.success && res?.data ? res.data : null;
+    },
+    enabled: !!id,
+  });
+  const metricsQuery = useQuery({
+    queryKey: queryKeys.interiorProjectMetrics(id),
+    queryFn: async () => {
+      const res = await interiorApiClient.get(`/projects/${id}/dashboard`);
+      return res?.success && res?.data ? res.data : null;
+    },
+    enabled: !!id,
+  });
+  const project = projectQuery.data ?? null;
+  const metrics = metricsQuery.data ?? null;
+  const loading = projectQuery.isPending || metricsQuery.isPending;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [projRes, metricsRes] = await Promise.all([
-        interiorApiClient.get(`/projects/${id}`),
-        interiorApiClient.get(`/projects/${id}/dashboard`),
-      ]);
-      setProject(projRes?.success && projRes?.data ? projRes.data : null);
-      setMetrics(metricsRes?.success && metricsRes?.data ? metricsRes.data : null);
-    } catch (e) {
-      console.error('Failed to load project overview', e);
-      setProject(null);
-      setMetrics(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useRefreshOnFocus([queryKeys.interiorProject(id), queryKeys.interiorProjectMetrics(id)]);
 
   const comingSoon = (label) => showToast(`${label} — coming soon.`, 'success');
   const openTasks = () => router.push(`/i-project/${id}/tasks`);

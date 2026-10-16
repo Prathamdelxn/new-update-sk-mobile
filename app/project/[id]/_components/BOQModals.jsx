@@ -607,32 +607,40 @@ export const BudgetImpactModal = ({
   isSubmitting,
   currency = '$'
 }) => (
-  <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <View style={styles.modalOverlay}>
       <AdaptiveGlass intensity={95} tint="light" style={styles.impactCard}>
         <View style={styles.impactHeader}>
           <View style={styles.impactIconBox}>
-            <Ionicons name="trending-up" size={24} color="#3B82F6" />
+            <Ionicons name="trending-up" size={22} color="#2563EB" />
           </View>
-          <View>
-            <Text style={styles.impactTitle}>Budget Impact Analysis</Text>
-            <Text style={styles.impactSubtitle}>Review changes before final approval</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.impactTitle} numberOfLines={1} adjustsFontSizeToFit>Budget Impact Analysis</Text>
+            <Text style={styles.impactSubtitle} numberOfLines={1} adjustsFontSizeToFit>Review changes before final approval</Text>
           </View>
         </View>
 
         <View style={styles.comparisonGrid}>
           <View style={styles.compareBox}>
-            <Text style={styles.compareLabel}>Current Version</Text>
-            <Text style={styles.compareAmount}>{currency} {formatCompact(budgetImpactData?.oldAmount)}</Text>
+            <Text style={styles.compareLabel} numberOfLines={1}>Current Version</Text>
+            <Text style={styles.compareAmount} numberOfLines={1} adjustsFontSizeToFit>{currency} {formatCompact(budgetImpactData?.oldAmount)}</Text>
           </View>
-          <Ionicons name="arrow-forward" size={20} color="#94A3B8" style={{ marginTop: 24 }} />
+          <View style={styles.compareArrowBox}>
+            <Ionicons name="arrow-forward" size={16} color="#94A3B8" />
+          </View>
           <View style={styles.compareBox}>
-            <Text style={styles.compareLabel}>New Version</Text>
-            <Text style={[styles.compareAmount, { color: '#0F172A' }]}>{currency} {formatCompact(budgetImpactData?.newAmount)}</Text>
+            <Text style={styles.compareLabel} numberOfLines={1}>New Version</Text>
+            <Text style={[styles.compareAmount, { color: '#0F172A' }]} numberOfLines={1} adjustsFontSizeToFit>{currency} {formatCompact(budgetImpactData?.newAmount)}</Text>
           </View>
         </View>
 
-        <View style={[styles.diffBox, { backgroundColor: (budgetImpactData?.difference || 0) >= 0 ? '#F0FDF4' : '#FEF2F2' }]}>
+        <View style={[
+          styles.diffBox, 
+          { 
+            backgroundColor: (budgetImpactData?.difference || 0) >= 0 ? '#F0FDF4' : '#FEF2F2',
+            borderColor: (budgetImpactData?.difference || 0) >= 0 ? '#BBF7D0' : '#FECACA',
+          }
+        ]}>
           <Text style={[styles.diffLabel, { color: (budgetImpactData?.difference || 0) >= 0 ? '#16A34A' : '#EF4444' }]}>
             NET BUDGET CHANGE
           </Text>
@@ -642,7 +650,7 @@ export const BudgetImpactModal = ({
         </View>
 
         <View style={styles.modalActions}>
-          <TouchableOpacity style={styles.formCancelBtn} onPress={onClose}>
+          <TouchableOpacity style={styles.formCancelBtn} onPress={onClose} disabled={isSubmitting}>
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity 
@@ -650,8 +658,12 @@ export const BudgetImpactModal = ({
             onPress={() => handleUpdateStatus(budgetImpactData.itemId, 'Approved', budgetImpactData)} 
             disabled={isSubmitting}
           >
-            <LinearGradient colors={['#3B82F6', '#3B82F6']} style={styles.submitGradient}>
-              <Text style={styles.submitText}>Confirm & Apply</Text>
+            <LinearGradient colors={['#2563EB', '#1D4ED8']} style={styles.submitGradient}>
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <Text style={styles.submitText}>Confirm & Apply</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>

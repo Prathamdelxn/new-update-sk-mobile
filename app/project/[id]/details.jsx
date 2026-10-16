@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, Alert, Linking, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, Alert, Linking, Platform, KeyboardAvoidingView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AdaptiveGlass from '../../components/AdaptiveGlass';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useSocket } from '../../context/SocketContext';
 import ConfirmModal from '../../components/ConfirmModal';
-import { formatCompact } from '../../utils/format';
+import { formatCompact, formatCurrency, getCurrentApprovedBudget } from '../../utils/format';
 import { useTranslation } from 'react-i18next';
 import { hasProjectPermission, isProjectLocked } from '../../utils/permissions';
 import { useRouter } from 'expo-router';
@@ -21,6 +21,24 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
   const { socket } = useSocket();
   const router = useRouter();
 
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestAmount, setRequestAmount] = useState('');
+  const [requestReason, setRequestReason] = useState('');
+  const [selectedApproverId, setSelectedApproverId] = useState(null);
+  const [budgetApprovers, setBudgetApprovers] = useState([]);
+  const [isLoadingApprovers, setIsLoadingApprovers] = useState(false);
+
+  const [confirmModal, setConfirmModal] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    confirmText: '',
+    onConfirm: null,
+    type: 'default'
+  });
+
   useEffect(() => {
     if (!socket || !fetchProjectData) return;
     socket.on('project:updated', fetchProjectData);
@@ -31,28 +49,62 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
     };
   }, [socket, fetchProjectData]);
 
-  const [showBudgetHist, setShowBudgetHist] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const fetchBudgetApprovers = async () => {
+    try {
+      setIsLoadingApprovers(true);
+      const res = await fetch(`${API_BASE_URL}/projects/${project._id}/budget-approvers`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const approvers = data.approvers || [];
+        setBudgetApprovers(approvers);
+        if (approvers.length > 0) {
+          setSelectedApproverId(approvers[0]._id);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoadingApprovers(false);
+    }
+  };
 
-  // Modern Confirmation Modal State
-  const [confirmModal, setConfirmModal] = useState({
-    visible: false,
-    title: '',
-    message: '',
-    confirmText: '',
-    onConfirm: null,
-    type: 'default'
-  });
+  const handleOpenRequestModal = () => {
+    setRequestAmount('');
+    setRequestReason('');
+    fetchBudgetApprovers();
+    setShowRequestModal(true);
+  };
 
   const handleOpenAddMember = () => {
     router.push(`/project/${project._id}/add-member`);
   };
 
-  const myProjectMember = project?.members?.find(m => m.user?._id === user?.id || m.user === user?.id);
   const isLocked = isProjectLocked(project);
-  const canUpdate = !isLocked && hasProjectPermission(user, project, 'projects:update');
   const canApproveBudget = !isLocked && hasProjectPermission(user, project, 'budget:approve');
+  // Adding members to the project is Project Management > Assign (mirrors web)
+  const canAssignMembers = !isLocked && hasProjectPermission(user, project, 'projects:assign');
   const pendingRequests = project?.budgetHistory?.filter(bh => bh.approvalStatus === 'Pending') || [];
+  const currentBaseBudget = getCurrentApprovedBudget(project);
+  const currentBudget = currentBaseBudget;
+  const pendingBh = project?.budgetHistory?.find(bh => bh.approvalStatus === 'Pending');
+
+  // Derive the added change request amount and the proposed new total budget
+  const { pendingAddedAmount, pendingTotalBudget } = (() => {
+    if (!pendingBh) return { pendingAddedAmount: 0, pendingTotalBudget: currentBaseBudget };
+    const rawPending = Number(pendingBh.amount) || 0;
+    if (rawPending >= currentBaseBudget && currentBaseBudget > 0) {
+      return {
+        pendingAddedAmount: rawPending - currentBaseBudget,
+        pendingTotalBudget: rawPending,
+      };
+    }
+    return {
+      pendingAddedAmount: rawPending,
+      pendingTotalBudget: currentBaseBudget + rawPending,
+    };
+  })();
 
   const calculateDaysRemaining = () => {
     if (!project?.endDate) return 'N/A';
@@ -64,10 +116,24 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
   };
 
   const handleBudgetAction = (budgetId, action) => {
+    const targetBh = project?.budgetHistory?.find(bh => bh._id === budgetId);
+    let resolvedTotal = targetBh ? Number(targetBh.amount) : 0;
+    let addedDisplay = 0;
+    if (targetBh) {
+      if (resolvedTotal >= currentBaseBudget && currentBaseBudget > 0) {
+        addedDisplay = resolvedTotal - currentBaseBudget;
+      } else {
+        addedDisplay = resolvedTotal;
+        resolvedTotal = currentBaseBudget + resolvedTotal;
+      }
+    }
+
     setConfirmModal({
       visible: true,
-      title: `${action} Budget`,
-      message: `Are you sure you want to ${action.toLowerCase()} this budget request?`,
+      title: `${action === 'Approved' ? 'Approve' : 'Reject'} Budget Change Request`,
+      message: action === 'Approved'
+        ? `Are you sure you want to approve this change request of +${formatCompact(addedDisplay)}? The new total budget will become ${formatCompact(resolvedTotal)}.`
+        : `Are you sure you want to reject this budget change request?`,
       confirmText: action,
       type: action === 'Approved' ? 'success' : 'destructive',
       onConfirm: async () => {
@@ -79,7 +145,12 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ budgetId, action })
+            body: JSON.stringify({
+              budgetId,
+              action,
+              newBudget: resolvedTotal,
+              amount: resolvedTotal
+            })
           });
 
           if (res.ok) {
@@ -90,7 +161,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
             showToast(err.message || 'Action failed', 'error');
           }
         } catch (e) {
-          showToast(t('networkError'), 'error');
+          showToast(t('networkError', 'Network Error'), 'error');
         } finally {
           setIsProcessing(false);
           setConfirmModal(prev => ({ ...prev, visible: false }));
@@ -99,8 +170,58 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
     });
   };
 
+  const handleRequestBudget = async () => {
+    const addedAmount = Number(requestAmount);
+    if (!requestAmount || isNaN(addedAmount) || addedAmount <= 0) {
+      showToast('Please enter a valid change request budget amount', 'error');
+      return;
+    }
+    if (!requestReason.trim()) {
+      showToast('Please provide a reason / justification', 'error');
+      return;
+    }
+
+    // Change request cycle: New Total Budget = Current Budget + Added Change Req Budget
+    const calculatedTotalBudget = currentBaseBudget + addedAmount;
+
+    try {
+      setIsProcessing(true);
+      const res = await fetch(`${API_BASE_URL}/projects/${project._id}/budget-request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: calculatedTotalBudget,
+          addedAmount: addedAmount,
+          changeRequestAmount: addedAmount,
+          currentBudget: currentBaseBudget,
+          reason: requestReason.trim(),
+          approverId: selectedApproverId || undefined
+        })
+      });
+
+      if (res.ok) {
+        showToast(`Change request submitted: +${formatCompact(addedAmount)} (New Total: ${formatCompact(calculatedTotalBudget)})`, 'success');
+        setShowRequestModal(false);
+        setRequestAmount('');
+        setRequestReason('');
+        if (fetchProjectData) await fetchProjectData();
+      } else {
+        const err = await res.json();
+        showToast(err.message || 'Failed to submit request', 'error');
+      }
+    } catch (e) {
+      showToast(t('networkError', 'Network Error'), 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <View style={styles.tabScrollContent}>
+      {/* Site Survey Status Banner */}
       {project?.siteSurveyor && project?.status === 'Site Survey' ? (
         <AdaptiveGlass intensity={10} tint="light" style={styles.surveyBanner}>
           <View style={styles.surveyBannerIcon}>
@@ -113,18 +234,21 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
         </AdaptiveGlass>
       ) : null}
 
-      {canApproveBudget && pendingRequests.length > 0 && (
-        <AdaptiveGlass intensity={40} tint="light" style={styles.pendingBudgetBanner}>
+      {/* Pending Budget Alert Banner */}
+      {pendingRequests.length > 0 && (
+        <AdaptiveGlass intensity={20} tint="light" style={styles.pendingBudgetBanner}>
           <View style={styles.pendingHeader}>
-            <Ionicons name="notifications" size={20} color="#DC2626" />
-            <Text style={styles.pendingTitle}>{t('pendingBudgetTitle', { count: pendingRequests.length })}</Text>
+            <Ionicons name="alert-circle" size={20} color="#DC2626" />
+            <Text style={styles.pendingTitle}>Pending Budget Change Request</Text>
           </View>
-          <Text style={styles.pendingDesc}>{t('newBudgetRequests')}</Text>
+          <Text style={styles.pendingDesc}>
+            {`+${formatCompact(pendingAddedAmount)} requested • Proposed Total: ${project?.currency || '$'} ${formatCompact(pendingTotalBudget)} (Current Base: ${project?.currency || '$'} ${formatCompact(currentBaseBudget)})`}
+          </Text>
           <TouchableOpacity 
             style={styles.viewPendingBtn}
-            onPress={() => setShowBudgetHist(true)}
+            onPress={() => setShowHistoryModal(true)}
           >
-            <Text style={styles.viewPendingText}>{t('viewRequests')}</Text>
+            <Text style={styles.viewPendingText}>View & Take Action</Text>
             <Ionicons name="arrow-forward" size={14} color="#DC2626" />
           </TouchableOpacity>
         </AdaptiveGlass>
@@ -160,7 +284,9 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
         </AdaptiveGlass>
       )}
 
+      {/* Bento Grid */}
       <View style={styles.bentoGrid}>
+        {/* Bento Card 1: Project Details Hero */}
         <AdaptiveGlass intensity={30} tint="light" style={[styles.bentoCard, styles.bentoHero]}>
           <View style={styles.heroTop}>
             <View style={{flexDirection: 'row', gap: 8}}>
@@ -171,9 +297,6 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 <Text style={[styles.statusChipText, {color: '#2563EB'}]}>{project?.category?.name || 'General'}</Text>
               </View>
             </View>
-            {/* <TouchableOpacity style={styles.roundEdit}>
-              <Ionicons name="create-outline" size={18} color="#3B82F6" />
-            </TouchableOpacity> */}
           </View>
           <Text style={styles.heroTitle}>{project?.name || ''}{project?.projectCode ? <Text style={{ fontSize: 14, color: '#64748B', fontFamily: 'Inter-Medium' }}> ({project.projectCode})</Text> : null}</Text>
           <View style={styles.locRow}>
@@ -197,21 +320,28 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
           </View>
         </AdaptiveGlass>
 
-        <TouchableOpacity
-          style={styles.bentoCard}
-          onPress={() => setShowBudgetHist(true)}
+        {/* Bento Card 2: Total Budget */}
+        <TouchableOpacity 
+          style={[styles.bentoCard, pendingRequests.length > 0 && { borderColor: '#FCA5A5', backgroundColor: '#FFF5F5' }]} 
+          onPress={() => setShowHistoryModal(true)}
           activeOpacity={0.8}
         >
           <View style={styles.bentoHeader}>
             <Text style={styles.bentoLabel}>{t('totalBudget').toUpperCase()}</Text>
-            <Ionicons name="time-outline" size={14} color="#64748B" />
+            <Ionicons name="time-outline" size={14} color={pendingRequests.length > 0 ? "#DC2626" : "#64748B"} />
           </View>
-          <Text style={styles.bentoDigit} numberOfLines={2} adjustsFontSizeToFit>
-            {project?.currency || '$'} {formatCompact(project?.budgetHistory?.[project.budgetHistory.length - 1]?.amount || 0)}
+          <Text style={[styles.bentoDigit, pendingRequests.length > 0 && { color: '#B91C1C' }]} numberOfLines={2} adjustsFontSizeToFit>
+            {project?.currency || '$'} {formatCompact(currentBaseBudget)}
           </Text>
-          <Text style={styles.bentoSub}>{t('latestApproved')}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+            <Text style={[styles.bentoSub, pendingRequests.length > 0 && { color: '#DC2626', fontFamily: 'Inter-SemiBold' }]}>
+              {pendingRequests.length > 0 ? `+${formatCompact(pendingAddedAmount)} Pending (Total: ${formatCompact(pendingTotalBudget)})` : t('latestApproved')}
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
+          </View>
         </TouchableOpacity>
 
+        {/* Bento Card 3: Days Remaining */}
         <View style={styles.bentoCard}>
           <Text style={styles.bentoLabel}>{t('daysRemaining').toUpperCase()}</Text>
           <Text style={styles.bentoDigit}>
@@ -220,6 +350,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
           <Text style={styles.bentoSub}>{t('targetHandover')}</Text>
         </View>
 
+        {/* Bento Card 4: Project Area */}
         <View style={styles.bentoCard}>
           <View style={styles.bentoHeader}>
             <Text style={styles.bentoLabel}>{t('projectArea', 'PROJECT AREA').toUpperCase()}</Text>
@@ -260,10 +391,34 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
           </View>
         </View>
 
+        {/* Bento Card 5: Coordination Team */}
+        {/* Bento Card 5: Coordination Team */}
         <AdaptiveGlass intensity={20} tint="light" style={[styles.bentoCard, styles.bentoWide]}>
           <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
-            <Text style={[styles.bentoLabel, {marginBottom: 0}]}>{t('coordinationTeam').toUpperCase()}</Text>
-            {canApproveBudget && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={[styles.bentoLabel, {marginBottom: 0}]}>{t('coordinationTeam').toUpperCase()}</Text>
+              {(() => {
+                const nonCreatorMembers = (project?.members || []).filter(m => {
+                  if (!m) return false;
+                  const u = (m.user && typeof m.user === 'object') ? m.user : m;
+                  const memberEmail = u?.email;
+                  const creatorEmail = project?.createdBy?.email;
+                  const memberId = u?._id || u?.id || (typeof m.user === 'string' ? m.user : null);
+                  const creatorId = project?.createdBy?._id || project?.createdBy?.id;
+                  if (creatorId && memberId && String(creatorId) === String(memberId)) return false;
+                  if (creatorEmail && memberEmail && creatorEmail.toLowerCase() === memberEmail.toLowerCase()) return false;
+                  return true;
+                });
+                return (
+                  <View style={styles.memberCountBadge}>
+                    <Text style={styles.memberCountBadgeText}>
+                      {1 + nonCreatorMembers.length}
+                    </Text>
+                  </View>
+                );
+              })()}
+            </View>
+            {canAssignMembers && (
               <TouchableOpacity onPress={handleOpenAddMember} style={styles.addMemberBtnSmall}>
                 <Ionicons name="add" size={16} color="#3B82F6" />
                 <Text style={styles.addMemberBtnText}>Add</Text>
@@ -271,9 +426,10 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
             )}
           </View>
           <View style={styles.teamStack}>
+            {/* Project Creator / Admin */}
             <View style={styles.tMember}>
               <View style={styles.circleAvatar}>
-                <Text style={styles.cAvText}>{(project?.createdBy?.name || 'S').charAt(0)}</Text>
+                <Text style={styles.cAvText}>{(project?.createdBy?.name || 'S').charAt(0).toUpperCase()}</Text>
               </View>
               <View style={styles.tInfo}>
                 <Text style={styles.tName}>{project?.createdBy?.name || t('manager')}</Text>
@@ -281,95 +437,381 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 <Text style={styles.tRole}>{project?.createdBy?.email || t('adminCreator')}</Text>
               </View>
             </View>
-            {project?.members
-              ?.filter(m => m.user?.email !== project?.createdBy?.email)
-              // Skip members whose user was deleted from the DB (m.user is null/undefined) —
-              // these would otherwise render as a fake "User"/'U' placeholder entry with no
-              // way to remove them, since member removal isn't implemented yet. Remove this
-              // filter once member removal ships and deleted-user records are cleaned up.
-              .filter(m => !!m.user)
-              .map((m, i) => (
-              <View key={i} style={styles.tMember}>
-                <View style={[styles.circleAvatar, { backgroundColor: '#F1F5F9' }]}>
-                  <Text style={[styles.cAvText, { color: '#64748B' }]}>{m.user?.name?.charAt(0) || 'U'}</Text>
-                </View>
-                <View style={styles.tInfo}>
-                  <Text style={styles.tName}>{m.user?.name || t('user')}</Text>
-                  <Text style={styles.tRole}>{m.role?.name || m.user?.email}</Text>
-                </View>
-              </View>
-            ))}
+
+            {/* Other Assigned Project Members */}
+            {(() => {
+              const assignedMembers = (project?.members || []).filter(m => {
+                if (!m) return false;
+                const u = (m.user && typeof m.user === 'object') ? m.user : m;
+                const memberEmail = u?.email;
+                const creatorEmail = project?.createdBy?.email;
+                const memberId = u?._id || u?.id || (typeof m.user === 'string' ? m.user : null);
+                const creatorId = project?.createdBy?._id || project?.createdBy?.id;
+                if (creatorId && memberId && String(creatorId) === String(memberId)) return false;
+                if (creatorEmail && memberEmail && creatorEmail.toLowerCase() === memberEmail.toLowerCase()) return false;
+                return true;
+              });
+
+              if (assignedMembers.length === 0) {
+                return (
+                  <View style={styles.emptyMembersBox}>
+                    <Ionicons name="people-outline" size={16} color="#94A3B8" />
+                    <Text style={styles.emptyMembersText}>No additional team members assigned yet</Text>
+                  </View>
+                );
+              }
+
+              return assignedMembers.map((m, i) => {
+                const u = (m.user && typeof m.user === 'object') ? m.user : m;
+                const name = u?.name || m?.name || 'Team Member';
+                const roleName = m.role?.name || (typeof m.role === 'string' ? m.role : null) || u?.role?.name || (typeof u?.role === 'string' ? u?.role : null) || 'Member';
+                const email = u?.email || m?.email || '';
+                const initial = (name || 'U').charAt(0).toUpperCase();
+
+                return (
+                  <View key={m._id || u?._id || i} style={styles.tMember}>
+                    <View style={[styles.circleAvatar, { backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#DBEAFE' }]}>
+                      <Text style={[styles.cAvText, { color: '#2563EB' }]}>{initial}</Text>
+                    </View>
+                    <View style={styles.tInfo}>
+                      <Text style={styles.tName}>{name}</Text>
+                      <Text style={[styles.tRole, { color: '#2563EB', fontFamily: 'Inter-SemiBold', fontSize: 10, marginTop: 2, marginBottom: 1 }]}>
+                        {roleName}
+                      </Text>
+                      {!!email && <Text style={styles.tRole}>{email}</Text>}
+                    </View>
+                  </View>
+                );
+              });
+            })()}
           </View>
+        </AdaptiveGlass>
+
+        {/* ── Bento Card 6: Budget & Change Request Action Section ── */}
+        <AdaptiveGlass intensity={30} tint="light" style={[styles.bentoCard, styles.bentoWide, { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }}>
+                <Ionicons name="wallet-outline" size={18} color="#3B82F6" />
+              </View>
+              <View>
+                <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>Budget Management</Text>
+                <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B' }}>
+                  Current: {project?.currency || '$'} {formatCompact(currentBaseBudget)}
+                  {pendingRequests.length > 0 && ` (+${formatCompact(pendingAddedAmount)} Pending)`}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setShowHistoryModal(true)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#F1F5F9' }}
+            >
+              <Ionicons name="time-outline" size={14} color="#475569" />
+              <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#475569' }}>History</Text>
+            </TouchableOpacity>
+          </View>
+
+          {!isLocked && (
+            <TouchableOpacity
+              style={styles.fullChangeReqBtn}
+              onPress={handleOpenRequestModal}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['#2563EB', '#1D4ED8']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.fullChangeReqGradient}
+              >
+                <Ionicons name="git-pull-request-outline" size={18} color="#FFF" />
+                <Text style={styles.fullChangeReqBtnText}>Request Budget Change</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
         </AdaptiveGlass>
       </View>
 
-
-
-      {/* BUDGET HISTORY MODAL */}
-      <Modal visible={showBudgetHist} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.modalDismiss} onPress={() => setShowBudgetHist(false)} />
-          <AdaptiveGlass intensity={40} tint="light" style={styles.modalContent}>
+      {/* ── Request Budget Modal ── */}
+      <Modal visible={showRequestModal} animationType="slide" transparent onRequestClose={() => setShowRequestModal(false)}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setShowRequestModal(false)} />
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('budgetLifecycle')}</Text>
-              <TouchableOpacity onPress={() => setShowBudgetHist(false)}>
-                <Ionicons name="close" size={24} color="#0F172A" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Request Budget Change</Text>
+                <Text style={styles.modalSubSmall}>Propose budget modification for approval</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.modalCloseBtn}
+                onPress={() => setShowRequestModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.histList} showsVerticalScrollIndicator={false}>
-              {project?.budgetHistory?.slice().reverse().map((bh, i) => (
-                <View key={i} style={styles.histItem}>
-                  <View style={styles.histTop}>
-                    <Text style={styles.histAmt}>{project?.currency || '$'} {formatCompact(bh.amount)}</Text>
-                    <View style={styles.histStatus}>
-                      <Text style={styles.histStatusText}>{bh.approvalStatus || t('approved')}</Text>
+
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              {/* Live Calculation Preview Box */}
+              <View style={styles.calcPreviewContainer}>
+                <View style={styles.calcStepBox}>
+                  <Text style={styles.calcStepLabel}>Current Budget</Text>
+                  <Text style={styles.calcStepVal}>{formatCompact(currentBaseBudget)}</Text>
+                </View>
+                <Text style={styles.calcOp}>+</Text>
+                <View style={[styles.calcStepBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+                  <Text style={[styles.calcStepLabel, { color: '#2563EB' }]}>Change Req</Text>
+                  <Text style={[styles.calcStepVal, { color: '#1D4ED8' }]}>
+                    +{formatCompact(Number(requestAmount) || 0)}
+                  </Text>
+                </View>
+                <Text style={styles.calcOp}>=</Text>
+                <View style={[styles.calcStepBox, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+                  <Text style={[styles.calcStepLabel, { color: '#16A34A' }]}>New Total</Text>
+                  <Text style={[styles.calcStepVal, { color: '#15803D' }]}>
+                    {formatCompact(currentBaseBudget + (Number(requestAmount) || 0))}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.inputLabel}>Added Change Request Budget ({project?.currency || '$'})</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 50000 (amount to add to current budget)"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numeric"
+                value={requestAmount}
+                onChangeText={setRequestAmount}
+              />
+
+              <Text style={styles.inputLabel}>Reason / Justification for Change</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Describe why the budget needs adjustment..."
+                placeholderTextColor="#94A3B8"
+                multiline
+                numberOfLines={3}
+                value={requestReason}
+                onChangeText={setRequestReason}
+              />
+
+              {/* Approver Selection */}
+              {isLoadingApprovers ? (
+                <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color="#3B82F6" />
+                  <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>Loading approvers...</Text>
+                </View>
+              ) : budgetApprovers.length > 0 && (
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.inputLabel}>Assign Approver</Text>
+                  <View style={{ gap: 8 }}>
+                    {budgetApprovers.map(a => {
+                      const isSelected = selectedApproverId === a._id;
+                      return (
+                        <TouchableOpacity
+                          key={a._id}
+                          onPress={() => setSelectedApproverId(a._id)}
+                          style={[
+                            styles.approverSelectCard,
+                            isSelected && styles.approverSelectCardActive
+                          ]}
+                        >
+                          <View style={[styles.avatarBox, isSelected && { backgroundColor: '#3B82F6' }]}>
+                            <Text style={styles.avatarLetter}>{(a.name || 'A').charAt(0)}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.approverName, isSelected && { color: '#1D4ED8', fontFamily: 'Inter-Bold' }]}>{a.name}</Text>
+                            <Text style={styles.approverRole}>{a.role?.name || a.email}</Text>
+                          </View>
+                          {isSelected && <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[styles.submitBtn, isProcessing && { opacity: 0.6 }]}
+                onPress={handleRequestBudget}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.submitBtnText}>
+                    {Number(requestAmount) > 0 
+                      ? `Submit Change Request (+${formatCompact(Number(requestAmount))})`
+                      : 'Submit Change Request'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Budget History & Approval Modal ── */}
+      <Modal visible={showHistoryModal} animationType="slide" transparent onRequestClose={() => setShowHistoryModal(false)}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setShowHistoryModal(false)} />
+          <View style={[styles.modalContent, { minHeight: 320 }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Budget Lifecycle</Text>
+                <Text style={styles.modalSubSmall}>Historical log & pending requests</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.modalCloseBtn}
+                onPress={() => setShowHistoryModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Current Active Budget Summary Banner */}
+            <View style={styles.baseBudgetPill}>
+              <Ionicons name="wallet-outline" size={18} color="#2563EB" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' }}>
+                  Current Active Base Budget
+                </Text>
+                <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' }}>
+                  {project?.currency || '$'} {formatCompact(currentBaseBudget)}
+                </Text>
+              </View>
+              {pendingRequests.length > 0 && (
+                <View style={{ backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA' }}>
+                  <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#DC2626' }}>
+                    +{formatCompact(pendingAddedAmount)} PENDING
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <ScrollView style={styles.histList} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+              {project?.budgetHistory?.slice().reverse().map((item, idx) => {
+                const isPending = item.approvalStatus === 'Pending';
+                const isApproved = item.approvalStatus === 'Approved';
+                const isRejected = item.approvalStatus === 'Rejected';
+
+                const rawAmt = Number(item.amount) || 0;
+                let itemAdded = 0;
+                let itemTotal = rawAmt;
+                if (isPending) {
+                  if (rawAmt >= currentBaseBudget && currentBaseBudget > 0) {
+                    itemAdded = rawAmt - currentBaseBudget;
+                    itemTotal = rawAmt;
+                  } else {
+                    itemAdded = rawAmt;
+                    itemTotal = currentBaseBudget + rawAmt;
+                  }
+                }
+
+                return (
+                  <View key={item._id || idx} style={[styles.histItem, isPending && { borderColor: '#FDE68A', backgroundColor: '#FFFDF5' }]}>
+                    <View style={styles.histTop}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={styles.histAmt}>
+                          {project?.currency || '$'} {formatCompact(isPending ? itemTotal : item.amount)}
+                        </Text>
+                        {isPending && itemAdded > 0 && (
+                          <View style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE' }}>
+                            <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#1D4ED8' }}>
+                              +{formatCompact(itemAdded)} Change Req
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={[
+                        styles.histStatus,
+                        isApproved && { backgroundColor: '#DCFCE7' },
+                        isRejected && { backgroundColor: '#FEE2E2' },
+                        isPending && { backgroundColor: '#FEF3C7' },
+                      ]}>
+                        <Text style={[
+                          styles.histStatusText,
+                          isApproved && { color: '#15803D' },
+                          isRejected && { color: '#B91C1C' },
+                          isPending && { color: '#B45309' },
+                        ]}>
+                          {item.approvalStatus || 'Approved'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.histReason}>{item.reason || 'No description provided'}</Text>
+
+                    {isPending && canApproveBudget && (
+                      <View style={styles.histActionRow}>
+                        <TouchableOpacity
+                          style={[styles.miniActionBtn, styles.rejectBtn]}
+                          onPress={() => handleBudgetAction(item._id, 'Rejected')}
+                          disabled={isProcessing}
+                        >
+                          <Text style={styles.rejectBtnText}>Reject</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.miniActionBtn, styles.approveBtn]}
+                          onPress={() => handleBudgetAction(item._id, 'Approved')}
+                          disabled={isProcessing}
+                        >
+                          <Text style={styles.approveBtnText}>
+                            Approve (+{formatCompact(itemAdded)})
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    <View style={styles.histFooter}>
+                      <Text style={styles.histMeta}>
+                        Updated by {item.updatedByName || 'System'} • {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Recorded'}
+                      </Text>
                     </View>
                   </View>
-                  <Text style={styles.histReason}>{bh.reason}</Text>
-                  
-                  {bh.approvalStatus === 'Pending' && canApproveBudget && (
-                    <View style={styles.histActionRow}>
-                      <TouchableOpacity 
-                        style={[styles.miniActionBtn, styles.rejectBtn]} 
-                        onPress={() => handleBudgetAction(bh._id, 'Rejected')}
-                        disabled={isProcessing}
-                      >
-                        <Text style={styles.rejectBtnText}>{t('reject')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={[styles.miniActionBtn, styles.approveBtn]} 
-                        onPress={() => handleBudgetAction(bh._id, 'Approved')}
-                        disabled={isProcessing}
-                      >
-                        {isProcessing ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.approveBtnText}>{t('approve')}</Text>}
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                );
+              })}
 
+              {(!project?.budgetHistory || project.budgetHistory.length === 0) && (
+                <View style={styles.histItem}>
+                  <View style={styles.histTop}>
+                    <Text style={styles.histAmt}>
+                      {project?.currency || '$'} {formatCompact(project?.budget || 0)}
+                    </Text>
+                    <View style={[styles.histStatus, { backgroundColor: '#DCFCE7' }]}>
+                      <Text style={[styles.histStatusText, { color: '#15803D' }]}>
+                        Approved
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.histReason}>Baseline project budget set upon creation.</Text>
                   <View style={styles.histFooter}>
                     <Text style={styles.histMeta}>
-                      {bh.updatedByName || 'System'} • {new Date(bh.timestamp).toLocaleDateString()}
+                      Created by {project?.createdBy?.name || 'Project Admin'} • {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : 'Initial'}
                     </Text>
                   </View>
                 </View>
-              ))}
-              {(!project?.budgetHistory || project.budgetHistory.length === 0) && (
-                <Text style={{ textAlign: 'center', marginTop: 20, color: '#94A3B8', fontFamily: 'Inter-Medium' }}>
-                  {t('noUpdatesFound')}
-                </Text>
               )}
             </ScrollView>
-          </AdaptiveGlass>
+          </View>
         </View>
       </Modal>
 
-      <ConfirmModal 
+      {/* Confirmation Modal */}
+      <ConfirmModal
         visible={confirmModal.visible}
         title={confirmModal.title}
         message={confirmModal.message}
         confirmText={confirmModal.confirmText}
         type={confirmModal.type}
-        isSubmitting={isProcessing}
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
       />
@@ -394,7 +836,6 @@ const styles = StyleSheet.create({
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   statusChip: { backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   statusChipText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#3B82F6', textTransform: 'uppercase' },
-  roundEdit: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#3B82F620' },
   heroTitle: { fontSize: 22, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 8 },
   locRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 24 },
   locText: { flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', lineHeight: 20 },
@@ -413,34 +854,216 @@ const styles = StyleSheet.create({
   tInfo: { flex: 1 },
   tName: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
   tRole: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+
+  // Change request button in Bento Details
+  fullChangeReqBtn: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 6,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  fullChangeReqGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  fullChangeReqBtnText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#FFF',
+  },
   
   // Modals
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end' },
-  modalDismiss: { flex: 1 },
-  modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, minHeight: '60%', backgroundColor: '#FFF' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalDismiss: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalContent: {
+    width: '100%',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    maxHeight: '88%',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calcPreviewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  calcStepBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  calcStepLabel: {
+    fontSize: 10,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginBottom: 2,
+  },
+  calcStepVal: {
+    fontSize: 13,
+    fontFamily: 'Inter-Bold',
+    color: '#0F172A',
+  },
+  calcOp: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#94A3B8',
+    paddingHorizontal: 4,
+  },
+  baseBudgetPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
   modalTitle: { fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  modalSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginBottom: 24 },
-  histList: { flex: 1 },
+  modalSub: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#1E40AF' },
+  modalSubSmall: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  
+  inputLabel: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  input: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontFamily: 'Inter-Medium',
+    color: '#0F172A',
+    marginBottom: 16
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top'
+  },
+  submitBtn: {
+    backgroundColor: '#2563EB',
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 20
+  },
+  submitBtnText: {
+    fontSize: 15,
+    fontFamily: 'Inter-Bold',
+    color: '#FFF'
+  },
+  approverSelectCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 12
+  },
+  approverSelectCardActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#93C5FD'
+  },
+  avatarBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#64748B',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  avatarLetter: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: 'Inter-Bold'
+  },
+  approverName: {
+    fontSize: 13,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0F172A'
+  },
+  approverRole: {
+    fontSize: 11,
+    fontFamily: 'Inter-Regular',
+    color: '#64748B'
+  },
+
+  // History styles
+  histList: { maxHeight: 480, flexGrow: 0 },
   histItem: { padding: 16, borderRadius: 20, backgroundColor: '#F8FAFF', marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0' },
   histTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  histAmt: { fontSize: 18, fontFamily: 'Inter-Bold', color: '#3B82F6' },
-  histStatus: { backgroundColor: '#BBF7D0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  histStatusText: { fontSize: 9, fontFamily: 'Inter-SemiBold', color: '#15803D', textTransform: 'uppercase' },
+  histAmt: { fontSize: 18, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  histStatus: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  histStatusText: { fontSize: 9, fontFamily: 'Inter-SemiBold', textTransform: 'uppercase' },
   histReason: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#475569', lineHeight: 18, marginBottom: 12 },
   histFooter: { borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingTop: 10 },
   histMeta: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#94A3B8' },
+  
   surveyBanner: { padding: 18, borderRadius: 24, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#EFF6FF' },
   surveyBannerIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   surveyBannerTextContainer: { flex: 1 },
   surveyBannerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#1D4ED8', textTransform: 'uppercase', letterSpacing: 1 },
   surveyBannerDesc: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#3B82F6', marginTop: 4 },
-  pendingBudgetBanner: { padding: 20, borderRadius: 24, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
-  pendingHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  pendingTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#991B1B' },
-  pendingDesc: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#B91C1C', lineHeight: 18, marginBottom: 12 },
+  pendingBudgetBanner: { padding: 16, borderRadius: 20, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', marginBottom: 6 },
+  pendingHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  pendingTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#991B1B' },
+  pendingDesc: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#B91C1C', lineHeight: 16, marginBottom: 10 },
   viewPendingBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  viewPendingText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#DC2626' },
+  viewPendingText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#DC2626' },
   histActionRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   miniActionBtn: { flex: 1, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   rejectBtn: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
@@ -449,13 +1072,42 @@ const styles = StyleSheet.create({
   approveBtnText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#FFF' },
   
   snaggingBanner: { padding: 18, borderRadius: 24, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#FEF3C7', backgroundColor: '#FFFBEB', marginBottom: 10 },
-  snaggingBannerIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginRight: 16, borderWeight: 1, borderColor: '#FDE68A' },
+  snaggingBannerIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginRight: 16, borderWidth: 1, borderColor: '#FDE68A' },
   snaggingBannerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#B45309', textTransform: 'uppercase', letterSpacing: 1 },
   snaggingBannerDesc: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#D97706', marginTop: 4 },
   snaggingActionBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   
-  // Add Member specifics
   addMemberBtnSmall: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   addMemberBtnText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#3B82F6', marginLeft: 4 },
-
+  
+  memberCountBadge: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  memberCountBadgeText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
+    color: '#2563EB',
+  },
+  emptyMembersBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+  },
+  emptyMembersText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#94A3B8',
+  },
 });

@@ -1,6 +1,9 @@
 import React, { createContext, useState, useEffect, useContext, useRef, useCallback, useMemo } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { AppState } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
+import { queryClient } from './QueryProvider';
+import { markForbidden } from '../utils/permissionErrors';
 
 const AuthContext = createContext({
   user: null,
@@ -9,6 +12,8 @@ const AuthContext = createContext({
   logout: async () => { },
   register: async (name, email, password) => { },
   verifyRegistrationOtp: async (email, otp, password) => { },
+  forgotPassword: async (email, industryType) => { },
+  resetPassword: async (email, otp, newPassword, industryType) => { },
   isLoading: true,
 });
 
@@ -64,6 +69,7 @@ export const AuthProvider = ({ children }) => {
         try {
           parsedUser = JSON.parse(savedUser);
           setUser(parsedUser);
+          userRef.current = parsedUser;
         } catch {
           await SecureStore.deleteItemAsync('userData');
         }
@@ -104,6 +110,7 @@ export const AuthProvider = ({ children }) => {
   // `user.organization` so `user?.organization?.industryType === 'interior'`
   // checks (e.g. dashboard) work the same as the construction flow.
   const persistSession = useCallback(async (authToken, refreshToken, userObj) => {
+    userRef.current = userObj;
     await SecureStore.setItemAsync('userToken', authToken);
     if (refreshToken) await SecureStore.setItemAsync('refreshToken', refreshToken);
     else await SecureStore.deleteItemAsync('refreshToken');
@@ -168,12 +175,12 @@ export const AuthProvider = ({ children }) => {
     }
   }, [loginInterior, persistSession]);
 
-  const registerInterior = useCallback(async ({ organizationName, firstName, lastName, email, password }) => {
+  const registerInterior = useCallback(async ({ organizationName, firstName, lastName, email, password, phone, country, currency, timezone }) => {
     try {
       const response = await fetch(`${INTERIOR_API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ organizationName, firstName, lastName, email, password }),
+        body: JSON.stringify({ organizationName, firstName, lastName, email, password, phone, country, currency, timezone }),
       });
 
       const data = await response.json();
@@ -264,6 +271,84 @@ export const AuthProvider = ({ children }) => {
     }
   }, [login, verifyInteriorOtp]);
 
+  const forgotPassword = useCallback(async (email, industryType = 'construction') => {
+    const lowerEmail = (email || '').trim().toLowerCase();
+    if (industryType === 'interior') {
+      try {
+        const response = await fetch(`${INTERIOR_API_URL}/auth/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: lowerEmail }),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          return { success: true, message: data.message || 'OTP sent successfully' };
+        } else {
+          return { success: false, message: data.error || data.message || 'Failed to send OTP' };
+        }
+      } catch (e) {
+        console.error('Interior forgot password error', e);
+        return { success: false, message: 'Network error. Please try again.' };
+      }
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: lowerEmail }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        return { success: true, message: data.message || 'OTP sent successfully' };
+      } else {
+        return { success: false, message: data.message || 'Failed to send OTP' };
+      }
+    } catch (e) {
+      console.error('Forgot password error', e);
+      return { success: false, message: 'Network error. Please try again.' };
+    }
+  }, []);
+
+  const resetPassword = useCallback(async (email, otp, newPassword, industryType = 'construction') => {
+    const lowerEmail = (email || '').trim().toLowerCase();
+    if (industryType === 'interior') {
+      try {
+        const response = await fetch(`${INTERIOR_API_URL}/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: lowerEmail, otp, newPassword }),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          return { success: true, message: data.message || 'Password reset successfully' };
+        } else {
+          return { success: false, message: data.error || data.message || 'Failed to reset password' };
+        }
+      } catch (e) {
+        console.error('Interior reset password error', e);
+        return { success: false, message: 'Network error. Please try again.' };
+      }
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: lowerEmail, otp, newPassword }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        return { success: true, message: data.message || 'Password reset successfully' };
+      } else {
+        return { success: false, message: data.message || 'Failed to reset password' };
+      }
+    } catch (e) {
+      console.error('Reset password error', e);
+      return { success: false, message: 'Network error. Please try again.' };
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     if (isLoggingOutRef.current) return;
     isLoggingOutRef.current = true;
@@ -284,6 +369,8 @@ export const AuthProvider = ({ children }) => {
       await SecureStore.deleteItemAsync('userToken');
       await SecureStore.deleteItemAsync('refreshToken');
       await SecureStore.deleteItemAsync('userData');
+      // Drop cached org data so the next login never sees the previous user's leads/projects
+      queryClient.clear();
       setToken(null);
       setUser(null);
       router.replace('/auth/login');
@@ -305,7 +392,13 @@ export const AuthProvider = ({ children }) => {
       // flow below, bouncing the user back to login — so block it here,
       // globally, instead of relying on every screen to remember to guard.
       const isInteriorSession = userRef.current?.organization?.industryType === 'interior';
-      if (isInteriorSession && typeof url === 'string' && url.startsWith(API_BASE_URL)) {
+      const isConstructionCall = typeof url === 'string' && (
+        (API_BASE_URL && url.startsWith(API_BASE_URL)) ||
+        url.includes('new-update-two.vercel.app') ||
+        url.includes('sky-lite-api.vercel.app')
+      );
+
+      if (isInteriorSession && isConstructionCall) {
         console.warn('[blocked] construction API call from interior session:', url);
         return new Response(JSON.stringify({}), {
           status: 200,
@@ -315,15 +408,23 @@ export const AuthProvider = ({ children }) => {
 
       let response = await originalFetch(url, options);
 
+      // Lets the toast show "no permission" instead of a generic failure
+      if (response.status === 403) markForbidden();
+
       // If 401 Unauthorized, and it's an API request (not login, refresh, or logout)
       if (
         response.status === 401 &&
-        typeof url === 'string' &&
-        url.startsWith(API_BASE_URL) &&
+        isConstructionCall &&
         !url.includes('/auth/login') &&
         !url.includes('/auth/refresh') &&
         !url.includes('/auth/logout')
       ) {
+        // Never logout an interior session due to a construction API 401!
+        if (isInteriorSession) {
+          console.warn('[ignored 401] Construction API 401 ignored for interior session:', url);
+          return response;
+        }
+
         const currentRefreshToken = await SecureStore.getItemAsync('refreshToken');
 
         if (currentRefreshToken) {
@@ -431,15 +532,48 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  // Role permissions are saved at login. Re-read them once the session loads and
+  // whenever the app returns to the foreground, so role changes an admin makes
+  // apply without logging out (mirrors the web AuthContext). Construction only.
+  const syncUser = useCallback(async () => {
+    const current = userRef.current;
+    if (!token || !current || current?.organization?.industryType === 'interior') return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      const data = await res.json();
+      const fresh = data?.user;
+      if (!fresh) return;
+      const merged = { ...current, ...fresh };
+      userRef.current = merged;
+      setUser(merged);
+      await SecureStore.setItemAsync('userData', JSON.stringify(merged));
+    } catch {
+      // Keep the cached user if the refresh fails (offline, etc.)
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || isLoading) return;
+    syncUser();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') syncUser();
+    });
+    return () => sub.remove();
+  }, [token, isLoading, syncUser]);
+
   const contextValue = useMemo(() => ({
     user,
     token,
     login,
     logout,
     register,
+    registerInterior,
     verifyRegistrationOtp,
+    forgotPassword,
+    resetPassword,
     isLoading
-  }), [user, token, login, logout, register, verifyRegistrationOtp, isLoading]);
+  }), [user, token, login, logout, register, registerInterior, verifyRegistrationOtp, forgotPassword, resetPassword, isLoading]);
 
   return (
     <AuthContext.Provider value={contextValue}>

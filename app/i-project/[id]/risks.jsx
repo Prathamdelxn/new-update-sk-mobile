@@ -1,13 +1,61 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+
+// Reusable dropdown select field (replaces horizontal chip-scroll / stacked
+// option lists for single-choice fields like Threat Category / Probability / Impact).
+function SelectDropdown({ value, options, onChange, placeholder = 'Select...', inputStyle }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <View>
+      <TouchableOpacity style={[inputStyle, ddStyles.row]} onPress={() => setOpen((v) => !v)}>
+        <Text style={[ddStyles.text, !selected && ddStyles.placeholder]} numberOfLines={1}>
+          {selected ? selected.label : placeholder}
+        </Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
+      </TouchableOpacity>
+      {open && (
+        <View style={ddStyles.menu}>
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
+            {options.map((o, idx) => {
+              const active = o.value === value;
+              return (
+                <TouchableOpacity
+                  key={`${o.value}-${idx}`}
+                  style={[ddStyles.menuItem, active && ddStyles.menuItemActive]}
+                  onPress={() => { onChange(o.value); setOpen(false); }}
+                >
+                  <Text style={[ddStyles.menuItemText, active && ddStyles.menuItemTextActive]} numberOfLines={1}>{o.label}</Text>
+                  {active && <Ionicons name="checkmark" size={14} color="#2563EB" />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const ddStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  placeholder: { color: '#94A3B8' },
+  menu: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, overflow: 'hidden' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  menuItemActive: { backgroundColor: '#EFF6FF' },
+  menuItemText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
+  menuItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
+});
 
 const CATEGORIES = [
   { value: 'design', label: 'Design Mismatch' },
@@ -48,6 +96,7 @@ export default function InteriorRisksScreen() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [editRiskId, setEditRiskId] = useState(null);
 
   const fetchRisks = useCallback(async () => {
     setLoading(true);
@@ -64,23 +113,68 @@ export default function InteriorRisksScreen() {
 
   useFocusEffect(useCallback(() => { fetchRisks(); }, [fetchRisks]));
 
-  const handleCreate = async () => {
+  const handleSubmitRisk = async () => {
     if (!form.description.trim()) {
       showToast('Please fill in the risk description', 'error');
       return;
     }
     setSubmitting(true);
     try {
-      await interiorApiClient.post(`/projects/${projectId}/risks`, form);
-      showToast('Risk logged successfully!', 'success');
-      setIsModalOpen(false);
-      setForm(emptyForm);
+      if (editRiskId) {
+        await interiorApiClient.put(`/projects/${projectId}/risks`, { riskId: editRiskId, ...form });
+        showToast('Risk updated successfully!', 'success');
+      } else {
+        await interiorApiClient.post(`/projects/${projectId}/risks`, form);
+        showToast('Risk logged successfully!', 'success');
+      }
+      closeModal();
       fetchRisks();
     } catch (e) {
-      showToast(e.message || 'Failed to log risk', 'error');
+      showToast(e.message || (editRiskId ? 'Failed to update risk' : 'Failed to log risk'), 'error');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const openCreateModal = () => {
+    setEditRiskId(null);
+    setForm(emptyForm);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (risk) => {
+    setEditRiskId(risk._id);
+    setForm({
+      description: risk.description || '',
+      category: risk.category || 'site_execution',
+      probability: risk.probability || 'medium',
+      impact: risk.impact || 'medium',
+      mitigationPlan: risk.mitigationPlan || '',
+    });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditRiskId(null);
+    setForm(emptyForm);
+  };
+
+  const handleDeleteRisk = (risk) => {
+    Alert.alert('Delete Risk', 'Are you sure you want to delete this logged risk?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await interiorApiClient.delete(`/projects/${projectId}/risks?riskId=${risk._id}`);
+            showToast('Risk deleted successfully', 'delete');
+            fetchRisks();
+          } catch (e) {
+            showToast(e.message || 'Failed to delete risk', 'error');
+          }
+        },
+      },
+    ]);
   };
 
   const matrixCount = (p, i) => risks.filter((r) => r.probability === p && r.impact === i).length;
@@ -142,8 +236,16 @@ export default function InteriorRisksScreen() {
                       <View style={s.categoryTag}>
                         <Text style={s.categoryTagText}>{String(risk.category).replace('_', ' ')}</Text>
                       </View>
-                      <View style={[s.scoreBadge, { backgroundColor: sc.bg }]}>
-                        <Text style={[s.scoreBadgeText, { color: sc.color }]}>Score {risk.score} ({risk.probability} × {risk.impact})</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View style={[s.scoreBadge, { backgroundColor: sc.bg }]}>
+                          <Text style={[s.scoreBadgeText, { color: sc.color }]}>Score {risk.score} ({risk.probability} × {risk.impact})</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => openEditModal(risk)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                          <Ionicons name="pencil-outline" size={14} color="#94A3B8" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDeleteRisk(risk)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                          <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                        </TouchableOpacity>
                       </View>
                     </View>
                     <Text style={s.riskDesc}>{risk.description}</Text>
@@ -161,17 +263,17 @@ export default function InteriorRisksScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={() => setIsModalOpen(true)}>
+        <TouchableOpacity style={s.fab} onPress={openCreateModal}>
           <Ionicons name="add" size={26} color="#FFFFFF" />
         </TouchableOpacity>
       </SafeAreaView>
 
-      <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={() => setIsModalOpen(false)}>
+      <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={closeModal}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Log Project Risk</Text>
-              <TouchableOpacity onPress={() => setIsModalOpen(false)}>
+              <Text style={s.modalTitle}>{editRiskId ? 'Edit Project Risk' : 'Log Project Risk'}</Text>
+              <TouchableOpacity onPress={closeModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
@@ -181,30 +283,34 @@ export default function InteriorRisksScreen() {
               <TextInput style={s.input} placeholder="e.g. Delayed HVAC supply might slip ceiling layout" placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} />
 
               <Text style={s.label}>Threat Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
-                {CATEGORIES.map((c) => (
-                  <TouchableOpacity key={c.value} style={[s.chip, form.category === c.value && s.chipActive]} onPress={() => setForm({ ...form, category: c.value })}>
-                    <Text style={[s.chipText, form.category === c.value && s.chipTextActive]}>{c.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <SelectDropdown
+                value={form.category}
+                options={CATEGORIES}
+                onChange={(v) => setForm({ ...form, category: v })}
+                placeholder="Select threat category"
+                inputStyle={s.input}
+              />
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.label}>Probability</Text>
-                  {LEVELS.map((l) => (
-                    <TouchableOpacity key={l.value} style={[s.levelOption, form.probability === l.value && s.levelOptionActive]} onPress={() => setForm({ ...form, probability: l.value })}>
-                      <Text style={[s.levelOptionText, form.probability === l.value && s.levelOptionTextActive]}>{l.label}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  <SelectDropdown
+                    value={form.probability}
+                    options={LEVELS}
+                    onChange={(v) => setForm({ ...form, probability: v })}
+                    placeholder="Select probability"
+                    inputStyle={s.input}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.label}>Impact Level</Text>
-                  {LEVELS.map((l) => (
-                    <TouchableOpacity key={l.value} style={[s.levelOption, form.impact === l.value && s.levelOptionActive]} onPress={() => setForm({ ...form, impact: l.value })}>
-                      <Text style={[s.levelOptionText, form.impact === l.value && s.levelOptionTextActive]}>{l.label}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  <SelectDropdown
+                    value={form.impact}
+                    options={LEVELS}
+                    onChange={(v) => setForm({ ...form, impact: v })}
+                    placeholder="Select impact level"
+                    inputStyle={s.input}
+                  />
                 </View>
               </View>
 
@@ -218,8 +324,8 @@ export default function InteriorRisksScreen() {
                 multiline
               />
 
-              <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleCreate} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Log Risk</Text>}
+              <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmitRisk} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editRiskId ? 'Save Changes' : 'Log Risk'}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -280,16 +386,6 @@ const s = StyleSheet.create({
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
-
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
-  chipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  chipText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  chipTextActive: { color: '#2563EB' },
-
-  levelOption: { paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', marginBottom: 6 },
-  levelOptionActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  levelOptionText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  levelOptionTextActive: { color: '#FFFFFF' },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },
   saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },

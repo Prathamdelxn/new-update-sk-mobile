@@ -36,7 +36,7 @@ const FolderCard = memo(({ folder, onSelect }) => (
   </TouchableOpacity>
 ));
 
-const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAssignPlans, onDocDelete, onVersionDelete, onDocView, onSendApproval, onRevertDraft, onApprove, onReject, onUploadRevision, onShowHistory, isUpdating, uploadingRevisionId, canAnnotate, onAnnotate }) => {
+const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAssignPlans, canCreatePlans, canApprovePlans, onDocDelete, onVersionDelete, onDocView, onSendApproval, onRevertDraft, onApprove, onReject, onUploadRevision, onShowHistory, isUpdating, uploadingRevisionId, canAnnotate, onAnnotate }) => {
   const versions = item.versions || [];
   const [viewIdx, setViewIdx] = useState(versions.length - 1);
 
@@ -161,7 +161,7 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
                   <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>Resubmit</Text>
                 </TouchableOpacity>
               )}
-              {activeIsAdmin && (status === 'Approved' || status === 'Rejected') && (
+              {(activeIsAdmin || canCreatePlans) && (status === 'Approved' || status === 'Rejected') && (
                 <TouchableOpacity
                   style={[styles.miniBtn, { backgroundColor: '#EFF6FF', borderColor: '#3B82F640' }]}
                   onPress={() => onUploadRevision(item)}
@@ -178,7 +178,7 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
                 </TouchableOpacity>
               )}
 
-              {status === 'Pending' && item.isMyTurn && (
+              {status === 'Pending' && (activeIsAdmin || (item.isMyTurn && canApprovePlans)) && (
                 <>
                   <TouchableOpacity
                     style={[styles.miniBtn, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
@@ -198,7 +198,7 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
               )}
             </>
           )}
-          {activeIsAdmin && (status === 'Draft' || status === 'Pending') && versionCount > 1 && (
+          {(activeIsAdmin || canDeleteDocument) && (status === 'Draft' || status === 'Pending') && versionCount > 1 && (
             <TouchableOpacity
               style={[styles.miniBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
               onPress={() => onVersionDelete(item, displayedVersion)}
@@ -230,7 +230,8 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
   const canEditPlans = !isLocked && (activeIsAdmin || hasProjectPermission(user, project, 'plans:update') || hasProjectPermission(user, project, 'plans:edit'));
   const canApprovePlans = !isLocked && (activeIsAdmin || hasProjectPermission(user, project, 'plans:approve'));
   const canAssignPlans = !isLocked && (activeIsAdmin || hasProjectPermission(user, project, 'plans:assign'));
-  const canViewPlans = activeIsAdmin || hasAnyProjectPermissionPrefix(user, project, 'plans:');
+  // View needs Plan Management > View itself (matches web PlansTab)
+  const canViewPlans = activeIsAdmin || hasProjectPermission(user, project, 'plans:view');
   const activeCurrentUserId = currentUserId || user?.id;
 
   const [planFolders, setPlanFolders] = useState([]);
@@ -284,7 +285,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setAnnotations(await res.json());
-    } catch (e) {}
+    } catch (e) { }
   }, [activeId, token]);
 
   const openAnnotateModal = useCallback((item) => {
@@ -323,7 +324,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
         headers: { Authorization: `Bearer ${token}` },
       });
       setAnnotations(prev => prev.filter(a => a._id !== annotationId));
-    } catch (e) {}
+    } catch (e) { }
   }, [activeId, token]);
 
   const myApprovalEntry = (version) =>
@@ -458,15 +459,67 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
     try {
       setIsLoadingApprovers(true);
       setSelectedApproverIds([]);
-      const response = await fetch(`${API_BASE_URL}/projects/${activeId}/plan-approvers`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setApproversList(data);
-      } else {
-        showToast('Failed to fetch approvers', 'error');
+      let list = [];
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/projects/${activeId}/plan-approvers`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            list = [...data];
+          }
+        }
+      } catch (err) {
+        console.log('[fetchPlanApprovers] endpoint error:', err);
       }
+
+      // Also fetch from /users to ensure all organization Admins and approvers are included
+      try {
+        const usersResponse = await fetch(`${API_BASE_URL}/users?projectId=${activeId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (usersResponse.ok) {
+          const uData = await usersResponse.json();
+          const usersArr = Array.isArray(uData) ? uData : (uData.users || []);
+          usersArr.forEach(u => {
+            const rName = u.role?.name || u.roleName || '';
+            const isAdm = rName === 'Admin' || rName === 'SuperAdmin' || rName === 'Super Admin' || u.role?.isSystemRole || (u.role?.permissions && u.role.permissions.includes('*'));
+            const hasPerm = u.role?.permissions && u.role.permissions.includes('plans:approve');
+
+            if (isAdm || hasPerm) {
+              const uId = (u._id || u.id)?.toString();
+              const alreadyInList = list.some(existing => (existing._id || existing.id)?.toString() === uId);
+              if (!alreadyInList) {
+                list.push({
+                  _id: uId,
+                  name: u.name || rName || 'Admin',
+                  email: u.email || '',
+                  roleName: rName || (isAdm ? 'Admin' : 'Member')
+                });
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.log('[fetchPlanApprovers] users fallback error:', err);
+      }
+
+      // If creator is an admin and still not in list, add creator
+      if (project?.createdBy && typeof project.createdBy === 'object' && project.createdBy._id) {
+        const creatorId = project.createdBy._id.toString();
+        if (!list.some(existing => (existing._id || existing.id)?.toString() === creatorId)) {
+          list.unshift({
+            _id: creatorId,
+            name: project.createdBy.name || 'Admin',
+            email: project.createdBy.email || '',
+            roleName: project.createdBy.role?.name || project.createdBy.roleName || 'Admin'
+          });
+        }
+      }
+
+      setApproversList(list);
     } catch (e) {
       console.error(e);
       showToast(t('networkErrorFetchApprovers'), 'error');
@@ -692,12 +745,20 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
     if ((isImage || isPdf) && plan?._id && folderId) {
       router.push({
         pathname: '/annotate-plan',
-        params: { url, name, documentId: plan._id, folderId, projectId: activeId, canAnnotate: canAnnotate ? '1' : '0', isPdf: isPdf ? '1' : '0' },
+        params: {
+          url, name, documentId: plan._id, folderId, projectId: activeId,
+          canAnnotate: canAnnotate ? '1' : '0', isPdf: isPdf ? '1' : '0',
+          // Plan Annotations per action (global role or role on this project)
+          canViewAnn: (activeIsAdmin || hasProjectPermission(user, project, 'annotations:view')) ? '1' : '0',
+          canCreateAnn: (activeIsAdmin || (!isLocked && hasProjectPermission(user, project, 'annotations:create'))) ? '1' : '0',
+          canUpdateAnn: (activeIsAdmin || (!isLocked && hasProjectPermission(user, project, 'annotations:update'))) ? '1' : '0',
+          canDeleteAnn: (activeIsAdmin || (!isLocked && hasProjectPermission(user, project, 'annotations:delete'))) ? '1' : '0',
+        },
       });
     } else {
       router.push({ pathname: '/document-viewer', params: { url, name } });
     }
-  }, [router, activeId, canAnnotate]);
+  }, [router, activeId, canAnnotate, activeIsAdmin, isLocked, user, project]);
 
   const activeFolder = useMemo(() => planFolders.find(f => f._id === activeFolderId), [planFolders, activeFolderId]);
 
@@ -795,6 +856,8 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
       activeIsAdmin={activeIsAdmin}
       canDeleteDocument={canDeleteDocument}
       canAssignPlans={canAssignPlans}
+      canCreatePlans={canCreatePlans}
+      canApprovePlans={canApprovePlans}
       onDocDelete={handlePlanDeleteDoc}
       onVersionDelete={handleVersionDelete}
       onDocView={handleViewDocument}
@@ -809,7 +872,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
       canAnnotate={canAnnotate}
       onAnnotate={openAnnotateModal}
     />
-  ), [activeFolderId, activeIsAdmin, canDeleteDocument, canAssignPlans, handlePlanDeleteDoc, handleVersionDelete, handleViewDocument, handleDocSendApproval, handleRevertDraft, handleDocApprove, handleDocReject, handleUploadDocument, updatingDocId, uploadingRevisionId, canAnnotate, openAnnotateModal]);
+  ), [activeFolderId, activeIsAdmin, canDeleteDocument, canAssignPlans, canCreatePlans, canApprovePlans, handlePlanDeleteDoc, handleVersionDelete, handleViewDocument, handleDocSendApproval, handleRevertDraft, handleDocApprove, handleDocReject, handleUploadDocument, updatingDocId, uploadingRevisionId, canAnnotate, openAnnotateModal]);
 
   if (!canViewPlans) {
     return (
@@ -866,12 +929,12 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
               ) : (
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   {canCreatePlans && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => {
                         setEditingFolderId(null);
                         setFolderName('');
                         setShowFolderModal(true);
-                      }} 
+                      }}
                       style={styles.uploadPill}
                     >
                       <Ionicons name="add" size={16} color="#FFF" />
@@ -895,8 +958,8 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                   />
                 </View>
                 {activeFolder && (
-                  <TouchableOpacity 
-                    style={[styles.filterToggleBtn, showFilters && styles.filterToggleBtnActive]} 
+                  <TouchableOpacity
+                    style={[styles.filterToggleBtn, showFilters && styles.filterToggleBtnActive]}
                     onPress={() => setShowFilters(!showFilters)}
                   >
                     <Ionicons name="options" size={20} color={showFilters ? '#FFF' : '#64748B'} />
@@ -1037,9 +1100,9 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
               <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
                 {approversList.map((approver) => {
                   const isSelected = selectedApproverIds.includes(approver._id);
-                  const matchingMember = project?.members?.find(m => m._id === approver._id || (m.email && m.email === approver.email)) || 
-                                         ((project?.createdBy?._id === approver._id || (project?.createdBy?.email && project?.createdBy?.email === approver.email)) ? project?.createdBy : null);
-                  
+                  const matchingMember = project?.members?.find(m => m._id === approver._id || (m.email && m.email === approver.email)) ||
+                    ((project?.createdBy?._id === approver._id || (project?.createdBy?.email && project?.createdBy?.email === approver.email)) ? project?.createdBy : null);
+
                   let displayName = approver.name;
                   const isInvalidName = (name) => {
                     if (!name) return true;
@@ -1058,8 +1121,12 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                     displayName = approver.email.split('@')[0];
                   }
 
+                  if (!displayName || isInvalidName(displayName)) {
+                    displayName = approver.name || approver.roleName || 'Admin';
+                  }
+
                   if (displayName && displayName.includes('.')) {
-                      displayName = displayName.split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+                    displayName = displayName.split('.').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
                   }
 
                   return (
@@ -1212,14 +1279,17 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                     <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#1E293B' }}>{a.text}</Text>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
                       <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' }}>{a.createdByName || 'You'} • {new Date(a.createdAt).toLocaleDateString()}</Text>
-                      <TouchableOpacity onPress={() => deleteAnnotation(a._id)}>
-                        <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                      </TouchableOpacity>
+                      {(activeIsAdmin || (!isLocked && hasProjectPermission(user, project, 'annotations:delete'))) && (
+                        <TouchableOpacity onPress={() => deleteAnnotation(a._id)}>
+                          <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
                 ))}
               </ScrollView>
 
+              {(activeIsAdmin || (!isLocked && hasProjectPermission(user, project, 'annotations:create'))) && (
               <View style={{ marginTop: 12, gap: 10 }}>
                 <TextInput
                   style={[styles.modalInput, { height: 80, textAlignVertical: 'top' }]}
@@ -1246,6 +1316,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
+              )}
             </View>
           </View>
         </KeyboardAvoidingView>

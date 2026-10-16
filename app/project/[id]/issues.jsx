@@ -273,7 +273,7 @@ export default function ProjectIssuesTab({ project }) {
         body: JSON.stringify({ title, description, priority, category, assignedTo, images: uploadedUrls })
       });
       if (res.ok) {
-        showToast(selectedIssue ? "Issue updated" : "Issue reported successfully", "success");
+        showToast(selectedIssue ? "Snag updated" : "Snag reported successfully", "success");
         setIsAddIssueModalVisible(false);
         setSelectedIssue(null);
         setTitle(''); 
@@ -285,7 +285,7 @@ export default function ProjectIssuesTab({ project }) {
         fetchData();
       } else {
         const errorData = await res.json();
-        showToast(errorData.message || `Failed to ${selectedIssue ? 'update' : 'create'} issue`, "error");
+        showToast(errorData.message || `Failed to ${selectedIssue ? 'update' : 'create'} snag`, "error");
       }
     } catch (error) {
       showToast(t('networkErrorTryAgain'), "error");
@@ -310,7 +310,7 @@ export default function ProjectIssuesTab({ project }) {
         setSelectedIssue(null);
         fetchData();
       } else {
-        showToast("Failed to assign issue", "error");
+        showToast("Failed to assign snag", "error");
       }
     } catch (error) {
       showToast("Network Error", "error");
@@ -349,7 +349,7 @@ export default function ProjectIssuesTab({ project }) {
       });
       
       if (res.ok) {
-        showToast(`Issue marked as ${updateStatus}`, "success");
+        showToast(`Snag marked as ${updateStatus}`, "success");
         setIsUpdateModalVisible(false);
         setResolutionImage(null);
         setUpdateNote('');
@@ -374,7 +374,7 @@ export default function ProjectIssuesTab({ project }) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        showToast("Issue removed", "delete");
+        showToast("Snag removed", "delete");
         setIsConfirmDeleteVisible(false);
         setIssueToDelete(null);
         fetchData();
@@ -409,7 +409,7 @@ export default function ProjectIssuesTab({ project }) {
           style={[styles.subTab, activeSubTab === 'Issues' && styles.subTabActive]} 
           onPress={() => { LayoutAnimation.easeInEaseOut(); setActiveSubTab('Issues'); }}
         >
-          <Text style={[styles.subTabText, activeSubTab === 'Issues' && styles.subTabTextActive]}>Active Issues</Text>
+          <Text style={[styles.subTabText, activeSubTab === 'Issues' && styles.subTabTextActive]}>Active Snags</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.subTab, activeSubTab === 'Matrix' && styles.subTabActive]} 
@@ -425,7 +425,7 @@ export default function ProjectIssuesTab({ project }) {
             <Feather name="lock" size={48} color="#CBD5E1" />
             <Text style={styles.emptyText}>Restricted Access</Text>
             <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 }}>
-              You don't have permission to view Snags & Issues. Contact your administrator.
+              You don't have permission to view Snags. Contact your administrator.
             </Text>
           </View>
         ) : (
@@ -437,19 +437,19 @@ export default function ProjectIssuesTab({ project }) {
           >
             <View style={[styles.headerRow, { width: '100%' }]}>
               <View style={{ flex: 1, flexShrink: 1, paddingRight: 10 }}>
-                <Text style={styles.title} numberOfLines={1}>Snags and Issues</Text>
-                <Text style={styles.countText}>{issues.length} active items</Text>
+                <Text style={styles.title} numberOfLines={1}>Snags</Text>
+                <Text style={styles.countText}>{issues.length} active {issues.length === 1 ? 'snag' : 'snags'}</Text>
               </View>
               <TouchableOpacity style={styles.addBtn} onPress={() => {
                 if (!hasPermission('snags', 'create')) {
-                  showToast("You don't have permission to report issues.", "error");
+                  showToast("You don't have permission to report snags.", "error");
                   return;
                 }
                 setAssignedTo(null);
                 setIsAddIssueModalVisible(true);
               }}>
                 <Feather name="plus" size={16} color="#FFF" />
-                <Text style={styles.addBtnText}>Report Issue</Text>
+                <Text style={styles.addBtnText}>Report Snag</Text>
               </TouchableOpacity>
             </View>
 
@@ -468,7 +468,7 @@ export default function ProjectIssuesTab({ project }) {
             {issues.length === 0 ? (
               <View style={styles.empty}>
                 <MaterialCommunityIcons name="check-circle-outline" size={48} color="#CBD5E1" />
-                <Text style={styles.emptyText}>No active issues</Text>
+                <Text style={styles.emptyText}>No active snags</Text>
               </View>
             ) : (
               issues
@@ -634,7 +634,7 @@ export default function ProjectIssuesTab({ project }) {
             <View style={[styles.headerRow, { width: '100%' }]}>
               <View style={{ flex: 1, flexShrink: 1, paddingRight: 10 }}>
                 <Text style={styles.title} numberOfLines={2}>Hierarchy of Responsibility</Text>
-                <Text style={styles.subtitle} numberOfLines={1}>Contact paths for issue resolution</Text>
+                <Text style={styles.subtitle} numberOfLines={1}>Contact paths for snag resolution</Text>
               </View>
               <TouchableOpacity 
                 style={[styles.addBtn, { flexShrink: 0 }]} 
@@ -723,7 +723,7 @@ export default function ProjectIssuesTab({ project }) {
           <AdaptiveGlass intensity={40} tint="light" style={[styles.bottomSheet, keyboardHeight > 0 && { paddingBottom: keyboardHeight + 10 }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
-              <Text style={styles.modalTitle}>{selectedIssue ? 'Edit Issue Details' : 'Report New Issue'}</Text>
+              <Text style={styles.modalTitle}>{selectedIssue ? 'Edit Snag Details' : 'Report New Snag'}</Text>
               <TouchableOpacity onPress={() => {
                 setIsAddIssueModalVisible(false);
                 setSelectedIssue(null);
@@ -771,7 +771,7 @@ export default function ProjectIssuesTab({ project }) {
                 )}
               </View>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Issue Title</Text>
+                <Text style={styles.label}>Snag Title</Text>
                 <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="What is the problem?" placeholderTextColor="#94A3B8" />
               </View>
 
@@ -792,7 +792,7 @@ export default function ProjectIssuesTab({ project }) {
         <View style={styles.modalOverlayCenter}>
           <TouchableOpacity style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setIsAssignModalVisible(false)} />
           <View style={styles.smallModal}>
-            <Text style={styles.modalTitleSmall}>Assign Issue</Text>
+            <Text style={styles.modalTitleSmall}>Assign Snag</Text>
             
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Select Member</Text>
@@ -935,7 +935,7 @@ export default function ProjectIssuesTab({ project }) {
               )}
 
               <TouchableOpacity style={styles.submitBtn} onPress={handleUpdateIssue} disabled={isSubmitting}>
-                {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Update Issue</Text>}
+                {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Update Snag</Text>}
               </TouchableOpacity>
             </ScrollView>
           </AdaptiveGlass>
@@ -1076,7 +1076,7 @@ export default function ProjectIssuesTab({ project }) {
 
       <ConfirmModal 
         visible={isConfirmDeleteVisible}
-        title="Delete Issue"
+        title="Delete Snag"
         message="Are you sure you want to remove this report? This action cannot be undone."
         type="destructive"
         confirmText="Delete"

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Linking,
+  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Linking, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
@@ -157,6 +157,29 @@ export default function InteriorHandoverScreen() {
     if (!result.canceled && result.assets?.length) setSelectedFile(result.assets[0]);
   };
 
+  const handleDeleteDocument = (doc) => {
+    Alert.alert(
+      'Delete Document',
+      `Are you sure you want to delete "${doc.name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await interiorApiClient.post(`/projects/${projectId}/handover`, { deleteDocumentId: doc._id });
+              showToast('Document deleted successfully', 'success');
+              fetchHandover();
+            } catch (e) {
+              showToast(e.message || 'Failed to delete document', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleUploadDocument = async () => {
     if (!docName.trim()) return showToast('Please fill in document description', 'error');
     if (!selectedFile) return showToast('Please select a file to upload', 'error');
@@ -279,9 +302,14 @@ export default function InteriorHandoverScreen() {
                     <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
                     <Text style={s.docType}>{doc.type}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => Linking.openURL(doc.url)}>
-                    <Ionicons name="download-outline" size={18} color="#2563EB" />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 14 }}>
+                    <TouchableOpacity onPress={() => Linking.openURL(doc.url)}>
+                      <Ionicons name="download-outline" size={18} color="#2563EB" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteDocument(doc)}>
+                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             )}

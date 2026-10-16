@@ -100,7 +100,7 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
     if (!projectId) return;
     try {
       setIsLoadingFixingMembers(true);
-      const response = await fetch(`${API_BASE_URL}/users?projectId=${projectId}&permission=snag:complete`, {
+      const response = await fetch(`${API_BASE_URL}/users?projectId=${projectId}&permission=snags:complete`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -515,19 +515,25 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
             </TouchableOpacity>
           )}
 
-          {item.status === 'Draft' && isInspector && (
+          {/* Edit / Delete follow Snag Management > Update / Delete (any status, not just the inspector's drafts) */}
+          {!isProjectLocked(project) && (hasProjectPermission(user, project, 'snags:update') || hasProjectPermission(user, project, 'snags:delete')) && (
             <View style={styles.actionMiniGroup}>
-              <TouchableOpacity style={styles.editMiniBtn} onPress={() => handleEditSnag(item)}>
-                <Ionicons name="create-outline" size={16} color="#3B82F6" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteMiniBtn} onPress={() => handleDeleteSnag(item._id)}>
-                <Ionicons name="trash-outline" size={16} color="#EF4444" />
-              </TouchableOpacity>
+              {hasProjectPermission(user, project, 'snags:update') && (
+                <TouchableOpacity style={styles.editMiniBtn} onPress={() => handleEditSnag(item)}>
+                  <Ionicons name="create-outline" size={16} color="#3B82F6" />
+                </TouchableOpacity>
+              )}
+              {hasProjectPermission(user, project, 'snags:delete') && (
+                <TouchableOpacity style={styles.deleteMiniBtn} onPress={() => handleDeleteSnag(item._id)}>
+                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                </TouchableOpacity>
+              )}
             </View>
             
           )}
 
-          {item.status === 'In Progress' && !isProjectLocked(project) && (item.assignedTo?._id === user?._id || item.assignedTo === user?._id || hasProjectPermission(user, project, 'snag:complete')) && (
+          {/* Snag Management > Complete decides — being the assignee isn't enough */}
+          {item.status === 'In Progress' && !isProjectLocked(project) && hasProjectPermission(user, project, 'snags:complete') && (
             <TouchableOpacity
               style={[styles.assignFixingBtn, { backgroundColor: '#ECFDF5', borderColor: '#6EE7B7' }]}
               onPress={() => {
@@ -547,9 +553,61 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
   );
 
   const isInspector = !isProjectLocked(project) && (project?.snaggedBy?._id || project?.snaggedBy) === (user?.id || user?._id);
-  const canAssignSnagging = !isProjectLocked(project) && hasProjectPermission(user, project, 'snag:assign');
+  const canAssignSnagging = !isProjectLocked(project) && hasProjectPermission(user, project, 'snags:assign');
   const isAdmin = !isProjectLocked(project) && user?.role?.name === 'Admin';
   const isSnaggingActive = project?.status === 'Under Snagging' || project?.status === 'Snagging Completed';
+
+  // The project stays Ongoing until every milestone is completed, then moves into
+  // snagging automatically. Users with Project Management > Update can also start
+  // it by hand. (Mirrors web; the API enforces the same rules.)
+  const canStartSnagging = project?.status === 'Ongoing' && !isProjectLocked(project) && hasProjectPermission(user, project, 'projects:update');
+  const [milestoneProgress, setMilestoneProgress] = useState(null);
+  const [startingSnagging, setStartingSnagging] = useState(false);
+
+  useEffect(() => {
+    if (!projectId || !token || isSnaggingActive) return;
+    fetch(`${API_BASE_URL}/projects/${projectId}/milestones`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((list) => {
+        const arr = Array.isArray(list) ? list : [];
+        setMilestoneProgress({ completed: arr.filter((m) => m.status === 'Completed').length, total: arr.length });
+      })
+      .catch(() => setMilestoneProgress(null));
+  }, [projectId, token, isSnaggingActive, refreshTrigger]);
+
+  const handleStartSnagging = () => {
+    Alert.alert(
+      t('startSnaggingTitle', 'Start Snagging Phase'),
+      t('startSnaggingConfirm', 'Move this project into the snagging phase? Use this when construction work is finished and the site is ready for snag inspection.'),
+      [
+        { text: t('cancel', 'Cancel'), style: 'cancel' },
+        {
+          text: t('startSnagging', 'Start Snagging'),
+          onPress: async () => {
+            setStartingSnagging(true);
+            try {
+              const res = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ status: 'Under Snagging', auditAction: 'StatusChange', auditDetails: 'Snagging phase started manually.' }),
+              });
+              if (res.ok) {
+                showToast(t('snaggingStarted', 'Snagging phase started'), 'success');
+                if (fetchProjectData) fetchProjectData();
+              } else {
+                const err = await res.json().catch(() => ({}));
+                showToast(err.message || t('snaggingStartFailed', 'Failed to start snagging'), 'error');
+              }
+            } catch (e) {
+              showToast(t('snaggingStartFailed', 'Failed to start snagging'), 'error');
+            } finally {
+              setStartingSnagging(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -582,6 +640,32 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
             </View>
             <Text style={styles.notStartedTitle}>{t('snaggingNotStarted')}</Text>
             <Text style={styles.notStartedSub}>{t('snaggingNotStartedDesc')}</Text>
+            {milestoneProgress && milestoneProgress.total > 0 && (
+              <Text style={[styles.notStartedSub, { color: '#B45309', fontFamily: 'Inter-Bold', marginTop: 10 }]}>
+                {t('milestonesCompletedProgress', '{{completed}} of {{total}} milestones completed', milestoneProgress)}
+              </Text>
+            )}
+            {milestoneProgress && milestoneProgress.total === 0 && (
+              <Text style={[styles.notStartedSub, { color: '#B45309', fontFamily: 'Inter-Bold', marginTop: 10 }]}>
+                {t('noMilestonesForSnagging', 'No milestones yet — add milestones to track progress toward snagging.')}
+              </Text>
+            )}
+            <Text style={[styles.notStartedSub, { fontSize: 12, marginTop: 8 }]}>
+              {t('startSnaggingManualHint', 'Construction finished early? Users with Project Management → Update can start snagging manually.')}
+            </Text>
+            {canStartSnagging && (
+              <TouchableOpacity
+                onPress={handleStartSnagging}
+                disabled={startingSnagging}
+                activeOpacity={0.85}
+                style={{ marginTop: 18, backgroundColor: '#D97706', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: startingSnagging ? 0.6 : 1 }}
+              >
+                {startingSnagging
+                  ? <ActivityIndicator size="small" color="#FFFFFF" />
+                  : <Ionicons name="clipboard-outline" size={16} color="#FFFFFF" />}
+                <Text style={{ color: '#FFFFFF', fontFamily: 'Inter-Bold', fontSize: 14 }}>{t('startSnaggingTitle', 'Start Snagging Phase')}</Text>
+              </TouchableOpacity>
+            )}
           </AdaptiveGlass>
         </View>
       ) : isLoading ? (

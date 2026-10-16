@@ -18,7 +18,15 @@ const ROLE_META = {
   client_representative: { label: 'Client Rep', color: '#4F46E5', bg: '#EEF2FF' },
   viewer: { label: 'Viewer', color: '#64748B', bg: '#F8FAFC' },
 };
-const ALL_ROLES = ['viewer', 'sub_contractor', 'designer', 'quantity_surveyor', 'site_engineer', 'client_representative', 'project_manager'];
+const ALL_ROLES = [
+  'project_manager',
+  'site_engineer',
+  'quantity_surveyor',
+  'designer',
+  'sub_contractor',
+  'client_representative',
+  'viewer',
+];
 
 const PROJECT_MODULES = [
   { module: 'projects', label: 'Project Config' },
@@ -44,6 +52,33 @@ const PROJECT_MODULES = [
 ];
 const PERMISSION_ACTIONS = ['create', 'read', 'update', 'delete', 'approve', 'export', 'manage'];
 
+const DEFAULT_ROLE_PERMISSIONS = {
+  project_manager: PROJECT_MODULES.map((m) => ({ module: m.module, actions: [...PERMISSION_ACTIONS] })),
+  viewer: PROJECT_MODULES.map((m) => ({ module: m.module, actions: ['read'] })),
+  site_engineer: PROJECT_MODULES.map((m) => ({
+    module: m.module,
+    actions: ['projects', 'users', 'filemgt'].includes(m.module) ? ['read'] : ['create', 'read', 'update'],
+  })),
+  quantity_surveyor: PROJECT_MODULES.map((m) => ({
+    module: m.module,
+    actions: ['boq', 'procurement', 'purchase_orders', 'payments', 'variation_orders'].includes(m.module)
+      ? ['create', 'read', 'update', 'approve', 'export']
+      : ['read'],
+  })),
+  designer: PROJECT_MODULES.map((m) => ({
+    module: m.module,
+    actions: ['drawings', 'rfis', 'filemgt', 'photos', 'model'].includes(m.module) ? ['create', 'read', 'update', 'delete'] : ['read'],
+  })),
+  sub_contractor: PROJECT_MODULES.map((m) => ({
+    module: m.module,
+    actions: ['tasks', 'dpr', 'rfis', 'filemgt', 'photos'].includes(m.module) ? ['create', 'read', 'update'] : ['read'],
+  })),
+  client_representative: PROJECT_MODULES.map((m) => ({
+    module: m.module,
+    actions: ['projects', 'milestones', 'drawings', 'photos', 'snags', 'weekly_reports'].includes(m.module) ? ['read', 'approve'] : ['read'],
+  })),
+};
+
 const emptyInvite = { firstName: '', lastName: '', email: '', password: '', projectRole: 'viewer', designation: '', department: '' };
 
 export default function InteriorMembersScreen() {
@@ -59,6 +94,14 @@ export default function InteriorMembersScreen() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [inviteForm, setInviteForm] = useState(emptyInvite);
+
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [orgUsers, setOrgUsers] = useState([]);
+  const [orgUsersLoading, setOrgUsersLoading] = useState(false);
+  const [addMemberSearch, setAddMemberSearch] = useState('');
+  const [addMemberUserId, setAddMemberUserId] = useState('');
+  const [addMemberRole, setAddMemberRole] = useState('viewer');
+  const [isAddingMember, setIsAddingMember] = useState(false);
 
   const [permMember, setPermMember] = useState(null);
   const [editedPermissions, setEditedPermissions] = useState([]);
@@ -88,6 +131,53 @@ export default function InteriorMembersScreen() {
       m.userId?.email?.toLowerCase().includes(q) ||
       m.projectRole?.toLowerCase().includes(q)
     );
+  });
+
+  const fetchOrgUsers = useCallback(async () => {
+    setOrgUsersLoading(true);
+    try {
+      const res = await interiorApiClient.get('/users');
+      const list = res?.success ? res.data || [] : Array.isArray(res) ? res : [];
+      setOrgUsers(list);
+    } catch (e) {
+      showToast(e.message || 'Failed to load organisation users', 'error');
+    } finally {
+      setOrgUsersLoading(false);
+    }
+  }, [showToast]);
+
+  const openAddMemberModal = () => {
+    setAddMemberSearch('');
+    setAddMemberUserId('');
+    setAddMemberRole('viewer');
+    setIsAddMemberOpen(true);
+    fetchOrgUsers();
+  };
+
+  const handleAddExistingMember = async () => {
+    if (!addMemberUserId) {
+      showToast('Please select a user', 'error');
+      return;
+    }
+    setIsAddingMember(true);
+    try {
+      await interiorApiClient.post(`/projects/${projectId}/members`, { userId: addMemberUserId, projectRole: addMemberRole });
+      showToast('Member added to project', 'success');
+      setIsAddMemberOpen(false);
+      fetchMembers();
+    } catch (e) {
+      showToast(e.message || 'Failed to add member', 'error');
+    } finally {
+      setIsAddingMember(false);
+    }
+  };
+
+  const alreadyMemberIds = new Set(members.map((m) => m.userId?._id));
+  const filteredOrgUsers = orgUsers.filter((u) => {
+    if (alreadyMemberIds.has(u._id)) return false;
+    const q = addMemberSearch.toLowerCase();
+    if (!q) return true;
+    return `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) || (u.email ?? '').toLowerCase().includes(q);
   });
 
   const handleInvite = async () => {
@@ -163,6 +253,13 @@ export default function InteriorMembersScreen() {
       }
       return [...prev, { module: moduleName, actions: [action] }];
     });
+  };
+
+  const handleRoleChange = (role) => {
+    setEditedRole(role);
+    const defaults = DEFAULT_ROLE_PERMISSIONS[role] || [];
+    setEditedPermissions(defaults);
+    showToast(`Applied default permissions for ${ROLE_META[role]?.label || role}`, 'success');
   };
 
   const savePermissions = async () => {
@@ -257,10 +354,91 @@ export default function InteriorMembersScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={() => setIsInviteOpen(true)}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={s.fabGroup}>
+          <TouchableOpacity style={s.fabSecondary} onPress={openAddMemberModal}>
+            <Ionicons name="person-add-outline" size={20} color="#2563EB" />
+          </TouchableOpacity>
+          <TouchableOpacity style={s.fab} onPress={() => setIsInviteOpen(true)}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
+
+      {/* Add Existing Member Modal */}
+      <Modal visible={isAddMemberOpen} animationType="slide" transparent onRequestClose={() => setIsAddMemberOpen(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <View style={s.modalHeader}>
+              <View>
+                <Text style={s.modalTitle}>Add Existing Member</Text>
+                <Text style={s.headerSub}>Select a user from your organisation</Text>
+              </View>
+              <TouchableOpacity onPress={() => setIsAddMemberOpen(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.searchRow2}>
+              <Ionicons name="search" size={15} color="#94A3B8" style={{ marginRight: 8 }} />
+              <TextInput
+                style={s.searchInput}
+                placeholder="Search by name or email..."
+                placeholderTextColor="#94A3B8"
+                value={addMemberSearch}
+                onChangeText={(t) => { setAddMemberSearch(t); setAddMemberUserId(''); }}
+              />
+            </View>
+
+            {orgUsersLoading ? (
+              <View style={{ paddingVertical: 30, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#2563EB" />
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 260, marginTop: 10 }} showsVerticalScrollIndicator={false}>
+                {filteredOrgUsers.length === 0 ? (
+                  <Text style={s.emptyTitle}>
+                    {addMemberSearch ? 'No users match your search.' : 'All organisation users are already members.'}
+                  </Text>
+                ) : (
+                  filteredOrgUsers.map((u) => (
+                    <TouchableOpacity
+                      key={u._id}
+                      style={[s.orgUserRow, addMemberUserId === u._id && s.orgUserRowActive]}
+                      onPress={() => setAddMemberUserId(u._id)}
+                    >
+                      <View style={s.avatar}>
+                        <Text style={s.avatarText}>{u.firstName?.[0]}{u.lastName?.[0]}</Text>
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={s.memberName} numberOfLines={1}>{u.firstName} {u.lastName}</Text>
+                        <Text style={s.memberEmail} numberOfLines={1}>{u.email}</Text>
+                      </View>
+                      {addMemberUserId === u._id && <Ionicons name="checkmark-circle" size={18} color="#2563EB" />}
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            )}
+
+            <Text style={[s.label, { marginTop: 14 }]}>Project Role</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
+              {ALL_ROLES.map((r) => (
+                <TouchableOpacity key={r} style={[s.chip, addMemberRole === r && s.chipActive]} onPress={() => setAddMemberRole(r)}>
+                  <Text style={[s.chipText, addMemberRole === r && s.chipTextActive]}>{ROLE_META[r]?.label || r}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[s.saveBtn, (!addMemberUserId || isAddingMember) && { opacity: 0.6 }]}
+              onPress={handleAddExistingMember}
+              disabled={!addMemberUserId || isAddingMember}
+            >
+              {isAddingMember ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Add to Project</Text>}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Invite Modal */}
       <Modal visible={isInviteOpen} animationType="slide" transparent onRequestClose={() => setIsInviteOpen(false)}>
@@ -292,10 +470,10 @@ export default function InteriorMembersScreen() {
               <TextInput style={s.input} placeholder="At least 8 characters" placeholderTextColor="#94A3B8" secureTextEntry value={inviteForm.password} onChangeText={(v) => setInviteForm({ ...inviteForm, password: v })} />
 
               <Text style={s.label}>Project Role *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 4 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
                 {ALL_ROLES.map((r) => (
                   <TouchableOpacity key={r} style={[s.chip, inviteForm.projectRole === r && s.chipActive]} onPress={() => setInviteForm({ ...inviteForm, projectRole: r })}>
-                    <Text style={[s.chipText, inviteForm.projectRole === r && s.chipTextActive]}>{ROLE_META[r].label}</Text>
+                    <Text style={[s.chipText, inviteForm.projectRole === r && s.chipTextActive]}>{ROLE_META[r]?.label || r}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -323,7 +501,7 @@ export default function InteriorMembersScreen() {
       {/* Permissions Modal */}
       <Modal visible={!!permMember} animationType="slide" transparent onRequestClose={closePermissions}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
-          <View style={[s.modalCard, { maxHeight: '90%' }]}>
+          <View style={[s.modalCard, { height: '88%', maxHeight: '90%' }]}>
             {permMember && (
               <>
                 <View style={s.modalHeader}>
@@ -342,17 +520,17 @@ export default function InteriorMembersScreen() {
                 </View>
 
                 <Text style={s.label}>Project Role</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 4 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
                   {ALL_ROLES.map((r) => (
-                    <TouchableOpacity key={r} style={[s.chip, editedRole === r && s.chipActive]} onPress={() => setEditedRole(r)}>
-                      <Text style={[s.chipText, editedRole === r && s.chipTextActive]}>{ROLE_META[r].label}</Text>
+                    <TouchableOpacity key={r} style={[s.chip, editedRole === r && s.chipActive]} onPress={() => handleRoleChange(r)}>
+                      <Text style={[s.chipText, editedRole === r && s.chipTextActive]}>{ROLE_META[r]?.label || r}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
                 {editedRole !== permMember.projectRole && <Text style={s.roleChangedTag}>Role changed</Text>}
 
                 <Text style={[s.label, { marginTop: 14 }]}>Module Permissions</Text>
-                <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, marginBottom: 8 }}>
                   {PROJECT_MODULES.map((mod) => {
                     const activeCount = PERMISSION_ACTIONS.filter((a) => hasAction(mod.module, a)).length;
                     const expanded = expandedModule === mod.module;
@@ -433,12 +611,27 @@ const s = StyleSheet.create({
   permCountBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F8FAFC', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   permCountText: { fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
 
+  fabGroup: { position: 'absolute', right: 20, bottom: 30, alignItems: 'center', gap: 12 },
   fab: {
-    position: 'absolute', right: 20, bottom: 30,
     width: 52, height: 52, borderRadius: 26, backgroundColor: '#2563EB',
     justifyContent: 'center', alignItems: 'center',
     shadowColor: '#2563EB', shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
+  fabSecondary: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF',
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0',
+    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+  },
+
+  searchRow2: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
+    borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12, height: 40,
+  },
+  orgUserRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, paddingHorizontal: 4,
+    borderBottomWidth: 1, borderBottomColor: '#F8FAFC',
+  },
+  orgUserRowActive: { backgroundColor: '#EFF6FF', borderRadius: 10 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, maxHeight: '85%' },
@@ -452,10 +645,24 @@ const s = StyleSheet.create({
   },
   hintText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginBottom: 4 },
 
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 34,
+    flexShrink: 0,
+  },
   chipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  chipText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  chipTextActive: { color: '#2563EB' },
+  chipText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B', includeFontPadding: false },
+  chipTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
+  roleScroll: { flexGrow: 0, flexShrink: 0, marginVertical: 4 },
+  roleScrollContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, paddingRight: 10 },
 
   roleChangedTag: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#D97706', backgroundColor: '#FFFBEB', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginTop: 6 },
 

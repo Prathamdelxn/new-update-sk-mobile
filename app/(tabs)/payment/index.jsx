@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../context/AuthContext';
 
 Dimensions.get('window');
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -143,6 +144,9 @@ const FeatureRow = ({ label, included }) => (
 export default function PlanBillingScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { user } = useAuth();
+  const isInterior = user?.organization?.industryType === 'interior';
+
   const [subData, setSubData]       = useState(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
@@ -157,6 +161,10 @@ export default function PlanBillingScreen() {
   const getToken = () => SecureStore.getItemAsync('userToken');
 
   const fetchSubscription = useCallback(async () => {
+    if (isInterior) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -175,9 +183,12 @@ export default function PlanBillingScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isInterior]);
 
-  useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
+  useEffect(() => {
+    if (isInterior) return;
+    fetchSubscription();
+  }, [isInterior, fetchSubscription]);
 
   const openRequestModal = (plan) => {
     setSelectedPlan(plan);

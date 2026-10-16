@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator,
-  TextInput, Modal, KeyboardAvoidingView, Platform,
+  TextInput, Modal, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +12,7 @@ import interiorApiClient from '../../services/interiorApiClient';
 const RATINGS = [4.8, 4.2, 4.6, 3.9];
 const COMPLIANCE = [95, 88, 92, 75];
 const ON_TIME = [98, 80, 94, 70];
-const TRADES = ['Acoustic & Glazing', 'MEP Pipes', 'Interior Slabs', 'Finishes & Drywalls'];
+const FALLBACK_TRADES = ['Acoustic & Glazing', 'MEP Pipes', 'Interior Slabs', 'Finishes & Drywalls'];
 const VENDOR_CATEGORIES = ['Raw Materials', 'Furniture', 'Electrical', 'Labour', 'Paint', 'Other'];
 
 function formatCost(amount) {
@@ -21,7 +21,7 @@ function formatCost(amount) {
 
 const emptyVendorForm = {
   name: '', vendorCategory: VENDOR_CATEGORIES[0], contactPerson: '',
-  phoneNumber: '', email: '', address: '',
+  phoneNumber: '', email: '', address: '', gstNumber: '',
 };
 
 export default function InteriorVendorsScreen() {
@@ -30,20 +30,26 @@ export default function InteriorVendorsScreen() {
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
 
+  const [dbVendors, setDbVendors] = useState([]);
   const [pos, setPos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [addVendorOpen, setAddVendorOpen] = useState(false);
+  const [vendorModalOpen, setVendorModalOpen] = useState(false);
+  const [editingVendor, setEditingVendor] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [vendorForm, setVendorForm] = useState(emptyVendorForm);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await interiorApiClient.get(`/projects/${projectId}/procurement`);
-      setPos(res?.success && res?.data ? res.data : []);
+      const [vendorRes, poRes] = await Promise.allSettled([
+        interiorApiClient.get('/vendors'),
+        interiorApiClient.get(`/projects/${projectId}/procurement`),
+      ]);
+      setDbVendors(vendorRes.status === 'fulfilled' && vendorRes.value?.success ? vendorRes.value.data || [] : []);
+      setPos(poRes.status === 'fulfilled' && poRes.value?.success ? poRes.value.data || [] : []);
     } catch (e) {
-      console.error('Failed to load POs', e);
+      console.error('Failed to load vendors', e);
     } finally {
       setLoading(false);
     }
@@ -51,22 +57,66 @@ export default function InteriorVendorsScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const handleAddVendor = async () => {
+  const openAddModal = () => {
+    setEditingVendor(null);
+    setVendorForm(emptyVendorForm);
+    setVendorModalOpen(true);
+  };
+
+  const openEditModal = (vendor) => {
+    setEditingVendor(vendor);
+    setVendorForm({
+      name: vendor.name || '',
+      vendorCategory: vendor.vendorCategory || VENDOR_CATEGORIES[0],
+      contactPerson: vendor.contactPerson || '',
+      phoneNumber: vendor.phoneNumber || '',
+      email: vendor.email || '',
+      address: vendor.address || '',
+      gstNumber: vendor.gstNumber || '',
+    });
+    setVendorModalOpen(true);
+  };
+
+  const handleSaveVendor = async () => {
     if (!vendorForm.name.trim()) {
       showToast('Vendor name is required', 'error');
       return;
     }
     setSubmitting(true);
     try {
-      await interiorApiClient.post('/vendors', vendorForm);
-      showToast('Vendor added successfully', 'success');
-      setAddVendorOpen(false);
+      if (editingVendor) {
+        await interiorApiClient.patch(`/vendors/${editingVendor._id}`, vendorForm);
+        showToast('Vendor updated successfully', 'success');
+      } else {
+        await interiorApiClient.post('/vendors', vendorForm);
+        showToast('Vendor added successfully', 'success');
+      }
+      setVendorModalOpen(false);
+      setEditingVendor(null);
       setVendorForm(emptyVendorForm);
+      load();
     } catch (e) {
-      showToast(e.message || 'Failed to add vendor', 'error');
+      showToast(e.message || 'Failed to save vendor', 'error');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDeleteVendor = (vendor) => {
+    Alert.alert('Delete Vendor', `Are you sure you want to remove "${vendor.name}"? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await interiorApiClient.delete(`/vendors/${vendor._id}`);
+            showToast(`Vendor "${vendor.name}" deleted successfully.`, 'success');
+            load();
+          } catch (e) {
+            showToast(e.message || 'Failed to delete vendor', 'error');
+          }
+        },
+      },
+    ]);
   };
 
   const vendorsMap = new Map();
@@ -76,15 +126,21 @@ export default function InteriorVendorsScreen() {
     vendorsMap.set(name, { count: existing.count + 1, totalValue: existing.totalValue + (po.amount || 0) });
   });
 
-  const vendors = Array.from(vendorsMap.entries()).map(([name, stats], i) => ({
-    name,
-    trade: TRADES[i % 4],
-    contractsCount: stats.count,
-    totalValue: stats.totalValue,
-    rating: RATINGS[i % 4],
-    compliance: COMPLIANCE[i % 4],
-    onTime: ON_TIME[i % 4],
-  }));
+  const vendors = dbVendors.map((vendor, index) => {
+    const stats = vendorsMap.get(vendor.name) || { count: 0, totalValue: 0 };
+    return {
+      raw: vendor,
+      _id: vendor._id,
+      name: vendor.name,
+      trade: vendor.vendorCategory || FALLBACK_TRADES[index % 4],
+      gstNumber: vendor.gstNumber,
+      contractsCount: stats.count,
+      totalValue: stats.totalValue,
+      rating: RATINGS[index % 4],
+      compliance: COMPLIANCE[index % 4],
+      onTime: ON_TIME[index % 4],
+    };
+  });
 
   return (
     <View style={s.outerContainer}>
@@ -98,7 +154,7 @@ export default function InteriorVendorsScreen() {
             <Text style={s.headerTitle}>Vendors & Subcontractors</Text>
             <Text style={s.headerSub}>Ratings, compliance, and contract values.</Text>
           </View>
-          <TouchableOpacity style={s.addVendorBtn} onPress={() => setAddVendorOpen(true)}>
+          <TouchableOpacity style={s.addVendorBtn} onPress={openAddModal}>
             <Ionicons name="add" size={16} color="#FFFFFF" />
             <Text style={s.addVendorBtnText}>Add Vendor</Text>
           </TouchableOpacity>
@@ -113,24 +169,31 @@ export default function InteriorVendorsScreen() {
             {vendors.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="car-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No active vendors found</Text>
-                <Text style={s.emptySub}>Vendors register here once a Purchase Order is issued.</Text>
+                <Text style={s.emptyTitle}>No vendors found in the database</Text>
+                <Text style={s.emptySub}>Tap "Add Vendor" to register a new vendor.</Text>
               </View>
             ) : (
               vendors.map((vendor) => (
-                <View key={vendor.name} style={s.vendorCard}>
+                <View key={vendor._id || vendor.name} style={s.vendorCard}>
                   <View style={s.vendorTopRow}>
                     <View style={s.vendorIconBox}>
                       <Ionicons name="car-outline" size={18} color="#2563EB" />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={s.vendorName} numberOfLines={1}>{vendor.name}</Text>
-                      <Text style={s.vendorTrade}>{vendor.trade}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={s.vendorTrade}>{vendor.trade}</Text>
+                        {!!vendor.gstNumber && (
+                          <View style={s.gstBadge}><Text style={s.gstBadgeText}>GST: {vendor.gstNumber}</Text></View>
+                        )}
+                      </View>
                     </View>
-                    <View style={s.ratingBadge}>
-                      <Ionicons name="star" size={12} color="#D97706" />
-                      <Text style={s.ratingBadgeText}>{vendor.rating}</Text>
-                    </View>
+                    <TouchableOpacity onPress={() => openEditModal(vendor.raw)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                      <Ionicons name="pencil-outline" size={15} color="#94A3B8" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteVendor(vendor)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginLeft: 10 }}>
+                      <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                    </TouchableOpacity>
                   </View>
 
                   <View style={s.statsRow}>
@@ -179,12 +242,12 @@ export default function InteriorVendorsScreen() {
         )}
       </SafeAreaView>
 
-      <Modal visible={addVendorOpen} animationType="slide" transparent onRequestClose={() => setAddVendorOpen(false)}>
+      <Modal visible={vendorModalOpen} animationType="slide" transparent onRequestClose={() => setVendorModalOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Add New Vendor</Text>
-              <TouchableOpacity onPress={() => setAddVendorOpen(false)}>
+              <Text style={s.modalTitle}>{editingVendor ? 'Edit Vendor' : 'Add New Vendor'}</Text>
+              <TouchableOpacity onPress={() => setVendorModalOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
@@ -201,6 +264,9 @@ export default function InteriorVendorsScreen() {
                 ))}
               </View>
 
+              <Text style={s.label}>GST Number</Text>
+              <TextInput style={s.input} placeholder="e.g. 27AAAPL1234C1ZV" placeholderTextColor="#94A3B8" autoCapitalize="characters" value={vendorForm.gstNumber} onChangeText={(v) => setVendorForm({ ...vendorForm, gstNumber: v })} />
+
               <Text style={s.label}>Billing Address</Text>
               <TextInput style={s.input} placeholder="Full physical or billing address" placeholderTextColor="#94A3B8" value={vendorForm.address} onChangeText={(v) => setVendorForm({ ...vendorForm, address: v })} />
 
@@ -213,8 +279,8 @@ export default function InteriorVendorsScreen() {
               <Text style={s.label}>Email</Text>
               <TextInput style={s.input} placeholder="supplier@mail.com" placeholderTextColor="#94A3B8" keyboardType="email-address" autoCapitalize="none" value={vendorForm.email} onChangeText={(v) => setVendorForm({ ...vendorForm, email: v })} />
 
-              <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.6 }]} onPress={handleAddVendor} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Add Vendor</Text>}
+              <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.6 }]} onPress={handleSaveVendor} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingVendor ? 'Save Changes' : 'Add Vendor'}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -263,6 +329,8 @@ const s = StyleSheet.create({
   vendorIconBox: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
   vendorName: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
   vendorTrade: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  gstBadge: { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  gstBadgeText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#334155', textTransform: 'uppercase' },
   ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FFFBEB', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   ratingBadgeText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#D97706' },
 

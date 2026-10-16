@@ -1,10 +1,15 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { hasAnyRolePermission } from '../utils/permissions';
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const isInterior = user?.organization?.industryType === 'interior';
+  // Templates tab needs Template or Category Management > View (any role)
+  const canSeeTemplates = hasAnyRolePermission(user, 'template:view') || hasAnyRolePermission(user, 'category:view');
 
   return (
     <Tabs
@@ -14,7 +19,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: '#94A3B8',
         tabBarStyle: {
           position: 'absolute',
-          bottom: 20,
+          bottom: Math.max(insets.bottom + 8, 20),
           marginHorizontal: 18,
           left: 0,
           right: 0,
@@ -74,7 +79,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="template/index"
         options={{
-          href: isInterior ? null : undefined,
+          href: isInterior || !canSeeTemplates ? null : undefined,
           title: 'Template',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'layers' : 'layers-outline'} size={22} color={color} />

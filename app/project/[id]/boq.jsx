@@ -227,16 +227,52 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
         reason: autoReason,
         itemId: itemId
       });
+      // Temporarily close ViewDetailsModal to avoid double-modal overlapping glitch
+      setShowViewModal(false);
       setShowBudgetImpactModal(true);
       return;
     }
 
+    // Direct confirmation from BudgetImpactModal
+    if (budgetData) {
+      try {
+        setIsSubmitting(true);
+        const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+        const res = await fetch(`${API_BASE_URL}/projects/${project._id}/boq/${itemId}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            status: newStatus,
+            updateBudget: true,
+            budgetReason: budgetData?.reason
+          })
+        });
+
+        if (res.ok) {
+          showToast('Approved & Budget Updated', 'success');
+          fetchBOQ();
+          setShowBudgetImpactModal(false);
+          setShowViewModal(false);
+        } else {
+          const errorData = await res.json();
+          showToast(errorData.message || 'Status update failed', 'error');
+        }
+      } catch (error) {
+        showToast('Connection error', 'error');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    setShowViewModal(false);
     setConfirmModal({
       visible: true,
       title: `${newStatus} Item`,
-      message: budgetData 
-        ? `Confirming this will update the project budget by ${project?.currency || '$'} ${formatCompact(Math.abs(budgetData.difference))}. Continue?`
-        : `Are you sure you want to ${newStatus.toLowerCase()} this BOQ item?`,
+      message: `Are you sure you want to ${newStatus.toLowerCase()} this BOQ item?`,
       confirmText: newStatus,
       type: newStatus === 'Rejected' ? 'destructive' : 'success',
       onConfirm: async () => {
@@ -251,16 +287,14 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
             },
             body: JSON.stringify({ 
               status: newStatus,
-              updateBudget: !!budgetData,
-              budgetReason: budgetData?.reason
+              updateBudget: false
             })
           });
 
           if (res.ok) {
-            showToast(budgetData ? 'Approved & Budget Updated' : `Item ${newStatus}`, 'success');
+            showToast(`Item ${newStatus}`, 'success');
             fetchBOQ();
             setShowViewModal(false);
-            setShowBudgetImpactModal(false);
           } else {
             const errorData = await res.json();
             showToast(errorData.message || 'Status update failed', 'error');
@@ -976,7 +1010,10 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
       {/* Budget Impact Modal */}
       <BudgetImpactModal
         visible={showBudgetImpactModal}
-        onClose={() => setShowBudgetImpactModal(false)}
+        onClose={() => {
+          setShowBudgetImpactModal(false);
+          setShowViewModal(true);
+        }}
         budgetImpactData={budgetImpactData}
         handleUpdateStatus={handleUpdateStatus}
         isSubmitting={isSubmitting}

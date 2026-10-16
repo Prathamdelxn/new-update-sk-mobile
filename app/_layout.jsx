@@ -1,12 +1,14 @@
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { SplashScreen } from 'expo-router';
-import { I18nManager } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_900Black } from '@expo-google-fonts/inter';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { SocketProvider } from './context/SocketContext';
 import { SuperAdminProvider } from './context/SuperAdminContext';
+import { QueryProvider } from './context/QueryProvider';
 import i18n from '../i18n';
 import * as SecureStore from 'expo-secure-store';
 import * as Updates from 'expo-updates';
@@ -57,6 +59,18 @@ export default function RootLayout() {
       setLangReady(true);
     }
     restoreLanguage();
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      try {
+        NavigationBar.setPositionAsync('relative').catch(() => {});
+        NavigationBar.setVisibilityAsync('hidden').catch(() => {});
+        NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => {});
+        NavigationBar.setBackgroundColorAsync('#F8FAFC').catch(() => {});
+        NavigationBar.setButtonStyleAsync('dark').catch(() => {});
+      } catch (e) {}
+    }
   }, []);
 
   useEffect(() => {
@@ -111,16 +125,18 @@ export default function RootLayout() {
   }
 
   return (
-    <SuperAdminProvider>
-      <AuthProvider>
-        <SocketProvider>
-          <ToastProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              {/* All screens will appear here automatically */}
-            </Stack>
-          </ToastProvider>
-        </SocketProvider>
-      </AuthProvider>
-    </SuperAdminProvider>
+    <QueryProvider>
+      <SuperAdminProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <ToastProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                {/* All screens will appear here automatically */}
+              </Stack>
+            </ToastProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </SuperAdminProvider>
+    </QueryProvider>
   );
 }
