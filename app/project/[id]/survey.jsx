@@ -625,7 +625,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
   // Each action follows its own Site Survey permission (role editor actions);
   // the API enforces the same rules.
   const canCreateSurvey = !isLocked && hasProjectPermission(user, project, 'sitesurvey:create');
-  const canUpdateSurvey = !isLocked && hasProjectPermission(user, project, 'sitesurvey:update');
+  const canUpdateSurvey = !isLocked && (hasProjectPermission(user, project, 'sitesurvey:update') || hasProjectPermission(user, project, 'sitesurvey:create'));
   const canApproveSurvey = !isLocked && hasProjectPermission(user, project, 'sitesurvey:approve');
   const canApproveBudget = !isLocked && (
     hasProjectPermission(user, project, 'budget:approve') ||
@@ -637,8 +637,14 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
     (bh) => bh.approvalStatus === 'Pending'
   );
 
-  // Being the assigned surveyor doesn't grant access — View must be on the role
-  const canView = hasProjectPermission(user, project, 'sitesurvey:view');
+  const canView = (
+    user?.role === 'Admin' ||
+    user?.role?.name === 'Admin' ||
+    (user?.role?.permissions || []).includes('*') ||
+    hasProjectPermission(user, project, 'sitesurvey:view') ||
+    hasProjectPermission(user, project, 'sitesurvey:create') ||
+    hasProjectPermission(user, project, 'sitesurvey:update')
+  );
 
   const handleBudgetActionSubmit = async (budgetId, action) => {
     if (isProcessingBudgetAction) return;
@@ -902,20 +908,28 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
           </View>
         )}
 
-        {/* Edit: Site Survey > Update, and only the original surveyor (API rule).
-            Mobile users carry `id` (not `_id`), so compare against both. */}
-        {canUpdateSurvey && [user?.id, user?._id].filter(Boolean).map(String).includes(String(survey.surveyor?._id || survey.surveyor)) && survey.status !== 'Approved' && (
-          <TouchableOpacity 
-            style={styles.editSurveyBtn}
-            onPress={() => router.push({
-              pathname: `/project/${project._id}/site-survey`,
-              params: { editMode: 'true', currentBudget, projectType: project.projectType || 'Construction', currency: project.currency || 'AED' }
-            })}
-          >
-            <Ionicons name="create-outline" size={18} color="#2563EB" />
-            <Text style={styles.editSurveyBtnText}>{t('editSurveyReport', 'Edit Survey Report')}</Text>
-          </TouchableOpacity>
-        )}
+        {/* Edit Survey: Available to original surveyor, assigned surveyor, or admin before survey approval */}
+        {(() => {
+          const surveyorId = String(survey.surveyor?._id || survey.surveyor || '');
+          const assignedId = String(project?.siteSurveyor?._id || project?.siteSurveyor || '');
+          const userIds = [user?.id, user?._id].filter(Boolean).map(String);
+          const isSurveyor = (surveyorId && userIds.includes(surveyorId)) || (assignedId && userIds.includes(assignedId));
+          const isAdmin = user?.role === 'Admin' || user?.role?.name === 'Admin' || (user?.role?.permissions || []).includes('*');
+          const showEditBtn = canUpdateSurvey && (isSurveyor || isAdmin) && survey.status !== 'Approved';
+          if (!showEditBtn) return null;
+          return (
+            <TouchableOpacity 
+              style={styles.editSurveyBtn}
+              onPress={() => router.push({
+                pathname: `/project/${project._id}/site-survey`,
+                params: { editMode: 'true', currentBudget, projectType: project.projectType || 'Construction', currency: project.currency || 'AED' }
+              })}
+            >
+              <Ionicons name="create-outline" size={18} color="#2563EB" />
+              <Text style={styles.editSurveyBtnText}>{t('editSurveyReport', 'Edit Survey Report')}</Text>
+            </TouchableOpacity>
+          );
+        })()}
       </AdaptiveGlass>
 
       {/* Grid Assessment */}

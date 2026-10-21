@@ -19,7 +19,7 @@ import { BlurView } from 'expo-blur';
 import ConfirmModal from '../../components/ConfirmModal';
 import { useTranslation } from 'react-i18next';
 import { getCurrentApprovedBudget } from '../../utils/format';
-import { hasProjectPermission, canViewAnyProject, canCreateProjects, isProjectLocked } from '../../utils/permissions';
+import { hasProjectPermission, canViewAnyProject, canCreateProjects, isProjectLocked, permissionListIncludes } from '../../utils/permissions';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -88,7 +88,27 @@ export default function ProjectScreen() {
   const [deleteModal, setDeleteModal] = useState({ visible: false, projectId: null });
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const memberHasSurveyCreate = (member) => {
+    if (!member) return false;
+    const isGlobalAdmin = member.role?.name === 'Admin' || member.role?.isSystemRole || (member.role?.permissions || []).includes('*');
+    if (isGlobalAdmin || permissionListIncludes(member.role?.permissions, 'sitesurvey:create')) {
+      return true;
+    }
+    if (surveyProjectId && Array.isArray(member.projects)) {
+      const projAssignment = member.projects.find(p => String(p.project?._id || p.project) === String(surveyProjectId));
+      if (projAssignment?.role) {
+        const pRole = projAssignment.role;
+        const isProjAdmin = pRole.name === 'Admin' || pRole.isSystemRole || (pRole.permissions || []).includes('*');
+        if (isProjAdmin || permissionListIncludes(pRole.permissions, 'sitesurvey:create')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   const filteredMembersForSurvey = membersList.filter(m => {
+    if (!memberHasSurveyCreate(m)) return false;
     const query = memberSearchQuery.toLowerCase();
     const nameMatch = m.name ? m.name.toLowerCase().includes(query) : false;
     const emailMatch = m.email ? m.email.toLowerCase().includes(query) : false;
@@ -154,9 +174,9 @@ export default function ProjectScreen() {
       setIsFetchingMembers(true);
       setMembersList([]);
 
-      // Fetch members with sitesurvey permission for this project
+      // Fetch members with sitesurvey:create permission for this project
       const res = await fetch(
-        `${API_BASE_URL}/users?permission=sitesurvey&projectId=${projectId}`,
+        `${API_BASE_URL}/users?permission=sitesurvey:create&projectId=${projectId}`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
       const data = await res.json();
@@ -549,21 +569,38 @@ export default function ProjectScreen() {
                 <MaterialIcons name="send" size={14} color="#2563EB" />
               </TouchableOpacity>
             )}
-            {/* Perform / Edit Site Survey icon button — needs Create (new) or Update (existing) */}
-            {(item.siteSurveyor?._id || item.siteSurveyor) === (user?.id || user?._id) && (item.status === 'Site Survey' || item.status === 'Planning') && item.surveyStatus !== 'Approved' &&
-              hasProjectPermission(user, item, item.surveyStatus ? 'sitesurvey:update' : 'sitesurvey:create') && (
-              <TouchableOpacity
-                style={[styles.cardActionBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
-                activeOpacity={0.7}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  const currentBudget = getCurrentApprovedBudget(item);
-                  router.push({ pathname: `/project/${item._id}/site-survey`, params: { currentBudget, editMode: item.surveyStatus ? 'true' : 'false', projectType: item.projectType || 'Construction', currency: item.currency || 'AED' } });
-                }}
-              >
-                <MaterialIcons name="assignment" size={14} color="#2563EB" />
-              </TouchableOpacity>
-            )}
+            {/* Perform / Edit Site Survey icon button — available to assigned surveyor or Admin */}
+            {(() => {
+              const surveyorId = String(item.siteSurveyor?._id || item.siteSurveyor || '');
+              const userIds = [user?.id, user?._id].filter(Boolean).map(String);
+              const isSurveyor = Boolean(surveyorId && userIds.includes(surveyorId));
+              const isAdmin = user?.role === 'Admin' || user?.role?.name === 'Admin' || (user?.role?.permissions || []).includes('*');
+              const canPerformSurvey = hasProjectPermission(user, item, 'sitesurvey:create') || hasProjectPermission(user, item, 'sitesurvey:update');
+              const showButton = (isSurveyor || isAdmin) && canPerformSurvey && item.surveyStatus !== 'Approved' && (item.status === 'Site Survey' || item.status === 'Planning' || item.needSiteSurvey);
+              if (!showButton) return null;
+              const isEditMode = Boolean(item.surveyStatus);
+              return (
+                <TouchableOpacity
+                  style={[styles.cardActionBtn, { backgroundColor: isEditMode ? '#EFF6FF' : '#F0FDF4', borderColor: isEditMode ? '#BFDBFE' : '#BBF7D0' }]}
+                  activeOpacity={0.7}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    const currentBudget = getCurrentApprovedBudget(item);
+                    router.push({
+                      pathname: `/project/${item._id}/site-survey`,
+                      params: {
+                        currentBudget,
+                        editMode: isEditMode ? 'true' : 'false',
+                        projectType: item.projectType || 'Construction',
+                        currency: item.currency || 'AED'
+                      }
+                    });
+                  }}
+                >
+                  <MaterialIcons name={isEditMode ? "edit" : "assignment"} size={14} color={isEditMode ? "#2563EB" : "#16A34A"} />
+                </TouchableOpacity>
+              );
+            })()}
             <TouchableOpacity
               style={styles.cardActionBtn}
               activeOpacity={0.7}

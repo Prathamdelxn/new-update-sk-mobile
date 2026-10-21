@@ -71,7 +71,7 @@ export default function FullWorkspacePreview() {
   const restrictedTabs = ['Drawings', 'Rooms', 'FFE', 'BOQ', 'Milestone', 'Audit', 'Material', 'Transactions', 'Risk', 'Snags', 'Handover', 'Attendance', 'Reports'];
   const isRestrictedTab = isSurveyPending && restrictedTabs.includes(visibleTab);
   const TABS = (() => {
-    let base = project?.siteSurveyor
+    let base = (project?.siteSurveyor || project?.needSiteSurvey || project?.surveyStatus)
       ? ['Details', 'Survey', 'Drawings', 'Documents', 'BOQ', 'Milestone', 'Material', 'Attendance', 'Snags', 'Risk', 'Transactions', 'Reports', 'Audit', 'Handover']
       : ['Details', 'Drawings', 'Documents', 'BOQ', 'Milestone', 'Material', 'Attendance', 'Snags', 'Risk', 'Transactions', 'Reports', 'Audit', 'Handover'];
     if (isInterior) {
@@ -83,6 +83,12 @@ export default function FullWorkspacePreview() {
     // canView check (documents.jsx, risk.jsx), or the equivalent web fix
     // (reports.jsx, handover.jsx).
     base = base.filter(tab => {
+      if (tab === 'Survey') {
+        const surveyorId = String(project?.siteSurveyor?._id || project?.siteSurveyor || '');
+        const userIds = [user?.id, user?._id].filter(Boolean).map(String);
+        const isSurveyor = Boolean(surveyorId && userIds.includes(surveyorId));
+        return isAdmin || isSurveyor || hasAnyProjectPermissionPrefix(user, project, 'sitesurvey:');
+      }
       if (tab === 'Documents') return isAdmin || hasAnyProjectPermissionPrefix(user, project, 'land:');
       if (tab === 'Risk') return isAdmin || hasAnyProjectPermissionPrefix(user, project, 'risks:');
       if (tab === 'Reports') return isAdmin || hasProjectPermission(user, project, 'reports:view');

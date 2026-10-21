@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AdaptiveGlass from './AdaptiveGlass';
 
-const MemberCard = ({ name, email, role, onRemove, onChangeRole, showActions = true }) => {
+const MemberCard = ({ name, email, role, onRemove, onChangeRole, showActions = true, isSelf = false }) => {
   // Generate initials for avatar
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 
@@ -30,7 +30,14 @@ const MemberCard = ({ name, email, role, onRemove, onChangeRole, showActions = t
         </View>
 
         <View style={styles.info}>
-          <Text style={styles.name}>{name}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{name}</Text>
+            {isSelf && (
+              <View style={styles.selfBadge}>
+                <Text style={styles.selfBadgeText}>You</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.email}>{email}</Text>
           
           {role && role !== 'No Role' && (
@@ -108,10 +115,29 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 16,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
   name: {
     fontSize: 16,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
+  },
+  selfBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  selfBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#2563EB',
   },
   email: {
     fontSize: 12,
