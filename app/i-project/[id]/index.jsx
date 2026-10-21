@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { queryKeys, useRefreshOnFocus } from '../../context/QueryProvider';
 import CategoryNav from './_components/CategoryNav';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const HEALTH_META = {
   'on-track': { label: 'On Track', color: '#16A34A', bg: '#F0FDF4' },
@@ -33,6 +34,8 @@ export default function InteriorProjectOverviewScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { showToast } = useToast();
+  // Shortcut cards only open tabs the user can view
+  const { can: canDo } = useProjectPermissions(id);
 
   // Cached per project (see QueryProvider). Edits in the sub-screens (tasks,
   // DPR, ...) mark these stale, so returning here refetches only after a change.
@@ -158,7 +161,7 @@ export default function InteriorProjectOverviewScreen() {
               </View>
             </View>
 
-            <TouchableOpacity style={s.statCard} onPress={openTasks}>
+            <TouchableOpacity style={s.statCard} onPress={() => canDo('tasks', 'read') && openTasks()}>
               <View style={s.statTopRow}>
                 <Text style={s.statLabel}>TASKS STATUS</Text>
                 <Ionicons name="checkbox-outline" size={14} color="#3B82F6" />
@@ -167,7 +170,7 @@ export default function InteriorProjectOverviewScreen() {
               <Text style={s.statSub}>{taskStats.remaining} remaining</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.statCard} onPress={openMilestones}>
+            <TouchableOpacity style={s.statCard} onPress={() => canDo('milestones', 'read') && openMilestones()}>
               <View style={s.statTopRow}>
                 <Text style={s.statLabel}>MILESTONES</Text>
                 <Ionicons name="time-outline" size={14} color="#D97706" />
@@ -205,19 +208,19 @@ export default function InteriorProjectOverviewScreen() {
           {/* Quality & Risk */}
           <Text style={s.sectionTitle}>Quality & Risk Indicators</Text>
           <View style={s.card}>
-            <TouchableOpacity style={s.qualityRow} onPress={openSnags}>
+            <TouchableOpacity style={s.qualityRow} onPress={() => canDo('snags', 'read') && openSnags()}>
               <Text style={s.qualityLabel}>Open Snags</Text>
               <View style={[s.qualityPill, { backgroundColor: '#FFFBEB' }]}>
                 <Text style={[s.qualityPillText, { color: '#D97706' }]}>{quality.openSnags} snags</Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity style={s.qualityRow} onPress={openRfis}>
+            <TouchableOpacity style={s.qualityRow} onPress={() => canDo('rfis', 'read') && openRfis()}>
               <Text style={s.qualityLabel}>Open RFIs</Text>
               <View style={[s.qualityPill, { backgroundColor: '#EFF6FF' }]}>
                 <Text style={[s.qualityPillText, { color: '#2563EB' }]}>{quality.openRFIs} RFIs</Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.qualityRow, { borderBottomWidth: 0 }]} onPress={openRisks}>
+            <TouchableOpacity style={[s.qualityRow, { borderBottomWidth: 0 }]} onPress={() => canDo('risks', 'read') && openRisks()}>
               <Text style={s.qualityLabel}>Critical Risks</Text>
               <View style={[s.qualityPill, { backgroundColor: '#FEF2F2' }]}>
                 <Text style={[s.qualityPillText, { color: '#DC2626' }]}>{quality.criticalRisks} risks</Text>

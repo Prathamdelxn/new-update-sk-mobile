@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const STATUS_META = {
   pending: { color: '#64748B', bg: '#F8FAFC' },
@@ -25,6 +26,7 @@ export default function InteriorUtilitiesScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [systems, setSystems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +125,7 @@ export default function InteriorUtilitiesScreen() {
                   {sys.checkpoints.map((cp) => {
                     const meta = STATUS_META[cp.status] || STATUS_META.pending;
                     return (
-                      <TouchableOpacity key={cp.name} style={s.cpRow} onPress={() => openCheckpoint(sys, cp)}>
+                      <TouchableOpacity key={cp.name} style={s.cpRow} onPress={() => canDo('utilities', 'update') && openCheckpoint(sys, cp)}>
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <Text style={s.cpName}>{cp.name}</Text>
                           {!!cp.readings && <Text style={s.cpReadings}>Readings: {cp.readings}</Text>}

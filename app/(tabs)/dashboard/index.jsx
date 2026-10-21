@@ -13,6 +13,7 @@ import HeaderNotification from '../../components/HeaderNotification';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys, useRefreshOnFocus } from '../../context/QueryProvider';
+import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -55,6 +56,9 @@ export default function DashboardScreen() {
   const [attendanceActive, setAttendanceActive] = useState(false);
   const isAdmin = user?.role?.name === 'Admin' || user?.role === 'Admin';
   const isInteriorUser = user?.organization?.industryType === 'interior';
+  // The interior dashboard shows org-wide figures → Dashboard: View (admins always)
+  const { hasPermission: hasInteriorPermission, navAccess: interiorNav } = useInteriorPermissions();
+  const canSeeInteriorDashboard = hasInteriorPermission('dashboard', 'read');
 
   // Interior dashboard is cached (see QueryProvider): switching back to this
   // tab reuses loaded data and only refetches once it is stale or changed.
@@ -62,10 +66,16 @@ export default function DashboardScreen() {
   const interiorQuery = useQuery({
     queryKey: queryKeys.interiorDashboard,
     queryFn: async () => {
-      const res = await interiorApiClient.get('/dashboard');
-      return res?.success && res?.data ? res.data : null;
+      try {
+        const res = await interiorApiClient.get('/dashboard');
+        return res?.success && res?.data ? res.data : null;
+      } catch (e) {
+        // Refused → this role has no Dashboard access (saved user can be briefly out of date)
+        if (e?.status === 403) return { forbidden: true };
+        throw e;
+      }
     },
-    enabled: isInteriorUser,
+    enabled: isInteriorUser && canSeeInteriorDashboard,
   });
   const interiorData = interiorQuery.data ?? null;
   useRefreshOnFocus(isInteriorUser ? [queryKeys.interiorDashboard] : []);
@@ -115,7 +125,7 @@ export default function DashboardScreen() {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  if (isInteriorUser ? interiorQuery.isPending : loading) {
+  if (isInteriorUser ? canSeeInteriorDashboard && interiorQuery.isPending : loading) {
     return (
       <View style={s.outerContainer}>
         <StatusBar barStyle="dark-content" backgroundColor="#DBEAFE" translucent={false} />
@@ -160,6 +170,43 @@ export default function DashboardScreen() {
     }));
 
   const isInterior = user?.organization?.industryType === 'interior';
+
+  if (isInterior && (!canSeeInteriorDashboard || interiorData?.forbidden)) {
+    return (
+      <View style={s.outerContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor="#DBEAFE" translucent={false} />
+        <View style={s.bgBase} />
+        <SafeAreaView style={s.container} edges={['bottom']}>
+          <View style={[s.header, { paddingTop: insets.top + 12, backgroundColor: '#DBEAFE', borderBottomColor: '#DBEAFE' }]}>
+            <View>
+              <Text style={[s.headerGreeting, { color: '#1D4ED8' }]}>Good {getTimeOfDay()}, {user?.firstName || user?.name?.split(' ')[0] || 'there'}</Text>
+              <Text style={s.pageTitle}>Interior Workspace</Text>
+            </View>
+            <HeaderNotification />
+          </View>
+          <View style={[s.card, { alignItems: 'center', paddingVertical: 36, margin: 16 }]}>
+            <Ionicons name="grid-outline" size={34} color="#94A3B8" />
+            <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 10 }}>Dashboard not included in your role</Text>
+            <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center', marginTop: 4, marginBottom: 14 }}>
+              Open the sections you work in:
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {interiorNav.projects && (
+                <TouchableOpacity style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, backgroundColor: '#2563EB' }} onPress={() => router.push('/i-project')}>
+                  <Text style={{ color: '#FFFFFF', fontFamily: 'Inter-Bold', fontSize: 13 }}>Projects</Text>
+                </TouchableOpacity>
+              )}
+              {interiorNav.crm && (
+                <TouchableOpacity style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE' }} onPress={() => router.push('/crm')}>
+                  <Text style={{ color: '#2563EB', fontFamily: 'Inter-Bold', fontSize: 13 }}>CRM</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   if (isInterior) {
     const kpis = interiorData?.kpis || {

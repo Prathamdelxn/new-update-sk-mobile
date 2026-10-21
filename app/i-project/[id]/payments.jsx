@@ -10,6 +10,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { formatExactCurrency, getCurrencySymbol } from '../../utils/format';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
 function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
@@ -170,6 +171,7 @@ export default function InteriorPaymentsScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [activeCategory, setActiveCategory] = useState('incoming');
   const [payments, setPayments] = useState([]);
@@ -364,9 +366,11 @@ export default function InteriorPaymentsScreen() {
             <View style={[s.statusPill, { backgroundColor: '#F0FDF4' }]}>
               <Text style={[s.statusPillText, { color: '#16A34A' }]}>{tx.incomingStatus || 'Completed'}</Text>
             </View>
-            <TouchableOpacity onPress={() => handleDeletePayment(tx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="trash-outline" size={16} color="#EF4444" />
-            </TouchableOpacity>
+            {canDo('financials', 'delete') && (
+              <TouchableOpacity onPress={() => handleDeletePayment(tx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="trash-outline" size={16} color="#EF4444" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       ));
@@ -389,9 +393,11 @@ export default function InteriorPaymentsScreen() {
             <View style={[s.statusPill, { backgroundColor: tx.outgoingStatus === 'Paid' ? '#F0FDF4' : '#FFFBEB' }]}>
               <Text style={[s.statusPillText, { color: tx.outgoingStatus === 'Paid' ? '#16A34A' : '#D97706' }]}>{tx.outgoingStatus || 'Paid'}</Text>
             </View>
-            <TouchableOpacity onPress={() => handleDeletePayment(tx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="trash-outline" size={16} color="#EF4444" />
-            </TouchableOpacity>
+            {canDo('financials', 'delete') && (
+              <TouchableOpacity onPress={() => handleDeletePayment(tx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="trash-outline" size={16} color="#EF4444" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       ));
@@ -413,9 +419,11 @@ export default function InteriorPaymentsScreen() {
           <View style={[s.statusPill, { backgroundColor: dn.debitNoteStatus === 'Settled' ? '#F0FDF4' : dn.debitNoteStatus === 'Adjusted' ? '#EFF6FF' : '#FFFBEB' }]}>
             <Text style={[s.statusPillText, { color: dn.debitNoteStatus === 'Settled' ? '#16A34A' : dn.debitNoteStatus === 'Adjusted' ? '#2563EB' : '#D97706' }]}>{dn.debitNoteStatus || 'Issued'}</Text>
           </View>
-          <TouchableOpacity onPress={() => handleDeletePayment(dn)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="trash-outline" size={16} color="#EF4444" />
-          </TouchableOpacity>
+          {canDo('financials', 'delete') && (
+            <TouchableOpacity onPress={() => handleDeletePayment(dn)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     ));
@@ -486,9 +494,11 @@ export default function InteriorPaymentsScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={openCreateModal}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('financials', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={openCreateModal}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* Incoming Payment Modal */}

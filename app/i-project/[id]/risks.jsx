@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 // Reusable dropdown select field (replaces horizontal chip-scroll / stacked
 // option lists for single-choice fields like Threat Category / Probability / Impact).
@@ -90,6 +91,7 @@ export default function InteriorRisksScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [risks, setRisks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -240,12 +242,16 @@ export default function InteriorRisksScreen() {
                         <View style={[s.scoreBadge, { backgroundColor: sc.bg }]}>
                           <Text style={[s.scoreBadgeText, { color: sc.color }]}>Score {risk.score} ({risk.probability} × {risk.impact})</Text>
                         </View>
-                        <TouchableOpacity onPress={() => openEditModal(risk)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                          <Ionicons name="pencil-outline" size={14} color="#94A3B8" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleDeleteRisk(risk)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                          <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                        </TouchableOpacity>
+                        {canDo('risks', 'update') && (
+                          <TouchableOpacity onPress={() => openEditModal(risk)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                            <Ionicons name="pencil-outline" size={14} color="#94A3B8" />
+                          </TouchableOpacity>
+                        )}
+                        {canDo('risks', 'delete') && (
+                          <TouchableOpacity onPress={() => handleDeleteRisk(risk)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                            <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
                     <Text style={s.riskDesc}>{risk.description}</Text>
@@ -263,9 +269,11 @@ export default function InteriorRisksScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={openCreateModal}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('risks', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={openCreateModal}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={closeModal}>

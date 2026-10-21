@@ -10,6 +10,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const COLUMNS = [
   { id: 'todo', title: 'To Do', color: '#3B82F6' },
@@ -165,6 +166,7 @@ export default function InteriorTasksScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [tasks, setTasks] = useState([]);
   const [wbsPackages, setWbsPackages] = useState([]);
@@ -711,7 +713,7 @@ export default function InteriorTasksScreen() {
                 <Text style={s.emptyTitle}>No tasks in this column</Text>
               </View>
             ) : (
-              colTasks.map((task) => <TaskCard key={task._id} task={task} onPress={() => openTask(task)} onEdit={() => openEditTask(task)} onDelete={() => deleteTask(task)} />)
+              colTasks.map((task) => <TaskCard key={task._id} task={task} onPress={() => openTask(task)} onEdit={canDo('tasks', 'update') ? () => openEditTask(task) : undefined} onDelete={canDo('tasks', 'delete') ? () => deleteTask(task) : undefined} />)
             )}
             <View style={{ height: 100 }} />
           </ScrollView>
@@ -739,7 +741,7 @@ export default function InteriorTasksScreen() {
                     </TouchableOpacity>
                     {isExpanded && (
                       <View style={{ padding: 10, gap: 8 }}>
-                        {group.tasks.map((task) => <TaskCard key={task._id} task={task} compact onPress={() => openTask(task)} onEdit={() => openEditTask(task)} onDelete={() => deleteTask(task)} />)}
+                        {group.tasks.map((task) => <TaskCard key={task._id} task={task} compact onPress={() => openTask(task)} onEdit={canDo('tasks', 'update') ? () => openEditTask(task) : undefined} onDelete={canDo('tasks', 'delete') ? () => deleteTask(task) : undefined} />)}
                       </View>
                     )}
                   </View>
@@ -750,9 +752,11 @@ export default function InteriorTasksScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={() => setIsCreateOpen(true)}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('tasks', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={() => setIsCreateOpen(true)}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* ==================== CREATE TASK MODAL ==================== */}
@@ -784,16 +788,20 @@ export default function InteriorTasksScreen() {
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
-                  <TouchableOpacity style={[s.saveBtnSm, creatingPkg && { opacity: 0.7 }]} onPress={handleCreateInlinePackage} disabled={creatingPkg}>
-                    {creatingPkg ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnSmText}>Save & Select Package</Text>}
-                  </TouchableOpacity>
+                  {canDo('wbs', 'create') && (
+                    <TouchableOpacity style={[s.saveBtnSm, creatingPkg && { opacity: 0.7 }]} onPress={handleCreateInlinePackage} disabled={creatingPkg}>
+                      {creatingPkg ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnSmText}>Save & Select Package</Text>}
+                    </TouchableOpacity>
+                  )}
                 </View>
               ) : wbsPackages.length === 0 ? (
                 <View style={s.noPkgBox}>
                   <Text style={s.noPkgText}>Tasks must belong to a WBS Trade Package. Tap below to initialize a starter package.</Text>
-                  <TouchableOpacity style={[s.saveBtnSm, creatingPkg && { opacity: 0.7 }]} onPress={handleQuickCreateDefaultWbs} disabled={creatingPkg}>
-                    {creatingPkg ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnSmText}>Initialize Starter Package</Text>}
-                  </TouchableOpacity>
+                  {canDo('wbs', 'create') && (
+                    <TouchableOpacity style={[s.saveBtnSm, creatingPkg && { opacity: 0.7 }]} onPress={handleQuickCreateDefaultWbs} disabled={creatingPkg}>
+                      {creatingPkg ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnSmText}>Initialize Starter Package</Text>}
+                    </TouchableOpacity>
+                  )}
                 </View>
               ) : (
                 <SelectDropdown
@@ -916,9 +924,11 @@ export default function InteriorTasksScreen() {
                     <Text style={s.modalTitle} numberOfLines={1}>{selectedTask.name}</Text>
                     {!!selectedTask.packageId && <Text style={s.headerSub}>{selectedTask.packageId.name} ({selectedTask.packageId.trade})</Text>}
                   </View>
-                  <TouchableOpacity onPress={() => openEditTask(selectedTask)} style={{ marginRight: 14 }}>
-                    <Ionicons name="pencil-outline" size={18} color="#2563EB" />
-                  </TouchableOpacity>
+                  {canDo('tasks', 'update') && (
+                    <TouchableOpacity onPress={() => openEditTask(selectedTask)} style={{ marginRight: 14 }}>
+                      <Ionicons name="pencil-outline" size={18} color="#2563EB" />
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity onPress={() => setSelectedTask(null)}>
                     <Ionicons name="close" size={22} color="#64748B" />
                   </TouchableOpacity>
@@ -928,7 +938,7 @@ export default function InteriorTasksScreen() {
                   <Text style={s.label}>Task Status</Text>
                   <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
                     {COLUMNS.map((col) => (
-                      <TouchableOpacity key={col.id} style={[s.statusOption, selectedTask.status === col.id && s.statusOptionActive]} onPress={() => updateStatus(selectedTask, col.id)}>
+                      <TouchableOpacity key={col.id} style={[s.statusOption, selectedTask.status === col.id && s.statusOptionActive]} onPress={() => canDo('tasks', 'update') && updateStatus(selectedTask, col.id)}>
                         <Text style={[s.statusOptionText, selectedTask.status === col.id && s.statusOptionTextActive]}>{col.title}</Text>
                       </TouchableOpacity>
                     ))}
@@ -941,10 +951,12 @@ export default function InteriorTasksScreen() {
                           <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
                           <Text style={s.proofVerifiedTitle}>Proof of Work Verified</Text>
                         </View>
-                        <TouchableOpacity style={s.updateProofBtn} onPress={() => initiateCompleteTask(selectedTask)}>
-                          <Ionicons name="camera-outline" size={12} color="#16A34A" />
-                          <Text style={s.updateProofBtnText}>Update Proof</Text>
-                        </TouchableOpacity>
+                        {canDo('tasks', 'update') && (
+                          <TouchableOpacity style={s.updateProofBtn} onPress={() => initiateCompleteTask(selectedTask)}>
+                            <Ionicons name="camera-outline" size={12} color="#16A34A" />
+                            <Text style={s.updateProofBtnText}>Update Proof</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                       {selectedTask.completionProof?.completedAt && (
                         <Text style={s.proofDate}>Completed on {new Date(selectedTask.completionProof.completedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</Text>
@@ -1099,10 +1111,12 @@ export default function InteriorTasksScreen() {
                   ))}
 
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
-                    <TouchableOpacity style={s.deleteTaskBtn} onPress={() => deleteTask(selectedTask)}>
-                      <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                      <Text style={s.deleteTaskBtnText}>Delete Task</Text>
-                    </TouchableOpacity>
+                    {canDo('tasks', 'delete') && (
+                      <TouchableOpacity style={s.deleteTaskBtn} onPress={() => deleteTask(selectedTask)}>
+                        <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                        <Text style={s.deleteTaskBtnText}>Delete Task</Text>
+                      </TouchableOpacity>
+                    )}
                     <TouchableOpacity style={s.saveBtnSm} onPress={saveEditedTask}>
                       <Text style={s.saveBtnSmText}>Save Changes</Text>
                     </TouchableOpacity>
@@ -1192,6 +1206,7 @@ export default function InteriorTasksScreen() {
 }
 
 function TaskCard({ task, onPress, onEdit, onDelete, compact }) {
+  // Edit / Delete icons only show for the handlers the screen passes (by permission)
   const priority = PRIORITY_META[task.priority] || PRIORITY_META.medium;
   const assignee = task.assignees?.[0];
   const totalSub = task.subtasks?.length || 0;
@@ -1215,12 +1230,16 @@ function TaskCard({ task, onPress, onEdit, onDelete, compact }) {
           )}
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <TouchableOpacity onPress={onEdit} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-            <Ionicons name="pencil-outline" size={14} color="#94A3B8" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onDelete} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-            <Ionicons name="trash-outline" size={14} color="#EF4444" />
-          </TouchableOpacity>
+          {onEdit && (
+            <TouchableOpacity onPress={onEdit} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <Ionicons name="pencil-outline" size={14} color="#94A3B8" />
+            </TouchableOpacity>
+          )}
+          {onDelete && (
+            <TouchableOpacity onPress={onDelete} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <Ionicons name="trash-outline" size={14} color="#EF4444" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
       {!!task.packageId?.trade && !compact && <Text style={s.tradeTag}>#{task.packageId.trade}</Text>}

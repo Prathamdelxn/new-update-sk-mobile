@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 
 const ROOM_PRESETS = [
   'Living Room',
@@ -138,6 +139,7 @@ export default function InteriorSiteDetailsScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { hasPermission: canDo } = useInteriorPermissions();
 
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -452,13 +454,15 @@ export default function InteriorSiteDetailsScreen() {
                     <Ionicons name="resize-outline" size={16} color="#7C3AED" />
                     <Text style={s.sectionTitle}>Physical Site Measurements</Text>
                   </View>
-                  <TouchableOpacity
-                    style={s.sectionEditBtn}
-                    onPress={() => setShowMeasureModal(true)}
-                  >
-                    <Ionicons name="pencil" size={12} color="#2563EB" />
-                    <Text style={s.sectionEditBtnText}>Edit</Text>
-                  </TouchableOpacity>
+                  {canDo('crm_site_visits', 'update') && (
+                    <TouchableOpacity
+                      style={s.sectionEditBtn}
+                      onPress={() => setShowMeasureModal(true)}
+                    >
+                      <Ionicons name="pencil" size={12} color="#2563EB" />
+                      <Text style={s.sectionEditBtnText}>Edit</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {(customer?.remarks || siteMeasurements?.notes || customer?.siteVisitScheduledDate) && (
@@ -575,14 +579,16 @@ export default function InteriorSiteDetailsScreen() {
                     </View>
                   </View>
                 ) : (
-                  <TouchableOpacity
-                    style={s.emptyPromptBox}
-                    onPress={() => setShowMeasureModal(true)}
-                  >
-                    <Ionicons name="add-circle-outline" size={24} color="#7C3AED" />
-                    <Text style={s.emptyPromptTitle}>No measurements logged</Text>
-                    <Text style={s.emptyPromptSub}>Tap here to log carpet area, ceiling height, and structural notes</Text>
-                  </TouchableOpacity>
+                  canDo('crm_site_visits', 'update') && (
+                    <TouchableOpacity
+                      style={s.emptyPromptBox}
+                      onPress={() => setShowMeasureModal(true)}
+                    >
+                      <Ionicons name="add-circle-outline" size={24} color="#7C3AED" />
+                      <Text style={s.emptyPromptTitle}>No measurements logged</Text>
+                      <Text style={s.emptyPromptSub}>Tap here to log carpet area, ceiling height, and structural notes</Text>
+                    </TouchableOpacity>
+                  )
                 )}
               </View>
             )}
@@ -597,13 +603,15 @@ export default function InteriorSiteDetailsScreen() {
                     <Ionicons name="images-outline" size={16} color="#059669" />
                     <Text style={[s.sectionTitle, { color: '#059669' }]}>Site Inspection Photos ({sitePhotos.length})</Text>
                   </View>
-                  <TouchableOpacity
-                    style={s.sectionEditBtn}
-                    onPress={() => setShowMeasureModal(true)}
-                  >
-                    <Ionicons name="camera-outline" size={13} color="#2563EB" />
-                    <Text style={s.sectionEditBtnText}>Manage</Text>
-                  </TouchableOpacity>
+                  {canDo('crm_site_visits', 'update') && (
+                    <TouchableOpacity
+                      style={s.sectionEditBtn}
+                      onPress={() => setShowMeasureModal(true)}
+                    >
+                      <Ionicons name="camera-outline" size={13} color="#2563EB" />
+                      <Text style={s.sectionEditBtnText}>Manage</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {hasPhotos ? (
@@ -622,14 +630,16 @@ export default function InteriorSiteDetailsScreen() {
                     ))}
                   </View>
                 ) : (
-                  <TouchableOpacity
-                    style={s.emptyPromptBox}
-                    onPress={() => setShowMeasureModal(true)}
-                  >
-                    <Ionicons name="camera-outline" size={24} color="#059669" />
-                    <Text style={[s.emptyPromptTitle, { color: '#059669' }]}>No inspection photos attached</Text>
-                    <Text style={s.emptyPromptSub}>Tap to capture or upload on-site survey photos</Text>
-                  </TouchableOpacity>
+                  canDo('crm_site_visits', 'update') && (
+                    <TouchableOpacity
+                      style={s.emptyPromptBox}
+                      onPress={() => setShowMeasureModal(true)}
+                    >
+                      <Ionicons name="camera-outline" size={24} color="#059669" />
+                      <Text style={[s.emptyPromptTitle, { color: '#059669' }]}>No inspection photos attached</Text>
+                      <Text style={s.emptyPromptSub}>Tap to capture or upload on-site survey photos</Text>
+                    </TouchableOpacity>
+                  )
                 )}
               </View>
             )}
@@ -644,13 +654,15 @@ export default function InteriorSiteDetailsScreen() {
                     <Ionicons name="list-outline" size={16} color="#2563EB" />
                     <Text style={[s.sectionTitle, { color: '#2563EB' }]}>Room-by-Room Design Brief ({requirements.length})</Text>
                   </View>
-                  <TouchableOpacity
-                    style={[s.sectionEditBtn, { backgroundColor: '#EFF6FF' }]}
-                    onPress={() => setShowReqModal(true)}
-                  >
-                    <Ionicons name="add" size={14} color="#2563EB" />
-                    <Text style={s.sectionEditBtnText}>Add Room</Text>
-                  </TouchableOpacity>
+                  {canDo('crm_requirements', 'update') && (
+                    <TouchableOpacity
+                      style={[s.sectionEditBtn, { backgroundColor: '#EFF6FF' }]}
+                      onPress={() => setShowReqModal(true)}
+                    >
+                      <Ionicons name="add" size={14} color="#2563EB" />
+                      <Text style={s.sectionEditBtnText}>Add Room</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {/* Budget & Overview Highlights */}
@@ -718,12 +730,14 @@ export default function InteriorSiteDetailsScreen() {
                                 <Text style={s.themeBadgeText}>{req.designStyle || req.theme}</Text>
                               </View>
                             )}
-                            <TouchableOpacity
-                              onPress={() => handleDeleteRequirement(idx, req.roomName)}
-                              style={{ padding: 4 }}
-                            >
-                              <Ionicons name="trash-outline" size={14} color="#94A3B8" />
-                            </TouchableOpacity>
+                            {canDo('crm_requirements', 'update') && (
+                              <TouchableOpacity
+                                onPress={() => handleDeleteRequirement(idx, req.roomName)}
+                                style={{ padding: 4 }}
+                              >
+                                <Ionicons name="trash-outline" size={14} color="#94A3B8" />
+                              </TouchableOpacity>
+                            )}
                           </View>
 
                           {!!req.interiorType && (
@@ -762,14 +776,16 @@ export default function InteriorSiteDetailsScreen() {
                     })}
                   </View>
                 ) : (
-                  <TouchableOpacity
-                    style={s.emptyPromptBox}
-                    onPress={() => setShowReqModal(true)}
-                  >
-                    <Ionicons name="add-circle-outline" size={24} color="#2563EB" />
-                    <Text style={[s.emptyPromptTitle, { color: '#2563EB' }]}>No room requirements recorded</Text>
-                    <Text style={s.emptyPromptSub}>Tap here to define styling briefs and finish requirements</Text>
-                  </TouchableOpacity>
+                  canDo('crm_requirements', 'update') && (
+                    <TouchableOpacity
+                      style={s.emptyPromptBox}
+                      onPress={() => setShowReqModal(true)}
+                    >
+                      <Ionicons name="add-circle-outline" size={24} color="#2563EB" />
+                      <Text style={[s.emptyPromptTitle, { color: '#2563EB' }]}>No room requirements recorded</Text>
+                      <Text style={s.emptyPromptSub}>Tap here to define styling briefs and finish requirements</Text>
+                    </TouchableOpacity>
+                  )
                 )}
               </View>
             )}

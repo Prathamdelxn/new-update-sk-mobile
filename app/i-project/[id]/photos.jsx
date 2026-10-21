@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const CATEGORIES = ['all', 'progress', 'snag', 'delivery', 'other'];
 const CATEGORY_OPTIONS = [
@@ -28,6 +29,7 @@ export default function InteriorPhotosScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -154,9 +156,11 @@ export default function InteriorPhotosScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={() => setIsModalOpen(true)}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('photos', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={() => setIsModalOpen(true)}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={closeModal}>

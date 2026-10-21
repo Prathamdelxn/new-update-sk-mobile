@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const VO_TYPES = [
   { value: 'addition', label: 'Addition' },
@@ -57,6 +58,7 @@ export default function InteriorVariationOrdersScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [vos, setVos] = useState([]);
   const [projectBudget, setProjectBudget] = useState(500000);
@@ -207,9 +209,11 @@ export default function InteriorVariationOrdersScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={() => setIsCreateOpen(true)}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('variation_orders', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={() => setIsCreateOpen(true)}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* Create modal */}
@@ -377,14 +381,16 @@ export default function InteriorVariationOrdersScreen() {
                   </View>
 
                   {detailVo.status !== 'approved' && (
-                    <TouchableOpacity style={[s.approveBtn, actionLoading && { opacity: 0.7 }]} onPress={approveVo} disabled={actionLoading}>
-                      {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
-                        <>
-                          <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
-                          <Text style={s.approveBtnText}>Approve & Run Auto Impact Updates</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
+                    canDo('variation_orders', 'approve') && (
+                      <TouchableOpacity style={[s.approveBtn, actionLoading && { opacity: 0.7 }]} onPress={approveVo} disabled={actionLoading}>
+                        {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
+                          <>
+                            <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
+                            <Text style={s.approveBtnText}>Approve & Run Auto Impact Updates</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )
                   )}
                   <View style={{ height: 20 }} />
                 </ScrollView>

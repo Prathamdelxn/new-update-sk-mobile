@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, StatusBar, ActivityIndicator, RefreshControl,
@@ -42,6 +42,8 @@ import {
   SendToQuotationsModal,
   ConvertToProjectModal,
 } from '../../components/crm/StageTransitionModals';
+import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
+import { CRM_MODULES, canMoveLead } from '../../utils/interior/crmStages';
 
 const LEAD_SOURCES = ['Phone Call', 'Walk-in', 'Referral', 'Existing Customer', 'Builder Reference', 'Architect Reference', 'Society Reference', 'Social Media', 'Other'];
 const FOLLOWUP_TYPES = ['Phone Call', 'WhatsApp', 'Meeting', 'Office Visit', 'Site Visit'];
@@ -153,7 +155,10 @@ const TABS = [
 ];
 
 export default function Lead360Screen() {
-  const { id, tab } = useLocalSearchParams();
+  const { id, tab, action } = useLocalSearchParams();
+  // Each CRM stage has its own permission (same rules as the web lead page and the backend)
+  const { hasPermission: canDo } = useInteriorPermissions();
+  const canAnyCrmUpdate = CRM_MODULES.some((m) => canDo(m, 'update'));
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
@@ -381,6 +386,22 @@ export default function Lead360Screen() {
   }, [queryClient]);
 
   const loadError = leadQuery.error || activitiesQuery.error;
+
+  // Opened from a CRM tab's "Add to <stage>" picker → go straight to that stage's form
+  const handledActionRef = useRef(false);
+  useEffect(() => {
+    if (!lead || !action || handledActionRef.current) return;
+    handledActionRef.current = true;
+    const openers = {
+      followup: setShowFollowUpModal,
+      site: setShowSendSiteModal,
+      requirements: setShowSendReqModal,
+      drawing: setShowSendDrawingModal,
+      boq: setShowSendBoqModal,
+      quotation: setShowSendQuoteModal,
+    };
+    openers[action]?.(true);
+  }, [lead, action]);
   useEffect(() => {
     if (loadError) showToast(loadError.message || 'Failed to load lead details', 'error');
   }, [loadError]);
@@ -1453,14 +1474,16 @@ export default function Lead360Screen() {
               </Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={s.reopenLeadBtn}
-            onPress={() => setShowStatusModal(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="refresh" size={13} color="#2563EB" />
-            <Text style={s.reopenLeadBtnText}>Reactivate</Text>
-          </TouchableOpacity>
+          {canDo('crm_leads', 'update') && (
+            <TouchableOpacity
+              style={s.reopenLeadBtn}
+              onPress={() => setShowStatusModal(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh" size={13} color="#2563EB" />
+              <Text style={s.reopenLeadBtnText}>Reactivate</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -1532,36 +1555,42 @@ export default function Lead360Screen() {
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   {!isReadOnly && (
-                    <TouchableOpacity
-                      style={s.headerIconBtn}
-                      onPress={() => setShowLostModal(true)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
-                    </TouchableOpacity>
+                    canAnyCrmUpdate && (
+                      <TouchableOpacity
+                        style={s.headerIconBtn}
+                        onPress={() => setShowLostModal(true)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
+                      </TouchableOpacity>
+                    )
                   )}
                   {!isReadOnly && (
-                    <TouchableOpacity
-                      style={[s.headerIconBtn, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}
-                      onPress={openEditModal}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="pencil" size={15} color="#334155" />
-                    </TouchableOpacity>
+                    canDo('crm_leads', 'update') && (
+                      <TouchableOpacity
+                        style={[s.headerIconBtn, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}
+                        onPress={openEditModal}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="pencil" size={15} color="#334155" />
+                      </TouchableOpacity>
+                    )
                   )}
                   {!isConverted && (
-                    <TouchableOpacity
-                      style={s.headerIconBtn}
-                      onPress={handleDeleteLead}
-                      disabled={deletingLead}
-                      activeOpacity={0.7}
-                    >
-                      {deletingLead ? (
-                        <ActivityIndicator size="small" color="#DC2626" />
-                      ) : (
-                        <Ionicons name="trash-outline" size={15} color="#DC2626" />
-                      )}
-                    </TouchableOpacity>
+                    canDo('crm_leads', 'delete') && (
+                      <TouchableOpacity
+                        style={s.headerIconBtn}
+                        onPress={handleDeleteLead}
+                        disabled={deletingLead}
+                        activeOpacity={0.7}
+                      >
+                        {deletingLead ? (
+                          <ActivityIndicator size="small" color="#DC2626" />
+                        ) : (
+                          <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                        )}
+                      </TouchableOpacity>
+                    )
                   )}
                 </View>
               </View>
@@ -1650,10 +1679,12 @@ export default function Lead360Screen() {
                 <View style={s.cardHeaderRow}>
                   <Ionicons name="pulse" size={18} color="#2563EB" />
                   <Text style={s.cardTitle}>Activity Timeline</Text>
-                  <TouchableOpacity style={s.smallBtn} onPress={() => setShowActivityModal(true)}>
-                    <Ionicons name="add" size={14} color="#2563EB" />
-                    <Text style={s.smallBtnText}>Log</Text>
-                  </TouchableOpacity>
+                  {canDo('crm_followups', 'create') && (
+                    <TouchableOpacity style={s.smallBtn} onPress={() => setShowActivityModal(true)}>
+                      <Ionicons name="add" size={14} color="#2563EB" />
+                      <Text style={s.smallBtnText}>Log</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {activities.length === 0 ? (
@@ -1760,45 +1791,53 @@ export default function Lead360Screen() {
                         {activePendingFollowUp ? (
                           canSendToSiteVisit ? (
                             !isActiveOverdue && (
-                              <TouchableOpacity
-                                style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#7C3AED', paddingVertical: 12 }]}
-                                onPress={() => setShowSendSiteModal(true)}
-                                activeOpacity={0.7}
-                              >
-                                <Ionicons name="location-outline" size={15} color="#FFFFFF" />
-                                <Text style={s.saveBtnText}>Complete & Send to Site Visit </Text>
-                              </TouchableOpacity>
+                              (canMoveLead(canDo, 'crm_followups', 'crm_site_visits') || canDo('crm_leads', 'update')) && (
+                                <TouchableOpacity
+                                  style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#7C3AED', paddingVertical: 12 }]}
+                                  onPress={() => setShowSendSiteModal(true)}
+                                  activeOpacity={0.7}
+                                >
+                                  <Ionicons name="location-outline" size={15} color="#FFFFFF" />
+                                  <Text style={s.saveBtnText}>Complete & Send to Site Visit </Text>
+                                </TouchableOpacity>
+                              )
                               // Matches web: once overdue, only Reschedule is offered — no
                               // way to complete/advance until the follow-up date is fixed.
                             )
                           ) : (
-                            <TouchableOpacity
-                              style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#16A34A', paddingVertical: 12 }]}
-                              onPress={() => handleCompleteFollowUp(activePendingFollowUp._id)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
-                              <Text style={s.saveBtnText}>Mark Done</Text>
-                            </TouchableOpacity>
+                            canDo('crm_followups', 'update') && (
+                              <TouchableOpacity
+                                style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#16A34A', paddingVertical: 12 }]}
+                                onPress={() => handleCompleteFollowUp(activePendingFollowUp._id)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
+                                <Text style={s.saveBtnText}>Mark Done</Text>
+                              </TouchableOpacity>
+                            )
                           )
                         ) : completedFollowUps.length === 0 ? (
-                          <TouchableOpacity
-                            style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#2563EB', paddingVertical: 12 }]}
-                            onPress={() => setShowFollowUpModal(true)}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="calendar-outline" size={15} color="#FFFFFF" />
-                            <Text style={s.saveBtnText}>Schedule Follow-up</Text>
-                          </TouchableOpacity>
+                          canDo('crm_followups', 'create') && (
+                            <TouchableOpacity
+                              style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#2563EB', paddingVertical: 12 }]}
+                              onPress={() => setShowFollowUpModal(true)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="calendar-outline" size={15} color="#FFFFFF" />
+                              <Text style={s.saveBtnText}>Schedule Follow-up</Text>
+                            </TouchableOpacity>
+                          )
                         ) : canSendToSiteVisit ? (
-                          <TouchableOpacity
-                            style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#7C3AED', paddingVertical: 12 }]}
-                            onPress={() => setShowSendSiteModal(true)}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="location-outline" size={15} color="#FFFFFF" />
-                            <Text style={s.saveBtnText}>Pass to Site Visit</Text>
-                          </TouchableOpacity>
+                          (canMoveLead(canDo, 'crm_followups', 'crm_site_visits') || canDo('crm_leads', 'update')) && (
+                            <TouchableOpacity
+                              style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#7C3AED', paddingVertical: 12 }]}
+                              onPress={() => setShowSendSiteModal(true)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="location-outline" size={15} color="#FFFFFF" />
+                              <Text style={s.saveBtnText}>Pass to Site Visit</Text>
+                            </TouchableOpacity>
+                          )
                         ) : null}
                       </View>
                     </View>
@@ -1869,14 +1908,16 @@ export default function Lead360Screen() {
 
                           {!isReadOnly && (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
-                              <TouchableOpacity
-                                style={[s.rescheduleBtn, { flex: 1, justifyContent: 'center' }]}
-                                onPress={() => openRescheduleModal(activePendingFollowUp)}
-                                activeOpacity={0.7}
-                              >
-                                <Ionicons name="calendar-outline" size={13} color="#7C3AED" />
-                                <Text style={s.rescheduleBtnText}>Reschedule</Text>
-                              </TouchableOpacity>
+                              {canDo('crm_followups', 'update') && (
+                                <TouchableOpacity
+                                  style={[s.rescheduleBtn, { flex: 1, justifyContent: 'center' }]}
+                                  onPress={() => openRescheduleModal(activePendingFollowUp)}
+                                  activeOpacity={0.7}
+                                >
+                                  <Ionicons name="calendar-outline" size={13} color="#7C3AED" />
+                                  <Text style={s.rescheduleBtnText}>Reschedule</Text>
+                                </TouchableOpacity>
+                              )}
                             </View>
                           )}
 
@@ -1950,10 +1991,12 @@ export default function Lead360Screen() {
                           </Text>
                         </View>
                         {completedFollowUps.length === 0 && !activePendingFollowUp && (
-                          <TouchableOpacity style={s.smallBtn} onPress={() => setShowFollowUpModal(true)}>
-                            <Ionicons name="add" size={14} color="#2563EB" />
-                            <Text style={s.smallBtnText}>Schedule</Text>
-                          </TouchableOpacity>
+                          canDo('crm_followups', 'create') && (
+                            <TouchableOpacity style={s.smallBtn} onPress={() => setShowFollowUpModal(true)}>
+                              <Ionicons name="add" size={14} color="#2563EB" />
+                              <Text style={s.smallBtnText}>Schedule</Text>
+                            </TouchableOpacity>
+                          )
                         )}
                       </View>
 
@@ -1961,12 +2004,14 @@ export default function Lead360Screen() {
                         <View style={{ alignItems: 'center', paddingVertical: 24, gap: 8 }}>
                           <Ionicons name="calendar-clear-outline" size={36} color="#CBD5E1" />
                           <Text style={s.emptySubText}>No follow-ups logged yet.</Text>
-                          <TouchableOpacity
-                            style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 }}
-                            onPress={() => setShowFollowUpModal(true)}
-                          >
-                            <Text style={{ color: '#2563EB', fontSize: 12, fontFamily: 'Inter-Bold' }}>+ Schedule First Follow-up</Text>
-                          </TouchableOpacity>
+                          {canDo('crm_followups', 'create') && (
+                            <TouchableOpacity
+                              style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 }}
+                              onPress={() => setShowFollowUpModal(true)}
+                            >
+                              <Text style={{ color: '#2563EB', fontSize: 12, fontFamily: 'Inter-Bold' }}>+ Schedule First Follow-up</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       ) : completedFollowUps.length === 0 && activePendingFollowUp ? (
                         <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 }}>
@@ -2142,9 +2187,11 @@ export default function Lead360Screen() {
                             </View>
                           </View>
                         )}
-                        <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowSiteModal(true)}>
-                          <Text style={s.actionBtnText}>Log Site Visit</Text>
-                        </TouchableOpacity>
+                        {canDo('crm_site_visits', 'update') && (
+                          <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowSiteModal(true)}>
+                            <Text style={s.actionBtnText}>Log Site Visit</Text>
+                          </TouchableOpacity>
+                        )}
                         {siteVisitActs.length > 0 && (
                           <TouchableOpacity style={[s.smallBtn, { marginTop: 8 }]} onPress={() => setShowSiteHistoryModal(true)}>
                             <Ionicons name="time-outline" size={13} color="#7C3AED" />
@@ -2191,10 +2238,12 @@ export default function Lead360Screen() {
                           </View>
                           <Text style={s.cardTitle} numberOfLines={1}>Room & Spatial Dimensions</Text>
                         </View>
-                        <TouchableOpacity style={s.smallBtn} onPress={() => setShowSiteModal(true)}>
-                          <Ionicons name="create-outline" size={14} color="#2563EB" />
-                          <Text style={s.smallBtnText}>Edit</Text>
-                        </TouchableOpacity>
+                        {canDo('crm_site_visits', 'update') && (
+                          <TouchableOpacity style={s.smallBtn} onPress={() => setShowSiteModal(true)}>
+                            <Ionicons name="create-outline" size={14} color="#2563EB" />
+                            <Text style={s.smallBtnText}>Edit</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                       
                       {/* Metric Row: Carpet Area & Ceiling Height */}
@@ -2352,10 +2401,12 @@ export default function Lead360Screen() {
                           </View>
                           <Text style={s.cardTitle} numberOfLines={1}>Site Photos ({lead.sitePhotos?.length || 0})</Text>
                         </View>
-                        <TouchableOpacity style={[s.smallBtn, { flexShrink: 0 }]} onPress={() => setShowSiteModal(true)}>
-                          <Ionicons name="camera-outline" size={14} color="#2563EB" />
-                          <Text style={s.smallBtnText}>Manage</Text>
-                        </TouchableOpacity>
+                        {canDo('crm_site_visits', 'update') && (
+                          <TouchableOpacity style={[s.smallBtn, { flexShrink: 0 }]} onPress={() => setShowSiteModal(true)}>
+                            <Ionicons name="camera-outline" size={14} color="#2563EB" />
+                            <Text style={s.smallBtnText}>Manage</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                       {lead.sitePhotos && lead.sitePhotos.length > 0 ? (
                         <View style={s.photoGrid}>
@@ -2370,9 +2421,11 @@ export default function Lead360Screen() {
                     
                     <View style={{ gap: 8, marginTop: 4 }}>
                       {lead.status === 'Under Site Visit' && (
-                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#7C3AED', marginTop: 0 }]} onPress={() => setShowSendReqModal(true)}>
-                          <Text style={s.actionBtnText}>Complete Phase & Pass to Requirements</Text>
-                        </TouchableOpacity>
+                        canMoveLead(canDo, 'crm_site_visits', 'crm_requirements') && (
+                          <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#7C3AED', marginTop: 0 }]} onPress={() => setShowSendReqModal(true)}>
+                            <Text style={s.actionBtnText}>Complete Phase & Pass to Requirements</Text>
+                          </TouchableOpacity>
+                        )
                       )}
                     </View>
                   </View>
@@ -2411,9 +2464,11 @@ export default function Lead360Screen() {
                           <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
                         </TouchableOpacity>
                       ) : (
-                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#4F46E5' }]} onPress={() => setShowSendReqModal(true)}>
-                          <Text style={s.unlockActionBtnText}>Pass to Requirements</Text>
-                        </TouchableOpacity>
+                        canMoveLead(canDo, 'crm_site_visits', 'crm_requirements') && (
+                          <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#4F46E5' }]} onPress={() => setShowSendReqModal(true)}>
+                            <Text style={s.unlockActionBtnText}>Pass to Requirements</Text>
+                          </TouchableOpacity>
+                        )
                       )}
                     </View>
                   );
@@ -2462,9 +2517,11 @@ export default function Lead360Screen() {
                           </View>
                         )}
                         {!isReadOnly && (
-                          <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
-                            <Text style={s.actionBtnText}>Log Requirement</Text>
-                          </TouchableOpacity>
+                          canDo('crm_requirements', 'update') && (
+                            <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
+                              <Text style={s.actionBtnText}>Log Requirement</Text>
+                            </TouchableOpacity>
+                          )
                         )}
                         {!isReadOnly && pendingReqActEarly && !isReqOverdue && (
                           <TouchableOpacity style={[s.smallBtn, { marginTop: 8 }]} onPress={() => openRescheduleRequirements(pendingReqActEarly)}>
@@ -2504,10 +2561,12 @@ export default function Lead360Screen() {
                         </TouchableOpacity>
                       )}
                       {!isReadOnly && (
-                        <TouchableOpacity style={s.smallBtn} onPress={() => setShowReqModal(true)}>
-                          <Ionicons name="create-outline" size={14} color="#059669" />
-                          <Text style={[s.smallBtnText, { color: '#059669' }]}>Edit / Add</Text>
-                        </TouchableOpacity>
+                        canDo('crm_requirements', 'update') && (
+                          <TouchableOpacity style={s.smallBtn} onPress={() => setShowReqModal(true)}>
+                            <Ionicons name="create-outline" size={14} color="#059669" />
+                            <Text style={[s.smallBtnText, { color: '#059669' }]}>Edit / Add</Text>
+                          </TouchableOpacity>
+                        )
                       )}
                     </View>
                   </View>
@@ -2567,9 +2626,11 @@ export default function Lead360Screen() {
                   
                   <View style={{ gap: 8, marginTop: 8 }}>
                     {lead.status === 'Under Requirement' && (
-                      <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#4F46E5', marginTop: 0 }]} onPress={() => setShowSendDrawingModal(true)}>
-                        <Text style={s.actionBtnText}>Complete Phase & Pass to Drawing</Text>
-                      </TouchableOpacity>
+                      canMoveLead(canDo, 'crm_requirements', 'crm_drawings') && (
+                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#4F46E5', marginTop: 0 }]} onPress={() => setShowSendDrawingModal(true)}>
+                          <Text style={s.actionBtnText}>Complete Phase & Pass to Drawing</Text>
+                        </TouchableOpacity>
+                      )
                     )}
                   </View>
                 </View>
@@ -2597,9 +2658,11 @@ export default function Lead360Screen() {
                           <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
                         </TouchableOpacity>
                       ) : (
-                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#0284C7' }]} onPress={() => setShowSendDrawingModal(true)}>
-                          <Text style={s.unlockActionBtnText}>Pass to Drawing</Text>
-                        </TouchableOpacity>
+                        canMoveLead(canDo, 'crm_requirements', 'crm_drawings') && (
+                          <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#0284C7' }]} onPress={() => setShowSendDrawingModal(true)}>
+                            <Text style={s.unlockActionBtnText}>Pass to Drawing</Text>
+                          </TouchableOpacity>
+                        )
                       )}
                     </View>
                   );
@@ -2629,9 +2692,11 @@ export default function Lead360Screen() {
                         </View>
                       )}
                       {!isReadOnly && (
-                        <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowDesignModal(true)}>
-                          <Text style={s.actionBtnText}>Upload Design File</Text>
-                        </TouchableOpacity>
+                        canDo('crm_drawings', 'create') && (
+                          <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowDesignModal(true)}>
+                            <Text style={s.actionBtnText}>Upload Design File</Text>
+                          </TouchableOpacity>
+                        )
                       )}
                     </View>
                   );
@@ -2662,10 +2727,12 @@ export default function Lead360Screen() {
                         </TouchableOpacity>
                       )}
                       {!isReadOnly && (
-                        <TouchableOpacity style={s.smallBtn} onPress={() => setShowDesignModal(true)}>
-                          <Ionicons name="add" size={14} color="#2563EB" />
-                          <Text style={s.smallBtnText}>Upload File</Text>
-                        </TouchableOpacity>
+                        canDo('crm_drawings', 'create') && (
+                          <TouchableOpacity style={s.smallBtn} onPress={() => setShowDesignModal(true)}>
+                            <Ionicons name="add" size={14} color="#2563EB" />
+                            <Text style={s.smallBtnText}>Upload File</Text>
+                          </TouchableOpacity>
+                        )
                       )}
                     </View>
 
@@ -2697,10 +2764,12 @@ export default function Lead360Screen() {
                             <Text style={s.shareRibbonBtnOutlineText}>Preview Portal</Text>
                           </TouchableOpacity>
                         )}
-                        <TouchableOpacity style={s.shareRibbonBtn} onPress={() => setShowShareModal(true)}>
-                          <Ionicons name="link-outline" size={13} color="#FFFFFF" />
-                          <Text style={s.shareRibbonBtnText}>{lead.shareSettings?.isPublic ? 'Manage / Copy Link' : 'Generate Share Link'}</Text>
-                        </TouchableOpacity>
+                        {canAnyCrmUpdate && (
+                          <TouchableOpacity style={s.shareRibbonBtn} onPress={() => setShowShareModal(true)}>
+                            <Ionicons name="link-outline" size={13} color="#FFFFFF" />
+                            <Text style={s.shareRibbonBtnText}>{lead.shareSettings?.isPublic ? 'Manage / Copy Link' : 'Generate Share Link'}</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
 
@@ -2815,9 +2884,11 @@ export default function Lead360Screen() {
                                     <Text style={[s.smallBtnText, { color: '#2563EB' }]}>+ Revision</Text>
                                   </TouchableOpacity>
                                 )}
-                                <TouchableOpacity style={[s.smallBtn, { marginLeft: 'auto' }]} onPress={() => handleDeleteDrawingFile(file)}>
-                                  <Ionicons name="trash-outline" size={13} color="#EF4444" />
-                                </TouchableOpacity>
+                                {canDo('crm_drawings', 'delete') && (
+                                  <TouchableOpacity style={[s.smallBtn, { marginLeft: 'auto' }]} onPress={() => handleDeleteDrawingFile(file)}>
+                                    <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                                  </TouchableOpacity>
+                                )}
                               </View>
                             )}
                           </View>
@@ -2841,9 +2912,11 @@ export default function Lead360Screen() {
                             </TouchableOpacity>
                           </View>
                         ) : (
-                          <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#0284C7', marginTop: 0 }]} onPress={() => setShowSendBoqModal(true)}>
-                            <Text style={s.actionBtnText}>Complete Phase & Pass to BOQ Estimation</Text>
-                          </TouchableOpacity>
+                          canMoveLead(canDo, 'crm_drawings', 'crm_boq') && (
+                            <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#0284C7', marginTop: 0 }]} onPress={() => setShowSendBoqModal(true)}>
+                              <Text style={s.actionBtnText}>Complete Phase & Pass to BOQ Estimation</Text>
+                            </TouchableOpacity>
+                          )
                         );
                       })()}
                     </View>
@@ -2872,9 +2945,11 @@ export default function Lead360Screen() {
                           <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
                         </TouchableOpacity>
                       ) : (
-                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#059669' }]} onPress={() => setShowSendBoqModal(true)}>
-                          <Text style={s.unlockActionBtnText}>Pass to BOQ Phase</Text>
-                        </TouchableOpacity>
+                        canMoveLead(canDo, 'crm_drawings', 'crm_boq') && (
+                          <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#059669' }]} onPress={() => setShowSendBoqModal(true)}>
+                            <Text style={s.unlockActionBtnText}>Pass to BOQ Phase</Text>
+                          </TouchableOpacity>
+                        )
                       )}
                     </View>
                   );
@@ -2887,12 +2962,14 @@ export default function Lead360Screen() {
                       <Text style={s.emptyCardTitle}>No BOQ Generated</Text>
                       <Text style={s.emptySubText}>Build an itemized Bill of Quantities with quantities and rates.</Text>
                       {!isReadOnly && (
-                        <TouchableOpacity
-                          style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]}
-                          onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
-                        >
-                          <Text style={s.actionBtnText}>+ Create Estimate BOQ</Text>
-                        </TouchableOpacity>
+                        canDo('crm_boq', 'create') && (
+                          <TouchableOpacity
+                            style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]}
+                            onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
+                          >
+                            <Text style={s.actionBtnText}>+ Create Estimate BOQ</Text>
+                          </TouchableOpacity>
+                        )
                       )}
                     </View>
                   );
@@ -2955,20 +3032,22 @@ export default function Lead360Screen() {
                         </Text>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <TouchableOpacity
-                          style={[s.editBoqBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
-                          onPress={() => handleDownloadBoqPdf(activeBoq)}
-                          disabled={downloadingBoqPdf}
-                        >
-                          {downloadingBoqPdf ? (
-                            <ActivityIndicator size="small" color="#475569" />
-                          ) : (
-                            <>
-                              <Ionicons name="share-outline" size={13} color="#475569" />
-                              <Text style={[s.editBoqBtnText, { color: '#475569' }]}>Export</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
+                        {canDo('crm_boq', 'export') && (
+                          <TouchableOpacity
+                            style={[s.editBoqBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
+                            onPress={() => handleDownloadBoqPdf(activeBoq)}
+                            disabled={downloadingBoqPdf}
+                          >
+                            {downloadingBoqPdf ? (
+                              <ActivityIndicator size="small" color="#475569" />
+                            ) : (
+                              <>
+                                <Ionicons name="share-outline" size={13} color="#475569" />
+                                <Text style={[s.editBoqBtnText, { color: '#475569' }]}>Export</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        )}
                         {boqIsLocked ? (
                           <View style={s.boqLockedPill}>
                             <Ionicons name="lock-closed" size={12} color="#64748B" />
@@ -2976,20 +3055,24 @@ export default function Lead360Screen() {
                           </View>
                         ) : (
                           <>
-                            <TouchableOpacity
-                              style={s.editBoqBtn}
-                              onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}
-                            >
-                              <Ionicons name="create-outline" size={13} color="#2563EB" />
-                              <Text style={s.editBoqBtnText}>Edit</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={s.newBoqBtn}
-                              onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
-                            >
-                              <Ionicons name="add" size={14} color="#FFFFFF" />
-                              <Text style={s.newBoqBtnText}>New Rev</Text>
-                            </TouchableOpacity>
+                            {canDo('crm_boq', 'update') && (
+                              <TouchableOpacity
+                                style={s.editBoqBtn}
+                                onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}
+                              >
+                                <Ionicons name="create-outline" size={13} color="#2563EB" />
+                                <Text style={s.editBoqBtnText}>Edit</Text>
+                              </TouchableOpacity>
+                            )}
+                            {canDo('crm_boq', 'create') && (
+                              <TouchableOpacity
+                                style={s.newBoqBtn}
+                                onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
+                              >
+                                <Ionicons name="add" size={14} color="#FFFFFF" />
+                                <Text style={s.newBoqBtnText}>New Rev</Text>
+                              </TouchableOpacity>
+                            )}
                           </>
                         )}
                       </View>
@@ -2998,9 +3081,11 @@ export default function Lead360Screen() {
                     {/* Primary action — placed right below the header so it's reachable
                         without scrolling past the full line-items list. */}
                     {!boqIsLocked && lead.status === 'Under BOQ Creation' && (
-                      <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 0 }]} onPress={() => setShowSendQuoteModal(true)}>
-                        <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
-                      </TouchableOpacity>
+                      canMoveLead(canDo, 'crm_boq', 'crm_quotations') && (
+                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 0 }]} onPress={() => setShowSendQuoteModal(true)}>
+                          <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
+                        </TouchableOpacity>
+                      )
                     )}
 
                     {/* Versions Tabs if multiple */}
@@ -3120,9 +3205,11 @@ export default function Lead360Screen() {
                           <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
                         </TouchableOpacity>
                       ) : (
-                        <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#E11D48' }]} onPress={() => setShowSendQuoteModal(true)}>
-                          <Text style={s.unlockActionBtnText}>Pass to Quotation</Text>
-                        </TouchableOpacity>
+                        canMoveLead(canDo, 'crm_boq', 'crm_quotations') && (
+                          <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#E11D48' }]} onPress={() => setShowSendQuoteModal(true)}>
+                            <Text style={s.unlockActionBtnText}>Pass to Quotation</Text>
+                          </TouchableOpacity>
+                        )
                       )}
                     </View>
                   );
@@ -3134,9 +3221,11 @@ export default function Lead360Screen() {
                       <Ionicons name="calculator-outline" size={40} color="#E11D48" />
                       <Text style={s.emptyCardTitle}>No Quotations Created</Text>
                       <Text style={s.emptySubText}>Generate itemized quotes for your client.</Text>
-                      <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#E11D48' }]} onPress={openQuoteModal}>
-                        <Text style={s.actionBtnText}>Generate Quotation</Text>
-                      </TouchableOpacity>
+                      {canDo('crm_quotations', 'create') && (
+                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#E11D48' }]} onPress={openQuoteModal}>
+                          <Text style={s.actionBtnText}>Generate Quotation</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   );
                 }
@@ -3178,9 +3267,11 @@ export default function Lead360Screen() {
                         </TouchableOpacity>
                       ))}
                       {!isReadOnly && (lead.quotations[lead.quotations.length - 1]?.status === 'Rejected' || lead.quotations[lead.quotations.length - 1]?.status === 'Draft') && (
-                        <TouchableOpacity style={s.addVersionBtn} onPress={openQuoteModal}>
-                          <Ionicons name="add" size={14} color="#E11D48" />
-                        </TouchableOpacity>
+                        canDo('crm_quotations', 'create') && (
+                          <TouchableOpacity style={s.addVersionBtn} onPress={openQuoteModal}>
+                            <Ionicons name="add" size={14} color="#E11D48" />
+                          </TouchableOpacity>
+                        )
                       )}
                     </ScrollView>
 
@@ -3204,16 +3295,20 @@ export default function Lead360Screen() {
                             {!isConverted && (
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                 {(currentQuote?.status === 'Draft' || currentQuote?.status === 'Sent') && (
-                                  <TouchableOpacity
-                                    onPress={() => openQuoteModal(activeQuoteIdx)}
-                                    style={{ padding: 6, backgroundColor: '#EFF6FF', borderRadius: 8 }}
-                                  >
-                                    <Ionicons name="create-outline" size={15} color="#2563EB" />
+                                  canDo('crm_quotations', 'update') && (
+                                    <TouchableOpacity
+                                      onPress={() => openQuoteModal(activeQuoteIdx)}
+                                      style={{ padding: 6, backgroundColor: '#EFF6FF', borderRadius: 8 }}
+                                    >
+                                      <Ionicons name="create-outline" size={15} color="#2563EB" />
+                                    </TouchableOpacity>
+                                  )
+                                )}
+                                {canDo('crm_quotations', 'delete') && (
+                                  <TouchableOpacity onPress={() => handleDeleteQuotation(activeQuoteIdx)} style={{ padding: 6, backgroundColor: '#FEF2F2', borderRadius: 8 }}>
+                                    <Ionicons name="trash-outline" size={15} color="#DC2626" />
                                   </TouchableOpacity>
                                 )}
-                                <TouchableOpacity onPress={() => handleDeleteQuotation(activeQuoteIdx)} style={{ padding: 6, backgroundColor: '#FEF2F2', borderRadius: 8 }}>
-                                  <Ionicons name="trash-outline" size={15} color="#DC2626" />
-                                </TouchableOpacity>
                               </View>
                             )}
                           </View>
@@ -3238,21 +3333,23 @@ export default function Lead360Screen() {
                             <Ionicons name="paper-plane-outline" size={14} color="#4F46E5" />
                             <Text style={s.quoteDocActionText}>Send / Email</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity
-                            style={s.quoteDocActionBtn}
-                            onPress={handleDownloadQuotationPdf}
-                            disabled={downloadingQuotePdf}
-                            activeOpacity={0.8}
-                          >
-                            {downloadingQuotePdf ? (
-                              <ActivityIndicator size="small" color="#4F46E5" />
-                            ) : (
-                              <>
-                                <Ionicons name="download-outline" size={14} color="#4F46E5" />
-                                <Text style={s.quoteDocActionText}>Download</Text>
-                              </>
-                            )}
-                          </TouchableOpacity>
+                          {canDo('crm_quotations', 'export') && (
+                            <TouchableOpacity
+                              style={s.quoteDocActionBtn}
+                              onPress={handleDownloadQuotationPdf}
+                              disabled={downloadingQuotePdf}
+                              activeOpacity={0.8}
+                            >
+                              {downloadingQuotePdf ? (
+                                <ActivityIndicator size="small" color="#4F46E5" />
+                              ) : (
+                                <>
+                                  <Ionicons name="download-outline" size={14} color="#4F46E5" />
+                                  <Text style={s.quoteDocActionText}>Download</Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          )}
                         </View>
 
                         {/* Prepared For / Details Meta */}
@@ -3382,14 +3479,16 @@ export default function Lead360Screen() {
                               </View>
                             </View>
                             {!isReadOnly && (
-                              <TouchableOpacity
-                                style={s.quoteConvertBtn}
-                                onPress={() => handleConvertToProject(activeQuoteIdx)}
-                                activeOpacity={0.8}
-                              >
-                                <Ionicons name="rocket-outline" size={18} color="#FFFFFF" />
-                                <Text style={s.quoteConvertBtnText}>Convert to Project</Text>
-                              </TouchableOpacity>
+                              canDo('crm_quotations', 'approve') && (
+                                <TouchableOpacity
+                                  style={s.quoteConvertBtn}
+                                  onPress={() => handleConvertToProject(activeQuoteIdx)}
+                                  activeOpacity={0.8}
+                                >
+                                  <Ionicons name="rocket-outline" size={18} color="#FFFFFF" />
+                                  <Text style={s.quoteConvertBtnText}>Convert to Project</Text>
+                                </TouchableOpacity>
+                              )
                             )}
                           </View>
                         ) : currentQuote.status === 'Rejected' ? (
@@ -3401,34 +3500,40 @@ export default function Lead360Screen() {
                                 <Text style={s.quoteRejectedSubtitle}>Client declined this version. Create a new revision with revised rates.</Text>
                               </View>
                             </View>
-                            <TouchableOpacity
-                              style={s.quoteRevisionBtn}
-                              onPress={openQuoteModal}
-                              activeOpacity={0.8}
-                            >
-                              <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-                              <Text style={s.quoteConvertBtnText}>Create New Revision</Text>
-                            </TouchableOpacity>
+                            {canDo('crm_quotations', 'create') && (
+                              <TouchableOpacity
+                                style={s.quoteRevisionBtn}
+                                onPress={openQuoteModal}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+                                <Text style={s.quoteConvertBtnText}>Create New Revision</Text>
+                              </TouchableOpacity>
+                            )}
                           </View>
                         ) : !isReadOnly ? (
                           <View style={{ gap: 8, marginTop: 16 }}>
                             <View style={{ flexDirection: 'row', gap: 8 }}>
-                              <TouchableOpacity
-                                style={[s.smallActionBtn, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC', borderWidth: 1, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-                                onPress={() => handleQuoteStatus(activeQuoteIdx, 'Accepted')}
-                                activeOpacity={0.8}
-                              >
-                                <Ionicons name="checkmark-circle-outline" size={15} color="#15803D" style={{ marginRight: 4 }} />
-                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>Mark Accepted</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={[s.smallActionBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA', borderWidth: 1, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-                                onPress={() => handleQuoteStatus(activeQuoteIdx, 'Rejected')}
-                                activeOpacity={0.8}
-                              >
-                                <Ionicons name="close-circle-outline" size={15} color="#B91C1C" style={{ marginRight: 4 }} />
-                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#B91C1C' }}>Mark Rejected</Text>
-                              </TouchableOpacity>
+                              {canDo('crm_quotations', 'update') && (
+                                <TouchableOpacity
+                                  style={[s.smallActionBtn, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC', borderWidth: 1, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+                                  onPress={() => handleQuoteStatus(activeQuoteIdx, 'Accepted')}
+                                  activeOpacity={0.8}
+                                >
+                                  <Ionicons name="checkmark-circle-outline" size={15} color="#15803D" style={{ marginRight: 4 }} />
+                                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>Mark Accepted</Text>
+                                </TouchableOpacity>
+                              )}
+                              {canDo('crm_quotations', 'update') && (
+                                <TouchableOpacity
+                                  style={[s.smallActionBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA', borderWidth: 1, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+                                  onPress={() => handleQuoteStatus(activeQuoteIdx, 'Rejected')}
+                                  activeOpacity={0.8}
+                                >
+                                  <Ionicons name="close-circle-outline" size={15} color="#B91C1C" style={{ marginRight: 4 }} />
+                                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#B91C1C' }}>Mark Rejected</Text>
+                                </TouchableOpacity>
+                              )}
                             </View>
                           </View>
                         ) : null}
@@ -4137,14 +4242,16 @@ export default function Lead360Screen() {
             >
               <Ionicons name="paper-plane-outline" size={18} color="#4F46E5" />
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleDownloadQuotationPdf}
-              disabled={downloadingQuotePdf}
-              style={s.quoteDocHeaderBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              {downloadingQuotePdf ? <ActivityIndicator size="small" color="#4F46E5" /> : <Ionicons name="download-outline" size={18} color="#4F46E5" />}
-            </TouchableOpacity>
+            {canDo('crm_quotations', 'export') && (
+              <TouchableOpacity
+                onPress={handleDownloadQuotationPdf}
+                disabled={downloadingQuotePdf}
+                style={s.quoteDocHeaderBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                {downloadingQuotePdf ? <ActivityIndicator size="small" color="#4F46E5" /> : <Ionicons name="download-outline" size={18} color="#4F46E5" />}
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={() => setShowQuoteDocModal(false)}
               style={s.quoteDocHeaderBtn}

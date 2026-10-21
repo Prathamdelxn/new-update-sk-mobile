@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const STATUS_META = {
   approved: { color: '#16A34A', bg: '#F0FDF4' },
@@ -39,6 +40,7 @@ export default function InteriorBoqScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [activeTab, setActiveTab] = useState('items');
   const [boqs, setBoqs] = useState([]);
@@ -221,12 +223,16 @@ export default function InteriorBoqScreen() {
             <Text style={s.headerTitle}>Bill of Quantities</Text>
             <Text style={s.headerSub}>Materials, pricing, and revision audits.</Text>
           </View>
-          <TouchableOpacity style={s.headerIconBtn} onPress={() => setIsImportOpen(true)}>
-            <Ionicons name="cloud-upload-outline" size={17} color="#2563EB" />
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.headerIconBtn, { backgroundColor: '#2563EB' }]} onPress={() => setIsCreateOpen(true)}>
-            <Ionicons name="add" size={17} color="#FFFFFF" />
-          </TouchableOpacity>
+          {canDo('boq', 'create') && (
+            <TouchableOpacity style={s.headerIconBtn} onPress={() => setIsImportOpen(true)}>
+              <Ionicons name="cloud-upload-outline" size={17} color="#2563EB" />
+            </TouchableOpacity>
+          )}
+          {canDo('boq', 'create') && (
+            <TouchableOpacity style={[s.headerIconBtn, { backgroundColor: '#2563EB' }]} onPress={() => setIsCreateOpen(true)}>
+              <Ionicons name="add" size={17} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {loading ? (
@@ -283,29 +289,39 @@ export default function InteriorBoqScreen() {
 
                 <View style={{ marginTop: 12, gap: 8 }}>
                   {selectedBoq.status === 'draft' && (
-                    <TouchableOpacity style={s.primaryBtn} onPress={() => handleApprovalAction('submit')} disabled={actionLoading}>
-                      <Text style={s.primaryBtnText}>Submit for Approval</Text>
-                    </TouchableOpacity>
+                    canDo('boq', 'update') && (
+                      <TouchableOpacity style={s.primaryBtn} onPress={() => handleApprovalAction('submit')} disabled={actionLoading}>
+                        <Text style={s.primaryBtnText}>Submit for Approval</Text>
+                      </TouchableOpacity>
+                    )
                   )}
                   {selectedBoq.status === 'pending_approval' && (
                     <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <TouchableOpacity style={[s.primaryBtn, { flex: 1, backgroundColor: '#059669' }]} onPress={() => handleApprovalAction('approve')} disabled={actionLoading}>
-                        <Text style={s.primaryBtnText}>Approve</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[s.primaryBtn, { flex: 1, backgroundColor: '#DC2626' }]} onPress={() => setIsRejectOpen(true)} disabled={actionLoading}>
-                        <Text style={s.primaryBtnText}>Reject</Text>
-                      </TouchableOpacity>
+                      {canDo('boq', 'approve') && (
+                        <TouchableOpacity style={[s.primaryBtn, { flex: 1, backgroundColor: '#059669' }]} onPress={() => handleApprovalAction('approve')} disabled={actionLoading}>
+                          <Text style={s.primaryBtnText}>Approve</Text>
+                        </TouchableOpacity>
+                      )}
+                      {canDo('boq', 'approve') && (
+                        <TouchableOpacity style={[s.primaryBtn, { flex: 1, backgroundColor: '#DC2626' }]} onPress={() => setIsRejectOpen(true)} disabled={actionLoading}>
+                          <Text style={s.primaryBtnText}>Reject</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                   {selectedBoq.status === 'approved' && (
-                    <TouchableOpacity style={s.outlineBtn} onPress={handleCreateRevision} disabled={actionLoading}>
-                      <Text style={s.outlineBtnText}>Create New Revision</Text>
-                    </TouchableOpacity>
+                    canDo('boq', 'update') && (
+                      <TouchableOpacity style={s.outlineBtn} onPress={handleCreateRevision} disabled={actionLoading}>
+                        <Text style={s.outlineBtnText}>Create New Revision</Text>
+                      </TouchableOpacity>
+                    )
                   )}
                   {(selectedBoq.status === 'draft' || selectedBoq.status === 'rejected') && (
-                    <TouchableOpacity style={[s.outlineBtn, { borderColor: '#FECACA' }]} onPress={confirmDeleteBoq} disabled={actionLoading}>
-                      <Text style={[s.outlineBtnText, { color: '#DC2626' }]}>Delete Draft</Text>
-                    </TouchableOpacity>
+                    canDo('boq', 'delete') && (
+                      <TouchableOpacity style={[s.outlineBtn, { borderColor: '#FECACA' }]} onPress={confirmDeleteBoq} disabled={actionLoading}>
+                        <Text style={[s.outlineBtnText, { color: '#DC2626' }]}>Delete Draft</Text>
+                      </TouchableOpacity>
+                    )
                   )}
                 </View>
               </View>

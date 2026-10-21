@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
   TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,60 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useToast } from '../context/ToastContext';
 import interiorApiClient from '../services/interiorApiClient';
-
-const ALL_MODULES = [
-  { key: 'projects', label: 'Project Config' },
-  { key: 'wbs', label: 'WBS Hierarchy' },
-  { key: 'tasks', label: 'Tasks' },
-  { key: 'milestones', label: 'Milestones' },
-  { key: 'dpr', label: 'Daily Progress' },
-  { key: 'weekly_reports', label: 'Weekly Reports' },
-  { key: 'procurement', label: 'Procurement' },
-  { key: 'purchase_orders', label: 'Purchase Orders' },
-  { key: 'drawings', label: 'Drawings' },
-  { key: 'rfis', label: 'RFIs' },
-  { key: 'mom', label: 'Minutes of Meeting' },
-  { key: 'risks', label: 'Risks' },
-  { key: 'snags', label: 'Snags' },
-  { key: 'ncrs', label: 'NCRs' },
-  { key: 'utilities', label: 'Utilities' },
-  { key: 'photos', label: 'Site Photos' },
-  { key: 'handover', label: 'Handover' },
-  { key: 'users', label: 'Team / Members' },
-  { key: 'filemgt', label: 'File Management' },
-  { key: 'financials', label: 'Payments & Financials' },
-];
-
-const full = ['create', 'read', 'update', 'delete', 'approve', 'export', 'manage'];
-const crud = ['create', 'read', 'update', 'delete'];
-const cru = ['create', 'read', 'update'];
-const ro = ['read'];
-const none = [];
-
-const ROLE_MATRIX = {
-  project_manager: { projects: full, wbs: full, tasks: full, milestones: full, dpr: full, weekly_reports: full, procurement: full, purchase_orders: full, drawings: full, rfis: full, mom: full, risks: full, snags: full, ncrs: full, utilities: full, photos: full, handover: full, users: full, filemgt: full, financials: full },
-  site_engineer: { projects: ro, wbs: ro, tasks: cru, milestones: ro, dpr: crud, weekly_reports: crud, procurement: ro, purchase_orders: ro, drawings: ro, rfis: crud, mom: crud, risks: crud, snags: crud, ncrs: crud, utilities: crud, photos: crud, handover: ro, users: ro, filemgt: crud, financials: ro },
-  quantity_surveyor: { projects: ro, wbs: ro, tasks: ro, milestones: ro, dpr: ro, weekly_reports: ro, procurement: crud, purchase_orders: crud, drawings: ro, rfis: ro, mom: ro, risks: ro, snags: ro, ncrs: ro, utilities: crud, photos: ro, handover: ro, users: none, filemgt: crud, financials: crud },
-  designer: { projects: ro, wbs: ro, tasks: ro, milestones: ro, dpr: none, weekly_reports: none, procurement: none, purchase_orders: none, drawings: crud, rfis: crud, mom: ro, risks: ro, snags: ro, ncrs: ro, utilities: none, photos: crud, handover: ro, users: none, filemgt: crud, financials: ro },
-  sub_contractor: { projects: ro, wbs: none, tasks: cru, milestones: none, dpr: ro, weekly_reports: none, procurement: ro, purchase_orders: ro, drawings: ro, rfis: ro, mom: none, risks: none, snags: ro, ncrs: ro, utilities: none, photos: ro, handover: none, users: none, filemgt: ro, financials: ro },
-  client_representative: { projects: ro, wbs: ro, tasks: ro, milestones: ro, dpr: ro, weekly_reports: ro, procurement: ro, purchase_orders: ro, drawings: ro, rfis: ro, mom: ro, risks: ro, snags: ro, ncrs: ro, utilities: ro, photos: ro, handover: ro, users: none, filemgt: ro, financials: ro },
-  viewer: { projects: ro, wbs: ro, tasks: ro, milestones: ro, dpr: ro, weekly_reports: ro, procurement: ro, purchase_orders: ro, drawings: ro, rfis: ro, mom: ro, risks: ro, snags: ro, ncrs: ro, utilities: ro, photos: ro, handover: ro, users: none, filemgt: ro, financials: ro },
-};
-
-const ROLE_DEFS = [
-  { key: 'project_manager', label: 'Project Manager', desc: 'Full access to all modules' },
-  { key: 'site_engineer', label: 'Site Engineer', desc: 'Field-focused CRUD + own tasks' },
-  { key: 'quantity_surveyor', label: 'Quantity Surveyor', desc: 'Procurement & financials focused' },
-  { key: 'designer', label: 'Designer', desc: 'Drawings, RFIs & photos access' },
-  { key: 'sub_contractor', label: 'Sub Contractor', desc: 'Own tasks + limited read' },
-  { key: 'client_representative', label: 'Client Rep.', desc: 'Read-heavy + project config read' },
-  { key: 'viewer', label: 'Viewer', desc: 'Read-only across all modules' },
-];
-
-const ACTION_COLORS = {
-  create: '#059669', read: '#2563EB', update: '#D97706', delete: '#DC2626',
-  approve: '#7C3AED', export: '#0D9488', manage: '#E11D48',
-};
+import InteriorRolesManager from '../components/interior/InteriorRolesManager';
+import { useInteriorPermissions } from '../utils/interior/useInteriorPermissions';
 
 const SYSTEM_ROLE_LABELS = {
   super_admin: { label: 'Super Admin', color: '#7C3AED', bg: '#F5F3FF' },
@@ -81,26 +29,86 @@ function getInitials(first, last) {
   return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase() || '?';
 }
 
-const emptyUserForm = { firstName: '', lastName: '', email: '', password: '', phone: '', designation: '', department: '', systemRole: 'member' };
+const emptyUserForm = { firstName: '', lastName: '', email: '', password: '', phone: '', designation: '', department: '', systemRole: 'member', roleId: '', status: 'active' };
 
 export default function InteriorUsersRolesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState('users');
+  // Managing users is admin-only on the server; the Roles tab needs Roles → View
+  const { isOrgAdmin, hasPermission } = useInteriorPermissions();
+  const showUsersTab = isOrgAdmin;
+  const showRolesTab = isOrgAdmin || hasPermission('roles', 'read');
+  const [selectedTab, setActiveTab] = useState('users');
+  const activeTab = selectedTab === 'users' && showUsersTab ? 'users' : showRolesTab ? 'roles' : showUsersTab ? 'users' : null;
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [expandedUserId, setExpandedUserId] = useState(null);
-  const [expandedRoleKey, setExpandedRoleKey] = useState(null);
 
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [savingUser, setSavingUser] = useState(false);
   const [userForm, setUserForm] = useState(emptyUserForm);
+  // Set when the form edits an existing user instead of adding one (same as web Edit User)
+  const [editingUserId, setEditingUserId] = useState(null);
+
+  const openAddUser = () => {
+    setEditingUserId(null);
+    setUserForm(emptyUserForm);
+    setAddUserOpen(true);
+  };
+  const openEditUser = (u) => {
+    setEditingUserId(u._id);
+    setUserForm({
+      ...emptyUserForm,
+      firstName: u.firstName || '',
+      lastName: u.lastName || '',
+      email: u.email || '',
+      phone: u.phone || '',
+      designation: u.designation || '',
+      department: u.department || '',
+      systemRole: u.systemRole || 'member',
+      roleId: (u.role && typeof u.role === 'object' ? u.role._id : u.role) || '',
+      status: u.status || 'active',
+    });
+    setAddUserOpen(true);
+  };
+  const confirmDeleteUser = (u) =>
+    Alert.alert('Delete user', `Remove ${u.firstName} ${u.lastName}? They will lose access to every project.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await interiorApiClient.delete(`/users/${u._id}`);
+            showToast('User deleted', 'success');
+            loadUsers();
+          } catch (e) {
+            showToast(e.message || 'Failed to delete user', 'error');
+          }
+        },
+      },
+    ]);
+  // Organization roles for the new user (same as the web Add User form)
+  const [orgRoles, setOrgRoles] = useState([]);
+  useEffect(() => {
+    if (!addUserOpen) return;
+    interiorApiClient.get('/roles')
+      .then((res) => {
+        const list = (Array.isArray(res?.data) ? res.data : []).filter((r) => r.slug !== 'admin');
+        setOrgRoles(list);
+        const viewer = list.find((r) => r.slug === 'viewer') || list[0];
+        // New users default to Viewer; editing keeps the user's current role (or none)
+        setUserForm((f) => (editingUserId || f.roleId || !viewer ? f : { ...f, roleId: viewer._id }));
+      })
+      .catch(() => setOrgRoles([]));
+  }, [addUserOpen, editingUserId]);
 
   const loadUsers = useCallback(async () => {
+    if (!isOrgAdmin) { setLoading(false); return; } // Users tab is admin-only
     setLoading(true);
     try {
       const res = await interiorApiClient.get('/users/with-projects');
@@ -111,7 +119,7 @@ export default function InteriorUsersRolesScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isOrgAdmin]);
 
   useFocusEffect(useCallback(() => { loadUsers(); }, [loadUsers]));
 
@@ -141,18 +149,26 @@ export default function InteriorUsersRolesScreen() {
         lastName: userForm.lastName.trim(),
         email: userForm.email.trim(),
         systemRole: userForm.systemRole,
+        ...(userForm.roleId ? { role: userForm.roleId } : {}),
         ...(userForm.password.trim() ? { password: userForm.password.trim() } : {}),
         ...(userForm.phone.trim() ? { phone: userForm.phone.trim() } : {}),
         ...(userForm.designation.trim() ? { designation: userForm.designation.trim() } : {}),
         ...(userForm.department.trim() ? { department: userForm.department.trim() } : {}),
       };
-      await interiorApiClient.post('/users', payload);
-      showToast(`User ${userForm.firstName} ${userForm.lastName} created successfully`, 'success');
+      if (editingUserId) {
+        // Clearing the phone is allowed when editing
+        await interiorApiClient.patch(`/users/${editingUserId}`, { ...payload, phone: userForm.phone.trim(), status: userForm.status });
+        showToast(`User ${userForm.firstName} ${userForm.lastName} updated successfully`, 'success');
+      } else {
+        await interiorApiClient.post('/users', payload);
+        showToast(`User ${userForm.firstName} ${userForm.lastName} created successfully`, 'success');
+      }
+      setEditingUserId(null);
       setAddUserOpen(false);
       setUserForm(emptyUserForm);
       loadUsers();
     } catch (e) {
-      showToast(e.message || 'Failed to create user', 'error');
+      showToast(e.message || (editingUserId ? 'Failed to update user' : 'Failed to create user'), 'error');
     } finally {
       setSavingUser(false);
     }
@@ -171,24 +187,32 @@ export default function InteriorUsersRolesScreen() {
             <Text style={s.headerSub}>Team assignments & role permission matrix.</Text>
           </View>
           {activeTab === 'users' && (
-            <TouchableOpacity style={s.addBtn} onPress={() => setAddUserOpen(true)}>
+            <TouchableOpacity style={s.addBtn} onPress={openAddUser}>
               <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           )}
         </View>
 
         <View style={s.tabRow}>
-          <TouchableOpacity style={[s.tabBtn, activeTab === 'users' && s.tabBtnActive]} onPress={() => setActiveTab('users')}>
-            <Ionicons name="people-outline" size={14} color={activeTab === 'users' ? '#FFFFFF' : '#64748B'} />
-            <Text style={[s.tabBtnText, activeTab === 'users' && s.tabBtnTextActive]}>Users</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.tabBtn, activeTab === 'roles' && s.tabBtnActive]} onPress={() => setActiveTab('roles')}>
-            <Ionicons name="shield-outline" size={14} color={activeTab === 'roles' ? '#FFFFFF' : '#64748B'} />
-            <Text style={[s.tabBtnText, activeTab === 'roles' && s.tabBtnTextActive]}>Roles</Text>
-          </TouchableOpacity>
+          {showUsersTab && (
+            <TouchableOpacity style={[s.tabBtn, activeTab === 'users' && s.tabBtnActive]} onPress={() => setActiveTab('users')}>
+              <Ionicons name="people-outline" size={14} color={activeTab === 'users' ? '#FFFFFF' : '#64748B'} />
+              <Text style={[s.tabBtnText, activeTab === 'users' && s.tabBtnTextActive]}>Users</Text>
+            </TouchableOpacity>
+          )}
+          {showRolesTab && (
+            <TouchableOpacity style={[s.tabBtn, activeTab === 'roles' && s.tabBtnActive]} onPress={() => setActiveTab('roles')}>
+              <Ionicons name="shield-outline" size={14} color={activeTab === 'roles' ? '#FFFFFF' : '#64748B'} />
+              <Text style={[s.tabBtnText, activeTab === 'roles' && s.tabBtnTextActive]}>Roles</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {loading ? (
+        {activeTab === null ? (
+          <View style={s.center}>
+            <Text style={{ fontSize: 13, color: '#64748B', fontFamily: 'Inter-Regular' }}>You don&apos;t have permission to view users or roles.</Text>
+          </View>
+        ) : activeTab === 'users' && loading ? (
           <View style={s.center}>
             <ActivityIndicator size="large" color="#2563EB" />
           </View>
@@ -257,6 +281,16 @@ export default function InteriorUsersRolesScreen() {
 
                       {expanded && (
                         <View style={s.assignmentsBox}>
+                          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+                            <TouchableOpacity style={s.userActionBtn} onPress={() => openEditUser(u)}>
+                              <Ionicons name="create-outline" size={14} color="#2563EB" />
+                              <Text style={s.userActionText}>Edit</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[s.userActionBtn, { borderColor: '#FECACA' }]} onPress={() => confirmDeleteUser(u)}>
+                              <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                              <Text style={[s.userActionText, { color: '#DC2626' }]}>Delete</Text>
+                            </TouchableOpacity>
+                          </View>
                           {assignments.length === 0 ? (
                             <Text style={s.noAssignments}>Not assigned to any project yet.</Text>
                           ) : (
@@ -285,55 +319,9 @@ export default function InteriorUsersRolesScreen() {
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             <View style={s.infoBanner}>
               <Ionicons name="shield-checkmark-outline" size={16} color="#2563EB" />
-              <Text style={s.infoBannerText}>These are the built-in permission presets automatically assigned when a user is added to a project. Tap any role to expand its full permission matrix.</Text>
+              <Text style={s.infoBannerText}>Organization roles. Assign one to a user, or use it as a member's role in a project. Tap a role to see its permissions.</Text>
             </View>
-
-            {ROLE_DEFS.map((roleDef) => {
-              const matrix = ROLE_MATRIX[roleDef.key];
-              const modulesWithAccess = ALL_MODULES.filter((m) => (matrix[m.key] || []).length > 0).length;
-              const expanded = expandedRoleKey === roleDef.key;
-              return (
-                <View key={roleDef.key} style={s.roleCard}>
-                  <TouchableOpacity style={s.roleCardHeader} onPress={() => setExpandedRoleKey(expanded ? null : roleDef.key)}>
-                    <View style={s.roleIconBox}>
-                      <Ionicons name="shield-outline" size={18} color="#64748B" />
-                    </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={s.roleCardTitle}>{roleDef.label}</Text>
-                      <Text style={s.roleCardDesc}>{roleDef.desc}</Text>
-                    </View>
-                    <Text style={s.roleModuleCount}>{modulesWithAccess}/{ALL_MODULES.length}</Text>
-                    <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#94A3B8" />
-                  </TouchableOpacity>
-
-                  {expanded && (
-                    <View style={s.matrixBox}>
-                      {ALL_MODULES.map((mod) => {
-                        const actions = matrix[mod.key] || [];
-                        const hasAccess = actions.length > 0;
-                        return (
-                          <View key={mod.key} style={s.matrixRow}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, width: 120 }}>
-                              <Ionicons name={hasAccess ? 'checkmark-circle' : 'remove-circle-outline'} size={13} color={hasAccess ? '#059669' : '#CBD5E1'} />
-                              <Text style={[s.matrixModuleText, !hasAccess && { opacity: 0.4 }]} numberOfLines={1}>{mod.label}</Text>
-                            </View>
-                            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-                              {hasAccess ? actions.map((a) => (
-                                <View key={a} style={[s.actionPill, { borderColor: ACTION_COLORS[a] || '#94A3B8' }]}>
-                                  <Text style={[s.actionPillText, { color: ACTION_COLORS[a] || '#94A3B8' }]}>{a}</Text>
-                                </View>
-                              )) : (
-                                <Text style={s.noAccessText}>no access</Text>
-                              )}
-                            </View>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  )}
-                </View>
-              );
-            })}
+            <InteriorRolesManager />
             <View style={{ height: 60 }} />
           </ScrollView>
         )}
@@ -343,7 +331,7 @@ export default function InteriorUsersRolesScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Add New User</Text>
+              <Text style={s.modalTitle}>{editingUserId ? 'Edit User' : 'Add New User'}</Text>
               <TouchableOpacity onPress={() => setAddUserOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
@@ -380,6 +368,32 @@ export default function InteriorUsersRolesScreen() {
                 </View>
               </View>
 
+              {orgRoles.length > 0 && (
+                <>
+                  <Text style={s.label}>Organization Role</Text>
+                  <View style={s.pillWrap}>
+                    {orgRoles.map((r) => (
+                      <TouchableOpacity key={r._id} style={[s.pill, userForm.roleId === r._id && s.pillActive]} onPress={() => setUserForm({ ...userForm, roleId: r._id })}>
+                        <Text style={[s.pillText, userForm.roleId === r._id && s.pillTextActive]}>{r.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {editingUserId && (
+                <>
+                  <Text style={s.label}>Status</Text>
+                  <View style={s.pillWrap}>
+                    {['active', 'inactive', 'suspended'].map((st) => (
+                      <TouchableOpacity key={st} style={[s.pill, userForm.status === st && s.pillActive]} onPress={() => setUserForm({ ...userForm, status: st })}>
+                        <Text style={[s.pillText, userForm.status === st && s.pillTextActive]}>{st.charAt(0).toUpperCase() + st.slice(1)}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
               <Text style={s.label}>System Role</Text>
               <View style={s.pillWrap}>
                 {['member', 'manager', 'org_admin', 'viewer'].map((r) => (
@@ -390,7 +404,7 @@ export default function InteriorUsersRolesScreen() {
               </View>
 
               <TouchableOpacity style={[s.saveBtn, savingUser && { opacity: 0.6 }]} onPress={handleAddUser} disabled={savingUser}>
-                {savingUser ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Create User</Text>}
+                {savingUser ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingUserId ? 'Save Changes' : 'Create User'}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -401,6 +415,8 @@ export default function InteriorUsersRolesScreen() {
 }
 
 const s = StyleSheet.create({
+  userActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#FFFFFF' },
+  userActionText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#2563EB' },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },

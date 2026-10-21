@@ -23,6 +23,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
 function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
@@ -120,6 +121,7 @@ export default function InteriorProcurementScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState('procurement'); // 'procurement' | 'inventory'
@@ -1151,46 +1153,54 @@ export default function InteriorProcurementScreen() {
 
                           {/* Send RFQ button */}
                           {canApprove && (
-                            <TouchableOpacity
-                              style={[s.poActionBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
-                              onPress={() => openRfqModal(po)}
-                            >
-                              <Ionicons name="mail-outline" size={13} color="#2563EB" />
-                              <Text style={[s.poActionBtnText, { color: '#2563EB' }]}>Send RFQ</Text>
-                            </TouchableOpacity>
+                            canDo('procurement', 'update') && (
+                              <TouchableOpacity
+                                style={[s.poActionBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+                                onPress={() => openRfqModal(po)}
+                              >
+                                <Ionicons name="mail-outline" size={13} color="#2563EB" />
+                                <Text style={[s.poActionBtnText, { color: '#2563EB' }]}>Send RFQ</Text>
+                              </TouchableOpacity>
+                            )
                           )}
 
                           {/* Approve & Select Vendor (rate locking) */}
                           {canApprove && (
-                            <TouchableOpacity
-                              style={[s.poActionBtn, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}
-                              onPress={() => openApproveModal(po)}
-                            >
-                              <Ionicons name="checkmark-circle-outline" size={13} color="#7C3AED" />
-                              <Text style={[s.poActionBtnText, { color: '#7C3AED' }]}>Approve Vendor</Text>
-                            </TouchableOpacity>
+                            canDo('procurement', 'update') && (
+                              <TouchableOpacity
+                                style={[s.poActionBtn, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}
+                                onPress={() => openApproveModal(po)}
+                              >
+                                <Ionicons name="checkmark-circle-outline" size={13} color="#7C3AED" />
+                                <Text style={[s.poActionBtnText, { color: '#7C3AED' }]}>Approve Vendor</Text>
+                              </TouchableOpacity>
+                            )
                           )}
 
                           {/* GRN Inward Button */}
                           {canGrn && (
-                            <TouchableOpacity
-                              style={[s.poActionBtn, { backgroundColor: '#ECFDF5', borderColor: '#BBF7D0' }]}
-                              onPress={() => openGrnModal(po)}
-                            >
-                              <Ionicons name="checkmark-done-circle-outline" size={14} color="#059669" />
-                              <Text style={[s.poActionBtnText, { color: '#059669' }]}>Receive Material</Text>
-                            </TouchableOpacity>
+                            canDo('procurement', 'update') && (
+                              <TouchableOpacity
+                                style={[s.poActionBtn, { backgroundColor: '#ECFDF5', borderColor: '#BBF7D0' }]}
+                                onPress={() => openGrnModal(po)}
+                              >
+                                <Ionicons name="checkmark-done-circle-outline" size={14} color="#059669" />
+                                <Text style={[s.poActionBtnText, { color: '#059669' }]}>Receive Material</Text>
+                              </TouchableOpacity>
+                            )
                           )}
 
                           {/* Pay Vendor */}
                           {canPay && (
-                            <TouchableOpacity
-                              style={[s.poActionBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
-                              onPress={() => openPayModal(po)}
-                            >
-                              <Ionicons name="card-outline" size={13} color="#D97706" />
-                              <Text style={[s.poActionBtnText, { color: '#D97706' }]}>Pay Vendor</Text>
-                            </TouchableOpacity>
+                            canDo('financials', 'create') && (
+                              <TouchableOpacity
+                                style={[s.poActionBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
+                                onPress={() => openPayModal(po)}
+                              >
+                                <Ionicons name="card-outline" size={13} color="#D97706" />
+                                <Text style={[s.poActionBtnText, { color: '#D97706' }]}>Pay Vendor</Text>
+                              </TouchableOpacity>
+                            )
                           )}
 
                           {grnsCount > 0 && (
@@ -1231,20 +1241,24 @@ export default function InteriorProcurementScreen() {
                             <View style={s.unitTag}>
                               <Text style={s.unitTagText}>{item.unit || 'nos'}</Text>
                             </View>
-                            <TouchableOpacity
-                              onPress={() => openEditMaterial(item)}
-                              style={s.matIconBtn}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Ionicons name="pencil-outline" size={14} color="#475569" />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => handleDeleteMaterial(item)}
-                              style={s.matIconBtn}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                            </TouchableOpacity>
+                            {canDo('inventory', 'update') && (
+                              <TouchableOpacity
+                                onPress={() => openEditMaterial(item)}
+                                style={s.matIconBtn}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              >
+                                <Ionicons name="pencil-outline" size={14} color="#475569" />
+                              </TouchableOpacity>
+                            )}
+                            {canDo('inventory', 'delete') && (
+                              <TouchableOpacity
+                                onPress={() => handleDeleteMaterial(item)}
+                                style={s.matIconBtn}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              >
+                                <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                              </TouchableOpacity>
+                            )}
                           </View>
                         </View>
 
@@ -1316,20 +1330,22 @@ export default function InteriorProcurementScreen() {
                         )}
 
                         {/* Action Button: Log Material Used */}
-                        <TouchableOpacity
-                          style={[s.installBtn, inStock <= 0 && { opacity: 0.5 }]}
-                          disabled={inStock <= 0}
-                          onPress={() => {
-                            setSelectedStock(item);
-                            setInstallQty('');
-                            setInstallNotes('');
-                          }}
-                        >
-                          <Ionicons name="hammer-outline" size={13} color={inStock <= 0 ? '#94A3B8' : '#2563EB'} />
-                          <Text style={[s.installBtnText, inStock <= 0 && { color: '#94A3B8' }]}>
-                            {inStock <= 0 ? 'Out of Stock' : 'Log Material Used'}
-                          </Text>
-                        </TouchableOpacity>
+                        {canDo('inventory', 'create') && (
+                          <TouchableOpacity
+                            style={[s.installBtn, inStock <= 0 && { opacity: 0.5 }]}
+                            disabled={inStock <= 0}
+                            onPress={() => {
+                              setSelectedStock(item);
+                              setInstallQty('');
+                              setInstallNotes('');
+                            }}
+                          >
+                            <Ionicons name="hammer-outline" size={13} color={inStock <= 0 ? '#94A3B8' : '#2563EB'} />
+                            <Text style={[s.installBtnText, inStock <= 0 && { color: '#94A3B8' }]}>
+                              {inStock <= 0 ? 'Out of Stock' : 'Log Material Used'}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                     );
                   })
@@ -1341,21 +1357,23 @@ export default function InteriorProcurementScreen() {
         )}
 
         {/* --- FLOATING ACTION BUTTON --- */}
-        <TouchableOpacity
-          style={s.fab}
-          onPress={() => {
-            if (activeTab === 'procurement') {
-              setIsMaterialDropdownOpen(false);
-              setMaterialSearchText('');
-              if (inventory.length === 0) loadAll();
-              setIsAddOpen(true);
-            } else {
-              openAddMaterial();
-            }
-          }}
-        >
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {(activeTab === 'procurement' ? canDo('procurement', 'create') : canDo('inventory', 'create')) && (
+          <TouchableOpacity
+            style={s.fab}
+            onPress={() => {
+              if (activeTab === 'procurement') {
+                setIsMaterialDropdownOpen(false);
+                setMaterialSearchText('');
+                if (inventory.length === 0) loadAll();
+                setIsAddOpen(true);
+              } else {
+                openAddMaterial();
+              }
+            }}
+          >
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* ========================================================================= */}
@@ -2093,6 +2111,7 @@ export default function InteriorProcurementScreen() {
                     key={p.key}
                     style={[s.stageChip, selectedPo?.status === p.key && { backgroundColor: p.color, borderColor: p.color }]}
                     onPress={() => {
+                      if (!canDo('procurement', 'update')) return;
                       if (p.key === 'delivered' || p.key === 'partially_delivered') {
                         const targetPo = selectedPo;
                         setSelectedPo(null);
@@ -2174,22 +2193,24 @@ export default function InteriorProcurementScreen() {
                               </Text>
                             </View>
 
-                            <TouchableOpacity
-                              style={[s.awardBtn, isLowest && s.awardBtnLowest, updatingPo && { opacity: 0.6 }]}
-                              onPress={() => handleAwardQuote(selectedPo, quote.vendorName, quote)}
-                              disabled={updatingPo}
-                            >
-                              {updatingPo ? (
-                                <ActivityIndicator size="small" color={isLowest ? '#FFFFFF' : '#2563EB'} />
-                              ) : (
-                                <>
-                                  <Ionicons name="trophy-outline" size={13} color={isLowest ? '#FFFFFF' : '#2563EB'} />
-                                  <Text style={[s.awardBtnText, isLowest && s.awardBtnTextLowest]}>
-                                    {isLowest ? 'Award PO' : 'Award'}
-                                  </Text>
-                                </>
-                              )}
-                            </TouchableOpacity>
+                            {canDo('procurement', 'update') && (
+                              <TouchableOpacity
+                                style={[s.awardBtn, isLowest && s.awardBtnLowest, updatingPo && { opacity: 0.6 }]}
+                                onPress={() => handleAwardQuote(selectedPo, quote.vendorName, quote)}
+                                disabled={updatingPo}
+                              >
+                                {updatingPo ? (
+                                  <ActivityIndicator size="small" color={isLowest ? '#FFFFFF' : '#2563EB'} />
+                                ) : (
+                                  <>
+                                    <Ionicons name="trophy-outline" size={13} color={isLowest ? '#FFFFFF' : '#2563EB'} />
+                                    <Text style={[s.awardBtnText, isLowest && s.awardBtnTextLowest]}>
+                                      {isLowest ? 'Award PO' : 'Award'}
+                                    </Text>
+                                  </>
+                                )}
+                              </TouchableOpacity>
+                            )}
                           </View>
                         );
                       });
@@ -2221,20 +2242,22 @@ export default function InteriorProcurementScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 6 }}>
                       <Text style={s.label}>Ordered Line Items ({itemsToRender.length})</Text>
                       {canEditRates ? (
-                        <TouchableOpacity
-                          style={[s.saveRatesBtn, savingPoRates && { opacity: 0.6 }]}
-                          onPress={handleSavePoRates}
-                          disabled={savingPoRates}
-                        >
-                          {savingPoRates ? (
-                            <ActivityIndicator size="small" color="#2563EB" />
-                          ) : (
-                            <>
-                              <Ionicons name="save-outline" size={13} color="#2563EB" />
-                              <Text style={s.saveRatesBtnText}>Save Rates</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
+                        canDo('procurement', 'update') && (
+                          <TouchableOpacity
+                            style={[s.saveRatesBtn, savingPoRates && { opacity: 0.6 }]}
+                            onPress={handleSavePoRates}
+                            disabled={savingPoRates}
+                          >
+                            {savingPoRates ? (
+                              <ActivityIndicator size="small" color="#2563EB" />
+                            ) : (
+                              <>
+                                <Ionicons name="save-outline" size={13} color="#2563EB" />
+                                <Text style={s.saveRatesBtnText}>Save Rates</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        )
                       ) : (
                         <View style={s.ratesLockedBadge}>
                           <Ionicons name="lock-closed" size={11} color="#64748B" />
@@ -2329,22 +2352,24 @@ export default function InteriorProcurementScreen() {
               )}
 
               {/* Bottom Delete Button */}
-              <TouchableOpacity
-                style={[s.deletePoBtn, deletingPo && { opacity: 0.6 }]}
-                onPress={() => handleDeletePo(selectedPo)}
-                disabled={deletingPo}
-              >
-                {deletingPo ? (
-                  <ActivityIndicator size="small" color="#DC2626" />
-                ) : (
-                  <>
-                    <Ionicons name="trash-outline" size={15} color="#DC2626" />
-                    <Text style={s.deletePoBtnText}>
-                      {selectedPo?.status === 'requested' ? 'Delete Material Request' : 'Delete Purchase Order'}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {canDo('procurement', 'delete') && (
+                <TouchableOpacity
+                  style={[s.deletePoBtn, deletingPo && { opacity: 0.6 }]}
+                  onPress={() => handleDeletePo(selectedPo)}
+                  disabled={deletingPo}
+                >
+                  {deletingPo ? (
+                    <ActivityIndicator size="small" color="#DC2626" />
+                  ) : (
+                    <>
+                      <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                      <Text style={s.deletePoBtnText}>
+                        {selectedPo?.status === 'requested' ? 'Delete Material Request' : 'Delete Purchase Order'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </View>
         </View>

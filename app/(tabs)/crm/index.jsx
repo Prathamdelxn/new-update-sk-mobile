@@ -13,7 +13,10 @@ import { useToast } from '../../context/ToastContext';
 import HeaderNotification from '../../components/HeaderNotification';
 import interiorApiClient from '../../services/interiorApiClient';
 import interiorCrmService from '../../services/interiorCrmService';
-import CrmFlowTabs from '../../components/crm/CrmFlowTabs';
+import CrmFlowTabs, { useVisibleFlowStages } from '../../components/crm/CrmFlowTabs';
+import StageLeadPicker from '../../components/crm/StageLeadPicker';
+import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
+import { STATUS_STAGE_INDEX } from '../../utils/interior/crmStages';
 import { queryKeys, invalidateCrmQueries, useRefreshOnFocus } from '../../context/QueryProvider';
 import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../../utils/crmValidation';
 
@@ -88,7 +91,14 @@ export default function CRMScreen() {
   const loading = leadsQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFlowTab, setActiveFlowTab] = useState('leads');
+  const [selectedFlowTab, setActiveFlowTab] = useState('leads');
+  // Only tabs this user can view; start on the first one they can see
+  const { hasPermission } = useInteriorPermissions();
+  const visibleStages = useVisibleFlowStages();
+  const activeFlowTab = visibleStages.some((st) => st.id === selectedFlowTab)
+    ? selectedFlowTab
+    : visibleStages[0]?.id ?? selectedFlowTab;
+  const [isStagePickerOpen, setIsStagePickerOpen] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -124,6 +134,24 @@ export default function CRMScreen() {
     won_projects: leads.filter((l) => l.status !== 'Lost' && (l.status === 'Won' || l.status === 'Converted' || !!l.linkedProject)).length,
     lost_leads: leads.filter((l) => l.status === 'Lost').length,
   };
+
+  // "Add to <stage>" per stage tab (opens the lead on that stage's send-to form)
+  const STAGE_ADD = {
+    follow_ups: { label: 'Schedule Follow-up', module: 'crm_followups', index: 1, action: 'followup' },
+    site_visits: { label: 'Add to Site Visits', module: 'crm_site_visits', index: 2, action: 'site' },
+    requirement_design: { label: 'Add to Requirements', module: 'crm_requirements', index: 3, action: 'requirements' },
+    drawing: { label: 'Add to Drawings', module: 'crm_drawings', index: 4, action: 'drawing' },
+    boq: { label: 'Add to BOQ', module: 'crm_boq', index: 5, action: 'boq' },
+    quotations: { label: 'Add to Quotations', module: 'crm_quotations', index: 6, action: 'quotation' },
+  };
+  const stageAdd = STAGE_ADD[activeFlowTab];
+  const stageCandidates = stageAdd
+    ? leads.filter((l) => {
+        const idx = STATUS_STAGE_INDEX[l.status];
+        if (idx === undefined) return false; // Lost / Won / Converted
+        return activeFlowTab === 'follow_ups' ? idx <= stageAdd.index : idx < stageAdd.index;
+      })
+    : [];
 
   const filteredLeads = leads.filter((l) => {
     const q = searchQuery.toLowerCase();
@@ -395,6 +423,14 @@ export default function CRMScreen() {
               </TouchableOpacity>
             )}
 
+            {/* Add to <stage>: bring a lead in without access to the earlier tabs */}
+            {stageAdd && hasPermission(stageAdd.module, 'create') && (
+              <TouchableOpacity style={s.stageAddBtn} onPress={() => setIsStagePickerOpen(true)} activeOpacity={0.7}>
+                <Ionicons name="add-circle-outline" size={18} color="#2563EB" />
+                <Text style={s.stageAddText}>{stageAdd.label}</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Lead list */}
             <View style={{ gap: 12 }}>
               {filteredLeads.length === 0 ? (
@@ -508,10 +544,20 @@ export default function CRMScreen() {
         )}
 
         {/* Add Lead FAB */}
-        <TouchableOpacity style={s.fab} onPress={() => setIsModalVisible(true)}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {hasPermission('crm_leads', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={() => setIsModalVisible(true)}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
+
+      <StageLeadPicker
+        visible={isStagePickerOpen && !!stageAdd}
+        title={stageAdd?.label ?? ''}
+        leads={stageCandidates}
+        onClose={() => setIsStagePickerOpen(false)}
+        onPick={(leadId) => router.push(`/crm-lead/${leadId}?action=${stageAdd.action}`)}
+      />
 
       {/* Add Lead Modal */}
       <Modal visible={isModalVisible} animationType="slide" transparent onRequestClose={closeAddLeadModal}>
@@ -725,6 +771,8 @@ function StatCard({ icon, iconBg, iconColor, label, value, sub, onPress }) {
 }
 
 const s = StyleSheet.create({
+  stageAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 11, marginBottom: 14, borderRadius: 14, borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#EFF6FF' },
+  stageAddText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#2563EB' },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   bgBase: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },

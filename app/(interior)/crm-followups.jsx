@@ -19,6 +19,8 @@ import { useToast } from '../context/ToastContext';
 import interiorApiClient from '../services/interiorApiClient';
 import interiorCrmService from '../services/interiorCrmService';
 import { queryKeys, invalidateCrmQueries, useRefreshOnFocus, useQuerySetter } from '../context/QueryProvider';
+import { useInteriorPermissions } from '../utils/interior/useInteriorPermissions';
+import { canMoveLead } from '../utils/interior/crmStages';
 
 function displayUserName(u) {
   if (!u) return '';
@@ -66,6 +68,7 @@ export default function CrmFollowUpsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { showToast } = useToast();
+const { hasPermission: canDo } = useInteriorPermissions();
 
   const queryClient = useQueryClient();
   const followUpsQuery = useQuery({
@@ -452,43 +455,47 @@ export default function CrmFollowUpsScreen() {
                       {/* Right: Stage progression action */}
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         {!isCompleted ? (
-                          <TouchableOpacity
-                            style={[s.doneBtn, isCompleting && { opacity: 0.7 }]}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleCompleteActivity(act._id);
-                            }}
-                            disabled={isCompleting}
-                            activeOpacity={0.7}
-                          >
-                            {isCompleting ? (
-                              <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                              <>
-                                <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
-                                <Text style={s.doneBtnText}>Done</Text>
-                              </>
-                            )}
-                          </TouchableOpacity>
+                          canDo('crm_followups', 'update') && (
+                            <TouchableOpacity
+                              style={[s.doneBtn, isCompleting && { opacity: 0.7 }]}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                handleCompleteActivity(act._id);
+                              }}
+                              disabled={isCompleting}
+                              activeOpacity={0.7}
+                            >
+                              {isCompleting ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                              ) : (
+                                <>
+                                  <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
+                                  <Text style={s.doneBtnText}>Done</Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          )
                         ) : canPassToSite ? (
-                          <TouchableOpacity
-                            style={[s.passSiteBtn, isPassingSite && { opacity: 0.7 }]}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              passToSiteVisit(act.customer._id);
-                            }}
-                            disabled={isPassingSite}
-                            activeOpacity={0.7}
-                          >
-                            {isPassingSite ? (
-                              <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                              <>
-                                <Ionicons name="location" size={12} color="#FFFFFF" />
-                                <Text style={s.passSiteBtnText}>Pass to Site Visit</Text>
-                              </>
-                            )}
-                          </TouchableOpacity>
+                          (canMoveLead(canDo, 'crm_followups', 'crm_site_visits') || canDo('crm_leads', 'update')) && (
+                            <TouchableOpacity
+                              style={[s.passSiteBtn, isPassingSite && { opacity: 0.7 }]}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                passToSiteVisit(act.customer._id);
+                              }}
+                              disabled={isPassingSite}
+                              activeOpacity={0.7}
+                            >
+                              {isPassingSite ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                              ) : (
+                                <>
+                                  <Ionicons name="location" size={12} color="#FFFFFF" />
+                                  <Text style={s.passSiteBtnText}>Pass to Site Visit</Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          )
                         ) : (
                           <View style={s.completedPill}>
                             <Ionicons name="checkmark" size={12} color="#16A34A" />

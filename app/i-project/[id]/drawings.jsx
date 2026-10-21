@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 // ---------------------------------------------------------------------------
 // File Type Detection & Badging (Mirrors Web detectDrawingFileType & getFileTypeBadge)
@@ -143,6 +144,7 @@ export default function InteriorDrawingsScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [drawings, setDrawings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -625,40 +627,48 @@ export default function InteriorDrawingsScreen() {
                         <Text style={[s.actionBtnText, { color: '#2563EB' }]}>{isImage ? 'Preview' : 'Open'}</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity
-                        style={s.actionBtn}
-                        onPress={() => openRevModal(dwg)}
-                      >
-                        <Ionicons name="cloud-upload-outline" size={13} color="#475569" />
-                        <Text style={s.actionBtnText}>+ Revision</Text>
-                      </TouchableOpacity>
+                      {canDo('drawings', 'update') && (
+                        <TouchableOpacity
+                          style={s.actionBtn}
+                          onPress={() => openRevModal(dwg)}
+                        >
+                          <Ionicons name="cloud-upload-outline" size={13} color="#475569" />
+                          <Text style={s.actionBtnText}>+ Revision</Text>
+                        </TouchableOpacity>
+                      )}
 
                       {dwg.status !== 'approved' && (
-                        <TouchableOpacity
-                          style={[s.actionBtn, { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' }]}
-                          onPress={() => updateStatus(dwg, 'approved')}
-                        >
-                          <Ionicons name="checkmark-circle-outline" size={13} color="#16A34A" />
-                          <Text style={[s.actionBtnText, { color: '#16A34A' }]}>Approve</Text>
-                        </TouchableOpacity>
+                        canDo('drawings', 'approve') && (
+                          <TouchableOpacity
+                            style={[s.actionBtn, { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' }]}
+                            onPress={() => updateStatus(dwg, 'approved')}
+                          >
+                            <Ionicons name="checkmark-circle-outline" size={13} color="#16A34A" />
+                            <Text style={[s.actionBtnText, { color: '#16A34A' }]}>Approve</Text>
+                          </TouchableOpacity>
+                        )
                       )}
 
                       {dwg.status !== 'rejected' && (
-                        <TouchableOpacity
-                          style={[s.actionBtn, { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }]}
-                          onPress={() => updateStatus(dwg, 'rejected')}
-                        >
-                          <Ionicons name="close-circle-outline" size={13} color="#DC2626" />
-                          <Text style={[s.actionBtnText, { color: '#DC2626' }]}>Reject</Text>
-                        </TouchableOpacity>
+                        canDo('drawings', 'approve') && (
+                          <TouchableOpacity
+                            style={[s.actionBtn, { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }]}
+                            onPress={() => updateStatus(dwg, 'rejected')}
+                          >
+                            <Ionicons name="close-circle-outline" size={13} color="#DC2626" />
+                            <Text style={[s.actionBtnText, { color: '#DC2626' }]}>Reject</Text>
+                          </TouchableOpacity>
+                        )
                       )}
 
-                      <TouchableOpacity
-                        style={[s.actionBtn, { borderColor: '#F1F5F9' }]}
-                        onPress={() => handleDeleteDrawing(dwg)}
-                      >
-                        <Ionicons name="trash-outline" size={14} color="#94A3B8" />
-                      </TouchableOpacity>
+                      {canDo('drawings', 'delete') && (
+                        <TouchableOpacity
+                          style={[s.actionBtn, { borderColor: '#F1F5F9' }]}
+                          onPress={() => handleDeleteDrawing(dwg)}
+                        >
+                          <Ionicons name="trash-outline" size={14} color="#94A3B8" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
                 );
@@ -669,16 +679,18 @@ export default function InteriorDrawingsScreen() {
         )}
 
         {/* --- FLOATING REGISTER DRAWING BUTTON --- */}
-        <TouchableOpacity
-          style={[s.fab, activeCategory === '3D' && { backgroundColor: '#7C3AED', shadowColor: '#7C3AED' }]}
-          onPress={() => {
-            setCreateType(activeCategory);
-            setDiscipline(activeCategory === '3D' ? '3D Visual' : 'Architectural');
-            setIsCreateOpen(true);
-          }}
-        >
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('drawings', 'create') && (
+          <TouchableOpacity
+            style={[s.fab, activeCategory === '3D' && { backgroundColor: '#7C3AED', shadowColor: '#7C3AED' }]}
+            onPress={() => {
+              setCreateType(activeCategory);
+              setDiscipline(activeCategory === '3D' ? '3D Visual' : 'Architectural');
+              setIsCreateOpen(true);
+            }}
+          >
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* ========================================================================= */}

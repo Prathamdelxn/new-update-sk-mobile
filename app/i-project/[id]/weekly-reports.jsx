@@ -10,6 +10,7 @@ import * as Sharing from 'expo-sharing';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 function fmt(d) {
   return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -93,6 +94,7 @@ export default function InteriorWeeklyReportsScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [project, setProject] = useState(null);
   const [reports, setReports] = useState([]);
@@ -351,17 +353,23 @@ export default function InteriorWeeklyReportsScreen() {
                   </View>
 
                   <View style={s.reportActionsRow}>
-                    <TouchableOpacity style={s.actionBtn} onPress={() => handlePrint(report)}>
-                      <Ionicons name="print-outline" size={14} color="#334155" />
-                      <Text style={s.actionBtnText}>Print</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[s.actionBtn, s.actionBtnPrimary]} onPress={() => handleExportPdf(report)} disabled={downloadingId === report._id}>
-                      {downloadingId === report._id ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="download-outline" size={14} color="#FFFFFF" />}
-                      <Text style={[s.actionBtnText, { color: '#FFFFFF' }]}>Export PDF</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={s.actionBtnDanger} onPress={() => handleDelete(report)} disabled={deletingId === report._id}>
-                      {deletingId === report._id ? <ActivityIndicator size="small" color="#DC2626" /> : <Ionicons name="trash-outline" size={14} color="#DC2626" />}
-                    </TouchableOpacity>
+                    {canDo('weekly_reports', 'export') && (
+                      <TouchableOpacity style={s.actionBtn} onPress={() => handlePrint(report)}>
+                        <Ionicons name="print-outline" size={14} color="#334155" />
+                        <Text style={s.actionBtnText}>Print</Text>
+                      </TouchableOpacity>
+                    )}
+                    {canDo('weekly_reports', 'export') && (
+                      <TouchableOpacity style={[s.actionBtn, s.actionBtnPrimary]} onPress={() => handleExportPdf(report)} disabled={downloadingId === report._id}>
+                        {downloadingId === report._id ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="download-outline" size={14} color="#FFFFFF" />}
+                        <Text style={[s.actionBtnText, { color: '#FFFFFF' }]}>Export PDF</Text>
+                      </TouchableOpacity>
+                    )}
+                    {canDo('weekly_reports', 'delete') && (
+                      <TouchableOpacity style={s.actionBtnDanger} onPress={() => handleDelete(report)} disabled={deletingId === report._id}>
+                        {deletingId === report._id ? <ActivityIndicator size="small" color="#DC2626" /> : <Ionicons name="trash-outline" size={14} color="#DC2626" />}
+                      </TouchableOpacity>
+                    )}
                   </View>
 
                   <View style={s.statRow}>
@@ -394,9 +402,11 @@ export default function InteriorWeeklyReportsScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={openModal}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('weekly_reports', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={openModal}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={() => setIsModalOpen(false)}>

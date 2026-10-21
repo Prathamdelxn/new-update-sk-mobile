@@ -13,6 +13,7 @@ import { useToast } from '../../context/ToastContext';
 import HeaderNotification from '../../components/HeaderNotification';
 import { queryKeys, invalidateProjectQueries, useRefreshOnFocus } from '../../context/QueryProvider';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 
 const HEALTH_META = {
   'on-track': { label: 'On Track', color: '#16A34A', bg: '#F0FDF4' },
@@ -65,6 +66,7 @@ export default function InteriorProjectsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { showToast } = useToast();
+const { hasPermission: canDo } = useInteriorPermissions();
 
   const queryClient = useQueryClient();
   const projectsQuery = useQuery({
@@ -320,10 +322,12 @@ export default function InteriorProjectsScreen() {
                 <View style={s.empty}>
                   <Ionicons name="folder-open-outline" size={44} color="#94A3B8" />
                   <Text style={s.emptyTitle}>No projects found</Text>
-                  <TouchableOpacity style={s.emptyBtn} onPress={openCreate}>
-                    <Ionicons name="add" size={16} color="#FFFFFF" />
-                    <Text style={s.emptyBtnText}>New Project</Text>
-                  </TouchableOpacity>
+                  {canDo('projects', 'create') && (
+                    <TouchableOpacity style={s.emptyBtn} onPress={openCreate}>
+                      <Ionicons name="add" size={16} color="#FFFFFF" />
+                      <Text style={s.emptyBtnText}>New Project</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               ) : (
                 filteredProjects.map((project) => {
@@ -389,21 +393,25 @@ export default function InteriorProjectsScreen() {
                         <TouchableOpacity style={s.viewProjectBtn} onPress={() => openProject(project)}>
                           <Text style={s.viewProjectBtnText}>View Project</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={s.cardIconBtn} onPress={() => openEdit(project)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Ionicons name="pencil-outline" size={14} color="#2563EB" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={s.cardIconBtn}
-                          onPress={() => handleDeleteProject(project)}
-                          disabled={deletingId === id}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          {deletingId === id ? (
-                            <ActivityIndicator size="small" color="#DC2626" />
-                          ) : (
-                            <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                          )}
-                        </TouchableOpacity>
+                        {canDo('projects', 'update') && (
+                          <TouchableOpacity style={s.cardIconBtn} onPress={() => openEdit(project)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Ionicons name="pencil-outline" size={14} color="#2563EB" />
+                          </TouchableOpacity>
+                        )}
+                        {canDo('projects', 'delete') && (
+                          <TouchableOpacity
+                            style={s.cardIconBtn}
+                            onPress={() => handleDeleteProject(project)}
+                            disabled={deletingId === id}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            {deletingId === id ? (
+                              <ActivityIndicator size="small" color="#DC2626" />
+                            ) : (
+                              <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                            )}
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
                   );
@@ -415,9 +423,11 @@ export default function InteriorProjectsScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={openCreate}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('projects', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={openCreate}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* New / Edit Project Modal */}

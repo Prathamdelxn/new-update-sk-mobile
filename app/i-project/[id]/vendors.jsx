@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 
 const RATINGS = [4.8, 4.2, 4.6, 3.9];
 const COMPLIANCE = [95, 88, 92, 75];
@@ -29,6 +30,7 @@ export default function InteriorVendorsScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { hasPermission: canDo } = useInteriorPermissions();
 
   const [dbVendors, setDbVendors] = useState([]);
   const [pos, setPos] = useState([]);
@@ -154,10 +156,12 @@ export default function InteriorVendorsScreen() {
             <Text style={s.headerTitle}>Vendors & Subcontractors</Text>
             <Text style={s.headerSub}>Ratings, compliance, and contract values.</Text>
           </View>
-          <TouchableOpacity style={s.addVendorBtn} onPress={openAddModal}>
-            <Ionicons name="add" size={16} color="#FFFFFF" />
-            <Text style={s.addVendorBtnText}>Add Vendor</Text>
-          </TouchableOpacity>
+          {canDo('vendors', 'create') && (
+            <TouchableOpacity style={s.addVendorBtn} onPress={openAddModal}>
+              <Ionicons name="add" size={16} color="#FFFFFF" />
+              <Text style={s.addVendorBtnText}>Add Vendor</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {loading ? (
@@ -188,12 +192,16 @@ export default function InteriorVendorsScreen() {
                         )}
                       </View>
                     </View>
-                    <TouchableOpacity onPress={() => openEditModal(vendor.raw)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                      <Ionicons name="pencil-outline" size={15} color="#94A3B8" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDeleteVendor(vendor)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginLeft: 10 }}>
-                      <Ionicons name="trash-outline" size={15} color="#EF4444" />
-                    </TouchableOpacity>
+                    {canDo('vendors', 'update') && (
+                      <TouchableOpacity onPress={() => openEditModal(vendor.raw)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                        <Ionicons name="pencil-outline" size={15} color="#94A3B8" />
+                      </TouchableOpacity>
+                    )}
+                    {canDo('vendors', 'delete') && (
+                      <TouchableOpacity onPress={() => handleDeleteVendor(vendor)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginLeft: 10 }}>
+                        <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                      </TouchableOpacity>
+                    )}
                   </View>
 
                   <View style={s.statsRow}>

@@ -10,6 +10,8 @@ import AdaptiveGlass from '../../components/AdaptiveGlass';
 import HeaderNotification from '../../components/HeaderNotification';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
+import interiorApiClient from '../../services/interiorApiClient';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -81,7 +83,9 @@ const Sheet = ({ visible, onClose, title, children }) => {
 export default function InteriorSettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, refreshUser } = useAuth();
+  // Company settings are admin-only; Users & Roles needs Roles → View (same as web)
+  const { isOrgAdmin, navAccess } = useInteriorPermissions();
   const { showToast } = useToast();
 
   const [activeSheet, setActiveSheet] = useState(null); // 'profile' | 'password' | 'workspace' | 'preferences' | 'notifications' | 'appInfo' | 'logout'
@@ -115,7 +119,7 @@ export default function InteriorSettingsScreen() {
 
   useEffect(() => {
     if (user) {
-      setName(user.name || '');
+      setName(user.name || user.fullName || [user.firstName, user.lastName].filter(Boolean).join(' ') || '');
       setPhone(user.phoneNumber || user.phone || '');
       setOrgName(user.organization?.name || `${user.name || 'Studio'}'s Workspace`);
     }
@@ -134,19 +138,18 @@ export default function InteriorSettingsScreen() {
     if (!name.trim()) return showToast('Name cannot be empty.', 'error');
     setIsSavingProfile(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/user/profile`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: name.trim(), phoneNumber: phone.trim() }),
+      // Interior backend: users may edit their own name / phone (PATCH /users/:id)
+      const [firstName, ...rest] = name.trim().split(/\s+/);
+      await interiorApiClient.patch(`/users/${user?._id || user?.id}`, {
+        firstName,
+        ...(rest.length ? { lastName: rest.join(' ') } : {}),
+        phone: phone.trim(),
       });
-      if (res.ok) {
-        showToast('Profile details saved successfully!', 'success');
-        closeSheet();
-      } else {
-        showToast('Failed to update profile.', 'error');
-      }
+      showToast('Profile details saved successfully!', 'success');
+      refreshUser?.();
+      closeSheet();
     } catch (e) {
-      showToast('Network error. Check server/IP.', 'error');
+      showToast(e.message || 'Something went wrong. Please try again.', 'error');
     } finally {
       setIsSavingProfile(false);
     }
@@ -154,28 +157,20 @@ export default function InteriorSettingsScreen() {
 
   const handleChangePassword = async () => {
     if (!currentPassword) return showToast('Please enter your current password.', 'error');
-    if (newPassword.length < 6) return showToast('New password must be at least 6 characters.', 'error');
+    if (newPassword.length < 8) return showToast('New password must be at least 8 characters.', 'error');
     if (newPassword !== confirmPassword) return showToast('New passwords do not match.', 'error');
 
     setIsChangingPassword(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showToast('Password updated successfully!', 'success');
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
-        closeSheet();
-      } else {
-        showToast(data.message || 'Failed to update password.', 'error');
-      }
+      // Interior backend (the construction API isn't reachable from an interior session)
+      await interiorApiClient.patch('/auth/change-password', { currentPassword, newPassword });
+      showToast('Password updated successfully!', 'success');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      closeSheet();
     } catch (e) {
-      showToast('Network error. Check server/IP.', 'error');
+      showToast(e.message || 'Something went wrong. Please try again.', 'error');
     } finally {
       setIsChangingPassword(false);
     }
@@ -247,10 +242,14 @@ export default function InteriorSettingsScreen() {
           <View style={s.section}>
             <Text style={s.sectionLabel}>Workspace</Text>
             <View style={s.flatGroup}>
-              <SettingItem icon="business-outline" title="Company & Workspace" subtitle="Studio branding & currency" onPress={() => setActiveSheet('workspace')} />
+              {isOrgAdmin && (
+                <SettingItem icon="business-outline" title="Company & Workspace" subtitle="Studio branding & currency" onPress={() => setActiveSheet('workspace')} />
+              )}
               <SettingItem icon="options-outline" title="App Preferences" subtitle="Date format" onPress={() => setActiveSheet('preferences')} />
               <SettingItem icon="notifications-outline" title="Notifications" subtitle="Email & in-app alerts" onPress={() => setActiveSheet('notifications')} />
-              <SettingItem icon="people-outline" iconBg="#F5F3FF" iconColor="#7C3AED" title="Users & Roles" subtitle="Team assignments & permission matrix" onPress={() => router.push('/interior-users-roles')} />
+              {navAccess.usersRoles && (
+                <SettingItem icon="people-outline" iconBg="#F5F3FF" iconColor="#7C3AED" title="Users & Roles" subtitle="Team assignments & permission matrix" onPress={() => router.push('/interior-users-roles')} />
+              )}
             </View>
           </View>
 

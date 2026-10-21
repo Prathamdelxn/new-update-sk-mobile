@@ -3,11 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { hasAnyRolePermission } from '../utils/permissions';
+import { useInteriorPermissions } from '../utils/interior/useInteriorPermissions';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const isInterior = user?.organization?.industryType === 'interior';
+  // Interior: CRM / Projects tabs only for users who can open them (same as the web sidebar)
+  const { navAccess } = useInteriorPermissions();
   // Templates tab needs Template or Category Management > View (any role)
   const canSeeTemplates = hasAnyRolePermission(user, 'template:view') || hasAnyRolePermission(user, 'category:view');
 
@@ -49,7 +52,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="crm/index"
         options={{
-          href: isInterior ? undefined : null,
+          href: isInterior && navAccess.crm ? undefined : null,
           title: 'CRM',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} />
@@ -69,7 +72,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="i-project/index"
         options={{
-          href: isInterior ? undefined : null,
+          href: isInterior && navAccess.projects ? undefined : null,
           title: 'Project',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} />

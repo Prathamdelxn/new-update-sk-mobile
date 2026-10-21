@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 function formatBytes(bytes, decimals = 1) {
   if (!bytes || bytes === 0) return '0 B';
@@ -46,6 +47,7 @@ export default function InteriorFilemgtScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [items, setItems] = useState([]);
   const [breadcrumbs, setBreadcrumbs] = useState([]);
@@ -317,12 +319,14 @@ export default function InteriorFilemgtScreen() {
                               <Ionicons name="eye-outline" size={15} color="#2563EB" />
                             </TouchableOpacity>
 
-                            <TouchableOpacity
-                              style={s.fileDeleteBtn}
-                              onPress={() => handleDeleteItem(file)}
-                            >
-                              <Ionicons name="trash-outline" size={15} color="#94A3B8" />
-                            </TouchableOpacity>
+                            {canDo('filemgt', 'delete') && (
+                              <TouchableOpacity
+                                style={s.fileDeleteBtn}
+                                onPress={() => handleDeleteItem(file)}
+                              >
+                                <Ionicons name="trash-outline" size={15} color="#94A3B8" />
+                              </TouchableOpacity>
+                            )}
                           </View>
                         );
                       })}
@@ -337,28 +341,32 @@ export default function InteriorFilemgtScreen() {
 
         {/* --- BOTTOM ACTION BAR --- */}
         <View style={[s.bottomActionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <TouchableOpacity
-            style={s.createFolderBtn}
-            onPress={() => setIsFolderModalOpen(true)}
-          >
-            <Ionicons name="folder-outline" size={16} color="#475569" />
-            <Text style={s.createFolderBtnText}>+ New Folder</Text>
-          </TouchableOpacity>
+          {canDo('filemgt', 'create') && (
+            <TouchableOpacity
+              style={s.createFolderBtn}
+              onPress={() => setIsFolderModalOpen(true)}
+            >
+              <Ionicons name="folder-outline" size={16} color="#475569" />
+              <Text style={s.createFolderBtnText}>+ New Folder</Text>
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity
-            style={s.uploadFileBtn}
-            onPress={handlePickAndUploadFile}
-            disabled={uploadingFile}
-          >
-            {uploadingFile ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="cloud-upload-outline" size={16} color="#FFFFFF" />
-                <Text style={s.uploadFileBtnText}>Upload Document</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {canDo('filemgt', 'create') && (
+            <TouchableOpacity
+              style={s.uploadFileBtn}
+              onPress={handlePickAndUploadFile}
+              disabled={uploadingFile}
+            >
+              {uploadingFile ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="cloud-upload-outline" size={16} color="#FFFFFF" />
+                  <Text style={s.uploadFileBtnText}>Upload Document</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
 

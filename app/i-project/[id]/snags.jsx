@@ -10,6 +10,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
 function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
@@ -98,6 +99,7 @@ export default function InteriorSnagsScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [snags, setSnags] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -275,12 +277,16 @@ export default function InteriorSnagsScreen() {
                         <View style={[s.pill, { backgroundColor: status.bg }]}>
                           <Text style={[s.pillText, { color: status.color }]}>{snag.status}</Text>
                         </View>
-                        <TouchableOpacity onPress={() => openEditModal(snag)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                          <Ionicons name="pencil-outline" size={13} color="#94A3B8" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleDeleteSnag(snag)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                          <Ionicons name="trash-outline" size={13} color="#EF4444" />
-                        </TouchableOpacity>
+                        {canDo('snags', 'update') && (
+                          <TouchableOpacity onPress={() => openEditModal(snag)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                            <Ionicons name="pencil-outline" size={13} color="#94A3B8" />
+                          </TouchableOpacity>
+                        )}
+                        {canDo('snags', 'delete') && (
+                          <TouchableOpacity onPress={() => handleDeleteSnag(snag)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                            <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
 
@@ -313,9 +319,11 @@ export default function InteriorSnagsScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={openCreateModal}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('snags', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={openCreateModal}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={closeModal}>

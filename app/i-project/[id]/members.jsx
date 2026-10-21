@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
@@ -8,6 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useAuth } from '../../context/AuthContext';
+import { PERMISSION_ACTIONS as CATALOG_ACTIONS, PERMISSION_MODULES, moduleActions } from '../../utils/interior/permissionCatalog';
+import { useProjectPermissions, invalidateProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import { memberRoleLabel, isVirtualAdminMember } from '../../utils/interior/memberRoleLabel';
 
 const ROLE_META = {
   project_manager: { label: 'Project Manager', color: '#2563EB', bg: '#EFF6FF' },
@@ -18,76 +22,39 @@ const ROLE_META = {
   client_representative: { label: 'Client Rep', color: '#4F46E5', bg: '#EEF2FF' },
   viewer: { label: 'Viewer', color: '#64748B', bg: '#F8FAFC' },
 };
-const ALL_ROLES = [
-  'project_manager',
-  'site_engineer',
-  'quantity_surveyor',
-  'designer',
-  'sub_contractor',
-  'client_representative',
-  'viewer',
-];
+// Same project sections and actions as the role editor (shared catalog)
+const PROJECT_MODULES = PERMISSION_MODULES
+  .filter((m) => m.category === 'Project Execution')
+  .map((m) => ({ module: m.key, label: m.label }));
+const PERMISSION_ACTIONS = CATALOG_ACTIONS.map((a) => a.key);
+const ACTION_LABEL = Object.fromEntries(CATALOG_ACTIONS.map((a) => [a.key, a.label]));
 
-const PROJECT_MODULES = [
-  { module: 'projects', label: 'Project Config' },
-  { module: 'wbs', label: 'WBS Hierarchy' },
-  { module: 'tasks', label: 'Tasks' },
-  { module: 'milestones', label: 'Milestones' },
-  { module: 'dpr', label: 'Daily Progress Report' },
-  { module: 'weekly_reports', label: 'Weekly Reports' },
-  { module: 'procurement', label: 'Procurement' },
-  { module: 'purchase_orders', label: 'Purchase Orders' },
-  { module: 'vendors', label: 'Vendors' },
-  { module: 'drawings', label: 'Drawings' },
-  { module: 'rfis', label: 'RFIs' },
-  { module: 'mom', label: 'Minutes of Meeting' },
-  { module: 'risks', label: 'Risks' },
-  { module: 'snags', label: 'Snags' },
-  { module: 'ncrs', label: 'NCRs' },
-  { module: 'utilities', label: 'Utilities' },
-  { module: 'photos', label: 'Site Photos' },
-  { module: 'handover', label: 'Handover' },
-  { module: 'users', label: 'Team / Members' },
-  { module: 'filemgt', label: 'File Management' },
-];
-const PERMISSION_ACTIONS = ['create', 'read', 'update', 'delete', 'approve', 'export', 'manage'];
-
-const DEFAULT_ROLE_PERMISSIONS = {
-  project_manager: PROJECT_MODULES.map((m) => ({ module: m.module, actions: [...PERMISSION_ACTIONS] })),
-  viewer: PROJECT_MODULES.map((m) => ({ module: m.module, actions: ['read'] })),
-  site_engineer: PROJECT_MODULES.map((m) => ({
-    module: m.module,
-    actions: ['projects', 'users', 'filemgt'].includes(m.module) ? ['read'] : ['create', 'read', 'update'],
-  })),
-  quantity_surveyor: PROJECT_MODULES.map((m) => ({
-    module: m.module,
-    actions: ['boq', 'procurement', 'purchase_orders', 'payments', 'variation_orders'].includes(m.module)
-      ? ['create', 'read', 'update', 'approve', 'export']
-      : ['read'],
-  })),
-  designer: PROJECT_MODULES.map((m) => ({
-    module: m.module,
-    actions: ['drawings', 'rfis', 'filemgt', 'photos', 'model'].includes(m.module) ? ['create', 'read', 'update', 'delete'] : ['read'],
-  })),
-  sub_contractor: PROJECT_MODULES.map((m) => ({
-    module: m.module,
-    actions: ['tasks', 'dpr', 'rfis', 'filemgt', 'photos'].includes(m.module) ? ['create', 'read', 'update'] : ['read'],
-  })),
-  client_representative: PROJECT_MODULES.map((m) => ({
-    module: m.module,
-    actions: ['projects', 'milestones', 'drawings', 'photos', 'snags', 'weekly_reports'].includes(m.module) ? ['read', 'approve'] : ['read'],
-  })),
+// Opening the project needs Project Config → View, so any other project
+// permission keeps it on (same rule as the role editor)
+const ensureProjectView = (perms) => {
+  const needs = perms.some((p) => p.module !== 'projects' && p.actions.length > 0);
+  const proj = perms.find((p) => p.module === 'projects');
+  if (!needs || proj?.actions.includes('read')) return perms;
+  return proj
+    ? perms.map((p) => (p.module === 'projects' ? { ...p, actions: [...p.actions, 'read'] } : p))
+    : [...perms, { module: 'projects', actions: ['read'] }];
 };
 
-const emptyInvite = { firstName: '', lastName: '', email: '', password: '', projectRole: 'viewer', designation: '', department: '' };
+const emptyInvite = { firstName: '', lastName: '', email: '', password: '', roleId: '', designation: '', department: '' };
 
 export default function InteriorMembersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+  const { refreshUser } = useAuth();
+  // Add / invite = Team & Members → Create, edit = Update, remove = Delete
+  const { can: canDo } = useProjectPermissions(projectId);
 
   const [members, setMembers] = useState([]);
+  // Project roles come from the organization's roles (Users & Roles → Roles)
+  const [orgRoles, setOrgRoles] = useState([]);
+  const [permMode, setPermMode] = useState('role'); // 'role' = linked org role, 'custom' = hand-picked
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -100,7 +67,7 @@ export default function InteriorMembersScreen() {
   const [orgUsersLoading, setOrgUsersLoading] = useState(false);
   const [addMemberSearch, setAddMemberSearch] = useState('');
   const [addMemberUserId, setAddMemberUserId] = useState('');
-  const [addMemberRole, setAddMemberRole] = useState('viewer');
+  const [addMemberRole, setAddMemberRole] = useState('');
   const [isAddingMember, setIsAddingMember] = useState(false);
 
   const [permMember, setPermMember] = useState(null);
@@ -122,6 +89,21 @@ export default function InteriorMembersScreen() {
   }, [projectId]);
 
   useFocusEffect(useCallback(() => { fetchMembers(); }, [fetchMembers]));
+
+  useEffect(() => {
+    interiorApiClient.get('/roles')
+      .then((res) => setOrgRoles((Array.isArray(res?.data) ? res.data : []).filter((r) => r.slug !== 'admin')))
+      .catch(() => setOrgRoles([]));
+  }, []);
+  const viewerRoleId = (orgRoles.find((r) => r.slug === 'viewer') || orgRoles[0])?._id || '';
+
+  // A member's role id (linked) — or the built-in role matching their preset
+  const memberRoleId = (m) => {
+    if (m.roleId && typeof m.roleId === 'object') return m.roleId._id;
+    if (typeof m.roleId === 'string' && m.roleId) return m.roleId;
+    const slug = (m.projectRole || '').replace(/_/g, '-');
+    return orgRoles.find((r) => r.slug === slug)?._id || '';
+  };
 
   const filteredMembers = members.filter((m) => {
     const q = searchQuery.toLowerCase();
@@ -149,7 +131,7 @@ export default function InteriorMembersScreen() {
   const openAddMemberModal = () => {
     setAddMemberSearch('');
     setAddMemberUserId('');
-    setAddMemberRole('viewer');
+    setAddMemberRole(viewerRoleId);
     setIsAddMemberOpen(true);
     fetchOrgUsers();
   };
@@ -161,7 +143,10 @@ export default function InteriorMembersScreen() {
     }
     setIsAddingMember(true);
     try {
-      await interiorApiClient.post(`/projects/${projectId}/members`, { userId: addMemberUserId, projectRole: addMemberRole });
+      await interiorApiClient.post(
+        `/projects/${projectId}/members`,
+        addMemberRole ? { userId: addMemberUserId, roleId: addMemberRole } : { userId: addMemberUserId, projectRole: 'viewer' }
+      );
       showToast('Member added to project', 'success');
       setIsAddMemberOpen(false);
       fetchMembers();
@@ -181,13 +166,19 @@ export default function InteriorMembersScreen() {
   });
 
   const handleInvite = async () => {
-    if (!inviteForm.firstName || !inviteForm.lastName || !inviteForm.email || !inviteForm.password) {
+    if (!inviteForm.firstName || !inviteForm.lastName || !inviteForm.email) {
       showToast('Please fill all required fields', 'error');
       return;
     }
     setInviting(true);
     try {
-      await interiorApiClient.post(`/projects/${projectId}/members/invite`, inviteForm);
+      // Password is optional — the server defaults it to welcome123 (same as construction)
+      const { password, roleId, ...rest } = inviteForm;
+      await interiorApiClient.post(`/projects/${projectId}/members/invite`, {
+        ...rest,
+        ...(password.trim() ? { password: password.trim() } : {}),
+        ...(roleId || viewerRoleId ? { roleId: roleId || viewerRoleId } : { projectRole: 'viewer' }),
+      });
       showToast('User created and added to project', 'success');
       setIsInviteOpen(false);
       setInviteForm(emptyInvite);
@@ -221,9 +212,12 @@ export default function InteriorMembersScreen() {
   };
 
   const openPermissions = (member) => {
+    const linked = member.roleId && typeof member.roleId === 'object' ? member.roleId : null;
     setPermMember(member);
-    setEditedPermissions(JSON.parse(JSON.stringify(member.permissions || [])));
-    setEditedRole(member.projectRole);
+    setEditedPermissions(JSON.parse(JSON.stringify((linked ? linked.permissions : member.permissions) || [])));
+    setEditedRole(memberRoleId(member));
+    // Linked members follow their role; older members keep their own permissions until a role is picked
+    setPermMode(linked ? 'role' : 'custom');
     setExpandedModule(null);
   };
 
@@ -239,7 +233,9 @@ export default function InteriorMembersScreen() {
   };
 
   const toggleAction = (moduleName, action) => {
-    setEditedPermissions((prev) => {
+    // Hand-picking permissions makes them custom for this member (no role link)
+    setPermMode('custom');
+    setEditedPermissions((prev) => ensureProjectView((() => {
       const idx = prev.findIndex((p) => p.module === moduleName);
       if (idx > -1) {
         const existing = prev[idx];
@@ -252,24 +248,28 @@ export default function InteriorMembersScreen() {
         return updated;
       }
       return [...prev, { module: moduleName, actions: [action] }];
-    });
+    })()));
   };
 
-  const handleRoleChange = (role) => {
-    setEditedRole(role);
-    const defaults = DEFAULT_ROLE_PERMISSIONS[role] || [];
-    setEditedPermissions(defaults);
-    showToast(`Applied default permissions for ${ROLE_META[role]?.label || role}`, 'success');
+  const handleRoleChange = (roleId) => {
+    const role = orgRoles.find((r) => r._id === roleId);
+    setEditedRole(roleId);
+    setEditedPermissions(JSON.parse(JSON.stringify(role?.permissions || [])));
+    setPermMode('role');
+    if (role) showToast(`Using the "${role.name}" role's permissions`, 'success');
   };
 
   const savePermissions = async () => {
     if (!permMember) return;
     setSavingPerms(true);
     try {
-      const payload = { permissions: editedPermissions };
-      if (editedRole !== permMember.projectRole) payload.projectRole = editedRole;
+      // Role mode → link the org role (its permissions apply live); custom → these exact permissions
+      const payload = permMode === 'role' && editedRole ? { roleId: editedRole } : { permissions: editedPermissions };
       await interiorApiClient.patch(`/projects/${projectId}/members/${permMember._id}`, payload);
       showToast('Permissions updated successfully', 'success');
+      // Apply the change to open screens right away
+      invalidateProjectPermissions(projectId);
+      refreshUser?.();
       closePermissions();
       fetchMembers();
     } catch (e) {
@@ -314,7 +314,8 @@ export default function InteriorMembersScreen() {
               </View>
             ) : (
               filteredMembers.map((member) => {
-                const role = ROLE_META[member.projectRole] || ROLE_META.viewer;
+                const role = { ...(ROLE_META[member.projectRole] || ROLE_META.viewer), label: memberRoleLabel(member) };
+                const editable = !isVirtualAdminMember(member);
                 const permCount = member.permissions?.reduce((acc, p) => acc + p.actions.length, 0) || 0;
                 return (
                   <View key={member._id} style={s.memberCard}>
@@ -328,12 +329,16 @@ export default function InteriorMembersScreen() {
                         {!!member.userId?.designation && <Text style={s.memberDesignation} numberOfLines={1}>{member.userId.designation}</Text>}
                       </View>
                       <View style={{ gap: 6, alignItems: 'flex-end' }}>
-                        <TouchableOpacity onPress={() => openPermissions(member)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Ionicons name="settings-outline" size={17} color="#94A3B8" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => confirmDelete(member)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                        </TouchableOpacity>
+                        {editable && canDo('users', 'update') && (
+                          <TouchableOpacity onPress={() => openPermissions(member)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Ionicons name="settings-outline" size={17} color="#94A3B8" />
+                          </TouchableOpacity>
+                        )}
+                        {editable && canDo('users', 'delete') && (
+                          <TouchableOpacity onPress={() => confirmDelete(member)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
 
@@ -341,7 +346,7 @@ export default function InteriorMembersScreen() {
                       <View style={[s.roleBadge, { backgroundColor: role.bg }]}>
                         <Text style={[s.roleBadgeText, { color: role.color }]}>{role.label}</Text>
                       </View>
-                      <TouchableOpacity style={s.permCountBtn} onPress={() => openPermissions(member)}>
+                      <TouchableOpacity style={s.permCountBtn} disabled={!editable || !canDo('users', 'update')} onPress={() => openPermissions(member)}>
                         <Ionicons name="shield-checkmark-outline" size={11} color="#64748B" />
                         <Text style={s.permCountText}>{permCount} permissions</Text>
                       </TouchableOpacity>
@@ -354,14 +359,16 @@ export default function InteriorMembersScreen() {
           </ScrollView>
         )}
 
-        <View style={s.fabGroup}>
-          <TouchableOpacity style={s.fabSecondary} onPress={openAddMemberModal}>
-            <Ionicons name="person-add-outline" size={20} color="#2563EB" />
-          </TouchableOpacity>
-          <TouchableOpacity style={s.fab} onPress={() => setIsInviteOpen(true)}>
-            <Ionicons name="add" size={26} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+        {canDo('users', 'create') && (
+          <View style={s.fabGroup}>
+            <TouchableOpacity style={s.fabSecondary} onPress={openAddMemberModal}>
+              <Ionicons name="person-add-outline" size={20} color="#2563EB" />
+            </TouchableOpacity>
+            <TouchableOpacity style={s.fab} onPress={() => setIsInviteOpen(true)}>
+              <Ionicons name="add" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
 
       {/* Add Existing Member Modal */}
@@ -422,9 +429,9 @@ export default function InteriorMembersScreen() {
 
             <Text style={[s.label, { marginTop: 14 }]}>Project Role</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
-              {ALL_ROLES.map((r) => (
-                <TouchableOpacity key={r} style={[s.chip, addMemberRole === r && s.chipActive]} onPress={() => setAddMemberRole(r)}>
-                  <Text style={[s.chipText, addMemberRole === r && s.chipTextActive]}>{ROLE_META[r]?.label || r}</Text>
+              {orgRoles.map((r) => (
+                <TouchableOpacity key={r._id} style={[s.chip, addMemberRole === r._id && s.chipActive]} onPress={() => setAddMemberRole(r._id)}>
+                  <Text style={[s.chipText, addMemberRole === r._id && s.chipTextActive]}>{r.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -466,18 +473,21 @@ export default function InteriorMembersScreen() {
               <Text style={s.label}>Email Address *</Text>
               <TextInput style={s.input} placeholder="user@example.com" placeholderTextColor="#94A3B8" keyboardType="email-address" autoCapitalize="none" value={inviteForm.email} onChangeText={(v) => setInviteForm({ ...inviteForm, email: v })} />
 
-              <Text style={s.label}>Temporary Password *</Text>
-              <TextInput style={s.input} placeholder="At least 8 characters" placeholderTextColor="#94A3B8" secureTextEntry value={inviteForm.password} onChangeText={(v) => setInviteForm({ ...inviteForm, password: v })} />
+              <Text style={s.label}>Temporary Password (optional)</Text>
+              <TextInput style={s.input} placeholder="Leave blank to use welcome123" placeholderTextColor="#94A3B8" secureTextEntry value={inviteForm.password} onChangeText={(v) => setInviteForm({ ...inviteForm, password: v })} />
 
               <Text style={s.label}>Project Role *</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
-                {ALL_ROLES.map((r) => (
-                  <TouchableOpacity key={r} style={[s.chip, inviteForm.projectRole === r && s.chipActive]} onPress={() => setInviteForm({ ...inviteForm, projectRole: r })}>
-                    <Text style={[s.chipText, inviteForm.projectRole === r && s.chipTextActive]}>{ROLE_META[r]?.label || r}</Text>
-                  </TouchableOpacity>
-                ))}
+                {orgRoles.map((r) => {
+                  const active = (inviteForm.roleId || viewerRoleId) === r._id;
+                  return (
+                    <TouchableOpacity key={r._id} style={[s.chip, active && s.chipActive]} onPress={() => setInviteForm({ ...inviteForm, roleId: r._id })}>
+                      <Text style={[s.chipText, active && s.chipTextActive]}>{r.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
-              <Text style={s.hintText}>Default permissions will be auto-assigned. Customize afterwards via Settings.</Text>
+              <Text style={s.hintText}>The member gets this role&apos;s permissions. Customize afterwards via Settings.</Text>
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={{ flex: 1 }}>
@@ -521,18 +531,23 @@ export default function InteriorMembersScreen() {
 
                 <Text style={s.label}>Project Role</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
-                  {ALL_ROLES.map((r) => (
-                    <TouchableOpacity key={r} style={[s.chip, editedRole === r && s.chipActive]} onPress={() => handleRoleChange(r)}>
-                      <Text style={[s.chipText, editedRole === r && s.chipTextActive]}>{ROLE_META[r]?.label || r}</Text>
+                  {orgRoles.map((r) => (
+                    <TouchableOpacity key={r._id} style={[s.chip, permMode === 'role' && editedRole === r._id && s.chipActive]} onPress={() => handleRoleChange(r._id)}>
+                      <Text style={[s.chipText, permMode === 'role' && editedRole === r._id && s.chipTextActive]}>{r.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
-                {editedRole !== permMember.projectRole && <Text style={s.roleChangedTag}>Role changed</Text>}
+                {permMode === 'custom' ? (
+                  <Text style={s.roleChangedTag}>Custom permissions (this member only)</Text>
+                ) : editedRole !== memberRoleId(permMember) ? (
+                  <Text style={s.roleChangedTag}>Role changed</Text>
+                ) : null}
 
                 <Text style={[s.label, { marginTop: 14 }]}>Module Permissions</Text>
                 <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, marginBottom: 8 }}>
                   {PROJECT_MODULES.map((mod) => {
-                    const activeCount = PERMISSION_ACTIONS.filter((a) => hasAction(mod.module, a)).length;
+                    const offered = moduleActions(mod.module);
+                    const activeCount = offered.filter((a) => hasAction(mod.module, a) || hasAction(mod.module, 'manage')).length;
                     const expanded = expandedModule === mod.module;
                     return (
                       <View key={mod.module} style={s.moduleRow}>
@@ -549,12 +564,12 @@ export default function InteriorMembersScreen() {
                         </TouchableOpacity>
                         {expanded && (
                           <View style={s.actionChipsRow}>
-                            {PERMISSION_ACTIONS.map((action) => {
-                              const active = hasAction(mod.module, action);
+                            {offered.map((action) => {
+                              const active = hasAction(mod.module, action) || hasAction(mod.module, 'manage');
                               return (
                                 <TouchableOpacity key={action} style={[s.actionChip, active && s.actionChipActive]} onPress={() => toggleAction(mod.module, action)}>
                                   {active && <Ionicons name="checkmark" size={11} color="#FFFFFF" style={{ marginRight: 3 }} />}
-                                  <Text style={[s.actionChipText, active && s.actionChipTextActive]}>{action}</Text>
+                                  <Text style={[s.actionChipText, active && s.actionChipTextActive]}>{ACTION_LABEL[action] || action}</Text>
                                 </TouchableOpacity>
                               );
                             })}

@@ -9,6 +9,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
 function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
@@ -83,6 +84,7 @@ export default function InteriorRfisScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [rfis, setRfis] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -223,9 +225,11 @@ export default function InteriorRfisScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={() => setIsModalOpen(true)}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('rfis', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={() => setIsModalOpen(true)}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* Create RFI Modal */}
@@ -320,9 +324,11 @@ export default function InteriorRfisScreen() {
                           value={responseText}
                           onChangeText={setResponseText}
                         />
-                        <TouchableOpacity style={s.postBtn} onPress={postResponse} disabled={posting}>
-                          {posting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="send" size={16} color="#FFFFFF" />}
-                        </TouchableOpacity>
+                        {canDo('rfis', 'update') && (
+                          <TouchableOpacity style={s.postBtn} onPress={postResponse} disabled={posting}>
+                            {posting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="send" size={16} color="#FFFFFF" />}
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </>
                   )}

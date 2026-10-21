@@ -10,6 +10,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const STATUS_META = {
   planned: { label: 'Planned', color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: 'calendar-outline' },
@@ -98,6 +99,7 @@ export default function InteriorMilestonesScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [milestones, setMilestones] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -271,10 +273,12 @@ export default function InteriorMilestonesScreen() {
             <Text style={s.headerTitle} numberOfLines={1}>Milestones & Key Targets</Text>
             <Text style={s.headerSub} numberOfLines={1}>Log milestone delays and trace timeline slips.</Text>
           </View>
-          <TouchableOpacity style={s.headerAddBtn} onPress={openCreate} activeOpacity={0.8}>
-            <Ionicons name="add" size={16} color="#FFFFFF" />
-            <Text style={s.headerAddText}>Add</Text>
-          </TouchableOpacity>
+          {canDo('milestones', 'create') && (
+            <TouchableOpacity style={s.headerAddBtn} onPress={openCreate} activeOpacity={0.8}>
+              <Ionicons name="add" size={16} color="#FFFFFF" />
+              <Text style={s.headerAddText}>Add</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {loading ? (
@@ -329,10 +333,12 @@ export default function InteriorMilestonesScreen() {
                 </View>
                 <Text style={s.emptyTitle}>No milestones yet</Text>
                 <Text style={s.emptySub}>Set critical project milestones to track completion and trace delays.</Text>
-                <TouchableOpacity style={s.emptyAddBtn} onPress={openCreate} activeOpacity={0.85}>
-                  <Ionicons name="add" size={18} color="#FFFFFF" />
-                  <Text style={s.emptyAddBtnText}>Add Milestone</Text>
-                </TouchableOpacity>
+                {canDo('milestones', 'create') && (
+                  <TouchableOpacity style={s.emptyAddBtn} onPress={openCreate} activeOpacity={0.85}>
+                    <Ionicons name="add" size={18} color="#FFFFFF" />
+                    <Text style={s.emptyAddBtnText}>Add Milestone</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ) : (
               milestones.map((m) => {
@@ -359,13 +365,15 @@ export default function InteriorMilestonesScreen() {
                           <Text style={s.msDate}>Target: {formatDate(m.dueDate)}</Text>
                         </View>
                       </View>
-                      <TouchableOpacity
-                        onPress={() => confirmDelete(m)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={s.deleteBtn}
-                      >
-                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                      </TouchableOpacity>
+                      {canDo('milestones', 'delete') && (
+                        <TouchableOpacity
+                          onPress={() => confirmDelete(m)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={s.deleteBtn}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      )}
                     </View>
 
                     {/* Linked Tasks Section (Progress Bar + Task Badges) */}
@@ -460,14 +468,18 @@ export default function InteriorMilestonesScreen() {
                       </View>
                       {m.status !== 'achieved' && (
                         <View style={{ flexDirection: 'row', gap: 8 }}>
-                          <TouchableOpacity style={s.actionBtn} onPress={() => markDone(m)} activeOpacity={0.7}>
-                            <Ionicons name="checkmark-done" size={13} color="#334155" />
-                            <Text style={s.actionBtnText}>Mark Done</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={[s.actionBtn, s.actionBtnDanger]} onPress={() => openDelay(m)} activeOpacity={0.7}>
-                            <Ionicons name="time-outline" size={13} color="#DC2626" />
-                            <Text style={[s.actionBtnText, { color: '#DC2626' }]}>Log Delay</Text>
-                          </TouchableOpacity>
+                          {canDo('milestones', 'update') && (
+                            <TouchableOpacity style={s.actionBtn} onPress={() => markDone(m)} activeOpacity={0.7}>
+                              <Ionicons name="checkmark-done" size={13} color="#334155" />
+                              <Text style={s.actionBtnText}>Mark Done</Text>
+                            </TouchableOpacity>
+                          )}
+                          {canDo('milestones', 'update') && (
+                            <TouchableOpacity style={[s.actionBtn, s.actionBtnDanger]} onPress={() => openDelay(m)} activeOpacity={0.7}>
+                              <Ionicons name="time-outline" size={13} color="#DC2626" />
+                              <Text style={[s.actionBtnText, { color: '#DC2626' }]}>Log Delay</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       )}
                     </View>
@@ -480,9 +492,11 @@ export default function InteriorMilestonesScreen() {
         )}
 
         {/* Floating Action Button */}
-        <TouchableOpacity style={s.fab} onPress={openCreate} activeOpacity={0.9}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('milestones', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={openCreate} activeOpacity={0.9}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* Create Milestone Modal */}

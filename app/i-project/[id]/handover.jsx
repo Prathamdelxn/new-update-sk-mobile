@@ -11,6 +11,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import CategoryNav from './_components/CategoryNav';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const RING_SIZE = 132;
 const RING_STROKE = 10;
@@ -69,6 +70,7 @@ export default function InteriorHandoverScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [handover, setHandover] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -232,10 +234,12 @@ export default function InteriorHandoverScreen() {
           <View style={s.sectionHeaderRow}>
             <Text style={s.sectionTitle}>Punch List & Handover Checklist</Text>
             {!isEditingChecklist && (
-              <TouchableOpacity style={s.editBtn} onPress={startEditingChecklist}>
-                <Ionicons name="pencil-outline" size={12} color="#2563EB" />
-                <Text style={s.editBtnText}>Edit Checklist</Text>
-              </TouchableOpacity>
+              canDo('handover', 'update') && (
+                <TouchableOpacity style={s.editBtn} onPress={startEditingChecklist}>
+                  <Ionicons name="pencil-outline" size={12} color="#2563EB" />
+                  <Text style={s.editBtnText}>Edit Checklist</Text>
+                </TouchableOpacity>
+              )
             )}
           </View>
 
@@ -306,9 +310,11 @@ export default function InteriorHandoverScreen() {
                     <TouchableOpacity onPress={() => Linking.openURL(doc.url)}>
                       <Ionicons name="download-outline" size={18} color="#2563EB" />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDeleteDocument(doc)}>
-                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                    </TouchableOpacity>
+                    {canDo('handover', 'delete') && (
+                      <TouchableOpacity onPress={() => handleDeleteDocument(doc)}>
+                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               ))
@@ -318,9 +324,11 @@ export default function InteriorHandoverScreen() {
           <View style={{ height: 100 }} />
         </ScrollView>
 
-        <TouchableOpacity style={s.fab} onPress={() => setIsDocModalOpen(true)}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('handover', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={() => setIsDocModalOpen(true)}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       <Modal visible={isDocModalOpen} animationType="slide" transparent onRequestClose={closeDocModal}>

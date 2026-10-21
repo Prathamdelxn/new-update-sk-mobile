@@ -22,6 +22,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const WEATHER_OPTIONS = [
   { value: 'Sunny', label: 'Sunny', icon: 'sunny-outline', color: '#D97706', bg: '#FEF3C7' },
@@ -462,6 +463,7 @@ export default function InteriorDprScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [project, setProject] = useState(null);
   const [dprs, setDprs] = useState([]);
@@ -790,10 +792,12 @@ export default function InteriorDprScreen() {
             <Ionicons name="download-outline" size={14} color="#475569" />
             <Text style={s.templateBtnText}>Blank Template PDF</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.logNewBtn} onPress={openCreateForm}>
-            <Ionicons name="add" size={16} color="#FFFFFF" />
-            <Text style={s.logNewBtnText}>Log New DPR</Text>
-          </TouchableOpacity>
+          {canDo('dpr', 'create') && (
+            <TouchableOpacity style={s.logNewBtn} onPress={openCreateForm}>
+              <Ionicons name="add" size={16} color="#FFFFFF" />
+              <Text style={s.logNewBtnText}>Log New DPR</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {loading ? (
@@ -812,10 +816,12 @@ export default function InteriorDprScreen() {
                 <Text style={s.emptySub}>
                   Log site manpower, ongoing work progress, materials received, and tomorrow&apos;s planning. Click below to generate your first official DPR report.
                 </Text>
-                <TouchableOpacity style={s.emptyActionBtn} onPress={openCreateForm}>
-                  <Ionicons name="add" size={16} color="#FFFFFF" />
-                  <Text style={s.emptyActionBtnText}>Create First DPR</Text>
-                </TouchableOpacity>
+                {canDo('dpr', 'create') && (
+                  <TouchableOpacity style={s.emptyActionBtn} onPress={openCreateForm}>
+                    <Ionicons name="add" size={16} color="#FFFFFF" />
+                    <Text style={s.emptyActionBtnText}>Create First DPR</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ) : (
               dprs.map((item) => {
@@ -847,18 +853,20 @@ export default function InteriorDprScreen() {
                         </View>
                       </View>
 
-                      <TouchableOpacity
-                        style={[s.actionBtn, s.deleteBtn]}
-                        onPress={() => handleDeleteDpr(item._id, item.date)}
-                        disabled={isDeleting}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        {isDeleting ? (
-                          <ActivityIndicator size="small" color="#DC2626" />
-                        ) : (
-                          <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                        )}
-                      </TouchableOpacity>
+                      {canDo('dpr', 'delete') && (
+                        <TouchableOpacity
+                          style={[s.actionBtn, s.deleteBtn]}
+                          onPress={() => handleDeleteDpr(item._id, item.date)}
+                          disabled={isDeleting}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          {isDeleting ? (
+                            <ActivityIndicator size="small" color="#DC2626" />
+                          ) : (
+                            <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                          )}
+                        </TouchableOpacity>
+                      )}
                     </View>
 
                     {/* PDF Action Buttons Row (Preview Sheet, Print, Download PDF) */}
@@ -875,30 +883,34 @@ export default function InteriorDprScreen() {
                         <Text style={s.actionBtnText}>Preview Sheet</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity
-                        style={[s.actionBtn, { paddingHorizontal: 12 }]}
-                        onPress={() => handlePrintDpr(item)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="print-outline" size={14} color="#334155" />
-                        <Text style={s.actionBtnText}>Print</Text>
-                      </TouchableOpacity>
+                      {canDo('dpr', 'export') && (
+                        <TouchableOpacity
+                          style={[s.actionBtn, { paddingHorizontal: 12 }]}
+                          onPress={() => handlePrintDpr(item)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="print-outline" size={14} color="#334155" />
+                          <Text style={s.actionBtnText}>Print</Text>
+                        </TouchableOpacity>
+                      )}
 
-                      <TouchableOpacity
-                        style={[s.actionBtn, s.downloadBtn, { flex: 1.2 }]}
-                        onPress={() => handleDownloadPdf(item)}
-                        disabled={isDownloading}
-                        activeOpacity={0.8}
-                      >
-                        {isDownloading ? (
-                          <ActivityIndicator size="small" color="#FFFFFF" />
-                        ) : (
-                          <>
-                            <Ionicons name="download-outline" size={13} color="#FFFFFF" />
-                            <Text style={s.downloadBtnText}>Download PDF</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
+                      {canDo('dpr', 'export') && (
+                        <TouchableOpacity
+                          style={[s.actionBtn, s.downloadBtn, { flex: 1.2 }]}
+                          onPress={() => handleDownloadPdf(item)}
+                          disabled={isDownloading}
+                          activeOpacity={0.8}
+                        >
+                          {isDownloading ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                          ) : (
+                            <>
+                              <Ionicons name="download-outline" size={13} color="#FFFFFF" />
+                              <Text style={s.downloadBtnText}>Download PDF</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      )}
                     </View>
 
                     {/* Summary Metric Chips (4-Grid like Web) */}
@@ -1006,9 +1018,11 @@ export default function InteriorDprScreen() {
         )}
 
         {/* --- FLOATING LOG DPR BUTTON --- */}
-        <TouchableOpacity style={s.fab} onPress={openCreateForm}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('dpr', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={openCreateForm}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* ========================================================================= */}
@@ -1026,21 +1040,25 @@ export default function InteriorDprScreen() {
               </View>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <TouchableOpacity
-                  style={s.previewActionBtn}
-                  onPress={() => previewDpr && handlePrintDpr(previewDpr)}
-                >
-                  <Ionicons name="print-outline" size={15} color="#2563EB" />
-                  <Text style={s.previewActionBtnText}>Print</Text>
-                </TouchableOpacity>
+                {canDo('dpr', 'export') && (
+                  <TouchableOpacity
+                    style={s.previewActionBtn}
+                    onPress={() => previewDpr && handlePrintDpr(previewDpr)}
+                  >
+                    <Ionicons name="print-outline" size={15} color="#2563EB" />
+                    <Text style={s.previewActionBtnText}>Print</Text>
+                  </TouchableOpacity>
+                )}
 
-                <TouchableOpacity
-                  style={[s.previewActionBtn, { backgroundColor: '#2563EB', borderColor: '#2563EB' }]}
-                  onPress={() => previewDpr && handleDownloadPdf(previewDpr)}
-                >
-                  <Ionicons name="share-outline" size={15} color="#FFFFFF" />
-                  <Text style={[s.previewActionBtnText, { color: '#FFFFFF' }]}>Share PDF</Text>
-                </TouchableOpacity>
+                {canDo('dpr', 'export') && (
+                  <TouchableOpacity
+                    style={[s.previewActionBtn, { backgroundColor: '#2563EB', borderColor: '#2563EB' }]}
+                    onPress={() => previewDpr && handleDownloadPdf(previewDpr)}
+                  >
+                    <Ionicons name="share-outline" size={15} color="#FFFFFF" />
+                    <Text style={[s.previewActionBtnText, { color: '#FFFFFF' }]}>Share PDF</Text>
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity style={s.previewCloseBtn} onPress={() => setIsPreviewOpen(false)}>
                   <Ionicons name="close" size={20} color="#64748B" />

@@ -532,19 +532,25 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // Role permissions are saved at login. Re-read them once the session loads and
-  // whenever the app returns to the foreground, so role changes an admin makes
-  // apply without logging out (mirrors the web AuthContext). Construction only.
+  // Role permissions are saved at login. Re-read them once the session loads,
+  // whenever the app returns to the foreground and (interior) every 15s while it
+  // is open, so role changes an admin makes apply without logging out (mirrors
+  // the web usePermissions / AuthContext refresh).
   const syncUser = useCallback(async () => {
     const current = userRef.current;
-    if (!token || !current || current?.organization?.industryType === 'interior') return;
+    if (!token || !current) return;
+    const isInterior = current?.organization?.industryType === 'interior';
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${isInterior ? INTERIOR_API_URL : API_BASE_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!res.ok) return;
       const data = await res.json();
-      const fresh = data?.user;
+      const fresh = isInterior ? data?.data?.user : data?.user;
       if (!fresh) return;
-      const merged = { ...current, ...fresh };
+      const merged = isInterior
+        ? { ...current, ...fresh, organization: { ...(current.organization || {}), industryType: 'interior' } }
+        : { ...current, ...fresh };
       userRef.current = merged;
       setUser(merged);
       await SecureStore.setItemAsync('userData', JSON.stringify(merged));
@@ -559,7 +565,17 @@ export const AuthProvider = ({ children }) => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') syncUser();
     });
-    return () => sub.remove();
+    // Interior: poll while the app is in the foreground so permission grants /
+    // revokes reach open screens within ~15s
+    const poll = userRef.current?.organization?.industryType === 'interior'
+      ? setInterval(() => {
+          if (AppState.currentState === 'active') syncUser();
+        }, 15000)
+      : null;
+    return () => {
+      sub.remove();
+      if (poll) clearInterval(poll);
+    };
   }, [token, isLoading, syncUser]);
 
   const contextValue = useMemo(() => ({
@@ -572,8 +588,9 @@ export const AuthProvider = ({ children }) => {
     verifyRegistrationOtp,
     forgotPassword,
     resetPassword,
+    refreshUser: syncUser,
     isLoading
-  }), [user, token, login, logout, register, registerInterior, verifyRegistrationOtp, forgotPassword, resetPassword, isLoading]);
+  }), [user, token, login, logout, register, registerInterior, verifyRegistrationOtp, forgotPassword, resetPassword, syncUser, isLoading]);
 
   return (
     <AuthContext.Provider value={contextValue}>

@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const NODE_META = {
   building: { icon: 'business-outline', childType: 'floor', childrenField: 'floors' },
@@ -34,6 +35,7 @@ export default function InteriorWbsScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [wbsData, setWbsData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -174,16 +176,22 @@ export default function InteriorWbsScreen() {
 
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 {meta.childType && (
-                  <TouchableOpacity onPress={() => openCreate(meta.childType, node.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                    <Ionicons name="add-circle-outline" size={17} color="#2563EB" />
+                  canDo('wbs', 'create') && (
+                    <TouchableOpacity onPress={() => openCreate(meta.childType, node.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                      <Ionicons name="add-circle-outline" size={17} color="#2563EB" />
+                    </TouchableOpacity>
+                  )
+                )}
+                {canDo('wbs', 'update') && (
+                  <TouchableOpacity onPress={() => openEdit(node)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                    <Ionicons name="pencil-outline" size={15} color="#94A3B8" />
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity onPress={() => openEdit(node)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                  <Ionicons name="pencil-outline" size={15} color="#94A3B8" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => confirmDelete(node)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                  <Ionicons name="trash-outline" size={15} color="#EF4444" />
-                </TouchableOpacity>
+                {canDo('wbs', 'delete') && (
+                  <TouchableOpacity onPress={() => confirmDelete(node)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                    <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -231,9 +239,11 @@ export default function InteriorWbsScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={() => openCreate('building', '')}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('wbs', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={() => openCreate('building', '')}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={() => setIsModalOpen(false)}>

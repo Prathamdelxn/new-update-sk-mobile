@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useProjectPermissions } from '../../../utils/interior/useProjectPermissions';
+import { useInteriorPermissions } from '../../../utils/interior/useInteriorPermissions';
 
 // Mirrors InteriorProjectBanner's category nav from sky-lite-web.
 export const CATEGORIES = [
@@ -13,9 +15,45 @@ export const CATEGORIES = [
   { name: 'Handover', icon: '🔑', items: ['Project Handover'] },
 ];
 
+// View permission behind each section: project modules use the project role
+// (org role + role in this project); `org:` ones use the org role.
+const ITEM_ACCESS = {
+  'Site Details': ['projects'],
+  'File Management': ['filemgt'],
+  'Project Quotation': ['org:crm_quotations'],
+  'Team & Members': ['users'],
+  'CAD Drawings': ['drawings'],
+  'RFIs Tracker': ['rfis'],
+  'WBS Hierarchy': ['wbs'],
+  Milestones: ['milestones'],
+  'Tasks (Kanban)': ['tasks'],
+  'DPR Log': ['dpr'],
+  'Weekly Reports': ['weekly_reports'],
+  MOM: ['mom'],
+  'Timeline (Gantt)': ['wbs', 'tasks'],
+  'BOQ Estimator': ['boq'],
+  'Variation Orders': ['variation_orders'],
+  Procurement: ['procurement', 'inventory'],
+  Vendors: ['org:vendors'],
+  Payments: ['financials'],
+  'Snags Logger': ['snags'],
+  'Risks Matrix': ['risks'],
+  'Project Handover': ['handover'],
+};
+
 export default function CategoryNav({ projectId, activeItem, comingSoon }) {
   const router = useRouter();
   const [openCategory, setOpenCategory] = useState(null);
+  const { can, loading } = useProjectPermissions(projectId);
+  const { hasPermission } = useInteriorPermissions();
+
+  // Only sections the user can view (everything while permissions are loading)
+  const canSee = (item) =>
+    loading ||
+    (ITEM_ACCESS[item] || ['projects']).some((key) =>
+      key.startsWith('org:') ? hasPermission(key.slice(4), 'read') : can(key, 'read')
+    );
+  const categories = CATEGORIES.map((cat) => ({ ...cat, items: cat.items.filter(canSee) })).filter((cat) => cat.items.length > 0);
 
   const go = (path) => router.push(`/i-project/${projectId}/${path}`);
 
@@ -50,7 +88,7 @@ export default function CategoryNav({ projectId, activeItem, comingSoon }) {
   return (
     <View style={s.categoryBar}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
-        {CATEGORIES.map((cat) => {
+        {categories.map((cat) => {
           const isActive = activeItem && cat.items.includes(activeItem);
           return (
             <TouchableOpacity
@@ -65,9 +103,9 @@ export default function CategoryNav({ projectId, activeItem, comingSoon }) {
           );
         })}
       </ScrollView>
-      {openCategory && (
+      {openCategory && categories.some((c) => c.name === openCategory) && (
         <View style={s.catDropdown}>
-          {CATEGORIES.find((c) => c.name === openCategory).items.map((item) => (
+          {categories.find((c) => c.name === openCategory).items.map((item) => (
             <TouchableOpacity key={item} style={s.catDropdownItem} onPress={() => handleItemPress(item)}>
               <Text style={[s.catDropdownItemText, item === activeItem && s.catDropdownItemTextActive]}>{item}</Text>
               <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />

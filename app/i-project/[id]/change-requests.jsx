@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const WORKFLOW_STEPS = [
   { key: 'draft', label: 'Draft' },
@@ -52,6 +53,7 @@ export default function InteriorChangeRequestsScreen() {
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
   const { showToast } = useToast();
+const { can: canDo } = useProjectPermissions(projectId);
 
   const [crs, setCrs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -174,9 +176,11 @@ export default function InteriorChangeRequestsScreen() {
           </ScrollView>
         )}
 
-        <TouchableOpacity style={s.fab} onPress={() => setIsCreateOpen(true)}>
-          <Ionicons name="add" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canDo('change_requests', 'create') && (
+          <TouchableOpacity style={s.fab} onPress={() => setIsCreateOpen(true)}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* Create Modal */}
@@ -294,21 +298,27 @@ export default function InteriorChangeRequestsScreen() {
                   {detailCr.status !== 'approved' && detailCr.status !== 'rejected' ? (
                     <View style={{ marginTop: 16, gap: 8 }}>
                       {nextStep && (
-                        <TouchableOpacity style={s.workflowActionBtn} onPress={() => updateStatus(nextStep.next)} disabled={actionLoading}>
-                          <Text style={s.workflowActionBtnText}>{nextStep.label}</Text>
+                        canDo('change_requests', 'update') && (
+                          <TouchableOpacity style={s.workflowActionBtn} onPress={() => updateStatus(nextStep.next)} disabled={actionLoading}>
+                            <Text style={s.workflowActionBtnText}>{nextStep.label}</Text>
+                          </TouchableOpacity>
+                        )
+                      )}
+                      {canDo('change_requests', 'approve') && (
+                        <TouchableOpacity style={[s.workflowActionBtn, { borderColor: '#FECDD3' }]} onPress={() => updateStatus('rejected')} disabled={actionLoading}>
+                          <Text style={[s.workflowActionBtnText, { color: '#E11D48' }]}>Reject Request</Text>
                         </TouchableOpacity>
                       )}
-                      <TouchableOpacity style={[s.workflowActionBtn, { borderColor: '#FECDD3' }]} onPress={() => updateStatus('rejected')} disabled={actionLoading}>
-                        <Text style={[s.workflowActionBtnText, { color: '#E11D48' }]}>Reject Request</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[s.approveBtn, actionLoading && { opacity: 0.7 }]} onPress={approveAndGenerateVo} disabled={actionLoading}>
-                        {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
-                          <>
-                            <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
-                            <Text style={s.approveBtnText}>Approve & Generate VO</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
+                      {canDo('change_requests', 'approve') && (
+                        <TouchableOpacity style={[s.approveBtn, actionLoading && { opacity: 0.7 }]} onPress={approveAndGenerateVo} disabled={actionLoading}>
+                          {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
+                            <>
+                              <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
+                              <Text style={s.approveBtnText}>Approve & Generate VO</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      )}
                     </View>
                   ) : (
                     <View style={s.resolvedRow}>

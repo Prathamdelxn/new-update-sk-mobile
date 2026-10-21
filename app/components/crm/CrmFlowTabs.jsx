@@ -1,20 +1,28 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 
 export const FLOW_STAGES = [
-  { id: 'leads', label: 'All Leads', icon: 'people-outline' },
-  { id: 'follow_ups', label: 'Follow-ups', icon: 'call-outline' },
-  { id: 'site_visits', label: 'Site Visits', icon: 'location-outline' },
-  { id: 'requirement_design', label: 'Requirements', icon: 'create-outline' },
-  { id: 'drawing', label: 'Drawing', icon: 'pencil-outline' },
-  { id: 'boq', label: 'BOQ', icon: 'calculator-outline' },
-  { id: 'quotations', label: 'Quotations', icon: 'document-text-outline' },
-  { id: 'won_projects', label: 'Won Projects', icon: 'trophy-outline' },
-  { id: 'lost_leads', label: 'Lost Leads', icon: 'close-circle-outline' },
+  { id: 'leads', moduleKey: 'crm_leads', label: 'All Leads', icon: 'people-outline' },
+  { id: 'follow_ups', moduleKey: 'crm_followups', label: 'Follow-ups', icon: 'call-outline' },
+  { id: 'site_visits', moduleKey: 'crm_site_visits', label: 'Site Visits', icon: 'location-outline' },
+  { id: 'requirement_design', moduleKey: 'crm_requirements', label: 'Requirements', icon: 'create-outline' },
+  { id: 'drawing', moduleKey: 'crm_drawings', label: 'Drawing', icon: 'pencil-outline' },
+  { id: 'boq', moduleKey: 'crm_boq', label: 'BOQ', icon: 'calculator-outline' },
+  { id: 'quotations', moduleKey: 'crm_quotations', label: 'Quotations', icon: 'document-text-outline' },
+  { id: 'won_projects', moduleKey: 'crm_quotations', label: 'Won Projects', icon: 'trophy-outline' },
+  { id: 'lost_leads', moduleKey: 'crm_leads', label: 'Lost Leads', icon: 'close-circle-outline' },
 ];
 
+/** Tabs this user can open (each CRM stage has its own View permission). */
+export function useVisibleFlowStages() {
+  const { hasPermission } = useInteriorPermissions();
+  return FLOW_STAGES.filter((stage) => hasPermission(stage.moduleKey, 'read'));
+}
+
 export default function CrmFlowTabs({ activeTab, onSelectTab, counts = {} }) {
+  const visibleStages = useVisibleFlowStages();
   return (
     <View style={s.container}>
       <ScrollView
@@ -22,7 +30,7 @@ export default function CrmFlowTabs({ activeTab, onSelectTab, counts = {} }) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.scrollContent}
       >
-        {FLOW_STAGES.map((stage) => {
+        {visibleStages.map((stage) => {
           const isActive = activeTab === stage.id;
           const count = counts[stage.id];
 
