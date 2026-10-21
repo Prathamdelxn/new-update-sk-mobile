@@ -237,20 +237,39 @@ export default function MemberManagementScreen() {
     setActiveProjectForRole(null);
   };
 
-  // An Admin-equivalent account can only be edited/removed by that account
-  // itself — never by another member, even one with user-management
-  // permission. Checked against name, wildcard permission, and
-  // isSystemRole (not just an exact "Admin" string match) so a
-  // differently-named or custom-flagged admin role is still protected.
-  const canManageMember = (member) => {
-    const targetRole = member.role;
-    const isTargetAdmin = !!targetRole && (
-      (targetRole.name || '').toLowerCase() === 'admin' ||
+  const isViewerAdmin = Boolean(
+    user && (
+      (user.role?.name || user.role || '').toString().toLowerCase() === 'admin' ||
+      user.role?.isSystemRole === true ||
+      user.role?.permissions?.includes('*')
+    )
+  );
+
+  const checkIsSelf = (member) => {
+    if (!user || !member) return false;
+    const currentId = (user._id || user.id)?.toString();
+    const targetId = (member._id || member.id)?.toString();
+    if (currentId && targetId && currentId === targetId) return true;
+    if (user.email && member.email && user.email.trim().toLowerCase() === member.email.trim().toLowerCase()) return true;
+    return false;
+  };
+
+  const isMemberAdmin = (member) => {
+    const targetRole = member?.role;
+    return !!targetRole && (
+      (targetRole.name || '').toString().toLowerCase() === 'admin' ||
       targetRole.permissions?.includes('*') ||
       targetRole.isSystemRole === true
     );
-    const isSelf = !!user && (user._id === member._id || user.id === member._id);
-    return !isTargetAdmin || isSelf;
+  };
+
+  // Determines whether the current logged-in user can manage a given member.
+  // Non-admins cannot edit or remove Admin accounts.
+  const canManageMember = (member) => {
+    if (isMemberAdmin(member) && !isViewerAdmin) {
+      return false;
+    }
+    return true;
   };
 
   const handleEditMember = (member) => {
@@ -259,7 +278,12 @@ export default function MemberManagementScreen() {
       return;
     }
     if (!canManageMember(member)) {
-      showToast("Only the Admin can edit their own account.", "error");
+      showToast("Only an Admin can modify Admin accounts.", "error");
+      return;
+    }
+    const isSelf = checkIsSelf(member);
+    if (isSelf && !isViewerAdmin) {
+      showToast("You cannot edit your own role. Please edit your details in Profile.", "error");
       return;
     }
     setEditingId(member._id);
@@ -297,8 +321,12 @@ export default function MemberManagementScreen() {
       showToast("You don't have permission to remove members.", "error");
       return;
     }
-    if (member && !canManageMember(member)) {
-      showToast("Only the Admin can remove their own account.", "error");
+    if (checkIsSelf(member) || (user && ((user._id || user.id)?.toString() === id?.toString()))) {
+      showToast("You cannot delete your own account.", "error");
+      return;
+    }
+    if (!canManageMember(member)) {
+      showToast("Only an Admin can remove Admin accounts.", "error");
       return;
     }
     setConfirmModal({
@@ -395,17 +423,25 @@ export default function MemberManagementScreen() {
           ) : filteredMembers.length === 0 ? (
             <Text style={{ textAlign: 'center', marginTop: 40, color: '#94A3B8' }}>{t('noMembersFound')}</Text>
           ) : (
-            filteredMembers.map((member) => (
-              <MemberCard
-                key={member._id}
-                name={member.name}
-                email={member.email}
-                role={member.role?.name || 'No Role'}
-                onRemove={hasPermission('users', 'delete') ? () => removeMember(member._id, member.name, member) : undefined}
-                onChangeRole={hasPermission('users', 'update') ? () => handleEditMember(member) : undefined}
-                showActions={canManageMember(member)}
-              />
-            ))
+            filteredMembers.map((member) => {
+              const isSelf = checkIsSelf(member);
+              const canManage = canManageMember(member);
+              const canDeleteThisMember = hasPermission('users', 'delete') && canManage && !isSelf;
+              const canEditThisMember = hasPermission('users', 'update') && canManage && (!isSelf || isViewerAdmin);
+
+              return (
+                <MemberCard
+                  key={member._id}
+                  name={member.name}
+                  email={member.email}
+                  role={member.role?.name || 'No Role'}
+                  isSelf={isSelf}
+                  onRemove={canDeleteThisMember ? () => removeMember(member._id, member.name, member) : undefined}
+                  onChangeRole={canEditThisMember ? () => handleEditMember(member) : undefined}
+                  showActions={canDeleteThisMember || canEditThisMember}
+                />
+              );
+            })
           )}
         </ScrollView>
 

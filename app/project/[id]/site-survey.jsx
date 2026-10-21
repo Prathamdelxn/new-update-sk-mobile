@@ -28,8 +28,8 @@ export default function SiteSurveyScreen() {
   const { id, currentBudget, editMode, projectType, currency } = useLocalSearchParams();
   const isInterior = projectType === 'Interior';
   const { token, user } = useAuth();
-  // New survey needs Site Survey > Create; editing needs Site Survey > Update (API enforces both)
-  const canSubmitSurvey = hasPermissionOnProjectId(user, id, editMode === 'true' ? 'sitesurvey:update' : 'sitesurvey:create');
+  // New survey needs Site Survey > Create; editing allows either Site Survey > Update or Create
+  const canSubmitSurvey = hasPermissionOnProjectId(user, id, 'sitesurvey:create') || hasPermissionOnProjectId(user, id, 'sitesurvey:update');
   const { showToast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);

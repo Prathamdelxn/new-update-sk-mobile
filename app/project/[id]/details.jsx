@@ -222,15 +222,50 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
   return (
     <View style={styles.tabScrollContent}>
       {/* Site Survey Status Banner */}
-      {project?.siteSurveyor && project?.status === 'Site Survey' ? (
+      {(project?.status === 'Site Survey' || project?.needSiteSurvey || project?.surveyStatus) && project?.surveyStatus !== 'Approved' ? (
         <AdaptiveGlass intensity={10} tint="light" style={styles.surveyBanner}>
           <View style={styles.surveyBannerIcon}>
             <Ionicons name="compass" size={24} color="#3B82F6" />
           </View>
           <View style={styles.surveyBannerTextContainer}>
-            <Text style={styles.surveyBannerTitle}>{t('activeSiteSurvey')}</Text>
-            <Text style={styles.surveyBannerDesc}>{t('assignedTo')}<Text style={{fontFamily: 'Inter-Bold', color: '#0F172A'}}>{project.siteSurveyor.name || t('siteSurveyor')}</Text></Text>
+            <Text style={styles.surveyBannerTitle}>
+              {project?.surveyStatus ? (project.surveyStatus === 'Needs Attention' ? t('surveyNeedsAttention', 'Survey Needs Attention') : t('surveySubmitted', 'Survey Submitted')) : t('activeSiteSurvey', 'Active Site Survey')}
+            </Text>
+            <Text style={styles.surveyBannerDesc}>
+              {project?.siteSurveyor?.name ? (
+                <>{t('assignedTo', 'Assigned to: ')}<Text style={{fontFamily: 'Inter-Bold', color: '#0F172A'}}>{project.siteSurveyor.name}</Text></>
+              ) : t('siteSurveyorAssigned', 'Site survey in progress')}
+            </Text>
           </View>
+          {(() => {
+            const surveyorId = String(project?.siteSurveyor?._id || project?.siteSurveyor || '');
+            const userIds = [user?.id, user?._id].filter(Boolean).map(String);
+            const isSurveyor = Boolean(surveyorId && userIds.includes(surveyorId));
+            const isAdmin = user?.role === 'Admin' || user?.role?.name === 'Admin' || (user?.role?.permissions || []).includes('*');
+            const canPerform = hasProjectPermission(user, project, 'sitesurvey:create') || hasProjectPermission(user, project, 'sitesurvey:update');
+            if (!((isSurveyor || isAdmin) && canPerform)) return null;
+            const isEdit = Boolean(project?.surveyStatus);
+            return (
+              <TouchableOpacity
+                style={styles.surveyBannerActionBtn}
+                activeOpacity={0.8}
+                onPress={() => router.push({
+                  pathname: `/project/${project._id}/site-survey`,
+                  params: {
+                    editMode: isEdit ? 'true' : 'false',
+                    currentBudget: project.budget,
+                    projectType: project.projectType || 'Construction',
+                    currency: project.currency || 'AED'
+                  }
+                })}
+              >
+                <Ionicons name={isEdit ? "create-outline" : "add-circle-outline"} size={16} color="#FFFFFF" />
+                <Text style={styles.surveyBannerActionBtnText}>
+                  {isEdit ? t('editSurvey', 'Edit') : t('startSurvey', 'Start')}
+                </Text>
+              </TouchableOpacity>
+            );
+          })()}
         </AdaptiveGlass>
       ) : null}
 
@@ -1058,6 +1093,26 @@ const styles = StyleSheet.create({
   surveyBannerTextContainer: { flex: 1 },
   surveyBannerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#1D4ED8', textTransform: 'uppercase', letterSpacing: 1 },
   surveyBannerDesc: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#3B82F6', marginTop: 4 },
+  surveyBannerActionBtn: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 8,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  surveyBannerActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontFamily: 'Inter-SemiBold',
+  },
   pendingBudgetBanner: { padding: 16, borderRadius: 20, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', marginBottom: 6 },
   pendingHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   pendingTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#991B1B' },
