@@ -654,7 +654,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                     <Ionicons name="list-outline" size={16} color="#2563EB" />
                     <Text style={[s.sectionTitle, { color: '#2563EB' }]}>Room-by-Room Design Brief ({requirements.length})</Text>
                   </View>
-                  {canDo('crm_requirements', 'update') && (
+                  {(canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update')) && (
                     <TouchableOpacity
                       style={[s.sectionEditBtn, { backgroundColor: '#EFF6FF' }]}
                       onPress={() => setShowReqModal(true)}
@@ -776,7 +776,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                     })}
                   </View>
                 ) : (
-                  canDo('crm_requirements', 'update') && (
+                  (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update')) && (
                     <TouchableOpacity
                       style={s.emptyPromptBox}
                       onPress={() => setShowReqModal(true)}

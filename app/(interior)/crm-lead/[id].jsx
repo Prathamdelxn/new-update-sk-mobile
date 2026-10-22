@@ -210,7 +210,18 @@ export default function Lead360Screen() {
   const setActivities = useQuerySetter(queryKeys.crmLeadActivities(id));
   const loading = leadQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState(tab || 'overview');
+  const [selectedTab, setActiveTab] = useState(tab || 'overview');
+  // Each stage tab needs that stage's View permission (Overview is always shown)
+  const LEAD_TAB_MODULE = {
+    follow_ups: 'crm_followups',
+    site: 'crm_site_visits',
+    requirements: 'crm_requirements',
+    designs: 'crm_drawings',
+    boq: 'crm_boq',
+    quotations: 'crm_quotations',
+  };
+  const canViewLeadTab = (tabId) => !LEAD_TAB_MODULE[tabId] || canDo(LEAD_TAB_MODULE[tabId], 'read');
+  const activeTab = canViewLeadTab(selectedTab) ? selectedTab : 'overview';
   const [activeQuoteIdx, setActiveQuoteIdx] = useState(0);
 
   // BOQ state
@@ -1501,7 +1512,7 @@ export default function Lead360Screen() {
             const activePendingFollowUp = followUpActs.find((a) => a.status?.toLowerCase() === 'pending');
             const hasOverdueFollowUp = !isLeadProgressed && activePendingFollowUp && activePendingFollowUp.scheduledDate && new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now();
 
-            return TABS.map((t) => {
+            return TABS.filter((t) => canViewLeadTab(t.id)).map((t) => {
               const active = activeTab === t.id;
               const lock = getTabLockState(t.id);
               const isFollowUpTab = t.id === 'follow_ups';
@@ -2116,22 +2127,26 @@ export default function Lead360Screen() {
                           <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
                         </TouchableOpacity>
                       ) : (
-                        <TouchableOpacity
-                          style={[s.unlockActionBtn, { backgroundColor: '#7C3AED' }]}
-                          onPress={() => {
-                            const hasLoggedFollowUp = activities.some(
-                              (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && ['completed', 'pending'].includes(a.status?.toLowerCase())
-                            );
-                            if (!hasLoggedFollowUp) {
-                              Alert.alert('Follow-up Required', 'Please log a follow-up before passing to the Site Visit stage.');
-                              setActiveTab('follow_ups');
-                              return;
-                            }
-                            setShowSendSiteModal(true);
-                          }}
-                        >
-                          <Text style={s.unlockActionBtnText}>Pass to Site Visit</Text>
-                        </TouchableOpacity>
+                        (canMoveLead(canDo, 'crm_followups', 'crm_site_visits') || canDo('crm_leads', 'update')) && (
+                          <TouchableOpacity
+                            style={[s.unlockActionBtn, { backgroundColor: '#7C3AED' }]}
+                            onPress={() => {
+                              const hasLoggedFollowUp = activities.some(
+                                (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && ['completed', 'pending'].includes(a.status?.toLowerCase())
+                              );
+                              // Only users who can log follow-ups are asked to log one first; a
+                              // Site Visits-only user can't (and doesn't see the Follow-ups tab)
+                              if (!hasLoggedFollowUp && canDo('crm_followups', 'create')) {
+                                Alert.alert('Follow-up Required', 'Please log a follow-up before passing to the Site Visit stage.');
+                                setActiveTab('follow_ups');
+                                return;
+                              }
+                              setShowSendSiteModal(true);
+                            }}
+                          >
+                            <Text style={s.unlockActionBtnText}>Pass to Site Visit</Text>
+                          </TouchableOpacity>
+                        )
                       )}
                     </View>
                   );
@@ -2517,7 +2532,7 @@ export default function Lead360Screen() {
                           </View>
                         )}
                         {!isReadOnly && (
-                          canDo('crm_requirements', 'update') && (
+                          (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update')) && (
                             <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
                               <Text style={s.actionBtnText}>Log Requirement</Text>
                             </TouchableOpacity>
@@ -2561,7 +2576,7 @@ export default function Lead360Screen() {
                         </TouchableOpacity>
                       )}
                       {!isReadOnly && (
-                        canDo('crm_requirements', 'update') && (
+                        (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update')) && (
                           <TouchableOpacity style={s.smallBtn} onPress={() => setShowReqModal(true)}>
                             <Ionicons name="create-outline" size={14} color="#059669" />
                             <Text style={[s.smallBtnText, { color: '#059669' }]}>Edit / Add</Text>
@@ -3055,7 +3070,7 @@ export default function Lead360Screen() {
                           </View>
                         ) : (
                           <>
-                            {canDo('crm_boq', 'update') && (
+                            {canDo('crm_boq', 'update') && activeBoq?.status !== 'approved' && (
                               <TouchableOpacity
                                 style={s.editBoqBtn}
                                 onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}
@@ -3514,7 +3529,7 @@ export default function Lead360Screen() {
                         ) : !isReadOnly ? (
                           <View style={{ gap: 8, marginTop: 16 }}>
                             <View style={{ flexDirection: 'row', gap: 8 }}>
-                              {canDo('crm_quotations', 'update') && (
+                              {canDo('crm_quotations', 'approve') && (
                                 <TouchableOpacity
                                   style={[s.smallActionBtn, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC', borderWidth: 1, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                                   onPress={() => handleQuoteStatus(activeQuoteIdx, 'Accepted')}
@@ -3524,7 +3539,7 @@ export default function Lead360Screen() {
                                   <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>Mark Accepted</Text>
                                 </TouchableOpacity>
                               )}
-                              {canDo('crm_quotations', 'update') && (
+                              {canDo('crm_quotations', 'approve') && (
                                 <TouchableOpacity
                                   style={[s.smallActionBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA', borderWidth: 1, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                                   onPress={() => handleQuoteStatus(activeQuoteIdx, 'Rejected')}

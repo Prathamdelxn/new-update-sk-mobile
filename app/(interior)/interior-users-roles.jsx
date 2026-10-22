@@ -148,7 +148,9 @@ export default function InteriorUsersRolesScreen() {
         firstName: userForm.firstName.trim(),
         lastName: userForm.lastName.trim(),
         email: userForm.email.trim(),
-        systemRole: userForm.systemRole,
+        // Like the web: access comes from the organization role; new users are members,
+        // and editing never changes someone's system role
+        ...(editingUserId ? {} : { systemRole: 'member' }),
         ...(userForm.roleId ? { role: userForm.roleId } : {}),
         ...(userForm.password.trim() ? { password: userForm.password.trim() } : {}),
         ...(userForm.phone.trim() ? { phone: userForm.phone.trim() } : {}),
@@ -393,15 +395,6 @@ export default function InteriorUsersRolesScreen() {
                   </View>
                 </>
               )}
-
-              <Text style={s.label}>System Role</Text>
-              <View style={s.pillWrap}>
-                {['member', 'manager', 'org_admin', 'viewer'].map((r) => (
-                  <TouchableOpacity key={r} style={[s.pill, userForm.systemRole === r && s.pillActive]} onPress={() => setUserForm({ ...userForm, systemRole: r })}>
-                    <Text style={[s.pillText, userForm.systemRole === r && s.pillTextActive]}>{SYSTEM_ROLE_LABELS[r]?.label || r}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
 
               <TouchableOpacity style={[s.saveBtn, savingUser && { opacity: 0.6 }]} onPress={handleAddUser} disabled={savingUser}>
                 {savingUser ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingUserId ? 'Save Changes' : 'Create User'}</Text>}
