@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { interiorCrmService } from '../../services/interiorCrmService';
 import cloudinaryService from '../../services/cloudinaryService';
+import { useAuth } from '../../context/AuthContext';
 import { parseMaxBudget, formatExactCurrency } from '../../utils/format';
 import BoqDrawingViewerModal from './BoqDrawingViewerModal';
 
@@ -57,6 +58,13 @@ export default function BoqBuilderModal({
 
   const isEditing = editingBoqIndex !== null && editingBoqIndex >= 0 && existingBoqs[editingBoqIndex];
   const targetBoq = isEditing ? existingBoqs[editingBoqIndex] : null;
+
+  const { user } = useAuth();
+  const currentUserName = useMemo(() => {
+    if (!user) return 'Estimator';
+    const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+    return fullName || user.name || user.email || 'Estimator';
+  }, [user]);
 
   // Initialize data on open
   useEffect(() => {
@@ -364,7 +372,9 @@ export default function BoqBuilderModal({
           items: payloadItems,
           totalAmount,
           notes: notes.trim(),
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
+          updatedBy: user?._id || user?.id,
+          updatedByName: currentUserName,
         };
       } else {
         const newVersion = (existingBoqs?.length || 0) + 1;
@@ -375,7 +385,10 @@ export default function BoqBuilderModal({
           totalAmount,
           notes: notes.trim(),
           status: 'draft',
-          createdAt: new Date(),
+          createdAt: new Date().toISOString(),
+          createdBy: user?._id || user?.id,
+          createdByName: currentUserName,
+          createdByEmail: user?.email,
         });
       }
 
@@ -389,8 +402,8 @@ export default function BoqBuilderModal({
         type: 'System Update',
         status: 'Completed',
         remarks: isEditing
-          ? `BOQ Version ${existingBoqs[editingBoqIndex]?.version || editingBoqIndex + 1} updated.`
-          : `BOQ Version ${updatedBoqs.length} created with ${payloadSections.length} sections.`,
+          ? `BOQ Version ${existingBoqs[editingBoqIndex]?.version || editingBoqIndex + 1} updated by ${currentUserName}.`
+          : `BOQ Version ${updatedBoqs.length} created by ${currentUserName} with ${payloadSections.length} sections.`,
         completedDate: new Date(),
       });
 
@@ -427,7 +440,11 @@ export default function BoqBuilderModal({
                 )}
               </View>
               <Text style={s.modalSub}>
-                Hierarchical sections, technical specs, brand/makes & drawing links
+                {isReadOnly
+                  ? `Created ${targetBoq?.createdAt ? new Date(targetBoq.createdAt).toLocaleDateString() : ''} ${targetBoq?.createdByName ? `by ${targetBoq.createdByName}` : ''}`
+                  : isEditing
+                  ? `Editing • Originally created by ${targetBoq?.createdByName || currentUserName}`
+                  : `Creating as ${currentUserName} • Today, ${new Date().toLocaleDateString()}`}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>

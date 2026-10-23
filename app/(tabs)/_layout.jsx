@@ -98,6 +98,16 @@ export default function TabLayout() {
         options={{ href: null }}
       />
       <Tabs.Screen
+        name="i-audit/index"
+        options={{
+          href: isInterior ? undefined : null,
+          title: 'Audit',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'shield-checkmark' : 'shield-checkmark-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="setting/index"
         options={{
           href: isInterior ? null : undefined,

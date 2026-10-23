@@ -252,6 +252,8 @@ const { can: canDo } = useProjectPermissions(projectId);
                 {boqs.map((boq) => {
                   const meta = STATUS_META[boq.status] || STATUS_META.draft;
                   const active = selectedBoq?._id === boq._id;
+                  const creatorName = [boq.createdBy?.firstName, boq.createdBy?.lastName].filter(Boolean).join(' ') || boq.createdByName || 'Estimator';
+                  const createdDate = boq.createdAt ? new Date(boq.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
                   return (
                     <TouchableOpacity key={boq._id} style={[s.versionCard, active && s.versionCardActive]} onPress={() => fetchBoqDetail(boq._id)}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -261,6 +263,11 @@ const { can: canDo } = useProjectPermissions(projectId);
                         </View>
                       </View>
                       <Text style={s.versionAmount}>{fmtMoney(boq.totalAmount)}</Text>
+                      <View style={{ marginTop: 4 }}>
+                        <Text style={{ fontSize: 10, color: active ? '#1D4ED8' : '#64748B', fontWeight: '500' }} numberOfLines={1}>
+                          {createdDate ? `${createdDate} • ` : ''}by {creatorName}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
@@ -275,11 +282,21 @@ const { can: canDo } = useProjectPermissions(projectId);
                 </View>
                 <View style={s.summaryRow}>
                   <Text style={s.summaryLabel}>Created By</Text>
-                  <Text style={s.summaryValue}>{selectedBoq.createdBy?.firstName} {selectedBoq.createdBy?.lastName}</Text>
+                  <Text style={s.summaryValue}>{[selectedBoq.createdBy?.firstName, selectedBoq.createdBy?.lastName].filter(Boolean).join(' ') || selectedBoq.createdByName || 'Estimator'}</Text>
                 </View>
                 <View style={s.summaryRow}>
-                  <Text style={s.summaryLabel}>Source</Text>
-                  <Text style={[s.summaryValue, { textTransform: 'capitalize' }]}>{selectedBoq.importedFrom || 'manual'}</Text>
+                  <Text style={s.summaryLabel}>Created On</Text>
+                  <Text style={s.summaryValue}>
+                    {selectedBoq.createdAt
+                      ? new Date(selectedBoq.createdAt).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '—'}
+                  </Text>
                 </View>
                 {!!selectedBoq.notes && (
                   <View style={s.notesBox}>

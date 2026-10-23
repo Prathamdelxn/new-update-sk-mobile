@@ -49,6 +49,26 @@ const STAGE_META = {
 const LEAD_SOURCES = ['Phone Call', 'Walk-in', 'Referral', 'Existing Customer', 'Builder Reference', 'Architect Reference', 'Society Reference', 'Social Media', 'Other'];
 const PROPERTY_TYPES = ['Flat', 'Villa', 'Office', 'Shop', 'Other'];
 
+const SOURCE_ICONS = {
+  'Phone Call': 'call-outline',
+  'Walk-in': 'walk-outline',
+  'Referral': 'people-outline',
+  'Existing Customer': 'star-outline',
+  'Builder Reference': 'business-outline',
+  'Architect Reference': 'color-palette-outline',
+  'Society Reference': 'home-outline',
+  'Social Media': 'logo-instagram',
+  'Other': 'ellipsis-horizontal-outline',
+};
+
+const PROPERTY_ICONS = {
+  Flat: 'business-outline',
+  Villa: 'home-outline',
+  Office: 'briefcase-outline',
+  Shop: 'storefront-outline',
+  Other: 'apps-outline',
+};
+
 const emptyForm = { name: '', mobileNumber: '', email: '', leadSource: 'Phone Call', propertyType: 'Flat', projectLocation: '' };
 
 // Matches web's crmValidation.ts field map for the 6-field Create Lead form.
@@ -100,6 +120,7 @@ export default function CRMScreen() {
     : visibleStages[0]?.id ?? selectedFlowTab;
   const [isStagePickerOpen, setIsStagePickerOpen] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [showSourcePicker, setShowSourcePicker] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [formErrors, setFormErrors] = useState({});
@@ -222,6 +243,7 @@ export default function CRMScreen() {
       setForm(emptyForm);
       setFormErrors({});
       setFormTouched({});
+      setShowSourcePicker(false);
       setIsModalVisible(false);
       loadLeads();
       if (createdId) {
@@ -238,6 +260,7 @@ export default function CRMScreen() {
   };
 
   const closeAddLeadModal = () => {
+    setShowSourcePicker(false);
     setIsModalVisible(false);
     setForm(emptyForm);
     setFormErrors({});
@@ -563,108 +586,278 @@ export default function CRMScreen() {
       <Modal visible={isModalVisible} animationType="slide" transparent onRequestClose={closeAddLeadModal}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Add New Lead</Text>
-              <TouchableOpacity onPress={closeAddLeadModal}>
-                <Ionicons name="close" size={22} color="#64748B" />
+            {/* Modal Header */}
+            <View style={s.leadModalHeader}>
+              <View style={s.leadModalTitleRow}>
+                <View style={s.leadModalIconBadge}>
+                  <Ionicons name="person-add" size={18} color="#2563EB" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.leadModalTitle}>Add New Lead</Text>
+                  <Text style={s.leadModalSubtitle}>Enter prospect details to start tracking in CRM</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={closeAddLeadModal} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={s.leadModalCloseBtn}>
+                <Ionicons name="close" size={18} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={s.label}>Full Name *</Text>
-                <Text style={s.charCount}>{form.name.length}/50</Text>
-              </View>
-              <TextInput
-                style={[s.input, formErrors.name && s.inputError]}
-                placeholder="e.g. John Doe"
-                placeholderTextColor="#94A3B8"
-                value={form.name}
-                maxLength={50}
-                onChangeText={(v) => handleLeadFieldChange('name', v)}
-                onBlur={() => handleLeadFieldBlur('name')}
-              />
-              {!!formErrors.name && <Text style={s.fieldErrorText}>{formErrors.name}</Text>}
+            <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 16 }}>
+              {/* Section 1: Contact Information */}
+              <View style={s.leadSection}>
+                <View style={s.leadSectionHeaderRow}>
+                  <Ionicons name="person-circle-outline" size={14} color="#64748B" />
+                  <Text style={s.leadSectionTitle}>CONTACT INFORMATION</Text>
+                </View>
 
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
-                <Text style={s.label}>Mobile Number *</Text>
-                <Text style={s.charCount}>10-15 digits</Text>
-              </View>
-              <TextInput
-                style={[s.input, formErrors.mobileNumber && s.inputError]}
-                placeholder="+91 9876543210"
-                placeholderTextColor="#94A3B8"
-                value={form.mobileNumber}
-                maxLength={16}
-                onChangeText={(v) => handleLeadFieldChange('mobileNumber', v)}
-                onBlur={() => handleLeadFieldBlur('mobileNumber')}
-                keyboardType="phone-pad"
-              />
-              {!!formErrors.mobileNumber && <Text style={s.fieldErrorText}>{formErrors.mobileNumber}</Text>}
+                {/* Full Name */}
+                <View style={s.leadFieldGroup}>
+                  <View style={s.leadLabelRow}>
+                    <Text style={s.leadLabel}>Full Name <Text style={s.requiredStar}>*</Text></Text>
+                    {form.name.length > 0 && <Text style={s.leadCharCount}>{form.name.length}/50</Text>}
+                  </View>
+                  <View style={[s.leadInputContainer, !!formErrors.name && s.leadInputContainerError]}>
+                    <Ionicons name="person-outline" size={16} color={formErrors.name ? '#DC2626' : '#64748B'} style={s.leadInputPrefixIcon} />
+                    <TextInput
+                      style={s.leadTextInput}
+                      placeholder="e.g. John Doe"
+                      placeholderTextColor="#94A3B8"
+                      value={form.name}
+                      maxLength={50}
+                      onChangeText={(v) => handleLeadFieldChange('name', v)}
+                      onBlur={() => handleLeadFieldBlur('name')}
+                    />
+                  </View>
+                  {!!formErrors.name && (
+                    <View style={s.leadErrorRow}>
+                      <Ionicons name="alert-circle" size={12} color="#DC2626" />
+                      <Text style={s.leadErrorText}>{formErrors.name}</Text>
+                    </View>
+                  )}
+                </View>
 
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
-                <Text style={s.label}>Email Address</Text>
-                <Text style={s.charCount}>Optional (max 100)</Text>
-              </View>
-              <TextInput
-                style={[s.input, formErrors.email && s.inputError]}
-                placeholder="john@example.com"
-                placeholderTextColor="#94A3B8"
-                value={form.email}
-                maxLength={100}
-                onChangeText={(v) => handleLeadFieldChange('email', v)}
-                onBlur={() => handleLeadFieldBlur('email')}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              {!!formErrors.email && <Text style={s.fieldErrorText}>{formErrors.email}</Text>}
+                {/* Mobile Number */}
+                <View style={s.leadFieldGroup}>
+                  <View style={s.leadLabelRow}>
+                    <Text style={s.leadLabel}>Mobile Number <Text style={s.requiredStar}>*</Text></Text>
+                  </View>
+                  <View style={[s.leadInputContainer, !!formErrors.mobileNumber && s.leadInputContainerError]}>
+                    <Ionicons name="call-outline" size={16} color={formErrors.mobileNumber ? '#DC2626' : '#64748B'} style={s.leadInputPrefixIcon} />
+                    <TextInput
+                      style={s.leadTextInput}
+                      placeholder="+91 98765 43210"
+                      placeholderTextColor="#94A3B8"
+                      value={form.mobileNumber}
+                      maxLength={16}
+                      onChangeText={(v) => handleLeadFieldChange('mobileNumber', v)}
+                      onBlur={() => handleLeadFieldBlur('mobileNumber')}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                  {!!formErrors.mobileNumber && (
+                    <View style={s.leadErrorRow}>
+                      <Ionicons name="alert-circle" size={12} color="#DC2626" />
+                      <Text style={s.leadErrorText}>{formErrors.mobileNumber}</Text>
+                    </View>
+                  )}
+                </View>
 
-              <Text style={[s.label, { marginTop: 12 }]}>Lead Source</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {LEAD_SOURCES.map((opt) => (
-                  <TouchableOpacity key={opt} style={[s.optionChip, form.leadSource === opt && s.optionChipActive]} onPress={() => handleLeadFieldChange('leadSource', opt)}>
-                    <Text style={[s.optionChipText, form.leadSource === opt && s.optionChipTextActive]}>{opt}</Text>
+                {/* Email Address */}
+                <View style={s.leadFieldGroup}>
+                  <View style={s.leadLabelRow}>
+                    <Text style={s.leadLabel}>Email Address</Text>
+                    <Text style={s.leadOptionalTag}>Optional</Text>
+                  </View>
+                  <View style={[s.leadInputContainer, !!formErrors.email && s.leadInputContainerError]}>
+                    <Ionicons name="mail-outline" size={16} color={formErrors.email ? '#DC2626' : '#64748B'} style={s.leadInputPrefixIcon} />
+                    <TextInput
+                      style={s.leadTextInput}
+                      placeholder="client@example.com"
+                      placeholderTextColor="#94A3B8"
+                      value={form.email}
+                      maxLength={100}
+                      onChangeText={(v) => handleLeadFieldChange('email', v)}
+                      onBlur={() => handleLeadFieldBlur('email')}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  {!!formErrors.email && (
+                    <View style={s.leadErrorRow}>
+                      <Ionicons name="alert-circle" size={12} color="#DC2626" />
+                      <Text style={s.leadErrorText}>{formErrors.email}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {/* Section 2: Requirement & Source */}
+              <View style={[s.leadSection, { marginTop: 14 }]}>
+                <View style={s.leadSectionHeaderRow}>
+                  <Ionicons name="business-outline" size={14} color="#64748B" />
+                  <Text style={s.leadSectionTitle}>REQUIREMENT & SOURCE</Text>
+                </View>
+
+                {/* Property Type */}
+                <View style={s.leadFieldGroup}>
+                  <View style={s.leadLabelRow}>
+                    <Text style={s.leadLabel}>Property Type <Text style={s.requiredStar}>*</Text></Text>
+                  </View>
+                  <View style={s.propertyChipsRow}>
+                    {PROPERTY_TYPES.map((opt) => {
+                      const active = form.propertyType === opt;
+                      return (
+                        <TouchableOpacity
+                          key={opt}
+                          style={[s.propertyChip, active && s.propertyChipActive]}
+                          onPress={() => handleLeadFieldChange('propertyType', opt)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name={PROPERTY_ICONS[opt] || 'home-outline'}
+                            size={14}
+                            color={active ? '#2563EB' : '#64748B'}
+                          />
+                          <Text style={[s.propertyChipText, active && s.propertyChipTextActive]}>{opt}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  {!!formErrors.propertyType && (
+                    <View style={s.leadErrorRow}>
+                      <Ionicons name="alert-circle" size={12} color="#DC2626" />
+                      <Text style={s.leadErrorText}>{formErrors.propertyType}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Lead Source */}
+                <View style={s.leadFieldGroup}>
+                  <View style={s.leadLabelRow}>
+                    <Text style={s.leadLabel}>Lead Source <Text style={s.requiredStar}>*</Text></Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[s.sourceSelectBtn, !!formErrors.leadSource && s.leadInputContainerError]}
+                    onPress={() => setShowSourcePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={s.sourceSelectLeft}>
+                      <View style={s.sourceSelectIconWrap}>
+                        <Ionicons
+                          name={SOURCE_ICONS[form.leadSource] || 'radio-button-on'}
+                          size={15}
+                          color="#2563EB"
+                        />
+                      </View>
+                      <Text style={s.sourceSelectText}>{form.leadSource}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#64748B" />
                   </TouchableOpacity>
-                ))}
-              </View>
-              {!!formErrors.leadSource && <Text style={s.fieldErrorText}>{formErrors.leadSource}</Text>}
+                  {!!formErrors.leadSource && (
+                    <View style={s.leadErrorRow}>
+                      <Ionicons name="alert-circle" size={12} color="#DC2626" />
+                      <Text style={s.leadErrorText}>{formErrors.leadSource}</Text>
+                    </View>
+                  )}
+                </View>
 
-              <Text style={s.label}>Property Type</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {PROPERTY_TYPES.map((opt) => (
-                  <TouchableOpacity key={opt} style={[s.optionChip, form.propertyType === opt && s.optionChipActive]} onPress={() => handleLeadFieldChange('propertyType', opt)}>
-                    <Text style={[s.optionChipText, form.propertyType === opt && s.optionChipTextActive]}>{opt}</Text>
-                  </TouchableOpacity>
-                ))}
+                {/* Project Location */}
+                <View style={s.leadFieldGroup}>
+                  <View style={s.leadLabelRow}>
+                    <Text style={s.leadLabel}>Project Location <Text style={s.requiredStar}>*</Text></Text>
+                    {form.projectLocation.length > 0 && <Text style={s.leadCharCount}>{form.projectLocation.length}/150</Text>}
+                  </View>
+                  <View style={[s.leadInputContainer, !!formErrors.projectLocation && s.leadInputContainerError]}>
+                    <Ionicons name="location-outline" size={16} color={formErrors.projectLocation ? '#DC2626' : '#64748B'} style={s.leadInputPrefixIcon} />
+                    <TextInput
+                      style={s.leadTextInput}
+                      placeholder="e.g. Hiranandani Estate, Thane"
+                      placeholderTextColor="#94A3B8"
+                      value={form.projectLocation}
+                      maxLength={150}
+                      onChangeText={(v) => handleLeadFieldChange('projectLocation', v)}
+                      onBlur={() => handleLeadFieldBlur('projectLocation')}
+                    />
+                  </View>
+                  {!!formErrors.projectLocation && (
+                    <View style={s.leadErrorRow}>
+                      <Ionicons name="alert-circle" size={12} color="#DC2626" />
+                      <Text style={s.leadErrorText}>{formErrors.projectLocation}</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-              {!!formErrors.propertyType && <Text style={s.fieldErrorText}>{formErrors.propertyType}</Text>}
 
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={s.label}>Project Location *</Text>
-                <Text style={s.charCount}>{form.projectLocation.length}/150</Text>
-              </View>
-              <TextInput
-                style={[s.input, formErrors.projectLocation && s.inputError]}
-                placeholder="e.g. Hiranandani Estate, Thane"
-                placeholderTextColor="#94A3B8"
-                value={form.projectLocation}
-                maxLength={150}
-                onChangeText={(v) => handleLeadFieldChange('projectLocation', v)}
-                onBlur={() => handleLeadFieldBlur('projectLocation')}
-              />
-              {!!formErrors.projectLocation && <Text style={s.fieldErrorText}>{formErrors.projectLocation}</Text>}
-
-              <TouchableOpacity style={[s.saveBtn, createLoading && { opacity: 0.7 }]} onPress={handleAddLead} disabled={createLoading}>
-                {createLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
+              {/* Submit Button */}
+              <TouchableOpacity
+                style={[s.leadSubmitBtn, createLoading && { opacity: 0.7 }]}
+                onPress={handleAddLead}
+                disabled={createLoading}
+                activeOpacity={0.8}
+              >
+                {createLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
                   <>
-                    <Ionicons name="send" size={15} color="#FFFFFF" />
-                    <Text style={s.saveBtnText}>Create Lead</Text>
+                    <Ionicons name="person-add" size={16} color="#FFFFFF" />
+                    <Text style={s.leadSubmitBtnText}>Create Lead</Text>
                   </>
                 )}
               </TouchableOpacity>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Lead Source Picker Modal */}
+      <Modal visible={showSourcePicker} animationType="fade" transparent onRequestClose={() => setShowSourcePicker(false)}>
+        <TouchableOpacity style={s.pickerOverlay} activeOpacity={1} onPress={() => setShowSourcePicker(false)}>
+          <View style={s.pickerCard} onStartShouldSetResponder={() => true}>
+            <View style={s.pickerHeader}>
+              <View>
+                <Text style={s.pickerTitle}>Select Lead Source</Text>
+                <Text style={s.pickerSubtitle}>Where did this prospect find you?</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowSourcePicker(false)} style={s.leadModalCloseBtn}>
+                <Ionicons name="close" size={18} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 380 }}>
+              {LEAD_SOURCES.map((source) => {
+                const selected = form.leadSource === source;
+                return (
+                  <TouchableOpacity
+                    key={source}
+                    style={[s.pickerRow, selected && s.pickerRowSelected]}
+                    onPress={() => {
+                      handleLeadFieldChange('leadSource', source);
+                      setShowSourcePicker(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={[s.pickerIconBox, selected && s.pickerIconBoxSelected]}>
+                        <Ionicons
+                          name={SOURCE_ICONS[source] || 'radio-button-on'}
+                          size={16}
+                          color={selected ? '#2563EB' : '#64748B'}
+                        />
+                      </View>
+                      <Text style={[s.pickerRowText, selected && s.pickerRowTextSelected]}>
+                        {source}
+                      </Text>
+                    </View>
+                    {selected ? (
+                      <Ionicons name="checkmark-circle" size={18} color="#2563EB" />
+                    ) : (
+                      <Ionicons name="ellipse-outline" size={18} color="#CBD5E1" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
       </Modal>
 
       {/* Schedule Follow-up Modal */}
@@ -896,7 +1089,7 @@ const s = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
   modalCard: {
     backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26,
-    padding: 20, maxHeight: '85%',
+    padding: 20, maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -953,4 +1146,106 @@ const s = StyleSheet.create({
     backgroundColor: '#2563EB', borderRadius: 14, paddingVertical: 14, marginTop: 20, marginBottom: 10,
   },
   saveBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+
+  // Add Lead Modal Redesign Styles
+  leadModalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14,
+  },
+  leadModalTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  leadModalIconBadge: {
+    width: 38, height: 38, borderRadius: 10, backgroundColor: '#EFF6FF',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  leadModalTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  leadModalSubtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  leadModalCloseBtn: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#F8FAFC',
+    borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center',
+  },
+
+  leadSection: {
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
+    borderRadius: 14, padding: 14, gap: 12,
+  },
+  leadSectionHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 8,
+  },
+  leadSectionTitle: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#64748B', letterSpacing: 0.5 },
+
+  leadFieldGroup: { gap: 5 },
+  leadLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  leadLabel: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  requiredStar: { color: '#DC2626' },
+  leadOptionalTag: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#94A3B8' },
+  leadCharCount: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#94A3B8' },
+
+  leadInputContainer: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10,
+    paddingHorizontal: 12, height: 44,
+  },
+  leadInputContainerError: { borderColor: '#DC2626', backgroundColor: '#FEF2F2' },
+  leadInputPrefixIcon: { marginRight: 8 },
+  leadTextInput: {
+    flex: 1, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', paddingVertical: 0,
+  },
+  leadErrorRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  leadErrorText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#DC2626' },
+
+  propertyChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  propertyChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 11, paddingVertical: 7, borderRadius: 8,
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0',
+  },
+  propertyChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
+  propertyChipText: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#64748B' },
+  propertyChipTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
+
+  sourceSelectBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10,
+    paddingHorizontal: 12, height: 44,
+  },
+  sourceSelectLeft: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  sourceSelectIconWrap: {
+    width: 26, height: 26, borderRadius: 6, backgroundColor: '#EFF6FF',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  sourceSelectText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+
+  leadSubmitBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#2563EB', borderRadius: 12, height: 46, marginTop: 16,
+  },
+  leadSubmitBtnText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+
+  // Lead Source Picker Sheet
+  pickerOverlay: {
+    flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'center', alignItems: 'center', padding: 20,
+  },
+  pickerCard: {
+    width: '100%', maxWidth: 360, backgroundColor: '#FFFFFF', borderRadius: 20,
+    padding: 18, borderWidth: 1, borderColor: '#E2E8F0',
+  },
+  pickerHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 12, marginBottom: 8,
+  },
+  pickerTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  pickerSubtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  pickerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 10, paddingHorizontal: 10, borderRadius: 10, marginVertical: 2,
+  },
+  pickerRowSelected: { backgroundColor: '#EFF6FF' },
+  pickerIconBox: {
+    width: 32, height: 32, borderRadius: 8, backgroundColor: '#F1F5F9',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  pickerIconBoxSelected: { backgroundColor: '#DBEAFE' },
+  pickerRowText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155' },
+  pickerRowTextSelected: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 });

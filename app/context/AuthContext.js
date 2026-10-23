@@ -25,6 +25,22 @@ const INTERIOR_API_URL = `${(process.env.EXPO_PUBLIC_INTERIOR_API_URL || '').rep
 
 import { registerForPushNotificationsAsync } from '../../utils/pushNotifications';
 
+const normalizeUser = (u) => {
+  if (!u || typeof u !== 'object') return u;
+  const computedFullName = (
+    u.fullName ||
+    [u.firstName, u.lastName].filter(Boolean).join(' ') ||
+    u.name ||
+    ''
+  ).trim();
+  const name = (u.name || computedFullName || (u.email ? u.email.split('@')[0] : '')).trim();
+  return {
+    ...u,
+    name: name || u.name,
+    fullName: u.fullName || computedFullName || name,
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -68,8 +84,9 @@ export const AuthProvider = ({ children }) => {
         let parsedUser = null;
         try {
           parsedUser = JSON.parse(savedUser);
-          setUser(parsedUser);
-          userRef.current = parsedUser;
+          const normalized = normalizeUser(parsedUser);
+          setUser(normalized);
+          userRef.current = normalized;
         } catch {
           await SecureStore.deleteItemAsync('userData');
         }
@@ -110,13 +127,14 @@ export const AuthProvider = ({ children }) => {
   // `user.organization` so `user?.organization?.industryType === 'interior'`
   // checks (e.g. dashboard) work the same as the construction flow.
   const persistSession = useCallback(async (authToken, refreshToken, userObj) => {
-    userRef.current = userObj;
+    const normalized = normalizeUser(userObj);
+    userRef.current = normalized;
     await SecureStore.setItemAsync('userToken', authToken);
     if (refreshToken) await SecureStore.setItemAsync('refreshToken', refreshToken);
     else await SecureStore.deleteItemAsync('refreshToken');
-    await SecureStore.setItemAsync('userData', JSON.stringify(userObj));
+    await SecureStore.setItemAsync('userData', JSON.stringify(normalized));
     setToken(authToken);
-    setUser(userObj);
+    setUser(normalized);
     // No push-token endpoint exists on the interior-os backend yet.
     if (userObj?.organization?.industryType !== 'interior') {
       registerDeviceToken(authToken);
@@ -551,9 +569,10 @@ export const AuthProvider = ({ children }) => {
       const merged = isInterior
         ? { ...current, ...fresh, organization: { ...(current.organization || {}), industryType: 'interior' } }
         : { ...current, ...fresh };
-      userRef.current = merged;
-      setUser(merged);
-      await SecureStore.setItemAsync('userData', JSON.stringify(merged));
+      const normalized = normalizeUser(merged);
+      userRef.current = normalized;
+      setUser(normalized);
+      await SecureStore.setItemAsync('userData', JSON.stringify(normalized));
     } catch {
       // Keep the cached user if the refresh fails (offline, etc.)
     }

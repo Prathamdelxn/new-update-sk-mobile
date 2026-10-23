@@ -272,8 +272,8 @@ export default function QuotationBuilderModal({
       Alert.alert('Error', 'Please include at least one valid line item.');
       return;
     }
-    if (grandTotal <= 0) {
-      Alert.alert('Error', 'Quotation total must be greater than ₹0.');
+    if (grandTotal < 0) {
+      Alert.alert('Error', 'Quotation total cannot be negative.');
       return;
     }
 
@@ -376,8 +376,16 @@ export default function QuotationBuilderModal({
             {activeBoq && (
               <View style={s.scopeSection}>
                 <View style={s.scopeHeaderRow}>
-                  <Ionicons name="layers-outline" size={14} color="#2563EB" />
-                  <Text style={s.scopeHeaderTitle}>BOQ Scope Mode (v{activeBoq.version || 1})</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Ionicons name="layers-outline" size={14} color="#2563EB" />
+                    <Text style={s.scopeHeaderTitle}>BOQ Scope Mode (v{activeBoq.version || 1})</Text>
+                    {(activeBoq.createdByName || activeBoq.createdAt) && (
+                      <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '500' }}>
+                        {activeBoq.createdByName ? `• by ${activeBoq.createdByName}` : ''}
+                        {activeBoq.createdAt ? ` (${new Date(activeBoq.createdAt).toLocaleDateString()})` : ''}
+                      </Text>
+                    )}
+                  </View>
                 </View>
 
                 <View style={s.scopeTabs}>

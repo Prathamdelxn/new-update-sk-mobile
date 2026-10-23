@@ -1048,11 +1048,11 @@ export default function Lead360Screen() {
               ${discount > 0 ? `<div class="row" style="color: #059669;"><span>Discount</span><span>- ${formatExactCurrency(discount, currency)}</span></div>` : ''}
               <div class="grand"><span>Grand Total</span><span>${formatExactCurrency(grandTotal, currency)}</span></div>
             </div>
-          </div>
+          ${notes ? `
           <div class="terms">
-            <p class="label">Terms & Conditions</p>
+            <p class="label">Notes & Remarks</p>
             <p>${notes}</p>
-          </div>
+          </div>` : ''}
         </body>
       </html>
     `;
@@ -3042,9 +3042,14 @@ export default function Lead360Screen() {
                             </Text>
                           </View>
                         </View>
-                        <Text style={s.boqDateText}>
-                          Updated: {new Date(activeBoq.createdAt || Date.now()).toLocaleDateString()}
-                        </Text>
+                        <View style={{ marginTop: 4, gap: 2 }}>
+                          <Text style={s.boqDateText}>
+                            Created: {activeBoq.createdAt ? new Date(activeBoq.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleDateString()}
+                          </Text>
+                          <Text style={[s.boqDateText, { color: '#475569', fontWeight: '600' }]}>
+                            By: {activeBoq.createdByName || activeBoq.updatedByName || 'Estimator'}
+                          </Text>
+                        </View>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         {canDo('crm_boq', 'export') && (
@@ -3106,17 +3111,39 @@ export default function Lead360Screen() {
                     {/* Versions Tabs if multiple */}
                     {lead.boqs.length > 1 && (
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                        {lead.boqs.map((b, idx) => (
-                          <TouchableOpacity
-                            key={idx}
-                            style={[s.versionChip, activeBoqIdx === idx && s.versionChipActive]}
-                            onPress={() => setActiveBoqIdx(idx)}
-                          >
-                            <Text style={[s.versionChipText, activeBoqIdx === idx && s.versionChipTextActive]}>
-                              {b.version ? `v${b.version}.0` : `v${idx + 1}.0`}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
+                        {lead.boqs.map((b, idx) => {
+                          const isAct = activeBoqIdx === idx;
+                          const createdDateStr = b.createdAt
+                            ? new Date(b.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                            : '';
+                          return (
+                            <TouchableOpacity
+                              key={idx}
+                              style={[
+                                s.versionChip,
+                                isAct && s.versionChipActive,
+                                { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12 },
+                              ]}
+                              onPress={() => setActiveBoqIdx(idx)}
+                            >
+                              <Text style={[s.versionChipText, isAct && s.versionChipTextActive]}>
+                                {b.version ? `v${b.version}.0` : `v${idx + 1}.0`}
+                              </Text>
+                              {(b.createdByName || createdDateStr) && (
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: '500',
+                                    color: isAct ? '#93C5FD' : '#64748B',
+                                  }}
+                                  numberOfLines={1}
+                                >
+                                  {b.createdByName ? `• ${b.createdByName}` : ''} {createdDateStr ? `(${createdDateStr})` : ''}
+                                </Text>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
                       </ScrollView>
                     )}
 

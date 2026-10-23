@@ -77,6 +77,20 @@ export function permissionsAllow(perms, module, action) {
 export function isInteriorOrgAdmin(user) {
   if (!user) return false;
   const sys = String(user.systemRole || '').toLowerCase();
-  const slug = String(user.role?.slug || '').toLowerCase();
-  return sys === 'super_admin' || sys === 'org_admin' || slug === 'admin';
+  const roleVal = typeof user.role === 'string' ? user.role : user.role?.slug || '';
+  const slug = String(roleVal).toLowerCase();
+  const name = String(user.role?.name || '').toLowerCase();
+  return (
+    sys === 'super_admin' ||
+    sys === 'org_admin' ||
+    sys === 'admin' ||
+    slug === 'admin' ||
+    slug === 'org_admin' ||
+    slug === 'super_admin' ||
+    slug === 'owner' ||
+    name === 'admin' ||
+    name === 'org admin' ||
+    name === 'super admin' ||
+    name === 'owner'
+  );
 }

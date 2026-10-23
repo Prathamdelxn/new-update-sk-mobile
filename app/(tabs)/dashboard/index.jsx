@@ -381,6 +381,7 @@ export default function DashboardScreen() {
               {[
                 { label: 'Interior Projects', desc: 'Active fit-outs & timelines', icon: 'grid-outline', color: '#0284C7', bg: '#F0F9FF', route: '/(tabs)/i-project' },
                 { label: 'Client CRM', desc: 'Leads & consultation schedules', icon: 'people-outline', color: '#4F46E5', bg: '#EEF2FF', route: '/(tabs)/crm' },
+                { label: 'Audit Trail', desc: 'System governance & activity ledger', icon: 'shield-checkmark-outline', color: '#059669', bg: '#ECFDF5', route: '/(tabs)/i-audit' },
                 { label: 'User Management', desc: 'Studio team & roles', icon: 'person-add-outline', color: '#16A34A', bg: '#F0FDF4', route: '/user-management' },
                 { label: 'Workspace Settings', desc: 'Company preferences & currency', icon: 'settings-outline', color: '#64748B', bg: '#F8FAFC', route: '/(tabs)/i-setting' },
               ].map((mod, i, arr) => (
