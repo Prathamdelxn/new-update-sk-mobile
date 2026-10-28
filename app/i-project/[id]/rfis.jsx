@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -162,6 +162,26 @@ const { can: canDo } = useProjectPermissions(projectId);
     }
   };
 
+  const deleteRfi = (rfi) => {
+    Alert.alert('Delete RFI', `Delete "${rfi.subject}"? This can't be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await interiorApiClient.delete(`/projects/${projectId}/rfis?rfiId=${rfi._id}`);
+            showToast('RFI deleted', 'success');
+            setSelectedRfi(null);
+            fetchRfis();
+          } catch (e) {
+            showToast(e.message || 'Failed to delete RFI', 'error');
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={s.outerContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
@@ -310,10 +330,12 @@ const { can: canDo } = useProjectPermissions(projectId);
 
                   {selectedRfi.status !== 'closed' && (
                     <>
-                      <TouchableOpacity style={s.resolveBtn} onPress={() => closeRfi(selectedRfi)}>
-                        <Ionicons name="checkmark-circle-outline" size={16} color="#16A34A" />
-                        <Text style={s.resolveBtnText}>Mark Resolved & Close</Text>
-                      </TouchableOpacity>
+                      {canDo('rfis', 'update') && (
+                        <TouchableOpacity style={s.resolveBtn} onPress={() => closeRfi(selectedRfi)}>
+                          <Ionicons name="checkmark-circle-outline" size={16} color="#16A34A" />
+                          <Text style={s.resolveBtnText}>Mark Resolved & Close</Text>
+                        </TouchableOpacity>
+                      )}
 
                       <Text style={s.label}>Post a Response</Text>
                       <View style={s.responseRow}>
@@ -331,6 +353,12 @@ const { can: canDo } = useProjectPermissions(projectId);
                         )}
                       </View>
                     </>
+                  )}
+                  {canDo('rfis', 'delete') && (
+                    <TouchableOpacity style={s.deleteRfiBtn} onPress={() => deleteRfi(selectedRfi)}>
+                      <Ionicons name="trash-outline" size={15} color="#E11D48" />
+                      <Text style={s.deleteRfiText}>Delete RFI</Text>
+                    </TouchableOpacity>
                   )}
                   <View style={{ height: 20 }} />
                 </ScrollView>
@@ -358,6 +386,8 @@ const s = StyleSheet.create({
   emptySub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   rfiCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', gap: 8 },
+  deleteRfiBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: '#FECDD3', backgroundColor: '#FFF1F2' },
+  deleteRfiText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#E11D48' },
   rfiTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   rfiNumber: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },

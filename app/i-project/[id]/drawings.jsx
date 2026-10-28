@@ -33,8 +33,10 @@ export function detectDrawingFileType(fileName = '', url = '') {
     const parts = clean.split('.');
     return parts.length > 1 ? parts.pop().toLowerCase() : '';
   };
+  // Embedded images and Cloudinary image links can have no file extension
+  if (String(url).startsWith('data:image') || /\/image\/upload\//.test(String(url))) return 'image';
   const ext = getExt(url) || getExt(fileName);
-  if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'tiff', 'hdr'].includes(ext)) return 'image';
+  if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'tiff', 'hdr', 'heic'].includes(ext)) return 'image';
   if (['pdf'].includes(ext)) return 'pdf';
   if (['dwg', 'skp', 'obj', 'fbx', '3ds', 'dae', 'blend', 'rvt', 'rfa', 'ifc', 'gltf', 'glb', 'max'].includes(ext)) return '3d-model';
   if (['dxf'].includes(ext)) return 'cad-2d';
@@ -522,6 +524,12 @@ const { can: canDo } = useProjectPermissions(projectId);
 
                 return (
                   <View key={dwg._id} style={s.dwgCard}>
+                    {/* Image thumbnail (same as the web card) */}
+                    {isImage && !!currentRev.url && (
+                      <TouchableOpacity activeOpacity={0.85} onPress={() => handleOpenOrPreview(currentRev.url, dwg.title)}>
+                        <Image source={{ uri: currentRev.url }} style={s.dwgThumb} resizeMode="cover" />
+                      </TouchableOpacity>
+                    )}
                     {/* Top Row: DWG Number, File Type Badge, Status */}
                     <View style={s.dwgTopRow}>
                       <View style={s.dwgNumBadge}>
@@ -1047,6 +1055,7 @@ const s = StyleSheet.create({
     borderRadius: 6,
   },
   fileTypeBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
+  dwgThumb: { width: '100%', height: 150, borderRadius: 10, backgroundColor: '#E2E8F0', marginBottom: 10 },
 
   disciplineTag: {
     backgroundColor: '#F1F5F9',

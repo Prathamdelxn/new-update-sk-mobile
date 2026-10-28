@@ -14,7 +14,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { interiorCrmService } from '../../services/interiorCrmService';
+import interiorApiClient from '../../services/interiorApiClient';
 import { formatExactCurrency } from '../../utils/format';
+import SelectField from '../common/SelectField';
+
+const OTHER_VENDOR = '__other__';
 
 export default function SendQuotationModal({
   isOpen,
@@ -26,16 +30,33 @@ export default function SendQuotationModal({
   customerPhone = '',
   quotation,
   quotationIndex = null,
+  initialTarget = 'customer', // 'customer' | 'vendor' — which tab to open on
   onSuccess,
 }) {
   const isModalOpen = Boolean(isOpen ?? visible);
-  const [sendTarget, setSendTarget] = useState('customer'); // 'customer' | 'other'
+  const [sendTarget, setSendTarget] = useState(initialTarget); // 'customer' | 'vendor'
+
+  // Open on the requested tab each time the modal is shown
+  useEffect(() => {
+    if (isModalOpen) setSendTarget(initialTarget === 'vendor' ? 'vendor' : 'customer');
+  }, [isModalOpen, initialTarget]);
+  const [vendors, setVendors] = useState([]);
+  const [selectedVendorId, setSelectedVendorId] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [customSubject, setCustomSubject] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [additionalNote, setAdditionalNote] = useState('');
   const [sending, setSending] = useState(false);
+
+  // Vendor list for "Send to Vendor" (same as web)
+  useEffect(() => {
+    if (!isModalOpen) return;
+    interiorApiClient
+      .get('/vendors')
+      .then((res) => setVendors(Array.isArray(res?.data) ? res.data : []))
+      .catch(() => setVendors([]));
+  }, [isModalOpen]);
 
   useEffect(() => {
     if (isModalOpen && quotation) {
@@ -45,15 +66,31 @@ export default function SendQuotationModal({
       if (sendTarget === 'customer') {
         setRecipientEmail(customerEmail || '');
         setRecipientName(customerName || 'Client');
+        setCustomSubject(`Interior Design Quotation — ${title} for ${customerName}`);
+        setCustomMessage(
+          `Dear ${customerName},\n\nPlease find attached the detailed interior quotation (${title}) for your project. We have structured the scope of works as discussed.\n\nKindly review and let us know if you would like any revisions.`
+        );
+      } else {
+        setCustomSubject(`Quotation Reference (${title}) - ${customerName}`);
+        setCustomMessage(
+          `Dear Vendor Partner,\n\nPlease find attached the quotation line items and material specifications (${title}) for project "${customerName}".\n\nKindly review the itemized quantities and specifications in the attached document. Please share your availability, lead time, and best proposal at the earliest.`
+        );
       }
-
-      setCustomSubject(`Interior Design Quotation — ${title} for ${customerName}`);
-      setCustomMessage(
-        `Dear ${customerName},\n\nPlease find attached the detailed interior quotation (${title}) for your project. We have structured the scope of works as discussed.\n\nKindly review and let us know if you would like any revisions.`
-      );
       setAdditionalNote('');
     }
   }, [isModalOpen, quotation, sendTarget, customerEmail, customerName, quotationIndex]);
+
+  const pickVendor = (vid) => {
+    setSelectedVendorId(vid);
+    if (vid === OTHER_VENDOR) {
+      setRecipientEmail('');
+      setRecipientName('');
+      return;
+    }
+    const v = vendors.find((x) => x._id === vid);
+    setRecipientEmail(v?.email || '');
+    setRecipientName(v?.contactPerson || v?.name || '');
+  };
 
   if (!isModalOpen || !quotation) return null;
 
@@ -68,6 +105,11 @@ export default function SendQuotationModal({
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(recipientEmail.trim())) {
       Alert.alert('Invalid Email', 'Please enter a valid email format.');
+      return;
+    }
+
+    if (sendTarget === 'vendor' && !recipientName.trim()) {
+      Alert.alert('Vendor Required', 'Please select a vendor or enter the vendor name.');
       return;
     }
 
@@ -144,23 +186,47 @@ export default function SendQuotationModal({
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[s.targetTab, sendTarget === 'other' && s.targetTabActive]}
+                style={[s.targetTab, sendTarget === 'vendor' && s.targetTabActive]}
                 onPress={() => {
-                  setSendTarget('other');
+                  setSendTarget('vendor');
+                  setSelectedVendorId('');
                   setRecipientEmail('');
                   setRecipientName('');
                 }}
               >
                 <Ionicons
-                  name="mail-outline"
+                  name="storefront-outline"
                   size={14}
-                  color={sendTarget === 'other' ? '#2563EB' : '#64748B'}
+                  color={sendTarget === 'vendor' ? '#2563EB' : '#64748B'}
                 />
-                <Text style={[s.targetTabText, sendTarget === 'other' && s.targetTabTextActive]}>
-                  Custom Email
+                <Text style={[s.targetTabText, sendTarget === 'vendor' && s.targetTabTextActive]}>
+                  Vendor
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {sendTarget === 'vendor' && (
+              <>
+                <Text style={s.label}>Vendor *</Text>
+                <SelectField
+                  value={selectedVendorId}
+                  onChange={pickVendor}
+                  options={[
+                    ...vendors.map((v) => ({ value: v._id, label: v.vendorCategory ? `${v.name} (${v.vendorCategory})` : v.name })),
+                    { value: OTHER_VENDOR, label: 'Other vendor — enter details' },
+                  ]}
+                  placeholder={vendors.length ? 'Select a vendor' : 'No vendors yet — choose "Other vendor"'}
+                />
+                <Text style={s.label}>Vendor / Contact Name</Text>
+                <TextInput
+                  style={s.input}
+                  value={recipientName}
+                  onChangeText={setRecipientName}
+                  placeholder="e.g. Greenply Industries"
+                  placeholderTextColor="#94A3B8"
+                />
+              </>
+            )}
 
             {/* Recipient Details */}
             <Text style={s.label}>Recipient Email *</Text>
@@ -168,7 +234,7 @@ export default function SendQuotationModal({
               style={s.input}
               value={recipientEmail}
               onChangeText={setRecipientEmail}
-              placeholder="e.g. client@example.com"
+              placeholder={sendTarget === 'vendor' ? 'e.g. sales@vendor.com' : 'e.g. client@example.com'}
               keyboardType="email-address"
               autoCapitalize="none"
               placeholderTextColor="#94A3B8"

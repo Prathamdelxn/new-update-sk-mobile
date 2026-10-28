@@ -29,6 +29,8 @@ export default function InteriorVendorsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
+  // Also used as the org-wide Vendor Management screen (no project → no PO stats)
+  const isOrgView = !projectId;
   const { showToast } = useToast();
 const { hasPermission: canDo } = useInteriorPermissions();
 
@@ -46,7 +48,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
     try {
       const [vendorRes, poRes] = await Promise.allSettled([
         interiorApiClient.get('/vendors'),
-        interiorApiClient.get(`/projects/${projectId}/procurement`),
+        isOrgView ? Promise.resolve(null) : interiorApiClient.get(`/projects/${projectId}/procurement`),
       ]);
       setDbVendors(vendorRes.status === 'fulfilled' && vendorRes.value?.success ? vendorRes.value.data || [] : []);
       setPos(poRes.status === 'fulfilled' && poRes.value?.success ? poRes.value.data || [] : []);
@@ -153,8 +155,8 @@ const { hasPermission: canDo } = useInteriorPermissions();
             <Ionicons name="chevron-back" size={18} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Vendors & Subcontractors</Text>
-            <Text style={s.headerSub}>Ratings, compliance, and contract values.</Text>
+            <Text style={s.headerTitle}>{isOrgView ? 'Vendor Management' : 'Vendors & Subcontractors'}</Text>
+            <Text style={s.headerSub}>{isOrgView ? 'All vendors and suppliers of your organization.' : 'Ratings, compliance, and contract values.'}</Text>
           </View>
           {canDo('vendors', 'create') && (
             <TouchableOpacity style={s.addVendorBtn} onPress={openAddModal}>
@@ -204,6 +206,26 @@ const { hasPermission: canDo } = useInteriorPermissions();
                     )}
                   </View>
 
+                  {isOrgView ? (
+                    <View style={{ gap: 5, marginTop: 10 }}>
+                      {!!vendor.raw.contactPerson && (
+                        <View style={s.contactRow}><Ionicons name="person-outline" size={13} color="#64748B" /><Text style={s.contactText}>{vendor.raw.contactPerson}</Text></View>
+                      )}
+                      {!!vendor.raw.phoneNumber && (
+                        <View style={s.contactRow}><Ionicons name="call-outline" size={13} color="#64748B" /><Text style={s.contactText}>{vendor.raw.phoneNumber}</Text></View>
+                      )}
+                      {!!vendor.raw.email && (
+                        <View style={s.contactRow}><Ionicons name="mail-outline" size={13} color="#64748B" /><Text style={s.contactText} numberOfLines={1}>{vendor.raw.email}</Text></View>
+                      )}
+                      {!!vendor.raw.address && (
+                        <View style={s.contactRow}><Ionicons name="location-outline" size={13} color="#64748B" /><Text style={s.contactText} numberOfLines={2}>{vendor.raw.address}</Text></View>
+                      )}
+                      {!vendor.raw.contactPerson && !vendor.raw.phoneNumber && !vendor.raw.email && !vendor.raw.address && (
+                        <Text style={s.contactText}>No contact details added.</Text>
+                      )}
+                    </View>
+                  ) : (
+                  <>
                   <View style={s.statsRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.statLabel}>Contracts Held</Text>
@@ -242,6 +264,8 @@ const { hasPermission: canDo } = useInteriorPermissions();
                       </View>
                     </View>
                   </View>
+                  </>
+                  )}
                 </View>
               ))
             )}
@@ -299,6 +323,8 @@ const { hasPermission: canDo } = useInteriorPermissions();
 }
 
 const s = StyleSheet.create({
+  contactRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  contactText: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#475569', flexShrink: 1 },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },

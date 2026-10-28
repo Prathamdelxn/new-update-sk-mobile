@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { queryKeys, useRefreshOnFocus } from '../../context/QueryProvider';
 import CategoryNav from './_components/CategoryNav';
+import { formatCompactCurrency } from '../../utils/common/format';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const HEALTH_META = {
@@ -18,10 +19,8 @@ const HEALTH_META = {
   delayed:    { label: 'Delayed',  color: '#DC2626', bg: '#FEF2F2' },
 };
 
-function formatBudget(amount) {
-  if (!amount) return '₹0';
-  if (amount >= 10000000) return `₹ ${(amount / 10000000).toFixed(2)} Cr`;
-  return `₹ ${(amount / 100000).toFixed(2)} Lakh`;
+function formatBudget(amount, currency) {
+  return formatCompactCurrency(Number(amount) || 0, currency || 'INR');
 }
 
 function formatDate(d) {
@@ -184,7 +183,7 @@ export default function InteriorProjectOverviewScreen() {
                 <Text style={s.statLabel}>CONTRACT BUDGET</Text>
                 <Ionicons name="cash-outline" size={14} color="#6366F1" />
               </View>
-              <Text style={s.statValue}>{formatBudget(p.budget?.amount)}</Text>
+              <Text style={s.statValue}>{formatBudget(p.budget?.amount, p.budget?.currency)}</Text>
               <Text style={s.statSub}>Total allocated value</Text>
             </View>
           </View>

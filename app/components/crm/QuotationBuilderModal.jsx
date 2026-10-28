@@ -619,13 +619,13 @@ export default function QuotationBuilderModal({
               </View>
             </View>
 
-            {/* Terms & Notes */}
-            <Text style={s.fieldLabel}>Terms & Scope Stipulations</Text>
+            {/* Notes (Terms & Conditions were removed from quotations — same as web) */}
+            <Text style={s.fieldLabel}>Quotation Notes / Remarks (Optional)</Text>
             <TextInput
               style={s.notesInput}
               value={quoteNotes}
               onChangeText={setQuoteNotes}
-              placeholder="Payment terms, validity, exclusions..."
+              placeholder="Optional notes or remarks for this quotation..."
               placeholderTextColor="#94A3B8"
               multiline
             />

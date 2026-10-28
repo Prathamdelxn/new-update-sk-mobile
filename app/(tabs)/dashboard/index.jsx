@@ -210,16 +210,29 @@ export default function DashboardScreen() {
 
   if (isInterior) {
     const kpis = interiorData?.kpis || {
-      activeProjects: 0, delayedProjects: 0, openSnags: 0, openRFIs: 0, criticalRisks: 0, procurementPending: 0,
+      totalLeads: 0, newLeads: 0, activeLeads: 0, wonLeads: 0, activeProjects: 0, openSnags: 0,
     };
-    const isEmpty = !interiorData || kpis.activeProjects === 0;
+    // Same layout as the web dashboard: shown whenever there is data (leads count too)
+    const isEmpty = !interiorData;
     const progressTrend = interiorData?.progressTrend || [];
     const projectHealth = interiorData?.projectHealth || [];
+    const leadsPipeline = interiorData?.leadsPipeline || [];
+    const procurementData = interiorData?.procurementData || [];
     const topProjects = interiorData?.topProjects || [];
     const recentActivities = interiorData?.recentActivities || [];
 
-    const revenueLineData = progressTrend.map((p) => ({ value: p.actual, label: p.month }));
-    const healthDonutData = projectHealth.map((h) => ({ value: h.value, color: h.color, label: h.name }));
+    const pct = (v) => Math.min(100, Math.max(0, Number(v) || 0));
+    const plannedLineData = progressTrend.map((p) => ({ value: pct(p.planned), label: p.month }));
+    const actualLineData = progressTrend.map((p) => ({ value: pct(p.actual), label: p.month }));
+    // Only non-empty slices (zero slices used to break the ring); grey ring when there are no projects
+    const nonEmptyHealth = projectHealth.filter((h) => h.value > 0).map((h) => ({ value: h.value, color: h.color, label: h.name }));
+    const healthTotal = nonEmptyHealth.reduce((sum, h) => sum + h.value, 0);
+    const healthDonutData = nonEmptyHealth.length > 0 ? nonEmptyHealth : [{ value: 1, color: '#E2E8F0', label: 'No Projects' }];
+    const shortStage = (st) => ({ 'New Leads': 'New', 'Follow-ups': 'Follow', 'Site Visits': 'Site', Requirements: 'Reqs', Quotations: 'Quotes', 'Won Projects': 'Won' }[st] || st);
+    const pipelineBars = leadsPipeline.map((p) => ({ value: p.count || 0, label: shortStage(p.stage), frontColor: '#3B82F6' }));
+    const procurementBars = procurementData.map((p) => ({ value: p.count || 0, label: p.status, frontColor: '#6366F1' }));
+    const barMax = (bars) => Math.max(1, ...bars.map((b) => b.value)) + 1;
+    const healthBarColor = (h) => (h === 'green' ? '#16A34A' : h === 'yellow' ? '#D97706' : '#DC2626');
 
     return (
       <View style={s.outerContainer}>
@@ -241,29 +254,34 @@ export default function DashboardScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={() => fetchInteriorDashboard(true)} tintColor="#fff" colors={['#2563EB']} />
             }
           >
+            {/* Stats */}
+            <SectionLabel title="Summary" />
+            <View style={s.interiorStatsGrid}>
+              <InteriorStatCard icon="people-outline" iconBg="#EFF6FF" iconColor="#2563EB" label="Total Leads" value={kpis.totalLeads || 0} />
+              <InteriorStatCard icon="person-add-outline" iconBg="#F5F3FF" iconColor="#7C3AED" label="New Leads" value={kpis.newLeads || 0} />
+              <InteriorStatCard icon="trending-up-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Active Pipeline" value={kpis.activeLeads || 0} />
+              <InteriorStatCard icon="checkmark-circle-outline" iconBg="#F0FDF4" iconColor="#16A34A" label="Won Projects" value={kpis.wonLeads || 0} />
+              <InteriorStatCard icon="folder-outline" iconBg="#F0F9FF" iconColor="#0284C7" label="Active Projects" value={kpis.activeProjects || 0} />
+              <InteriorStatCard icon="bug-outline" iconBg="#FEF2F2" iconColor="#DC2626" label="Open Snags" value={kpis.openSnags || 0} />
+            </View>
+
             {isEmpty ? (
               <View style={[s.card, { alignItems: 'center', paddingVertical: 40, marginTop: 12 }]}>
                 <Text style={{ fontSize: 32, marginBottom: 12 }}>🏢</Text>
-                <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 6 }}>No Active Projects</Text>
+                <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 6 }}>
+                  {interiorQuery.isError ? 'Could not load dashboard' : 'No Active Projects'}
+                </Text>
                 <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' }}>
-                  There are currently no active projects found in your workspace.
+                  {interiorQuery.isError
+                    ? 'Pull down to try again.'
+                    : 'There are currently no active projects found in your workspace.'}
                 </Text>
               </View>
             ) : (
               <>
-                {/* Stats */}
-                <SectionLabel title="Summary" />
-                <View style={s.interiorStatsGrid}>
-                  <InteriorStatCard icon="folder-outline" iconBg="#F0F9FF" iconColor="#0284C7" label="Active Projects" value={kpis.activeProjects} />
-                  <InteriorStatCard icon="time-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Delayed" value={kpis.delayedProjects} subColor="#D97706" />
-                  <InteriorStatCard icon="bug-outline" iconBg="#FEF2F2" iconColor="#DC2626" label="Open Snags" value={kpis.openSnags} />
-                  <InteriorStatCard icon="chatbox-ellipses-outline" iconBg="#EEF2FF" iconColor="#4F46E5" label="Open RFIs" value={kpis.openRFIs} />
-                  <InteriorStatCard icon="alert-circle-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Critical Risks" value={kpis.criticalRisks} subColor="#D97706" />
-                  <InteriorStatCard icon="cart-outline" iconBg="#F0FDF4" iconColor="#16A34A" label="Procurement Pending" value={kpis.procurementPending} />
-                </View>
 
                 {/* Progress Trend */}
-                {revenueLineData.length > 0 && (
+                {actualLineData.length > 0 && (
                   <>
                     <SectionLabel title="Progress Trend" />
                     <View style={s.card}>
@@ -271,18 +289,33 @@ export default function DashboardScreen() {
                         <Text style={s.chartHeaderTitle}>Planned vs Actual (%)</Text>
                         <Text style={s.chartHeaderTag}>Last 6 Months</Text>
                       </View>
+                      {/* Legend: colour + name side by side (same as the web) */}
+                      <View style={{ flexDirection: 'row', gap: 16, marginBottom: 10 }}>
+                        <View style={s.trendLegend}>
+                          <View style={[s.trendLegendLine, { backgroundColor: '#2563EB' }]} />
+                          <Text style={s.trendLegendText}>Planned</Text>
+                        </View>
+                        <View style={s.trendLegend}>
+                          <View style={[s.trendLegendLine, { backgroundColor: '#16A34A' }]} />
+                          <Text style={s.trendLegendText}>Actual</Text>
+                        </View>
+                      </View>
                       <LineChart
-                        data={revenueLineData}
+                        data={plannedLineData}
+                        data2={actualLineData}
                         areaChart
-                        curved
                         height={140}
                         spacing={44}
                         initialSpacing={10}
-                        color="#2563EB"
+                        maxValue={100}
+                        color1="#2563EB"
+                        color2="#16A34A"
                         thickness={2.5}
-                        startFillColor="#2563EB"
-                        startOpacity={0.25}
-                        endFillColor="#2563EB"
+                        startFillColor1="#2563EB"
+                        startFillColor2="#16A34A"
+                        startOpacity={0.2}
+                        endFillColor1="#2563EB"
+                        endFillColor2="#16A34A"
                         endOpacity={0.02}
                         hideRules
                         hideDataPoints
@@ -300,7 +333,7 @@ export default function DashboardScreen() {
                 )}
 
                 {/* Project Health */}
-                {healthDonutData.length > 0 && (
+                {projectHealth.length > 0 && (
                   <>
                     <SectionLabel title="Project Health" />
                     <View style={[s.card, s.chartRow]}>
@@ -311,8 +344,8 @@ export default function DashboardScreen() {
                         innerRadius={44}
                         centerLabelComponent={() => (
                           <View style={{ alignItems: 'center' }}>
-                            <Text style={s.donutNum}>{healthDonutData.length}</Text>
-                            <Text style={s.donutLbl}>states</Text>
+                            <Text style={s.donutNum}>{healthTotal}</Text>
+                            <Text style={s.donutLbl}>projects</Text>
                           </View>
                         )}
                         isAnimated
@@ -327,22 +360,79 @@ export default function DashboardScreen() {
                   </>
                 )}
 
-                {/* Top Projects */}
+                {/* CRM Lead Pipeline (same as web) */}
+                {pipelineBars.length > 0 && (
+                  <>
+                    <SectionLabel title="CRM Lead Pipeline" />
+                    <View style={s.card}>
+                      <BarChart
+                        data={pipelineBars}
+                        barWidth={24}
+                        spacing={18}
+                        roundedTop
+                        hideRules
+                        xAxisThickness={1}
+                        xAxisColor="#E2E8F0"
+                        yAxisThickness={0}
+                        yAxisTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        xAxisLabelTextStyle={{ fontSize: 9, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        noOfSections={4}
+                        maxValue={barMax(pipelineBars)}
+                        isAnimated
+                        animationDuration={500}
+                        backgroundColor="transparent"
+                      />
+                    </View>
+                  </>
+                )}
+
+                {/* Procurement (same as web) */}
+                {procurementBars.length > 0 && (
+                  <>
+                    <SectionLabel title="Procurement" />
+                    <View style={s.card}>
+                      <BarChart
+                        data={procurementBars}
+                        barWidth={26}
+                        spacing={20}
+                        roundedTop
+                        hideRules
+                        xAxisThickness={1}
+                        xAxisColor="#E2E8F0"
+                        yAxisThickness={0}
+                        yAxisTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        xAxisLabelTextStyle={{ fontSize: 9, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        noOfSections={4}
+                        maxValue={barMax(procurementBars)}
+                        isAnimated
+                        animationDuration={500}
+                        backgroundColor="transparent"
+                      />
+                    </View>
+                  </>
+                )}
+
+                {/* Top Projects — with the completion bar, like the web */}
                 <SectionLabel title="Top Projects" />
                 {topProjects.length > 0 ? (
                   <View style={s.listCard}>
                     {topProjects.map((p, i) => (
-                      <AlertRow
-                        key={p.id || i}
-                        last={i === topProjects.length - 1}
-                        icon="folder-outline"
-                        iconColor="#2563EB"
-                        iconBg="#EFF6FF"
-                        title={p.name}
-                        subtitle={`${p.progress || 0}% complete`}
-                        badge={p.health === 'green' ? 'On Track' : p.health === 'yellow' ? 'At Risk' : 'Delayed'}
-                        badgeColor={p.health === 'green' ? '#16A34A' : p.health === 'yellow' ? '#D97706' : '#DC2626'}
-                      />
+                      <View key={p.id || i} style={[s.topProjectRow, i === topProjects.length - 1 && { borderBottomWidth: 0 }]}>
+                        <View style={s.topProjectHead}>
+                          <Text style={[s.alertTitle, { flex: 1 }]} numberOfLines={1}>{p.name}</Text>
+                          <View style={[s.alertBadge, { backgroundColor: healthBarColor(p.health) + '18' }]}>
+                            <Text style={[s.alertBadgeText, { color: healthBarColor(p.health) }]}>
+                              {p.health === 'green' ? 'On Track' : p.health === 'yellow' ? 'At Risk' : 'Delayed'}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={s.topProjectBarRow}>
+                          <View style={s.topProjectTrack}>
+                            <View style={[s.topProjectFill, { width: `${Math.max(0, Math.min(100, p.progress || 0))}%`, backgroundColor: healthBarColor(p.health) }]} />
+                          </View>
+                          <Text style={s.topProjectPct}>{p.progress || 0}%</Text>
+                        </View>
+                      </View>
                     ))}
                   </View>
                 ) : (
@@ -375,32 +465,6 @@ export default function DashboardScreen() {
               </>
             )}
 
-            {/* Workspace Modules */}
-            <SectionLabel title="Workspace Modules" />
-            <View style={s.listCard}>
-              {[
-                { label: 'Interior Projects', desc: 'Active fit-outs & timelines', icon: 'grid-outline', color: '#0284C7', bg: '#F0F9FF', route: '/(tabs)/i-project' },
-                { label: 'Client CRM', desc: 'Leads & consultation schedules', icon: 'people-outline', color: '#4F46E5', bg: '#EEF2FF', route: '/(tabs)/crm' },
-                { label: 'Audit Trail', desc: 'System governance & activity ledger', icon: 'shield-checkmark-outline', color: '#059669', bg: '#ECFDF5', route: '/(tabs)/i-audit' },
-                { label: 'User Management', desc: 'Studio team & roles', icon: 'person-add-outline', color: '#16A34A', bg: '#F0FDF4', route: '/user-management' },
-                { label: 'Workspace Settings', desc: 'Company preferences & currency', icon: 'settings-outline', color: '#64748B', bg: '#F8FAFC', route: '/(tabs)/i-setting' },
-              ].map((mod, i, arr) => (
-                <TouchableOpacity
-                  key={mod.label}
-                  style={[s.alertRow, i === arr.length - 1 && { borderBottomWidth: 0 }]}
-                  onPress={() => router.push(mod.route)}
-                >
-                  <View style={[s.alertIconBox, { backgroundColor: mod.bg }]}>
-                    <Ionicons name={mod.icon} size={16} color={mod.color} />
-                  </View>
-                  <View style={s.alertBody}>
-                    <Text style={s.alertTitle}>{mod.label}</Text>
-                    <Text style={s.alertSub}>{mod.desc}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
-                </TouchableOpacity>
-              ))}
-            </View>
 
             <View style={{ height: 100 }} />
           </ScrollView>
@@ -809,6 +873,12 @@ const s = StyleSheet.create({
 
   // Interior stat cards
   interiorStatsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  topProjectRow: { paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 8 },
+  topProjectHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  topProjectBarRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  topProjectTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: '#EEF2F6', overflow: 'hidden' },
+  topProjectFill: { height: '100%', borderRadius: 3 },
+  topProjectPct: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#475569', minWidth: 34, textAlign: 'right' },
   interiorStatCard: {
     width: '47%', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
     borderWidth: 1, borderColor: '#DBEAFE',
@@ -873,6 +943,9 @@ const s = StyleSheet.create({
   // Legend
   legendBlock: { flex: 1, gap: 10 },
   legendRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  trendLegend: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  trendLegendLine: { width: 16, height: 3, borderRadius: 2 },
+  trendLegendText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#475569' },
   legendDot:   { width: 8, height: 8, borderRadius: 4 },
   legendLabel: { flex: 1, fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#475569' },
   legendValue: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },

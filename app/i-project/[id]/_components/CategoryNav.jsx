@@ -7,10 +7,10 @@ import { useInteriorPermissions } from '../../../utils/interior/useInteriorPermi
 
 // Mirrors InteriorProjectBanner's category nav from sky-lite-web.
 export const CATEGORIES = [
-  { name: 'General', icon: '📋', items: ['Site Details', 'File Management', 'Project Quotation', 'Team & Members'] },
-  { name: 'Site Assets', icon: '📂', items: ['CAD Drawings', 'RFIs Tracker'] },
-  { name: 'Execution', icon: '📐', items: ['WBS Hierarchy', 'Milestones', 'Tasks (Kanban)', 'DPR Log', 'Weekly Reports', 'MOM', 'Timeline (Gantt)'] },
-  { name: 'Commercials', icon: '💰', items: ['BOQ Estimator', 'Variation Orders', 'Procurement', 'Vendors', 'Payments'] },
+  { name: 'General', icon: '📋', items: ['Site Details', 'File Management', 'Project Quotation', 'Confirm Order', 'Team & Members'] },
+  { name: 'Site Assets', icon: '📂', items: ['CAD Drawings', 'Site Photos', 'RFIs Tracker', 'Utility Checks'] },
+  { name: 'Execution', icon: '📐', items: ['WBS Hierarchy', 'Activity / Tasks', 'Milestones', 'DPR Log', 'Weekly Reports', 'MOM', 'Timeline (Gantt)'] },
+  { name: 'Commercials', icon: '💰', items: ['BOQ Estimator', 'Variation Orders', 'Procurement', 'Payments'] },
   { name: 'Quality & Safety', icon: '🔍', items: ['Snags Logger', 'Risks Matrix'] },
   { name: 'Handover', icon: '🔑', items: ['Project Handover'] },
 ];
@@ -21,12 +21,15 @@ const ITEM_ACCESS = {
   'Site Details': ['projects'],
   'File Management': ['filemgt'],
   'Project Quotation': ['org:crm_quotations'],
+  'Confirm Order': ['confirm_order'],
   'Team & Members': ['users'],
   'CAD Drawings': ['drawings'],
+  'Site Photos': ['photos'],
   'RFIs Tracker': ['rfis'],
+  'Utility Checks': ['utilities'],
   'WBS Hierarchy': ['wbs'],
   Milestones: ['milestones'],
-  'Tasks (Kanban)': ['tasks'],
+  'Activity / Tasks': ['tasks'],
   'DPR Log': ['dpr'],
   'Weekly Reports': ['weekly_reports'],
   MOM: ['mom'],
@@ -60,11 +63,13 @@ export default function CategoryNav({ projectId, activeItem, comingSoon }) {
   const handleItemPress = (item) => {
     setOpenCategory(null);
     switch (item) {
-      case 'Tasks (Kanban)': return go('tasks');
+      case 'Activity / Tasks': return go('tasks');
       case 'Milestones': return go('milestones');
       case 'Snags Logger': return go('snags');
       case 'Risks Matrix': return go('risks');
       case 'RFIs Tracker': return go('rfis');
+      case 'Site Photos': return go('photos');
+      case 'Utility Checks': return go('utilities');
       case 'Team & Members': return go('members');
       case 'WBS Hierarchy': return go('wbs');
       case 'Procurement': return go('procurement');
@@ -79,6 +84,7 @@ export default function CategoryNav({ projectId, activeItem, comingSoon }) {
       case 'BOQ Estimator': return go('boq');
       case 'Payments': return go('payments');
       case 'Project Quotation': return go('quotation');
+      case 'Confirm Order': return go('confirm-order');
       case 'Site Details': return go('site-details');
       case 'File Management': return go('filemgt');
       default: return comingSoon ? comingSoon(item) : undefined;

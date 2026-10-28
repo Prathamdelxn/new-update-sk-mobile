@@ -34,6 +34,7 @@ export default function LogRequirementsModal({
   customerId,
   initialBudgetRange,
   initialRequirements = [],
+  clientRequirements = [],
   onSuccess,
   isReadOnly = false,
 }) {
@@ -199,6 +200,52 @@ export default function LogRequirementsModal({
           </View>
 
           <ScrollView style={s.modalBody} contentContainerStyle={{ padding: 16 }}>
+            {/* Pre-fill from the client's intake-link submission (same as web) */}
+            {!isReadOnly && Array.isArray(clientRequirements) && clientRequirements.length > 0 && (
+              <View style={s.prefillBox}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="sparkles-outline" size={16} color="#7C3AED" />
+                  <Text style={s.prefillTitle}>Client submitted {clientRequirements.length} space(s) through the online intake link</Text>
+                </View>
+                <Text style={s.prefillSub}>Load the client's requested rooms and aesthetic wishes into your technical specifications.</Text>
+                <TouchableOpacity
+                  style={s.prefillBtn}
+                  onPress={() => {
+                    const rooms = clientRequirements.map((cr) => ({
+                      ...createEmptyRoom(),
+                      roomName: cr.roomName || cr.name || cr.room || 'Space',
+                      interiorType: cr.interiorType || 'Residential',
+                      designStyle: cr.designStyle || '',
+                      theme: cr.designStyle || '',
+                      furnitureRequirements: cr.furnitureRequirements || '',
+                      storage: cr.storage || '',
+                      lightingRequirements: cr.lightingRequirements || '',
+                      colours: cr.colours || '',
+                      materials: cr.materials || '',
+                      description: cr.description ? `[Client Wishlist]: ${cr.description}` : '',
+                    }));
+                    const apply = () => {
+                      setRequirements(rooms);
+                      const tabs = {};
+                      rooms.forEach((_, i) => { tabs[i] = 'functional'; });
+                      setActiveSubTabs(tabs);
+                    };
+                    const hasTyped = requirements.some((r) => r.roomName || r.roomUsage || r.description);
+                    if (hasTyped) {
+                      Alert.alert('Replace current rooms?', 'This replaces the rooms in this form with the client\'s wishlist.', [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Pre-fill', onPress: apply },
+                      ]);
+                    } else {
+                      apply();
+                    }
+                  }}
+                >
+                  <Ionicons name="copy-outline" size={13} color="#FFFFFF" />
+                  <Text style={s.prefillBtnText}>Pre-fill from Client Wishlist</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <View style={s.overallBox}>
               <Text style={s.label}>Overall Budget Range (₹)</Text>
               <TextInput
@@ -472,6 +519,11 @@ export default function LogRequirementsModal({
 }
 
 const s = StyleSheet.create({
+  prefillBox: { backgroundColor: '#FAF5FF', borderWidth: 1, borderColor: '#DDD6FE', borderRadius: 14, padding: 12, marginBottom: 14, gap: 6 },
+  prefillTitle: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  prefillSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B' },
+  prefillBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: '#7C3AED', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, marginTop: 2 },
+  prefillBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#F8FAFC', borderTopLeftRadius: 20, borderTopRightRadius: 20, height: '90%' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },

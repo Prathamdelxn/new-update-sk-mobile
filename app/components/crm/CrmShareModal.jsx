@@ -42,9 +42,13 @@ function countApprovedDrawings(designFiles = []) {
   }).length;
 }
 
-export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuccess }) {
+// mode: 'drawings' (view-only approved drawings) | 'requirements' (client intake form,
+// same as the web "Client Requirements Link"; uses the lead's same share token)
+export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuccess, mode = 'drawings' }) {
+  const isReq = mode === 'requirements';
+  const defaultExpiry = isReq ? 'never' : '1';
   const [allowDownload, setAllowDownload] = useState(false);
-  const [expiryOption, setExpiryOption] = useState('1');
+  const [expiryOption, setExpiryOption] = useState(defaultExpiry);
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [revoking, setRevoking] = useState(false);
@@ -52,7 +56,7 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
 
   const shareSettings = lead?.shareSettings;
   const isPublic = !!shareSettings?.isPublic && !!shareSettings?.shareToken;
-  const shareUrl = shareSettings?.shareToken ? `${WEB_APP_URL}/share/drawing/${shareSettings.shareToken}` : '';
+  const shareUrl = shareSettings?.shareToken ? `${WEB_APP_URL}/share/${isReq ? 'requirements' : 'drawing'}/${shareSettings.shareToken}` : '';
   const approvedCount = useMemo(() => countApprovedDrawings(lead?.designFiles), [lead?.designFiles]);
 
   const hoursValue = (opt) => {
@@ -66,7 +70,8 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
       await interiorCrmService.generateShareLink(customerId, {
         expiresHours: hoursValue(nextExpiryOption),
         allowDownload: nextAllowDownload,
-        includeRequirements: false,
+        includeRequirements: isReq,
+        mode,
         regenerate,
       });
       onSuccess();
@@ -89,9 +94,10 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
       // Matches web: opening the modal silently provisions a safe, short-lived
       // (1hr, no-download) link so a ready-to-copy URL is available immediately.
       setAllowDownload(false);
-      setExpiryOption('1');
+      setExpiryOption(defaultExpiry);
       setAutoProvisioned(true);
-      persistSettings({ nextAllowDownload: false, nextExpiryOption: '1' });
+      // Drawings link needs an approved drawing (server rule); the intake link doesn't
+      if (isReq || approvedCount > 0) persistSettings({ nextAllowDownload: false, nextExpiryOption: defaultExpiry });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, isPublic, shareSettings?.allowDownload, shareSettings?.expiresAt]);
@@ -139,7 +145,8 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
               await interiorCrmService.generateShareLink(customerId, {
                 expiresHours: hoursValue(expiryOption),
                 allowDownload,
-                includeRequirements: false,
+                includeRequirements: isReq,
+                mode,
                 regenerate: true,
               });
               onSuccess();
@@ -163,7 +170,9 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
   const handleSendWhatsApp = () => {
     if (!shareUrl) return;
     const digits = (lead?.mobileNumber || '').replace(/\D/g, '');
-    const message = `Hello ${lead?.name || ''},\n\nHere is your interior design & drawings link for review:\n${shareUrl}\n\nPlease click to view your 2D plans and 3D renders.`;
+    const message = isReq
+      ? `Hello ${lead?.name || 'Client'},\n\nPlease fill out your interior design requirements & room wishlist using this link:\n${shareUrl}\n\nOur design team will review your preferences and specifications right away!`
+      : `Hello ${lead?.name || ''},\n\nHere is your interior design & drawings link for review:\n${shareUrl}\n\nPlease click to view your 2D plans and 3D renders.`;
     const url = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
     Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open WhatsApp.'));
   };
@@ -181,8 +190,12 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
         <View style={s.card}>
           <View style={s.header}>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>Client Share Portal</Text>
-              <Text style={s.subtitle}>A view-only link showing this lead's approved drawings.</Text>
+              <Text style={s.title}>{isReq ? 'Client Requirements Link' : 'Client Share Portal'}</Text>
+              <Text style={s.subtitle}>
+                {isReq
+                  ? 'The client fills in their room wishlist, style and budget — no login needed.'
+                  : "A view-only link showing this lead's approved drawings."}
+              </Text>
             </View>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={22} color="#64748B" />
@@ -190,17 +203,28 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            <View style={[s.countBanner, approvedCount === 0 && s.countBannerWarn]}>
-              <Ionicons name={approvedCount > 0 ? 'checkmark-circle' : 'alert-circle'} size={16} color={approvedCount > 0 ? '#16A34A' : '#D97706'} />
-              <Text style={[s.countBannerText, { color: approvedCount > 0 ? '#166534' : '#92400E' }]}>
-                {approvedCount > 0 ? `${approvedCount} Approved Drawing${approvedCount === 1 ? '' : 's'} visible on this link` : 'No Approved Drawings Yet — the client will see an empty portal'}
-              </Text>
-            </View>
+            {isReq ? (
+              <View style={s.countBanner}>
+                <Ionicons name={lead?.clientRequirementsSubmittedAt ? 'checkmark-circle' : 'time-outline'} size={16} color={lead?.clientRequirementsSubmittedAt ? '#16A34A' : '#0D9488'} />
+                <Text style={[s.countBannerText, { color: '#166534' }]}>
+                  {lead?.clientRequirementsSubmittedAt
+                    ? `Client submitted on ${new Date(lead.clientRequirementsSubmittedAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} — they can reopen the link to refine it.`
+                    : 'Awaiting the client — share the link so they can self-fill their requirements.'}
+                </Text>
+              </View>
+            ) : (
+              <View style={[s.countBanner, approvedCount === 0 && s.countBannerWarn]}>
+                <Ionicons name={approvedCount > 0 ? 'checkmark-circle' : 'alert-circle'} size={16} color={approvedCount > 0 ? '#16A34A' : '#D97706'} />
+                <Text style={[s.countBannerText, { color: approvedCount > 0 ? '#166534' : '#92400E' }]}>
+                  {approvedCount > 0 ? `${approvedCount} Approved Drawing${approvedCount === 1 ? '' : 's'} visible on this link` : 'No approved drawings yet — approve at least one drawing before sharing.'}
+                </Text>
+              </View>
+            )}
 
             <View style={s.row}>
               <View style={{ flex: 1 }}>
                 <Text style={s.rowLabel}>Public Link {isPublic ? 'Active' : 'Inactive'}</Text>
-                <Text style={s.rowSub}>{isPublic ? expiryDisplay() : 'Client can view approved drawings without logging in.'}</Text>
+                <Text style={s.rowSub}>{isPublic ? expiryDisplay() : isReq ? 'Client can submit requirements without logging in.' : 'Client can view approved drawings without logging in.'}</Text>
               </View>
               {(loading && !autoProvisioned) || revoking ? <ActivityIndicator size="small" color="#0284C7" /> : (
                 <Switch value={isPublic} onValueChange={handleToggleActive} trackColor={{ true: '#0284C7' }} />
@@ -223,13 +247,15 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
                   </TouchableOpacity>
                 </View>
 
-                <View style={s.row}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.rowLabel}>Allow Drawing Downloads</Text>
-                    <Text style={s.rowSub}>Off by default — client can only view, not save files.</Text>
+                {!isReq && (
+                  <View style={s.row}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.rowLabel}>Allow Drawing Downloads</Text>
+                      <Text style={s.rowSub}>Off by default — client can only view, not save files.</Text>
+                    </View>
+                    <Switch value={allowDownload} onValueChange={handleToggleDownload} trackColor={{ true: '#0284C7' }} disabled={loading} />
                   </View>
-                  <Switch value={allowDownload} onValueChange={handleToggleDownload} trackColor={{ true: '#0284C7' }} disabled={loading} />
-                </View>
+                )}
 
                 <Text style={[s.rowLabel, { marginTop: 12, marginBottom: 8 }]}>Link Expiration</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>

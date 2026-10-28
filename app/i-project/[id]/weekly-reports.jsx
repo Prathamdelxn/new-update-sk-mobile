@@ -50,41 +50,25 @@ function ListSection({ meta, items, emptyText }) {
   );
 }
 
-function EditableList({ meta, items, setItems, draft, setDraft, placeholder }) {
-  const addItem = () => {
-    if (!draft.trim()) return;
-    setItems((prev) => [...prev, draft.trim()]);
-    setDraft('');
-  };
-  const removeItem = (idx) => setItems((prev) => prev.filter((_, i) => i !== idx));
-
+function ReportStats({ report }) {
   return (
-    <View style={{ marginBottom: 14 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-        <Ionicons name={meta.icon} size={13} color={meta.color} />
-        <Text style={[s.sectionTitle, { color: meta.color }]}>{meta.title} ({items.length})</Text>
+    <View style={s.statRow}>
+      <View style={[s.statTile, { backgroundColor: '#F0FDF4' }]}>
+        <Text style={[s.statNum, { color: '#059669' }]}>{report.completedActivities?.length || 0}</Text>
+        <Text style={s.statLbl}>Completed</Text>
       </View>
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-        <TextInput
-          style={[s.input, { flex: 1 }]}
-          placeholder={placeholder}
-          placeholderTextColor="#94A3B8"
-          value={draft}
-          onChangeText={setDraft}
-          onSubmitEditing={addItem}
-        />
-        <TouchableOpacity style={[s.addItemBtn, { backgroundColor: meta.color }]} onPress={addItem}>
-          <Ionicons name="add" size={16} color="#FFFFFF" />
-        </TouchableOpacity>
+      <View style={[s.statTile, { backgroundColor: '#FEF2F2' }]}>
+        <Text style={[s.statNum, { color: '#DC2626' }]}>{report.delayedActivities?.length || 0}</Text>
+        <Text style={s.statLbl}>Delays</Text>
       </View>
-      {items.map((item, idx) => (
-        <View key={idx} style={[s.editableRow, { backgroundColor: meta.bg }]}>
-          <Text style={[s.editableRowText, { color: meta.color }]} numberOfLines={2}>{item}</Text>
-          <TouchableOpacity onPress={() => removeItem(idx)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-            <Ionicons name="close" size={14} color={meta.color} />
-          </TouchableOpacity>
-        </View>
-      ))}
+      <View style={[s.statTile, { backgroundColor: '#FFFBEB' }]}>
+        <Text style={[s.statNum, { color: '#D97706' }]}>{report.risks?.length || 0}</Text>
+        <Text style={s.statLbl}>Risks</Text>
+      </View>
+      <View style={[s.statTile, { backgroundColor: '#EFF6FF' }]}>
+        <Text style={[s.statNum, { color: '#2563EB' }]}>{report.nextWeekPlan?.length || 0}</Text>
+        <Text style={s.statLbl}>Next Wk</Text>
+      </View>
     </View>
   );
 }
@@ -107,6 +91,8 @@ const { can: canDo } = useProjectPermissions(projectId);
   const [generating, setGenerating] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  // Reports can be long: the list shows a short card, the full report opens on tap
+  const [detailReport, setDetailReport] = useState(null);
 
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -114,10 +100,6 @@ const { can: canDo } = useProjectPermissions(projectId);
   const [delayedActivities, setDelayedActivities] = useState([]);
   const [reportRisks, setReportRisks] = useState([]);
   const [nextWeekPlan, setNextWeekPlan] = useState([]);
-  const [newCompleted, setNewCompleted] = useState('');
-  const [newDelayed, setNewDelayed] = useState('');
-  const [newRisk, setNewRisk] = useState('');
-  const [newPlan, setNewPlan] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -345,58 +327,37 @@ const { can: canDo } = useProjectPermissions(projectId);
                 <Text style={s.emptySub}>Auto-aggregate this week's tasks, delays, risks & next-week plan.</Text>
               </View>
             ) : (
-              reports.map((report) => (
-                <View key={report._id} style={s.reportCard}>
-                  <View style={s.reportHeader}>
-                    <Ionicons name="document-text-outline" size={15} color="#2563EB" />
-                    <Text style={s.reportHeaderText}>{fmt(report.weekStart)} – {fmtLong(report.weekEnd)}</Text>
-                  </View>
+              reports.map((report) => {
+                const preview = (report.completedActivities || []).slice(0, 2);
+                const more = (report.completedActivities?.length || 0) - preview.length;
+                return (
+                  <TouchableOpacity key={report._id} style={s.reportCard} activeOpacity={0.85} onPress={() => setDetailReport(report)}>
+                    <View style={[s.reportHeader, { justifyContent: 'space-between' }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                        <Ionicons name="document-text-outline" size={15} color="#2563EB" />
+                        <Text style={s.reportHeaderText} numberOfLines={1}>{fmt(report.weekStart)} – {fmtLong(report.weekEnd)}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                    </View>
 
-                  <View style={s.reportActionsRow}>
-                    {canDo('weekly_reports', 'export') && (
-                      <TouchableOpacity style={s.actionBtn} onPress={() => handlePrint(report)}>
-                        <Ionicons name="print-outline" size={14} color="#334155" />
-                        <Text style={s.actionBtnText}>Print</Text>
-                      </TouchableOpacity>
-                    )}
-                    {canDo('weekly_reports', 'export') && (
-                      <TouchableOpacity style={[s.actionBtn, s.actionBtnPrimary]} onPress={() => handleExportPdf(report)} disabled={downloadingId === report._id}>
-                        {downloadingId === report._id ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="download-outline" size={14} color="#FFFFFF" />}
-                        <Text style={[s.actionBtnText, { color: '#FFFFFF' }]}>Export PDF</Text>
-                      </TouchableOpacity>
-                    )}
-                    {canDo('weekly_reports', 'delete') && (
-                      <TouchableOpacity style={s.actionBtnDanger} onPress={() => handleDelete(report)} disabled={deletingId === report._id}>
-                        {deletingId === report._id ? <ActivityIndicator size="small" color="#DC2626" /> : <Ionicons name="trash-outline" size={14} color="#DC2626" />}
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                    <ReportStats report={report} />
 
-                  <View style={s.statRow}>
-                    <View style={[s.statTile, { backgroundColor: '#F0FDF4' }]}>
-                      <Text style={[s.statNum, { color: '#059669' }]}>{report.completedActivities?.length || 0}</Text>
-                      <Text style={s.statLbl}>Completed</Text>
-                    </View>
-                    <View style={[s.statTile, { backgroundColor: '#FEF2F2' }]}>
-                      <Text style={[s.statNum, { color: '#DC2626' }]}>{report.delayedActivities?.length || 0}</Text>
-                      <Text style={s.statLbl}>Delays</Text>
-                    </View>
-                    <View style={[s.statTile, { backgroundColor: '#FFFBEB' }]}>
-                      <Text style={[s.statNum, { color: '#D97706' }]}>{report.risks?.length || 0}</Text>
-                      <Text style={s.statLbl}>Risks</Text>
-                    </View>
-                    <View style={[s.statTile, { backgroundColor: '#EFF6FF' }]}>
-                      <Text style={[s.statNum, { color: '#2563EB' }]}>{report.nextWeekPlan?.length || 0}</Text>
-                      <Text style={s.statLbl}>Next Wk</Text>
-                    </View>
-                  </View>
+                    {preview.length > 0 && (
+                      <View style={{ gap: 3 }}>
+                        {preview.map((item, i) => (
+                          <View key={i} style={s.bulletRow}>
+                            <Text style={[s.bulletDot, { color: '#16A34A' }]}>✓</Text>
+                            <Text style={s.bulletText} numberOfLines={1}>{item}</Text>
+                          </View>
+                        ))}
+                        {more > 0 && <Text style={s.emptyLine}>+{more} more completed</Text>}
+                      </View>
+                    )}
 
-                  <ListSection meta={LIST_META.completed} items={report.completedActivities} emptyText="No activities completed this period." />
-                  <ListSection meta={LIST_META.delayed} items={report.delayedActivities} emptyText="Zero delays logged. On track!" />
-                  <ListSection meta={LIST_META.risks} items={report.risks} emptyText="No critical risks flagged." />
-                  <ListSection meta={LIST_META.plan} items={report.nextWeekPlan} emptyText="No plan defined." />
-                </View>
-              ))
+                    <Text style={s.viewFullText}>View Full Report ›</Text>
+                  </TouchableOpacity>
+                );
+              })
             )}
             <View style={{ height: 100 }} />
           </ScrollView>
@@ -408,6 +369,63 @@ const { can: canDo } = useProjectPermissions(projectId);
           </TouchableOpacity>
         )}
       </SafeAreaView>
+
+      {/* Full weekly report */}
+      <Modal visible={!!detailReport} animationType="slide" onRequestClose={() => setDetailReport(null)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFF' }}>
+          {detailReport && (
+            <>
+              <View style={s.detailHeader}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.detailTitle}>Weekly Progress Report</Text>
+                  <Text style={s.detailSub}>{fmt(detailReport.weekStart)} – {fmtLong(detailReport.weekEnd)}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setDetailReport(null)} style={s.detailClose}>
+                  <Ionicons name="close" size={20} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} showsVerticalScrollIndicator={false}>
+                <ReportStats report={detailReport} />
+                <View style={s.reportCard}>
+                  <ListSection meta={LIST_META.completed} items={detailReport.completedActivities} emptyText="No activities completed this period." />
+                  <ListSection meta={LIST_META.delayed} items={detailReport.delayedActivities} emptyText="Zero delays logged. On track!" />
+                  <ListSection meta={LIST_META.risks} items={detailReport.risks} emptyText="No critical risks flagged." />
+                  <ListSection meta={LIST_META.plan} items={detailReport.nextWeekPlan} emptyText="No plan defined." />
+                </View>
+              </ScrollView>
+              {(canDo('weekly_reports', 'export') || canDo('weekly_reports', 'delete')) && (
+                <View style={s.detailFooter}>
+                  {canDo('weekly_reports', 'export') && (
+                    <TouchableOpacity style={[s.actionBtn, { flex: 1, justifyContent: 'center' }]} onPress={() => handlePrint(detailReport)}>
+                      <Ionicons name="print-outline" size={14} color="#334155" />
+                      <Text style={s.actionBtnText}>Print</Text>
+                    </TouchableOpacity>
+                  )}
+                  {canDo('weekly_reports', 'export') && (
+                    <TouchableOpacity
+                      style={[s.actionBtn, s.actionBtnPrimary, { flex: 1, justifyContent: 'center' }]}
+                      onPress={() => handleExportPdf(detailReport)}
+                      disabled={downloadingId === detailReport._id}
+                    >
+                      {downloadingId === detailReport._id ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="download-outline" size={14} color="#FFFFFF" />}
+                      <Text style={[s.actionBtnText, { color: '#FFFFFF' }]}>Export PDF</Text>
+                    </TouchableOpacity>
+                  )}
+                  {canDo('weekly_reports', 'delete') && (
+                    <TouchableOpacity
+                      style={s.actionBtnDanger}
+                      onPress={() => { const r = detailReport; setDetailReport(null); handleDelete(r); }}
+                      disabled={deletingId === detailReport._id}
+                    >
+                      <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </>
+          )}
+        </SafeAreaView>
+      </Modal>
 
       <Modal visible={isModalOpen} animationType="slide" transparent onRequestClose={() => setIsModalOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
@@ -448,10 +466,29 @@ const { can: canDo } = useProjectPermissions(projectId);
                 <Text style={s.rescanBtnText}>Re-scan Live Project</Text>
               </TouchableOpacity>
 
-              <EditableList meta={LIST_META.completed} items={completedActivities} setItems={setCompletedActivities} draft={newCompleted} setDraft={setNewCompleted} placeholder="Add completed task or milestone..." />
-              <EditableList meta={LIST_META.delayed} items={delayedActivities} setItems={setDelayedActivities} draft={newDelayed} setDraft={setNewDelayed} placeholder="Add milestone delay or blocker..." />
-              <EditableList meta={LIST_META.risks} items={reportRisks} setItems={setReportRisks} draft={newRisk} setDraft={setNewRisk} placeholder="Add site risk or quality note..." />
-              <EditableList meta={LIST_META.plan} items={nextWeekPlan} setItems={setNextWeekPlan} draft={newPlan} setDraft={setNewPlan} placeholder="Add next week's target scope..." />
+              {/* Live Auto-Generation Scope — read-only, same as the web (no manual add) */}
+              <View style={s.scopeBox}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="sparkles-outline" size={14} color="#2563EB" />
+                  <Text style={s.scopeTitle}>LIVE AUTO-GENERATION SCOPE</Text>
+                </View>
+                <Text style={s.scopeSub}>
+                  The system compiles the report directly from your live project WBS, completed tasks, overdue items, active risks and upcoming work.
+                </Text>
+                <View style={s.scopeGrid}>
+                  {[
+                    { label: 'Completed', value: `${completedActivities.length} tasks`, bg: '#ECFDF5', border: '#D1FAE5', color: '#047857' },
+                    { label: 'Delays', value: `${delayedActivities.length} overdue`, bg: '#FFF1F2', border: '#FFE4E6', color: '#BE123C' },
+                    { label: 'Risks', value: `${reportRisks.length} flagged`, bg: '#FFFBEB', border: '#FEF3C7', color: '#B45309' },
+                    { label: 'Next Plan', value: `${nextWeekPlan.length} targets`, bg: '#EFF6FF', border: '#DBEAFE', color: '#1D4ED8' },
+                  ].map((c) => (
+                    <View key={c.label} style={[s.scopeCard, { backgroundColor: c.bg, borderColor: c.border }]}>
+                      <Text style={[s.scopeCardLabel, { color: c.color }]}>{c.label.toUpperCase()}</Text>
+                      <Text style={s.scopeCardValue}>{c.value}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
 
               <TouchableOpacity style={[s.saveBtn, generating && { opacity: 0.7 }]} onPress={handleGenerate} disabled={generating}>
                 {generating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Save & Compile Report</Text>}
@@ -465,6 +502,19 @@ const { can: canDo } = useProjectPermissions(projectId);
 }
 
 const s = StyleSheet.create({
+  viewFullText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB', textAlign: 'right' },
+  detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  detailTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  detailSub: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
+  detailClose: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  detailFooter: { flexDirection: 'row', gap: 8, alignItems: 'center', padding: 12, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E2E8F0' },
+  scopeBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, padding: 12, gap: 8, marginBottom: 14 },
+  scopeTitle: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#0F172A', letterSpacing: 0.5 },
+  scopeSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 17 },
+  scopeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  scopeCard: { flexBasis: '47%', flexGrow: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 8, alignItems: 'center' },
+  scopeCardLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', letterSpacing: 0.4 },
+  scopeCardValue: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },

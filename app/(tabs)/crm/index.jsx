@@ -17,6 +17,7 @@ import CrmFlowTabs, { useVisibleFlowStages } from '../../components/crm/CrmFlowT
 import StageLeadPicker from '../../components/crm/StageLeadPicker';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 import { STATUS_STAGE_INDEX } from '../../utils/interior/crmStages';
+import SelectField from '../../components/common/SelectField';
 import { queryKeys, invalidateCrmQueries, useRefreshOnFocus } from '../../context/QueryProvider';
 import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../../utils/crmValidation';
 
@@ -703,26 +704,12 @@ export default function CRMScreen() {
                   <View style={s.leadLabelRow}>
                     <Text style={s.leadLabel}>Property Type <Text style={s.requiredStar}>*</Text></Text>
                   </View>
-                  <View style={s.propertyChipsRow}>
-                    {PROPERTY_TYPES.map((opt) => {
-                      const active = form.propertyType === opt;
-                      return (
-                        <TouchableOpacity
-                          key={opt}
-                          style={[s.propertyChip, active && s.propertyChipActive]}
-                          onPress={() => handleLeadFieldChange('propertyType', opt)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons
-                            name={PROPERTY_ICONS[opt] || 'home-outline'}
-                            size={14}
-                            color={active ? '#2563EB' : '#64748B'}
-                          />
-                          <Text style={[s.propertyChipText, active && s.propertyChipTextActive]}>{opt}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <SelectField
+                    value={form.propertyType}
+                    onChange={(v) => handleLeadFieldChange('propertyType', v)}
+                    options={PROPERTY_TYPES}
+                    placeholder="Select property type"
+                  />
                   {!!formErrors.propertyType && (
                     <View style={s.leadErrorRow}>
                       <Ionicons name="alert-circle" size={12} color="#DC2626" />

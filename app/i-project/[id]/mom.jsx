@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -76,6 +76,8 @@ const { can: canDo } = useProjectPermissions(projectId);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  // Set when the form is editing an existing meeting (PUT) instead of logging a new one
+  const [editingId, setEditingId] = useState(null);
 
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
@@ -105,6 +107,42 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const resetForm = () => {
     setTitle(''); setDate(''); setAttendees(''); setAgenda(''); setNotes(''); setActionItems([{ ...emptyAction }]);
+    setEditingId(null);
+  };
+
+  const openCreate = () => {
+    resetForm();
+    setIsModalOpen(true);
+  };
+
+  const openEdit = (mom) => {
+    setEditingId(mom._id);
+    setTitle(mom.title || '');
+    setDate(mom.date ? new Date(mom.date).toISOString().split('T')[0] : '');
+    setAttendees((mom.attendees || []).join(', '));
+    setAgenda(mom.agenda || '');
+    setNotes(mom.notes || '');
+    setActionItems(mom.actionItems?.length ? mom.actionItems.map((a) => ({ ...a })) : [{ ...emptyAction }]);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = (mom) => {
+    Alert.alert('Delete meeting', `Delete "${mom.title}"? This can't be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await interiorApiClient.delete(`/projects/${projectId}/mom?momId=${mom._id}`);
+            showToast('Meeting minutes deleted', 'success');
+            fetchMoms();
+          } catch (e) {
+            showToast(e.message || 'Failed to delete meeting minutes', 'error');
+          }
+        },
+      },
+    ]);
   };
 
   const handleSubmit = async () => {
@@ -114,20 +152,27 @@ const { can: canDo } = useProjectPermissions(projectId);
     }
     setCreating(true);
     try {
-      await interiorApiClient.post(`/projects/${projectId}/mom`, {
+      const payload = {
         title,
         date: date || undefined,
         attendees: attendees.split(',').map((s) => s.trim()).filter(Boolean),
         agenda,
         notes,
-        actionItems,
-      });
-      showToast('Meeting Minutes logged successfully!', 'success');
+        // Blank rows are left out (an action item needs a description)
+        actionItems: actionItems.filter((a) => a.description?.trim()),
+      };
+      if (editingId) {
+        await interiorApiClient.put(`/projects/${projectId}/mom`, { momId: editingId, ...payload });
+        showToast('Meeting minutes updated', 'success');
+      } else {
+        await interiorApiClient.post(`/projects/${projectId}/mom`, payload);
+        showToast('Meeting Minutes logged successfully!', 'success');
+      }
       setIsModalOpen(false);
       resetForm();
       fetchMoms();
     } catch (e) {
-      showToast(e.message || 'Failed to log meeting minutes', 'error');
+      showToast(e.message || (editingId ? 'Failed to update meeting minutes' : 'Failed to log meeting minutes'), 'error');
     } finally {
       setCreating(false);
     }
@@ -167,6 +212,16 @@ const { can: canDo } = useProjectPermissions(projectId);
                       <Text style={s.momTitle}>{mom.title}</Text>
                       <Text style={s.momDate}>Held: {fmt(mom.date)}</Text>
                     </View>
+                    {canDo('mom', 'update') && (
+                      <TouchableOpacity style={s.cardIconBtn} onPress={() => openEdit(mom)} hitSlop={6}>
+                        <Ionicons name="create-outline" size={16} color="#2563EB" />
+                      </TouchableOpacity>
+                    )}
+                    {canDo('mom', 'delete') && (
+                      <TouchableOpacity style={[s.cardIconBtn, { backgroundColor: '#FFF1F2' }]} onPress={() => handleDelete(mom)} hitSlop={6}>
+                        <Ionicons name="trash-outline" size={15} color="#E11D48" />
+                      </TouchableOpacity>
+                    )}
                   </View>
                   {mom.attendees?.length > 0 && (
                     <Text style={s.attendeesText}>Attendees: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{mom.attendees.join(', ')}</Text></Text>
@@ -197,7 +252,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         )}
 
         {canDo('mom', 'create') && (
-          <TouchableOpacity style={s.fab} onPress={() => setIsModalOpen(true)}>
+          <TouchableOpacity style={s.fab} onPress={openCreate}>
             <Ionicons name="add" size={26} color="#FFFFFF" />
           </TouchableOpacity>
         )}
@@ -207,7 +262,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Log Minutes of Meeting</Text>
+              <Text style={s.modalTitle}>{editingId ? 'Edit Minutes of Meeting' : 'Log Minutes of Meeting'}</Text>
               <TouchableOpacity onPress={() => setIsModalOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
@@ -245,7 +300,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               ))}
 
               <TouchableOpacity style={[s.saveBtn, creating && { opacity: 0.7 }]} onPress={handleSubmit} disabled={creating}>
-                {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Save MOM</Text>}
+                {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingId ? 'Save Changes' : 'Save MOM'}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -272,6 +327,7 @@ const s = StyleSheet.create({
   momCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9' },
   momHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderBottomColor: '#F8FAFC', paddingBottom: 10, marginBottom: 8 },
   momTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  cardIconBtn: { width: 32, height: 32, borderRadius: 9, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
   momDate: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
   attendeesText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginBottom: 6 },
 

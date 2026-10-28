@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import cloudinaryService from '../../services/cloudinaryService';
 import { interiorCrmService } from '../../services/interiorCrmService';
 
 function SectionHeader({ iconName, iconColor, title }) {
@@ -186,10 +187,25 @@ export default function LogSiteVisitModal({
 
     setIsSubmitting(true);
     try {
+      // Photos picked on this phone are local file paths (file://…) that no other
+      // device or the web can open — upload them first and save the links.
+      const uploadedPhotos = [];
+      for (let i = 0; i < photos.length; i++) {
+        const p = photos[i];
+        if (typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:'))) {
+          uploadedPhotos.push(p);
+          continue;
+        }
+        const url = await cloudinaryService.uploadFile(p, `site-photo-${Date.now()}-${i + 1}.jpg`, 'image/jpeg');
+        if (!url) throw new Error('A site photo could not be uploaded. Please try again.');
+        uploadedPhotos.push(url);
+      }
+      setPhotos(uploadedPhotos);
+
       const updatePayload = {
         status: 'Measurement Done',
         siteMeasurements: measurements,
-        sitePhotos: photos,
+        sitePhotos: uploadedPhotos,
       };
 
       await interiorCrmService.updateCustomer(customerId, updatePayload);
@@ -210,7 +226,7 @@ export default function LogSiteVisitModal({
       onClose();
     } catch (error) {
       console.error('Error saving site measurements:', error);
-      Alert.alert('Error', 'Failed to save site visit details. Please try again.');
+      Alert.alert('Error', error?.message || 'Failed to save site visit details. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

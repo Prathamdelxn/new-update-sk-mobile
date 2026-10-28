@@ -14,6 +14,8 @@ import HeaderNotification from '../../components/HeaderNotification';
 import { queryKeys, invalidateProjectQueries, useRefreshOnFocus } from '../../context/QueryProvider';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
+import { formatCompactCurrency } from '../../utils/common/format';
+import SelectField from '../../components/common/SelectField';
 
 const HEALTH_META = {
   'on-track': { label: 'On Track', color: '#16A34A', bg: '#F0FDF4' },
@@ -30,7 +32,8 @@ const STATUS_FILTERS = [
 ];
 
 // Must match the backend's createProjectSchema `type` enum exactly.
-const PROJECT_TYPES = ['Commercial Office', 'Residential', 'Tech Office', 'General'];
+// Same options as the web project form
+const PROJECT_TYPES = ['Commercial Office', 'Residential', 'Tech Office', 'Co-working Space', 'General'];
 
 const emptyForm = {
   name: '', client: '', type: 'General', startDate: null, endDate: null,
@@ -54,12 +57,10 @@ function getProjectBudget(project) {
   return isNaN(parsed) ? 0 : parsed;
 }
 
+// Same short form as the web (e.g. ₹10.85M)
 function formatBudget(amount) {
   const num = typeof amount === 'number' ? amount : Number(amount) || 0;
-  if (!num || num <= 0) return '₹ 0';
-  if (num >= 10000000) return `₹ ${(num / 10000000).toFixed(2)} Cr`;
-  if (num >= 100000) return `₹ ${(num / 100000).toFixed(2)} Lakh`;
-  return `₹ ${num.toLocaleString('en-IN')}`;
+  return formatCompactCurrency(num > 0 ? num : 0);
 }
 
 export default function InteriorProjectsScreen() {
@@ -451,14 +452,14 @@ const { hasPermission: canDo } = useInteriorPermissions();
                 <FormField label="Project Name *" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholder="e.g. DLF Cyber Park Tower C" />
                 <FormField label="Client Name *" value={form.client} onChangeText={(v) => setForm({ ...form, client: v })} placeholder="e.g. DLF Limited" />
 
-                <Text style={s.fieldLabel}>Project Type</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 14 }}>
-                  {PROJECT_TYPES.map((t) => (
-                    <TouchableOpacity key={t} style={[s.typeChip, form.type === t && s.typeChipActive]} onPress={() => setForm({ ...form, type: t })}>
-                      <Text style={[s.typeChipText, form.type === t && s.typeChipTextActive]}>{t}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <Text style={s.fieldLabel}>Project Category / Type</Text>
+                <SelectField
+                  value={form.type}
+                  onChange={(t) => setForm({ ...form, type: t })}
+                  options={PROJECT_TYPES}
+                  placeholder="Select project type"
+                  style={{ marginBottom: 14 }}
+                />
 
                 {!editingProjectId && templates.length > 0 && (
                   <>

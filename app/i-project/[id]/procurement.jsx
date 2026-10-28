@@ -14,6 +14,7 @@ import {
   Alert,
   Image,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import { WEB_APP_URL } from '../../config';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
@@ -453,7 +455,40 @@ const { can: canDo } = useProjectPermissions(projectId);
       };
 
       await interiorApiClient.put(`/projects/${projectId}/procurement/${po._id}`, updatedPoPayload);
-      showToast(`Supplier ${vendorName} awarded! PO Approved.`, 'success');
+
+      // Tell the supplier (same as the web): e-mail the award, or WhatsApp when there is no e-mail
+      const vendorInfo = vendors.find((v) => v.name === vendorName);
+      const targetEmail = quote?.email || quote?.vendorEmail || quote?.vendorContact || vendorInfo?.email;
+      const targetPhone = quote?.phoneNumber || quote?.phone || vendorInfo?.phoneNumber || vendorInfo?.phone;
+      const materialName = (po.materialName || '').replace(' ||CLOSED||', '').trim();
+      const poLink = `${WEB_APP_URL}/rfq/${po._id}`;
+      const emailLike = typeof targetEmail === 'string' && targetEmail.includes('@');
+      if (emailLike) {
+        try {
+          await interiorApiClient.post(`/projects/${projectId}/procurement/${po._id}/send-award-email`, {
+            email: targetEmail,
+            vendorName,
+            materialName,
+            poLink,
+          });
+          showToast(`Supplier ${vendorName} awarded, PO approved and e-mail sent!`, 'success');
+        } catch (mailErr) {
+          showToast('PO approved, but the award e-mail could not be sent.', 'error');
+        }
+      } else if (targetPhone) {
+        const msg = encodeURIComponent(`Hello ${vendorName},
+
+We are pleased to inform you that you have been awarded the Purchase Order for ${materialName}.
+
+Please review your PO details here:
+${poLink}
+
+Thank you.`);
+        Linking.openURL(`https://wa.me/${String(targetPhone).replace(/\D/g, '')}?text=${msg}`).catch(() => {});
+        showToast(`Supplier ${vendorName} awarded! PO approved — opened WhatsApp.`, 'success');
+      } else {
+        showToast(`Supplier ${vendorName} awarded! PO Approved.`, 'success');
+      }
       setSelectedPo(null);
       loadAll();
     } catch (e) {
@@ -757,7 +792,8 @@ const { can: canDo } = useProjectPermissions(projectId);
     setEditingMaterialId(item._id);
     setMatName(item.productName || item.name || '');
     setMatUnit(item.unit || 'Nos');
-    setMatStock('0');
+    // Shown read-only on edit: stock changes through deliveries (GRN) and installs
+    setMatStock(String(Math.max(0, (item.totalReceived || 0) - (item.installedQuantity || 0))));
     setIsCreateMaterialOpen(true);
   };
 
@@ -2045,18 +2081,20 @@ const { can: canDo } = useProjectPermissions(projectId);
                 onChangeText={setMatUnit}
               />
 
-              {!editingMaterialId && (
-                <>
-                  <Text style={s.label}>Initial Stock Quantity</Text>
-                  <TextInput
-                    style={s.input}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#94A3B8"
-                    value={matStock}
-                    onChangeText={setMatStock}
-                  />
-                </>
+              <Text style={s.label}>{editingMaterialId ? 'Initial Stock (Current Available)' : 'Initial Stock (Default: 0)'}</Text>
+              <TextInput
+                style={[s.input, editingMaterialId && { backgroundColor: '#F1F5F9', color: '#64748B' }]}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor="#94A3B8"
+                value={matStock}
+                onChangeText={setMatStock}
+                editable={!editingMaterialId}
+              />
+              {!!editingMaterialId && (
+                <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: -4, marginBottom: 8 }}>
+                  Stock is updated by deliveries (GRN) and installations, not by editing the material.
+                </Text>
               )}
 
               <TouchableOpacity

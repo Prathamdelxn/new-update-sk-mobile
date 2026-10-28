@@ -740,8 +740,25 @@ export default function InteriorSettingsScreen() {
                 </TouchableOpacity>
               )}
 
+              {navAccess.vendors && (
+                <TouchableOpacity
+                  style={[s.managementItem, { borderTopWidth: navAccess.usersRoles ? 1 : 0, borderTopColor: '#F1F5F9' }]}
+                  onPress={() => router.push('/interior-vendors')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[s.mgmtIconBox, { backgroundColor: '#ECFDF5' }]}>
+                    <Ionicons name="car-outline" size={19} color="#059669" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.mgmtItemTitle}>Vendor Management</Text>
+                    <Text style={s.mgmtItemSubtitle}>Suppliers, contractors & contact details</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
-                style={[s.managementItem, { borderTopWidth: navAccess.usersRoles ? 1 : 0, borderTopColor: '#F1F5F9' }]}
+                style={[s.managementItem, { borderTopWidth: navAccess.usersRoles || navAccess.vendors ? 1 : 0, borderTopColor: '#F1F5F9' }]}
                 onPress={() => setActiveModal('appInfo')}
                 activeOpacity={0.7}
               >

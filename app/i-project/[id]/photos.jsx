@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -55,6 +55,25 @@ const { can: canDo } = useProjectPermissions(projectId);
   }, [projectId]);
 
   useFocusEffect(useCallback(() => { fetchPhotos(); }, [fetchPhotos]));
+
+  const handleDeletePhoto = (photo) => {
+    Alert.alert('Delete photo', `Delete "${photo.caption || 'this photo'}"? This can't be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await interiorApiClient.delete(`/projects/${projectId}/photos?photoId=${photo._id}`);
+            showToast('Photo deleted', 'success');
+            fetchPhotos();
+          } catch (e) {
+            showToast(e.message || 'Failed to delete photo', 'error');
+          }
+        },
+      },
+    ]);
+  };
 
   const closeModal = () => {
     setIsModalOpen(false);
@@ -114,7 +133,8 @@ const { can: canDo } = useProjectPermissions(projectId);
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.catRow}>
+        {/* flexGrow 0: a horizontal ScrollView otherwise grows and stretches the chips into tall pills */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catBar} contentContainerStyle={s.catRow}>
           {CATEGORIES.map((cat) => (
             <TouchableOpacity key={cat} style={[s.catChip, activeCategory === cat && s.catChipActive]} onPress={() => setActiveCategory(cat)}>
               <Text style={[s.catChipText, activeCategory === cat && s.catChipTextActive]}>{cat}</Text>
@@ -142,6 +162,11 @@ const { can: canDo } = useProjectPermissions(projectId);
                       <View style={s.photoCatTag}>
                         <Text style={s.photoCatTagText}>{photo.category}</Text>
                       </View>
+                      {canDo('photos', 'delete') && (
+                        <TouchableOpacity style={s.photoDeleteBtn} onPress={() => handleDeletePhoto(photo)} hitSlop={6}>
+                          <Ionicons name="trash-outline" size={14} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                     <Text style={s.photoCaption} numberOfLines={1}>{photo.caption || 'No caption added'}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -213,23 +238,25 @@ const s = StyleSheet.create({
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { paddingHorizontal: 20, paddingTop: 14 },
+  scroll: { paddingHorizontal: 16, paddingTop: 14 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
   headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
 
-  catRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  catChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC' },
-  catChipActive: { backgroundColor: '#2563EB' },
-  catChipText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase' },
+  catBar: { flexGrow: 0, flexShrink: 0, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  catRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
+  catChip: { height: 32, paddingHorizontal: 14, borderRadius: 16, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
+  catChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
+  catChipText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.3 },
   catChipTextActive: { color: '#FFFFFF' },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
   emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  photoCard: { width: '47%', gap: 4 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 14 },
+  photoCard: { width: '48.5%', gap: 4 },
+  photoDeleteBtn: { position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(225,29,72,0.9)', justifyContent: 'center', alignItems: 'center' },
   photoImgWrap: { width: '100%', height: 130, borderRadius: 14, overflow: 'hidden', backgroundColor: '#F1F5F9' },
   photoImg: { width: '100%', height: '100%' },
   photoCatTag: { position: 'absolute', top: 6, left: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },

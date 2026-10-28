@@ -22,6 +22,8 @@ import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 import CategoryNav from './_components/CategoryNav';
+import { memberRoleLabel } from '../../utils/interior/memberRoleLabel';
+import SelectField from '../../components/common/SelectField';
 
 // =============================================================================
 // Constants & Configuration (Mirrors Web InteriorWbsView)
@@ -33,6 +35,8 @@ const PRIORITY_CONFIG = {
   high: { label: 'High', color: '#B45309', bg: '#FEF3C7', border: '#FDE68A' },
   critical: { label: 'Critical', color: '#BE123C', bg: '#FFE4E6', border: '#FECDD3' },
 };
+
+const PRIORITY_OPTIONS = Object.entries(PRIORITY_CONFIG).map(([value, c]) => ({ value, label: c.label }));
 
 const STATUS_CONFIG = {
   todo: { label: 'To Do', color: '#475569', bg: '#F1F5F9', border: '#E2E8F0' },
@@ -221,7 +225,7 @@ export default function InteriorWbsScreen() {
           ? `${m.userId.firstName} ${m.userId.lastName || ''}`.trim()
           : m.userId?.name || m.userId?.email || 'Member',
         email: m.userId?.email || '',
-        role: m.role || 'Member',
+        role: memberRoleLabel(m), // project role, same as web
       }));
       setMembers(formattedMembers);
     } catch (e) {
@@ -466,8 +470,8 @@ export default function InteriorWbsScreen() {
     setActivityDescription('');
     setActivityPriority('medium');
     setActivityStatus('todo');
-    setActivityStartDate(node.startDate ? new Date(node.startDate).toISOString().split('T')[0] : '');
-    setActivityEndDate(node.endDate ? new Date(node.endDate).toISOString().split('T')[0] : '');
+    setActivityStartDate('');
+    setActivityEndDate('');
     setActivityAssigneeId('');
     setActivityIsMilestone(false);
     setIsActivityModalOpen(true);
@@ -529,7 +533,6 @@ export default function InteriorWbsScreen() {
           endDate: activityEndDate || null,
           assignees: activityAssigneeId ? [activityAssigneeId] : [],
           isMilestone: activityIsMilestone,
-          progress: activityStatus === 'completed' ? 100 : 0,
         };
         await interiorApiClient.put(`/projects/${projectId}/tasks/${editingTaskId}`, payload);
         showToast('Activity updated successfully', 'success');
@@ -588,14 +591,15 @@ export default function InteriorWbsScreen() {
   const handleToggleTaskStatus = async (task) => {
     if (!canDo('tasks', 'update')) return;
     const isDone = task.status === 'completed';
-    const newStatus = isDone ? 'todo' : 'completed';
-    const newProgress = isDone ? 0 : 100;
+    const newStatus = isDone ? 'in_progress' : 'completed';
+    const newProgress = isDone ? 50 : 100;
     try {
       await interiorApiClient.put(`/projects/${projectId}/tasks/${task._id || task.id}`, {
         status: newStatus,
         progress: newProgress,
+        completedAt: newStatus === 'completed' ? new Date().toISOString() : null,
       });
-      showToast(newStatus === 'completed' ? 'Activity marked completed' : 'Activity marked pending', 'success');
+      showToast(newStatus === 'completed' ? 'Activity completed!' : 'Activity reopened', 'success');
       fetchData(true);
     } catch (e) {
       showToast(e.message || 'Failed to update activity status', 'error');
@@ -603,6 +607,12 @@ export default function InteriorWbsScreen() {
   };
 
   // Helper to format assignees
+  // Assignee dropdown options — "Name (Role)", same as the web
+  const memberOptions = useMemo(
+    () => [{ value: '', label: 'Unassigned' }, ...members.map((m) => ({ value: m.id, label: `${m.name} (${m.role})` }))],
+    [members]
+  );
+
   const getAssigneeName = (task) => {
     if (!task.assignees || !Array.isArray(task.assignees) || task.assignees.length === 0) {
       return null;
@@ -644,7 +654,7 @@ export default function InteriorWbsScreen() {
               </Text>
               <View style={s.statBadge}>
                 <Text style={s.statBadgeText}>
-                  {wbsData.length} WBS • {tasks.length} Tasks
+                  {wbsData.length} WBS Elements • {tasks.length} Activities
                 </Text>
               </View>
             </View>
@@ -1139,63 +1149,25 @@ export default function InteriorWbsScreen() {
                         onChangeText={setNewActivityName}
                       />
 
-                      {/* Priority selector chips */}
+                      {/* Priority dropdown (same as web) */}
                       <View>
                         <Text style={s.formSubLabel}>Priority</Text>
-                        <View style={{ flexDirection: 'row', gap: 6 }}>
-                          {['low', 'medium', 'high', 'critical'].map((pr) => (
-                            <TouchableOpacity
-                              key={pr}
-                              style={[
-                                s.chipBtn,
-                                newActivityPriority === pr && {
-                                  backgroundColor: PRIORITY_CONFIG[pr].bg,
-                                  borderColor: PRIORITY_CONFIG[pr].color,
-                                },
-                              ]}
-                              onPress={() => setNewActivityPriority(pr)}
-                            >
-                              <Text
-                                style={[
-                                  s.chipBtnText,
-                                  newActivityPriority === pr && { color: PRIORITY_CONFIG[pr].color, fontWeight: '700' },
-                                ]}
-                              >
-                                {PRIORITY_CONFIG[pr].label}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
+                        <SelectField
+                          value={newActivityPriority}
+                          onChange={setNewActivityPriority}
+                          options={PRIORITY_OPTIONS}
+                        />
                       </View>
 
-                      {/* Assignee Picker */}
+                      {/* Assign To dropdown (same as web) */}
                       {members.length > 0 && (
                         <View>
                           <Text style={s.formSubLabel}>Assign To</Text>
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-                            <TouchableOpacity
-                              style={[s.chipBtn, !newActivityAssignee && s.chipBtnActive]}
-                              onPress={() => setNewActivityAssignee('')}
-                            >
-                              <Text style={[s.chipBtnText, !newActivityAssignee && s.chipBtnTextActive]}>
-                                Unassigned
-                              </Text>
-                            </TouchableOpacity>
-                            {members.map((m) => (
-                              <TouchableOpacity
-                                key={m.id}
-                                style={[s.chipBtn, newActivityAssignee === m.id && s.chipBtnActive]}
-                                onPress={() => setNewActivityAssignee(m.id)}
-                              >
-                                <Text
-                                  style={[s.chipBtnText, newActivityAssignee === m.id && s.chipBtnTextActive]}
-                                  numberOfLines={1}
-                                >
-                                  {m.name}
-                                </Text>
-                              </TouchableOpacity>
-                            ))}
-                          </ScrollView>
+                          <SelectField
+                            value={newActivityAssignee}
+                            onChange={setNewActivityAssignee}
+                            options={memberOptions}
+                          />
                         </View>
                       )}
 
@@ -1355,31 +1327,13 @@ export default function InteriorWbsScreen() {
 
               {/* Priority */}
               <Text style={s.formSectionTitle}>Priority</Text>
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
-                {['low', 'medium', 'high', 'critical'].map((pr) => (
-                  <TouchableOpacity
-                    key={pr}
-                    style={[
-                      s.chipBtn,
-                      activityPriority === pr && {
-                        backgroundColor: PRIORITY_CONFIG[pr].bg,
-                        borderColor: PRIORITY_CONFIG[pr].color,
-                      },
-                    ]}
-                    onPress={() => setActivityPriority(pr)}
-                    disabled={activityModalMode === 'edit' && activityStatus === 'completed'}
-                  >
-                    <Text
-                      style={[
-                        s.chipBtnText,
-                        activityPriority === pr && { color: PRIORITY_CONFIG[pr].color, fontWeight: '700' },
-                      ]}
-                    >
-                      {PRIORITY_CONFIG[pr].label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <SelectField
+                value={activityPriority}
+                onChange={setActivityPriority}
+                options={PRIORITY_OPTIONS}
+                disabled={activityModalMode === 'edit' && activityStatus === 'completed'}
+                style={{ marginBottom: 6 }}
+              />
 
               {/* Status Selector (in edit mode) */}
               {activityModalMode === 'edit' && (
@@ -1414,30 +1368,13 @@ export default function InteriorWbsScreen() {
 
               {/* Assignee */}
               <Text style={s.formSectionTitle}>Assignee</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 6 }}>
-                <TouchableOpacity
-                  style={[s.chipBtn, !activityAssigneeId && s.chipBtnActive]}
-                  onPress={() => setActivityAssigneeId('')}
-                  disabled={activityModalMode === 'edit' && activityStatus === 'completed'}
-                >
-                  <Text style={[s.chipBtnText, !activityAssigneeId && s.chipBtnTextActive]}>Unassigned</Text>
-                </TouchableOpacity>
-                {members.map((m) => (
-                  <TouchableOpacity
-                    key={m.id}
-                    style={[s.chipBtn, activityAssigneeId === m.id && s.chipBtnActive]}
-                    onPress={() => setActivityAssigneeId(m.id)}
-                    disabled={activityModalMode === 'edit' && activityStatus === 'completed'}
-                  >
-                    <Text
-                      style={[s.chipBtnText, activityAssigneeId === m.id && s.chipBtnTextActive]}
-                      numberOfLines={1}
-                    >
-                      {m.name} ({m.role})
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <SelectField
+                value={activityAssigneeId}
+                onChange={setActivityAssigneeId}
+                options={memberOptions}
+                disabled={activityModalMode === 'edit' && activityStatus === 'completed'}
+                style={{ marginBottom: 6 }}
+              />
 
               {/* Planning Dates */}
               {(() => {

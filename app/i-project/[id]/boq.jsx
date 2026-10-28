@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
@@ -33,7 +33,7 @@ const AVA_STATUS_META = {
 
 function fmtMoney(n) { return `₹${Math.round(n || 0).toLocaleString('en-IN')}`; }
 
-const emptyItemRow = () => ({ category: 'Flooring', itemName: '', quantity: '1', unit: 'sqft', rate: '0' });
+const emptyItemRow = () => ({ category: 'Flooring', itemName: '', quantity: '1', unit: 'sqft', rate: '0', remarks: '' });
 
 export default function InteriorBoqScreen() {
   const insets = useSafeAreaInsets();
@@ -58,6 +58,8 @@ const { can: canDo } = useProjectPermissions(projectId);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newBoqNotes, setNewBoqNotes] = useState('');
   const [newItems, setNewItems] = useState([emptyItemRow()]);
+  // Set when the BOQ form is editing a draft / rejected BOQ (PUT) instead of creating one
+  const [editingBoqId, setEditingBoqId] = useState(null);
 
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -190,26 +192,108 @@ const { can: canDo } = useProjectPermissions(projectId);
   const removeItemRow = (idx) => setNewItems((p) => p.filter((_, i) => i !== idx));
   const updateItemRow = (idx, field, val) => setNewItems((p) => p.map((it, i) => (i === idx ? { ...it, [field]: val } : it)));
 
+  const openCreateBoq = () => {
+    setEditingBoqId(null);
+    setNewBoqNotes('');
+    setNewItems([emptyItemRow()]);
+    setIsCreateOpen(true);
+  };
+
+  // Edit a draft / rejected BOQ (same rule as the web and the backend)
+  const openEditBoq = () => {
+    if (!selectedBoq) return;
+    setEditingBoqId(selectedBoq._id);
+    setNewBoqNotes(selectedBoq.notes || '');
+    const rows = (selectedBoq.items || []).map((it) => ({
+      ...it, // keeps description, brand, section and remarks the form doesn't show
+      category: it.category || 'Other',
+      itemName: it.itemName || '',
+      quantity: String(it.quantity ?? 0),
+      unit: it.unit || 'nos',
+      rate: String(it.rate ?? 0),
+    }));
+    setNewItems(rows.length ? rows : [emptyItemRow()]);
+    setIsCreateOpen(true);
+  };
+
   const handleManualCreate = async () => {
     if (newItems.some((it) => !it.itemName.trim())) return showToast('Please fill in all item names', 'error');
+    if (newItems.some((it) => !String(it.category || '').trim() || !String(it.unit || '').trim())) return showToast('Every item needs a category and a unit', 'error');
     setActionLoading(true);
     try {
-      const items = newItems.map((it, idx) => ({
-        serialNumber: idx + 1, category: it.category, itemName: it.itemName,
-        quantity: parseFloat(it.quantity) || 0, unit: it.unit, rate: parseFloat(it.rate) || 0,
-      }));
-      await interiorApiClient.post(`/projects/${projectId}/boq`, { notes: newBoqNotes, items });
-      showToast('BOQ Created Successfully!', 'success');
+      const items = newItems.map((it, idx) => {
+        const quantity = parseFloat(it.quantity) || 0;
+        const rate = parseFloat(it.rate) || 0;
+        const base = { serialNumber: idx + 1, category: it.category.trim(), itemName: it.itemName.trim(), quantity, unit: it.unit.trim(), rate };
+        const remarks = String(it.remarks || '').trim();
+        if (remarks) base.remarks = remarks;
+        if (!editingBoqId) return base;
+        // Keep the item's other fields on edit
+        const extra = {};
+        ['itemCode', 'sectionNumber', 'sectionTitle', 'sectionScope', 'description', 'brandMakes'].forEach((k) => {
+          if (typeof it[k] === 'string' && it[k]) extra[k] = it[k];
+        });
+        return { ...extra, ...base, amount: quantity * rate };
+      });
+      if (editingBoqId) {
+        await interiorApiClient.put(`/projects/${projectId}/boq/${editingBoqId}`, { notes: newBoqNotes, items });
+        showToast('BOQ updated', 'success');
+      } else {
+        await interiorApiClient.post(`/projects/${projectId}/boq`, { notes: newBoqNotes, items });
+        showToast('BOQ Created Successfully!', 'success');
+      }
+      const editedId = editingBoqId;
       setIsCreateOpen(false);
+      setEditingBoqId(null);
       setNewBoqNotes('');
       setNewItems([emptyItemRow()]);
-      fetchBoqs(true);
+      if (editedId) {
+        await fetchBoqs(false);
+        await fetchBoqDetail(editedId);
+      } else {
+        fetchBoqs(true);
+      }
     } catch (e) {
-      showToast(e.message || 'Failed to create BOQ', 'error');
+      showToast(e.message || (editingBoqId ? 'Failed to update BOQ' : 'Failed to create BOQ'), 'error');
     } finally {
       setActionLoading(false);
     }
   };
+
+  // Group items by sections (same as the web): saved sections first, else by category
+  const groupedSections = useMemo(() => {
+    const items = selectedBoq?.items || [];
+    if (items.length === 0) return [];
+    const total = (list) => list.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+    if (Array.isArray(selectedBoq.sections) && selectedBoq.sections.length > 0) {
+      return selectedBoq.sections
+        .map((sec) => {
+          const secItems = items.filter(
+            (it) =>
+              it.sectionId === sec.id ||
+              it.sectionId === sec.sectionId ||
+              it.sectionNumber === sec.sectionNumber ||
+              it.sectionTitle === sec.sectionTitle ||
+              it.category === sec.sectionTitle
+          );
+          return { ...sec, items: secItems, subTotal: total(secItems) };
+        })
+        .filter((sec) => sec.items.length > 0);
+    }
+    const categories = Array.from(new Set(items.map((it) => it.category || 'Civil Work')));
+    return categories.map((cat, idx) => {
+      const secItems = items.filter((it) => (it.category || 'Civil Work') === cat);
+      const first = secItems[0];
+      return {
+        id: `sec-${idx + 1}`,
+        sectionNumber: first?.sectionNumber || String(idx + 1),
+        sectionTitle: first?.sectionTitle || cat,
+        scopeDescription: first?.sectionScope || '',
+        items: secItems,
+        subTotal: total(secItems),
+      };
+    });
+  }, [selectedBoq]);
 
   return (
     <View style={s.outerContainer}>
@@ -229,7 +313,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             </TouchableOpacity>
           )}
           {canDo('boq', 'create') && (
-            <TouchableOpacity style={[s.headerIconBtn, { backgroundColor: '#2563EB' }]} onPress={() => setIsCreateOpen(true)}>
+            <TouchableOpacity style={[s.headerIconBtn, { backgroundColor: '#2563EB' }]} onPress={openCreateBoq}>
               <Ionicons name="add" size={17} color="#FFFFFF" />
             </TouchableOpacity>
           )}
@@ -305,6 +389,13 @@ const { can: canDo } = useProjectPermissions(projectId);
                 )}
 
                 <View style={{ marginTop: 12, gap: 8 }}>
+                  {(selectedBoq.status === 'draft' || selectedBoq.status === 'rejected') && (
+                    canDo('boq', 'update') && (
+                      <TouchableOpacity style={s.outlineBtn} onPress={openEditBoq} disabled={actionLoading}>
+                        <Text style={s.outlineBtnText}>Edit BOQ</Text>
+                      </TouchableOpacity>
+                    )
+                  )}
                   {selectedBoq.status === 'draft' && (
                     canDo('boq', 'update') && (
                       <TouchableOpacity style={s.primaryBtn} onPress={() => handleApprovalAction('submit')} disabled={actionLoading}>
@@ -355,21 +446,53 @@ const { can: canDo } = useProjectPermissions(projectId);
 
             {activeTab === 'items' ? (
               selectedBoq ? (
-                selectedBoq.items?.map((item, idx) => (
-                  <View key={item._id || idx} style={s.itemCard}>
-                    <View style={s.itemTopRow}>
-                      <Text style={s.itemSerial}>#{item.serialNumber}</Text>
-                      <View style={s.itemCategoryTag}>
-                        <Text style={s.itemCategoryTagText}>{item.category}</Text>
-                      </View>
-                    </View>
-                    <Text style={s.itemName}>{item.itemName}</Text>
-                    <View style={s.itemBottomRow}>
-                      <Text style={s.itemMeta}>{item.quantity?.toLocaleString('en-IN')} {item.unit} @ {fmtMoney(item.rate)}</Text>
-                      <Text style={s.itemAmount}>{fmtMoney(item.amount)}</Text>
-                    </View>
+                groupedSections.length === 0 ? (
+                  <View style={s.empty}>
+                    <Text style={s.emptyTitle}>No line items in this BOQ version.</Text>
                   </View>
-                ))
+                ) : (
+                  <>
+                    {groupedSections.map((section, sIdx) => (
+                      <View key={section.id || sIdx} style={s.sectionCard}>
+                        <View style={s.sectionHead}>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              <View style={s.sectionNumTag}><Text style={s.sectionNumText}>Section {section.sectionNumber || sIdx + 1}</Text></View>
+                              <Text style={s.sectionCount}>{section.items.length} items</Text>
+                            </View>
+                            <Text style={s.sectionTitle} numberOfLines={2}>{section.sectionTitle}</Text>
+                            {!!section.scopeDescription && <Text style={s.sectionScope}>{section.scopeDescription}</Text>}
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={s.sectionSubLabel}>SUBTOTAL</Text>
+                            <Text style={s.sectionSubValue}>{fmtMoney(section.subTotal)}</Text>
+                          </View>
+                        </View>
+                        {section.items.map((item, idx) => (
+                          <View key={item._id || idx} style={[s.secItem, idx === section.items.length - 1 && { borderBottomWidth: 0 }]}>
+                            <View style={s.itemTopRow}>
+                              <Text style={s.itemSerial}>{item.itemCode || item.serialNumber || idx + 1}</Text>
+                              <Text style={[s.itemName, { marginLeft: 6 }]}>{item.itemName}</Text>
+                            </View>
+                            {!!item.description && <Text style={s.itemSpec}>{item.description}</Text>}
+                            <View style={s.itemBottomRow}>
+                              <Text style={s.itemMeta}>{item.quantity?.toLocaleString('en-IN')} {item.unit} @ {fmtMoney(item.rate)}</Text>
+                              <Text style={s.itemAmount}>{fmtMoney(item.amount)}</Text>
+                            </View>
+                            <Text style={s.itemRemarks}>Remarks: {item.remarks || '—'}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    ))}
+                    <View style={s.grandStrip}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.grandStripLabel}>TOTAL MASTER BOQ VALUE ({selectedBoq.versionLabel})</Text>
+                        <Text style={s.grandStripSub}>{groupedSections.length} Sections • {selectedBoq.items?.length || 0} Total Specifications</Text>
+                      </View>
+                      <Text style={s.grandStripValue}>{fmtMoney(selectedBoq.totalAmount ?? groupedSections.reduce((a, sec) => a + sec.subTotal, 0))}</Text>
+                    </View>
+                  </>
+                )
               ) : (
                 <View style={s.empty}>
                   <Text style={s.emptyTitle}>Select or create a BOQ version to view items.</Text>
@@ -466,7 +589,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={[s.modalCard, { maxHeight: '90%' }]}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Manual BOQ Entry</Text>
+              <Text style={s.modalTitle}>{editingBoqId ? `Edit BOQ ${selectedBoq?.versionLabel || ''}`.trim() : 'Manual BOQ Entry'}</Text>
               <TouchableOpacity onPress={() => setIsCreateOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
@@ -511,11 +634,18 @@ const { can: canDo } = useProjectPermissions(projectId);
                     <TextInput style={[s.input, { flex: 1 }]} placeholder="Unit" placeholderTextColor="#94A3B8" value={item.unit} onChangeText={(v) => updateItemRow(idx, 'unit', v)} />
                     <TextInput style={[s.input, { flex: 1 }]} placeholder="Rate ₹" placeholderTextColor="#94A3B8" keyboardType="numeric" value={item.rate} onChangeText={(v) => updateItemRow(idx, 'rate', v)} />
                   </View>
+                  <TextInput
+                    style={[s.input, { marginTop: 6 }]}
+                    placeholder="Remarks (optional)"
+                    placeholderTextColor="#94A3B8"
+                    value={item.remarks || ''}
+                    onChangeText={(v) => updateItemRow(idx, 'remarks', v)}
+                  />
                 </View>
               ))}
 
               <TouchableOpacity style={[s.saveBtn, actionLoading && { opacity: 0.7 }]} onPress={handleManualCreate} disabled={actionLoading}>
-                {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Create BOQ Version</Text>}
+                {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingBoqId ? 'Save Changes' : 'Create BOQ Version'}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -594,6 +724,22 @@ const s = StyleSheet.create({
   itemCategoryTag: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
   itemCategoryTagText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'capitalize' },
   itemName: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1 },
+  sectionCard: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden', marginBottom: 10 },
+  sectionHead: { flexDirection: 'row', gap: 10, padding: 12, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  sectionNumTag: { backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  sectionNumText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#1D4ED8', textTransform: 'uppercase' },
+  sectionCount: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#64748B' },
+  sectionTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 4 },
+  sectionScope: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  sectionSubLabel: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
+  sectionSubValue: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
+  secItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 4 },
+  itemSpec: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#475569', lineHeight: 16 },
+  itemRemarks: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  grandStrip: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#0F172A', borderRadius: 14, padding: 14, marginBottom: 10 },
+  grandStripLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
+  grandStripSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#CBD5E1', marginTop: 2 },
+  grandStripValue: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   itemBottomRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 6 },
   itemMeta: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
   itemAmount: { fontSize: 12, fontFamily: 'Inter-Black', color: '#0F172A' },

@@ -295,6 +295,26 @@ export default function InteriorMembersScreen() {
           </View>
         </View>
 
+        {/* Same two actions as the web: add an existing user, or create a new account */}
+        {canDo('users', 'create') && (
+          <View style={s.memberActionsRow}>
+            <TouchableOpacity style={s.addMemberBtn} onPress={openAddMemberModal} activeOpacity={0.8}>
+              <Ionicons name="person-add-outline" size={16} color="#0F172A" />
+              <View style={{ flexShrink: 1 }}>
+                <Text style={s.addMemberBtnText}>Add Member</Text>
+                <Text style={s.memberBtnHint} numberOfLines={1}>Existing user</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.createMemberBtn} onPress={() => setIsInviteOpen(true)} activeOpacity={0.8}>
+              <Ionicons name="add" size={18} color="#FFFFFF" />
+              <View style={{ flexShrink: 1 }}>
+                <Text style={s.createMemberBtnText}>Create Member</Text>
+                <Text style={[s.memberBtnHint, { color: '#DBEAFE' }]} numberOfLines={1}>New account</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={s.searchRow}>
           <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
           <TextInput style={s.searchInput} placeholder="Search team members..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
@@ -359,16 +379,6 @@ export default function InteriorMembersScreen() {
           </ScrollView>
         )}
 
-        {canDo('users', 'create') && (
-          <View style={s.fabGroup}>
-            <TouchableOpacity style={s.fabSecondary} onPress={openAddMemberModal}>
-              <Ionicons name="person-add-outline" size={20} color="#2563EB" />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.fab} onPress={() => setIsInviteOpen(true)}>
-              <Ionicons name="add" size={26} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        )}
       </SafeAreaView>
 
       {/* Add Existing Member Modal */}
@@ -626,17 +636,22 @@ const s = StyleSheet.create({
   permCountBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F8FAFC', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   permCountText: { fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
 
-  fabGroup: { position: 'absolute', right: 20, bottom: 30, alignItems: 'center', gap: 12 },
-  fab: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: '#2563EB',
-    justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#2563EB', shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+  memberActionsRow: {
+    flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 12,
+    backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
-  fabSecondary: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF',
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0',
-    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+  addMemberBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
   },
+  addMemberBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  createMemberBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: '#2563EB',
+  },
+  createMemberBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  memberBtnHint: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 1 },
 
   searchRow2: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',

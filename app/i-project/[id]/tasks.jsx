@@ -11,6 +11,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import SelectField from '../../components/common/SelectField';
 
 const COLUMNS = [
   { id: 'todo', title: 'To Do', color: '#3B82F6' },
@@ -175,7 +176,8 @@ const { can: canDo } = useProjectPermissions(projectId);
   const [loading, setLoading] = useState(true);
 
   const [viewMode, setViewMode] = useState('board'); // 'board' | 'wbs'
-  const [activeColumn, setActiveColumn] = useState('todo');
+  // 'all' shows every task at once (same as the web board, status filter = All)
+  const [activeColumn, setActiveColumn] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filterPriority, setFilterPriority] = useState('all');
@@ -203,16 +205,31 @@ const { can: canDo } = useProjectPermissions(projectId);
   const [proofTask, setProofTask] = useState(null);
   const [proofImages, setProofImages] = useState([]);
   const [submittingProof, setSubmittingProof] = useState(false);
+  // Same as the web proof modal: completion notes + materials consumed (deducted from site inventory)
+  const [proofNotes, setProofNotes] = useState('');
+  const [materialUsages, setMaterialUsages] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const inventoryOptions = useMemo(
+    () => [
+      { value: '', label: '-- Custom Material --' },
+      ...inventoryItems.map((inv) => ({
+        value: String(inv._id),
+        label: `${inv.productName} (In Stock: ${Math.max(0, (inv.totalReceived || 0) - (inv.installedQuantity || 0))} ${inv.unit || ''})`,
+      })),
+    ],
+    [inventoryItems]
+  );
   const [lightboxUrl, setLightboxUrl] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [taskRes, wbsRes, memberRes, mileRes] = await Promise.allSettled([
+      const [taskRes, wbsRes, memberRes, mileRes, invRes] = await Promise.allSettled([
         interiorApiClient.get(`/projects/${projectId}/tasks`),
         interiorApiClient.get(`/projects/${projectId}/wbs`),
         interiorApiClient.get(`/projects/${projectId}/members`),
         interiorApiClient.get(`/projects/${projectId}/milestones`),
+        interiorApiClient.get(`/projects/${projectId}/inventory`),
       ]);
 
       if (taskRes.status === 'fulfilled' && taskRes.value?.success && taskRes.value.data) {
@@ -228,6 +245,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setWbsPackages(packages);
 
       setMembers(memberRes.status === 'fulfilled' && memberRes.value?.success ? memberRes.value.data || [] : []);
+      setInventoryItems(invRes?.status === 'fulfilled' && invRes.value?.success ? invRes.value.data || [] : []);
       setMilestones(mileRes.status === 'fulfilled' && mileRes.value?.success ? mileRes.value.data || [] : []);
     } catch (e) {
       console.warn('Error fetching tasks data', e);
@@ -291,7 +309,7 @@ const { can: canDo } = useProjectPermissions(projectId);
     return result;
   }, [filteredTasks, wbsPackages]);
 
-  const colTasks = filteredTasks.filter((t) => t.status === activeColumn);
+  const colTasks = activeColumn === 'all' ? filteredTasks : filteredTasks.filter((t) => t.status === activeColumn);
 
   // -----------------------------------------------------------------------
   // WBS package quick-create (building -> floor -> zone -> area -> package)
@@ -438,6 +456,16 @@ const { can: canDo } = useProjectPermissions(projectId);
   const initiateCompleteTask = (task) => {
     setProofTask(task);
     setProofImages(task.completionProof?.images || []);
+    setProofNotes(task.completionProof?.notes || '');
+    setMaterialUsages(
+      (task.completionProof?.materialUsage || []).map((m) => ({
+        inventoryId: String(m.inventoryId?._id || m.inventoryId || ''),
+        materialName: m.materialName || '',
+        quantity: String(m.quantity ?? 1),
+        unit: m.unit || 'units',
+        notes: m.notes || '',
+      }))
+    );
     setIsProofOpen(true);
   };
 
@@ -480,6 +508,27 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const removeProofImage = (idx) => setProofImages((prev) => prev.filter((_, i) => i !== idx));
 
+  const addMaterialRow = () => {
+    const first = inventoryItems[0];
+    setMaterialUsages((prev) => [
+      ...prev,
+      { inventoryId: first?._id || '', materialName: first?.productName || '', quantity: '1', unit: first?.unit || 'units', notes: '' },
+    ]);
+  };
+  const updateMaterialRow = (idx, field, value) => {
+    setMaterialUsages((prev) => prev.map((m, i) => {
+      if (i !== idx) return m;
+      const next = { ...m, [field]: value };
+      if (field === 'inventoryId') {
+        const inv = inventoryItems.find((it) => String(it._id) === String(value));
+        next.materialName = inv ? inv.productName : '';
+        next.unit = inv ? inv.unit || 'units' : next.unit;
+      }
+      return next;
+    }));
+  };
+  const removeMaterialRow = (idx) => setMaterialUsages((prev) => prev.filter((_, i) => i !== idx));
+
   const submitProof = async () => {
     if (!proofTask) return;
     setSubmittingProof(true);
@@ -489,16 +538,31 @@ const { can: canDo } = useProjectPermissions(projectId);
         status: 'completed',
         progress: 100,
         subtasks: subtasksChecked,
-        completionProof: { images: proofImages, completedAt: new Date().toISOString() },
+        completionProof: {
+          images: proofImages,
+          notes: proofNotes.trim() || undefined,
+          materialUsage: materialUsages
+            .filter((m) => m.materialName.trim() && Number(m.quantity) > 0)
+            .map((m) => ({
+              inventoryId: m.inventoryId || undefined,
+              materialName: m.materialName.trim(),
+              quantity: Number(m.quantity),
+              unit: (m.unit || '').trim() || 'units',
+              notes: m.notes.trim() || undefined,
+            })),
+          completedAt: new Date().toISOString(),
+        },
       };
       const res = await interiorApiClient.put(`/projects/${projectId}/tasks/${proofTask._id}`, payload);
       const updated = res?.success && res?.data ? { ...res.data, status: 'completed', progress: 100 } : { ...proofTask, ...payload };
       setTasks((prev) => prev.map((t) => (t._id === proofTask._id ? updated : t)));
       if (selectedTask?._id === proofTask._id) setSelectedTask(updated);
-      showToast('Task marked as Completed with Proof of Work verified!', 'success');
+      showToast(materialUsages.length ? 'Task marked as Completed with Material Usage logged!' : 'Task marked as Completed with Proof of Work verified!', 'success');
       setIsProofOpen(false);
       setProofTask(null);
       setProofImages([]);
+      setProofNotes('');
+      setMaterialUsages([]);
       fetchData();
     } catch (e) {
       showToast(e.message || 'Failed to complete task', 'error');
@@ -613,7 +677,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={18} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Tasks Management</Text>
+            <Text style={s.headerTitle}>Activity / Task Management</Text>
             <Text style={s.headerSub}>{tasks.length} total · site execution & proof-of-work</Text>
           </View>
         </View>
@@ -689,8 +753,8 @@ const { can: canDo } = useProjectPermissions(projectId);
             style={s.columnTabsScroll}
             contentContainerStyle={s.columnTabs}
           >
-            {COLUMNS.map((col) => {
-              const count = filteredTasks.filter((t) => t.status === col.id).length;
+            {[{ id: 'all', title: 'All', color: '#0F172A' }, ...COLUMNS].map((col) => {
+              const count = col.id === 'all' ? filteredTasks.length : filteredTasks.filter((t) => t.status === col.id).length;
               const active = activeColumn === col.id;
               return (
                 <TouchableOpacity key={col.id} style={[s.colTab, active && { borderColor: col.color, backgroundColor: col.color + '14' }]} onPress={() => setActiveColumn(col.id)}>
@@ -710,7 +774,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             {colTasks.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="checkbox-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No tasks in this column</Text>
+                <Text style={s.emptyTitle}>{activeColumn === 'all' ? 'No tasks yet' : 'No tasks in this column'}</Text>
               </View>
             ) : (
               colTasks.map((task) => <TaskCard key={task._id} task={task} onPress={() => openTask(task)} onEdit={canDo('tasks', 'update') ? () => openEditTask(task) : undefined} onDelete={canDo('tasks', 'delete') ? () => deleteTask(task) : undefined} />)
@@ -972,6 +1036,22 @@ const { can: canDo } = useProjectPermissions(projectId);
                       ) : (
                         <Text style={s.proofNoPhotos}>No site photos attached to this proof.</Text>
                       )}
+                      {selectedTask.completionProof?.materialUsage?.length > 0 && (
+                        <View style={{ marginTop: 10, gap: 4 }}>
+                          <Text style={s.matTitle}>Materials Used</Text>
+                          {selectedTask.completionProof.materialUsage.map((m, i) => (
+                            <Text key={i} style={s.matSub}>
+                              • {m.materialName} — {m.quantity} {m.unit || ''}{m.notes ? ` (${m.notes})` : ''}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+                      {!!selectedTask.completionProof?.notes && (
+                        <View style={{ marginTop: 10, gap: 2 }}>
+                          <Text style={s.matTitle}>Completion Notes</Text>
+                          <Text style={s.matSub}>{selectedTask.completionProof.notes}</Text>
+                        </View>
+                      )}
                     </View>
                   )}
 
@@ -1151,6 +1231,71 @@ const { can: canDo } = useProjectPermissions(projectId);
                 </View>
               )}
 
+              {/* 1. Linked Inventory & Material Usage (same as web) */}
+              <View style={s.matBox}>
+                <View style={s.matHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.matTitle}>Link Inventory & Material Usage</Text>
+                    <Text style={s.matSub}>Record materials and quantities consumed for this activity</Text>
+                  </View>
+                  <TouchableOpacity style={s.matAddBtn} onPress={addMaterialRow}>
+                    <Ionicons name="add" size={14} color="#FFFFFF" />
+                    <Text style={s.matAddText}>Add Material</Text>
+                  </TouchableOpacity>
+                </View>
+                {materialUsages.length === 0 ? (
+                  <Text style={s.matEmpty}>No materials added. Tap Add Material to log consumption.</Text>
+                ) : (
+                  materialUsages.map((mat, idx) => (
+                    <View key={idx} style={s.matRow}>
+                      {inventoryItems.length > 0 && (
+                        <SelectField
+                          value={mat.inventoryId}
+                          onChange={(v) => updateMaterialRow(idx, 'inventoryId', v)}
+                          options={inventoryOptions}
+                        />
+                      )}
+                      {(!mat.inventoryId || inventoryItems.length === 0) && (
+                        <TextInput
+                          style={s.input}
+                          placeholder="Material name (e.g. 18mm Plywood)"
+                          placeholderTextColor="#94A3B8"
+                          value={mat.materialName}
+                          onChangeText={(v) => updateMaterialRow(idx, 'materialName', v)}
+                        />
+                      )}
+                      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                        <TextInput
+                          style={[s.input, { flex: 1 }]}
+                          placeholder="Qty"
+                          placeholderTextColor="#94A3B8"
+                          keyboardType="decimal-pad"
+                          value={String(mat.quantity)}
+                          onChangeText={(v) => updateMaterialRow(idx, 'quantity', v)}
+                        />
+                        <TextInput
+                          style={[s.input, { flex: 1 }]}
+                          placeholder="Unit"
+                          placeholderTextColor="#94A3B8"
+                          value={mat.unit}
+                          onChangeText={(v) => updateMaterialRow(idx, 'unit', v)}
+                        />
+                        <TouchableOpacity style={s.matRemoveBtn} onPress={() => removeMaterialRow(idx)}>
+                          <Ionicons name="trash-outline" size={16} color="#E11D48" />
+                        </TouchableOpacity>
+                      </View>
+                      <TextInput
+                        style={s.input}
+                        placeholder="Usage note (optional)"
+                        placeholderTextColor="#94A3B8"
+                        value={mat.notes}
+                        onChangeText={(v) => updateMaterialRow(idx, 'notes', v)}
+                      />
+                    </View>
+                  ))
+                )}
+              </View>
+
               <Text style={s.label}>Site Completion Photos ({proofImages.length})</Text>
               <TouchableOpacity style={s.photoDropzone} onPress={pickProofImage}>
                 <Ionicons name="cloud-upload-outline" size={26} color="#16A34A" />
@@ -1169,6 +1314,16 @@ const { can: canDo } = useProjectPermissions(projectId);
                   ))}
                 </View>
               )}
+
+              <Text style={s.label}>Completion Notes (Optional)</Text>
+              <TextInput
+                style={[s.input, { minHeight: 80, textAlignVertical: 'top' }]}
+                placeholder="Add any notes, inspection remarks, or quality observations..."
+                placeholderTextColor="#94A3B8"
+                multiline
+                value={proofNotes}
+                onChangeText={setProofNotes}
+              />
 
               {proofTask?.subtasks?.length > 0 && (
                 <View style={s.proofSubtaskNotice}>
@@ -1351,6 +1506,15 @@ const s = StyleSheet.create({
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
   label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  matBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, padding: 12, gap: 10, marginTop: 10 },
+  matHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  matTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  matSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  matAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#2563EB', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  matAddText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  matEmpty: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingVertical: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  matRow: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 10, gap: 8 },
+  matRemoveBtn: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, borderColor: '#FECDD3', backgroundColor: '#FFF1F2', alignItems: 'center', justifyContent: 'center' },
   hintTextSm: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
   linkBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
   input: {

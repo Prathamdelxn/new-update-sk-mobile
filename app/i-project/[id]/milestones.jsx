@@ -25,18 +25,8 @@ function formatDate(d) {
   return parsed.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function toLocalDateString(d) {
-  if (!d) return '';
-  const dateObj = typeof d === 'string' ? new Date(d) : d;
-  if (isNaN(dateObj.getTime())) return '';
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
 
 const emptyForm = { name: '', dueDate: '' };
-const emptyDelayForm = { reason: '', impactDays: '7', newDate: '' };
 
 // Timezone-safe calendar date picker field
 function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
@@ -111,10 +101,6 @@ const { can: canDo } = useProjectPermissions(projectId);
   const [form, setForm] = useState(emptyForm);
   const [selectedTaskIds, setSelectedTaskIds] = useState([]);
 
-  const [delayTarget, setDelayTarget] = useState(null);
-  const [loggingDelay, setLoggingDelay] = useState(false);
-  const [delayForm, setDelayForm] = useState(emptyDelayForm);
-
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
@@ -177,68 +163,6 @@ const { can: canDo } = useProjectPermissions(projectId);
     }
   };
 
-  const markDone = async (milestone) => {
-    setMilestones((prev) => prev.map((m) => (m._id === milestone._id ? { ...m, status: 'achieved' } : m)));
-    try {
-      await interiorApiClient.put(`/projects/${projectId}/milestones/${milestone._id}`, { status: 'achieved' });
-      showToast('Milestone marked as achieved', 'success');
-      load();
-    } catch (e) {
-      showToast('Failed to update milestone', 'error');
-      load();
-    }
-  };
-
-  const openDelay = (milestone) => {
-    const parsedDate = milestone.dueDate ? new Date(milestone.dueDate) : new Date();
-    const currentDueDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-    currentDueDate.setDate(currentDueDate.getDate() + 7);
-    const suggestedStr = toLocalDateString(currentDueDate);
-
-    setDelayForm({ reason: '', impactDays: '7', newDate: suggestedStr });
-    setDelayTarget(milestone);
-  };
-
-  const handleImpactDaysChange = (daysStr) => {
-    const days = parseInt(daysStr, 10);
-    const base = delayTarget?.dueDate ? new Date(delayTarget.dueDate) : new Date();
-    const validBase = isNaN(base.getTime()) ? new Date() : base;
-    if (!isNaN(days) && days > 0) {
-      const newTarget = new Date(validBase);
-      newTarget.setDate(newTarget.getDate() + days);
-      setDelayForm({ ...delayForm, impactDays: daysStr, newDate: toLocalDateString(newTarget) });
-    } else {
-      setDelayForm({ ...delayForm, impactDays: daysStr });
-    }
-  };
-
-  const handleLogDelay = async () => {
-    if (!delayForm.reason.trim()) {
-      showToast('Delay reason is required', 'error');
-      return;
-    }
-    if (!delayForm.newDate.trim()) {
-      showToast('New target date is required', 'error');
-      return;
-    }
-    setLoggingDelay(true);
-    try {
-      await interiorApiClient.post(`/projects/${projectId}/milestones/${delayTarget._id}/delays`, {
-        reason: delayForm.reason.trim(),
-        impactDays: parseInt(delayForm.impactDays, 10) || 1,
-        originalDate: delayTarget.dueDate,
-        newDate: delayForm.newDate,
-      });
-      showToast('Timeline delay slip logged', 'success');
-      setDelayTarget(null);
-      load();
-    } catch (e) {
-      showToast(e.message || 'Failed to log delay', 'error');
-    } finally {
-      setLoggingDelay(false);
-    }
-  };
-
   const confirmDelete = (milestone) => {
     Alert.alert(
       'Delete Milestone',
@@ -271,7 +195,7 @@ const { can: canDo } = useProjectPermissions(projectId);
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={s.headerTitle} numberOfLines={1}>Milestones & Key Targets</Text>
-            <Text style={s.headerSub} numberOfLines={1}>Log milestone delays and trace timeline slips.</Text>
+            <Text style={s.headerSub} numberOfLines={1}>Track major targets, deliverables, and timeline milestones.</Text>
           </View>
           {canDo('milestones', 'create') && (
             <TouchableOpacity style={s.headerAddBtn} onPress={openCreate} activeOpacity={0.8}>
@@ -460,28 +384,12 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </View>
                     )}
 
-                    {/* Bottom Action Row: Status Badge, Mark Done, Log Delay */}
+                    {/* Bottom Row: Status Badge (same as the web card — no Mark Done / Log Delay) */}
                     <View style={s.msBottomRow}>
                       <View style={[s.statusBadge, { backgroundColor: meta.bg, borderColor: meta.border }]}>
                         <Ionicons name={meta.icon} size={13} color={meta.color} />
                         <Text style={[s.statusBadgeText, { color: meta.color }]}>{meta.label}</Text>
                       </View>
-                      {m.status !== 'achieved' && (
-                        <View style={{ flexDirection: 'row', gap: 8 }}>
-                          {canDo('milestones', 'update') && (
-                            <TouchableOpacity style={s.actionBtn} onPress={() => markDone(m)} activeOpacity={0.7}>
-                              <Ionicons name="checkmark-done" size={13} color="#334155" />
-                              <Text style={s.actionBtnText}>Mark Done</Text>
-                            </TouchableOpacity>
-                          )}
-                          {canDo('milestones', 'update') && (
-                            <TouchableOpacity style={[s.actionBtn, s.actionBtnDanger]} onPress={() => openDelay(m)} activeOpacity={0.7}>
-                              <Ionicons name="time-outline" size={13} color="#DC2626" />
-                              <Text style={[s.actionBtnText, { color: '#DC2626' }]}>Log Delay</Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      )}
                     </View>
                   </View>
                 );
@@ -601,82 +509,6 @@ const { can: canDo } = useProjectPermissions(projectId);
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Log Delay Modal */}
-      <Modal visible={!!delayTarget} animationType="slide" transparent onRequestClose={() => setDelayTarget(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            {delayTarget && (
-              <>
-                <View style={s.modalHeader}>
-                  <View>
-                    <Text style={s.modalTitle}>Log Timeline Delay Slip</Text>
-                    <Text style={s.modalSub}>Record rationale and push target delivery date.</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => setDelayTarget(null)} style={s.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Ionicons name="close" size={20} color="#64748B" />
-                  </TouchableOpacity>
-                </View>
-
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-                  <View style={s.delayHighlight}>
-                    <Text style={s.delayHighlightLabel}>SELECTED MILESTONE</Text>
-                    <Text style={s.delayHighlightName}>{delayTarget.name}</Text>
-                    <Text style={s.delayHighlightDate}>Original target date: {formatDate(delayTarget.dueDate)}</Text>
-                  </View>
-
-                  <Text style={s.label}>Delay Slip Reason *</Text>
-                  <TextInput
-                    style={s.input}
-                    placeholder="e.g. Subcontractor workforce shortage"
-                    placeholderTextColor="#94A3B8"
-                    value={delayForm.reason}
-                    onChangeText={(v) => setDelayForm({ ...delayForm, reason: v })}
-                  />
-
-                  <View style={{ flexDirection: 'row', gap: 12 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.label}>Impact Days *</Text>
-                      <TextInput
-                        style={s.input}
-                        keyboardType="numeric"
-                        value={delayForm.impactDays}
-                        onChangeText={handleImpactDaysChange}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.label}>New Target Date *</Text>
-                      <DateField
-                        value={delayForm.newDate}
-                        onChange={(v) => setDelayForm({ ...delayForm, newDate: v })}
-                        inputStyle={s.input}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Action Buttons matching web: Cancel & Log Delay Slip */}
-                  <View style={s.modalBtnRow}>
-                    <TouchableOpacity style={s.cancelBtn} onPress={() => setDelayTarget(null)} activeOpacity={0.7}>
-                      <Text style={s.cancelBtnText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[s.saveBtn, s.saveBtnDanger, loggingDelay && { opacity: 0.7 }]}
-                      onPress={handleLogDelay}
-                      disabled={loggingDelay}
-                      activeOpacity={0.85}
-                    >
-                      {loggingDelay ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                      ) : (
-                        <Text style={s.saveBtnText}>Log Delay Slip</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </ScrollView>
-              </>
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </View>
   );
 }

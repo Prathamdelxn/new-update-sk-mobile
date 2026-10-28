@@ -16,6 +16,7 @@ import { parseMaxBudget, formatExactCurrency } from '../../utils/format';
 import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../../utils/crmValidation';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
+import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
 import { WebView } from 'react-native-webview';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -23,6 +24,7 @@ import BoqBuilderModal from '../../components/crm/BoqBuilderModal';
 import BoqDrawingViewerModal from '../../components/crm/BoqDrawingViewerModal';
 import QuotationBuilderModal from '../../components/crm/QuotationBuilderModal';
 import SendQuotationModal from '../../components/crm/SendQuotationModal';
+import { buildQuotationHtml, printQuotation } from '../../utils/interior/quotationDocument';
 import DrawingConfirmApproveModal from '../../components/crm/DrawingConfirmApproveModal';
 import LogSiteVisitModal from '../../components/crm/LogSiteVisitModal';
 import LogRequirementsModal from '../../components/crm/LogRequirementsModal';
@@ -34,6 +36,9 @@ import CrmShareModal from '../../components/crm/CrmShareModal';
 import { WEB_APP_URL } from '../../config';
 import MarkLostModal from '../../components/crm/MarkLostModal';
 import SiteVisitHistoryModal from '../../components/crm/SiteVisitHistoryModal';
+import ConfirmOrderView from '../../components/interior/ConfirmOrderView';
+import ClientRequirementsCompare from '../../components/crm/ClientRequirementsCompare';
+import SelectField from '../../components/common/SelectField';
 import {
   SendToSiteVisitModal,
   SendToRequirementsModal,
@@ -149,15 +154,16 @@ const TABS = [
   { id: 'follow_ups', label: 'Follow-ups', icon: 'calendar-outline' },
   { id: 'site', label: 'Site Visits', icon: 'location-outline' },
   { id: 'requirements', label: 'Requirements', icon: 'document-text-outline' },
-  { id: 'designs', label: 'Designs', icon: 'cube-outline' },
+  { id: 'designs', label: 'Drawings', icon: 'cube-outline' },
   { id: 'boq', label: 'BOQ', icon: 'calculator-outline' },
   { id: 'quotations', label: 'Quotations', icon: 'receipt-outline' },
+  { id: 'confirm_order', label: 'Confirm Order', icon: 'checkmark-done-outline' },
 ];
 
 export default function Lead360Screen() {
   const { id, tab, action } = useLocalSearchParams();
   // Each CRM stage has its own permission (same rules as the web lead page and the backend)
-  const { hasPermission: canDo } = useInteriorPermissions();
+  const { hasPermission: canDo, user: currentUser } = useInteriorPermissions();
   const canAnyCrmUpdate = CRM_MODULES.some((m) => canDo(m, 'update'));
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -219,14 +225,22 @@ export default function Lead360Screen() {
     designs: 'crm_drawings',
     boq: 'crm_boq',
     quotations: 'crm_quotations',
+    confirm_order: 'crm_quotations',
   };
   const canViewLeadTab = (tabId) => !LEAD_TAB_MODULE[tabId] || canDo(LEAD_TAB_MODULE[tabId], 'read');
   const activeTab = canViewLeadTab(selectedTab) ? selectedTab : 'overview';
   const [activeQuoteIdx, setActiveQuoteIdx] = useState(0);
+  const [shareModalMode, setShareModalMode] = useState('drawings'); // share modal: drawings portal or client requirements form
+  const [drawingFilter, setDrawingFilter] = useState('all'); // all | 2d | 3d
 
   // BOQ state
   const [activeBoqIdx, setActiveBoqIdx] = useState(0);
   const [showBoqModal, setShowBoqModal] = useState(false);
+  // BOQ internal approval: 'submit' | 'approve' | 'reject' (same flow as the web)
+  const [boqApprovalMode, setBoqApprovalMode] = useState(null);
+  const [boqReviewer, setBoqReviewer] = useState('');
+  const [boqApprovalNote, setBoqApprovalNote] = useState('');
+  const [submittingBoqApproval, setSubmittingBoqApproval] = useState(false);
   const [editingBoqIdx, setEditingBoqIdx] = useState(null);
 
   // Guided Transition Modals
@@ -299,6 +313,8 @@ export default function Lead360Screen() {
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [editingQuoteIdx, setEditingQuoteIdx] = useState(null);
   const [sendQuoteModalQuote, setSendQuoteModalQuote] = useState(null);
+  const [sendQuoteTarget, setSendQuoteTarget] = useState('customer'); // 'customer' | 'vendor'
+  const openSendQuote = (quote, target) => { setSendQuoteTarget(target); setSendQuoteModalQuote(quote); };
   const [quoteItems, setQuoteItems] = useState([{ description: '', quantity: '1', unitPrice: '' }]);
   const [quoteTax, setQuoteTax] = useState('18');
   const [quoteDiscount, setQuoteDiscount] = useState('0');
@@ -313,6 +329,11 @@ export default function Lead360Screen() {
   const isConverted = lead?.status === 'Won' || lead?.status === 'Converted' || !!lead?.linkedProject;
   const isLost = lead?.status === 'Lost';
   const isReadOnly = isConverted || isLost;
+  // Est. budget shown on the overview (web rule: latest quotation total, else the lead's budget range)
+  const latestQuoteTotal = lead?.quotations?.[lead.quotations.length - 1]?.grandTotal;
+  const leadBudgetText = latestQuoteTotal
+    ? formatExactCurrency(latestQuoteTotal, lead?.currency || 'INR')
+    : lead?.budgetRange || 'Pending';
   // A follow-up left "Pending" must stop being flagged Overdue once the lead
   // has actually moved past the initial contact phase — otherwise it stays
   // permanently red even though the lead progressed through later stages.
@@ -378,6 +399,17 @@ export default function Lead360Screen() {
           requiredStage: 'Under Quotation',
           stageTitle: 'Quotations',
           reason: 'An estimate BOQ is required before generating final sales quotations.',
+        };
+      }
+      case 'confirm_order': {
+        // Same rule as the web: opens once the lead has a quotation
+        const hasAcceptedQuote = (lead?.quotations || []).some((q) => q.status === 'Accepted' || q.status === 'Approved');
+        const isUnlocked = currentStage >= 5 || hasAcceptedQuote || (lead?.quotations && lead.quotations.length > 0);
+        return {
+          isLocked: !isUnlocked,
+          requiredStage: 'Quotation Approved',
+          stageTitle: 'Confirm Order',
+          reason: 'Create and finalize a quotation in the Quotations tab first to unlock the confirmed order.',
         };
       }
       default:
@@ -552,9 +584,12 @@ export default function Lead360Screen() {
 
   const openRescheduleModal = (act) => {
     setReschedulingId(act._id);
+    // The previous date is shown first; it's only kept as the new date while still in the future
+    const previous = act.scheduledDate ? new Date(act.scheduledDate) : null;
     setRescheduleForm({
       type: act.type || 'Phone Call',
-      scheduledDate: act.scheduledDate ? new Date(act.scheduledDate) : new Date(),
+      previousDate: previous,
+      scheduledDate: previous && previous.getTime() > Date.now() ? previous : null,
       remarks: act.remarks || '',
       assignedSalesExecutive: act.user?._id || act.user?.id || act.user || lead?.assignedSalesExecutive || '',
     });
@@ -757,9 +792,69 @@ export default function Lead360Screen() {
     client_changes_requested: { label: 'Client Revision', color: '#DC2626', bg: '#FEF2F2' },
   };
   const getDrawingStatus = (f) => f?.status || 'draft';
+  // 2D / 3D split and image detection (same rules as the web lead page)
+  const MODEL_EXT = /\.(fbx|obj|glb|gltf|3ds|dae|blend|stl|skp|max|rvt|ifc)(\?|$)/i;
+  const IMAGE_EXT = /\.(png|jpe?g|webp|gif|bmp|svg|heic)(\?|$)/i;
+  const drawingFileUrl = (f) => f?.url || f?.versions?.[f.versions.length - 1]?.url || '';
+  const isDrawing3D = (f) => {
+    if (f?.category === '3D') return true;
+    if (f?.category === '2D') return false;
+    return f?.fileType === '3d-model' || MODEL_EXT.test(f?.name || '') || MODEL_EXT.test(drawingFileUrl(f));
+  };
+  const isDrawingImage = (f) => {
+    const url = drawingFileUrl(f);
+    const t = String(f?.fileType || '').toLowerCase();
+    if (!url || t === '3d-model' || t === 'pdf' || t === 'cad') return false;
+    return t === 'image' || t.startsWith('image/') || url.startsWith('data:image') || IMAGE_EXT.test(f?.name || '') || IMAGE_EXT.test(url) || /images\.unsplash\.com|\/image\/upload\//.test(url);
+  };
   const isDrawingPendingForBoq = (f) => {
     const status = getDrawingStatus(f);
     return status === 'draft' || status === 'pending_internal_approval' || status === 'internally_rejected' || status === 'client_changes_requested';
+  };
+
+  const openBoqApproval = (mode) => {
+    setBoqApprovalMode(mode);
+    setBoqReviewer('');
+    setBoqApprovalNote('');
+  };
+
+  const handleBoqApproval = async () => {
+    const mode = boqApprovalMode;
+    const boqs = [...(lead?.boqs || [])];
+    const target = boqs[activeBoqIdx];
+    if (!target || !mode) return;
+    if (mode === 'submit' && !boqReviewer) return showToast('Please select a reviewer', 'error');
+    if (mode === 'reject' && !boqApprovalNote.trim()) return showToast('Please specify the rejection reason and required changes', 'error');
+    const version = target.version || activeBoqIdx + 1;
+    const total = Number(target.totalAmount) || 0;
+    const me = currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email : '';
+    let updated;
+    let remarks;
+    if (mode === 'submit') {
+      const reviewer = users.find((u) => (u._id || u.id) === boqReviewer);
+      const reviewerName = reviewer ? userLabel(reviewer).split(' (')[0] : 'Manager';
+      updated = { ...target, status: 'pending_approval', assignedReviewer: boqReviewer, assignedReviewerName: reviewerName, submittedAt: new Date(), submissionNotes: boqApprovalNote.trim() || undefined };
+      remarks = `BOQ Version ${version} (₹${total.toLocaleString('en-IN')}) submitted for internal review to ${reviewerName}.${boqApprovalNote.trim() ? ` Notes: "${boqApprovalNote.trim()}"` : ''}`;
+    } else if (mode === 'approve') {
+      updated = { ...target, status: 'approved', approvedAt: new Date(), approvedBy: currentUser?._id || currentUser?.id, approvedByName: me || undefined, rejectionReason: undefined, rejectedAt: undefined };
+      remarks = `BOQ Version ${version} (₹${total.toLocaleString('en-IN')}) was approved internally.`;
+    } else {
+      updated = { ...target, status: 'rejected', rejectionReason: boqApprovalNote.trim(), rejectedAt: new Date() };
+      remarks = `BOQ Version ${version} rejected with reason: "${boqApprovalNote.trim()}". Revisions requested.`;
+    }
+    boqs[activeBoqIdx] = updated;
+    setSubmittingBoqApproval(true);
+    try {
+      await interiorCrmService.updateCustomer(id, { boqs });
+      await interiorCrmService.createActivity({ customer: id, type: 'Status Change', status: 'Completed', remarks });
+      showToast(mode === 'submit' ? 'BOQ sent for approval' : mode === 'approve' ? 'BOQ approved — Quotations unlocked' : 'BOQ rejected — revisions requested', 'success');
+      setBoqApprovalMode(null);
+      fetchData();
+    } catch (e) {
+      showToast(e.message || 'Failed to update the BOQ approval', 'error');
+    } finally {
+      setSubmittingBoqApproval(false);
+    }
   };
 
   const handleDirectApproveDrawing = async (drawing) => {
@@ -943,120 +1038,6 @@ export default function Lead360Screen() {
     );
   };
 
-  // Builds the printable A4 quotation document (mirrors the web QuotationPreview layout)
-  const buildQuotationHtml = (targetLead, quote) => {
-    const currency = targetLead?.currency || 'INR';
-    const items = quote?.items || [];
-    const rowsHtml = items.map((item) => {
-      const qty = Number(item.quantity) || 0;
-      const unitStr = item.unit ? ` ${item.unit}` : '';
-      const unitPrice = Number(item.unitPrice || item.rate || 0);
-      const total = Number(item.total) || qty * unitPrice;
-      const itemTitle = typeof item.description === 'string' ? item.description.split('\n')[0] : (item.description || item.itemName || 'Line Item');
-      return `
-        <tr>
-          <td class="desc">${itemTitle}</td>
-          <td class="center">${qty}${unitStr}</td>
-          <td class="right">${formatExactCurrency(unitPrice, currency)}</td>
-          <td class="right bold">${formatExactCurrency(total, currency)}</td>
-        </tr>`;
-    }).join('');
-
-    const subtotal = Number(quote?.subtotal) || items.reduce((acc, it) => acc + (Number(it.total) || (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)), 0);
-    const taxPercentage = Number(quote?.taxPercentage ?? 18);
-    const tax = Number(quote?.tax) || Math.round(subtotal * (taxPercentage / 100));
-    const discount = Number(quote?.discount) || 0;
-    const grandTotal = Number(quote?.grandTotal) || Math.max(0, subtotal + tax - discount);
-    const notes = quote?.notes || '1. Quotation is valid for 30 days.\n2. 50% advance payment required to commence work.\n3. Goods once delivered and approved will not be returned.';
-    const createdDate = quote?.createdAt ? new Date(quote.createdAt).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
-    const quoteTitle = quote?.title ? quote.title.toUpperCase() : 'COMMERCIAL QUOTATION';
-    const quoteSub = quote?.title || `Quotation Version ${quote?.version || 1}`;
-
-    return `
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <style>
-            * { box-sizing: border-box; }
-            body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #0F172A; padding: 32px; }
-            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #E0E7FF; padding-bottom: 24px; margin-bottom: 28px; }
-            .header h1 { font-size: 26px; color: #312E81; margin: 0; letter-spacing: -0.5px; }
-            .header .ver { font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
-            .company { text-align: right; }
-            .company h2 { font-size: 20px; margin: 0; color: #0F172A; }
-            .company p { font-size: 12px; color: #64748B; margin: 2px 0; }
-            .meta { display: flex; justify-content: space-between; margin-bottom: 32px; gap: 16px; }
-            .meta .label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-            .meta .name { font-size: 16px; font-weight: 700; }
-            .meta p { font-size: 13px; color: #475569; margin: 2px 0; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
-            thead tr { border-bottom: 2px solid #0F172A; }
-            th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 10px 4px; color: #0F172A; }
-            th.center, td.center { text-align: center; }
-            th.right, td.right { text-align: right; }
-            td { padding: 12px 4px; font-size: 13px; border-bottom: 1px solid #F1F5F9; color: #334155; }
-            td.desc { font-weight: 600; color: #1E293B; }
-            td.bold { font-weight: 700; color: #0F172A; }
-            .totals { display: flex; justify-content: flex-end; border-top: 1px solid #E2E8F0; padding-top: 20px; }
-            .totals-box { width: 280px; }
-            .totals-box .row { display: flex; justify-content: space-between; font-size: 13px; color: #475569; margin-bottom: 8px; }
-            .totals-box .grand { display: flex; justify-content: space-between; font-size: 19px; font-weight: 800; color: #312E81; border-top: 2px solid #E0E7FF; padding-top: 10px; margin-top: 6px; }
-            .terms { margin-top: 40px; padding-top: 20px; border-top: 1px solid #F1F5F9; }
-            .terms .label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-            .terms p { font-size: 11px; color: #64748B; white-space: pre-wrap; line-height: 1.6; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <h1>${quoteTitle}</h1>
-              <p class="ver">${quoteSub}</p>
-            </div>
-            <div class="company">
-              <h2>SKY INTERIOR</h2>
-              <p>123 Design Avenue, Tech Park</p>
-              <p>contact@skyinterior.com</p>
-              <p>+91 98765 43210</p>
-            </div>
-          </div>
-          <div class="meta">
-            <div>
-              <p class="label">Prepared For</p>
-              <p class="name">${targetLead?.name || ''}</p>
-              <p>${targetLead?.mobileNumber || ''}</p>
-              ${targetLead?.email ? `<p>${targetLead.email}</p>` : ''}
-              <p style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Date: ${createdDate}</p>
-            </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 50%;">Description</th>
-                <th class="center" style="width: 15%;">Qty</th>
-                <th class="right" style="width: 15%;">Unit Price</th>
-                <th class="right" style="width: 20%;">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml}
-            </tbody>
-          </table>
-          <div class="totals">
-            <div class="totals-box">
-              <div class="row"><span>Subtotal</span><span>${formatExactCurrency(subtotal, currency)}</span></div>
-              <div class="row"><span>Tax (${taxPercentage}%)</span><span>${formatExactCurrency(tax, currency)}</span></div>
-              ${discount > 0 ? `<div class="row" style="color: #059669;"><span>Discount</span><span>- ${formatExactCurrency(discount, currency)}</span></div>` : ''}
-              <div class="grand"><span>Grand Total</span><span>${formatExactCurrency(grandTotal, currency)}</span></div>
-            </div>
-          ${notes ? `
-          <div class="terms">
-            <p class="label">Notes & Remarks</p>
-            <p>${notes}</p>
-          </div>` : ''}
-        </body>
-      </html>
-    `;
-  };
 
   const handleSendQuotationEmail = async () => {
     if (!lead?.email) {
@@ -1607,20 +1588,8 @@ export default function Lead360Screen() {
               </View>
 
               <View style={{ gap: 10 }}>
-                {/* Row 1: Mobile Number & Client Source side-by-side */}
+                {/* Row 1: Client Source & Property Scope (same cards as the web) */}
                 <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <TouchableOpacity
-                    style={[s.metricCard, { flex: 1 }]}
-                    activeOpacity={0.7}
-                    onPress={() => showFieldDetail('Mobile Number', lead.mobileNumber, 'phone')}
-                  >
-                    <View style={s.metricHeader}>
-                      <Text style={s.metricLabel}>MOBILE NUMBER</Text>
-                      <Ionicons name="call-outline" size={13} color="#64748B" />
-                    </View>
-                    <Text style={s.metricVal} numberOfLines={1}>{lead.mobileNumber || 'Not specified'}</Text>
-                  </TouchableOpacity>
-
                   <TouchableOpacity
                     style={[s.metricCard, { flex: 1 }]}
                     activeOpacity={0.7}
@@ -1632,10 +1601,7 @@ export default function Lead360Screen() {
                     </View>
                     <Text style={s.metricVal} numberOfLines={1}>{lead.leadSource || 'Manual Entry'}</Text>
                   </TouchableOpacity>
-                </View>
 
-                {/* Row 2: Property Scope & Location side-by-side */}
-                <View style={{ flexDirection: 'row', gap: 10 }}>
                   <TouchableOpacity
                     style={[s.metricCard, { flex: 1 }]}
                     activeOpacity={0.7}
@@ -1646,6 +1612,21 @@ export default function Lead360Screen() {
                       <Ionicons name="business-outline" size={13} color="#64748B" />
                     </View>
                     <Text style={s.metricVal} numberOfLines={1}>{lead.propertyType || 'Not specified'}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Row 2: Est. Budget & Location */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    style={[s.metricCard, { flex: 1 }]}
+                    activeOpacity={0.7}
+                    onPress={() => showFieldDetail('Est. Budget', leadBudgetText)}
+                  >
+                    <View style={s.metricHeader}>
+                      <Text style={s.metricLabel}>EST. BUDGET</Text>
+                      <Ionicons name="cash-outline" size={13} color="#64748B" />
+                    </View>
+                    <Text style={[s.metricVal, { color: '#059669' }]} numberOfLines={1}>{leadBudgetText}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -1661,28 +1642,75 @@ export default function Lead360Screen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Row 3: Email Address full width */}
-                <TouchableOpacity
-                  style={s.metricCardFull}
-                  activeOpacity={0.7}
-                  onPress={() => showFieldDetail('Email Address', lead.email, 'email')}
-                >
-                  <View style={s.metricHeader}>
-                    <Text style={s.metricLabel}>EMAIL ADDRESS</Text>
-                    <Ionicons name="mail-outline" size={13} color="#64748B" />
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <Text style={[s.metricVal, { flex: 1 }]} numberOfLines={2}>
-                      {lead.email || 'Not specified'}
-                    </Text>
-                    {!!lead.email && (
-                      <View style={s.quickActionPill}>
-                        <Ionicons name="send-outline" size={11} color="#2563EB" />
-                        <Text style={s.quickActionPillText}>Send</Text>
+              </View>
+
+              {/* Site & Project Location (same as web) */}
+              <View style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <Ionicons name="location" size={17} color="#D97706" />
+                  <Text style={s.cardTitle}>Site & Project Location</Text>
+                  {!isReadOnly && canDo('crm_leads', 'update') && (
+                    <TouchableOpacity style={s.ovEditBtn} onPress={openEditModal}>
+                      <Ionicons name="pencil" size={11} color="#2563EB" />
+                      <Text style={s.ovEditBtnText}>Edit</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <View style={s.ovAddressBox}>
+                  <Text style={s.ovFieldLabel}>FULL SITE ADDRESS</Text>
+                  <Text style={s.ovAddressText}>{lead.projectLocation || lead.city || 'No specific site address provided yet.'}</Text>
+                  {!!(lead.projectLocation || lead.city) && (
+                    <View style={s.ovAddressActions}>
+                      <TouchableOpacity
+                        style={s.ovPillBtn}
+                        onPress={async () => {
+                          await Clipboard.setStringAsync(lead.projectLocation || lead.city);
+                          showToast('Address copied', 'success');
+                        }}
+                      >
+                        <Ionicons name="copy-outline" size={12} color="#334155" />
+                        <Text style={s.ovPillText}>Copy Address</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[s.ovPillBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+                        onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.projectLocation || lead.city)}`)}
+                      >
+                        <Ionicons name="open-outline" size={12} color="#2563EB" />
+                        <Text style={[s.ovPillText, { color: '#2563EB' }]}>Open in Maps</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {/* Lead & Contact Info (same as web) */}
+              <View style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <Ionicons name="person" size={16} color="#2563EB" />
+                  <Text style={s.cardTitle}>Lead & Contact Info</Text>
+                </View>
+                <View style={{ gap: 8 }}>
+                  {[
+                    { icon: 'person-outline', color: '#3B82F6', label: 'Full Name', value: lead.name },
+                    { icon: 'call-outline', color: '#10B981', label: 'Mobile', value: lead.mobileNumber, onPress: lead.mobileNumber ? () => showFieldDetail('Mobile Number', lead.mobileNumber, 'phone') : null },
+                    lead.email ? { icon: 'mail-outline', color: '#8B5CF6', label: 'Email', value: lead.email, onPress: () => showFieldDetail('Email Address', lead.email, 'email') } : null,
+                    { icon: 'business-outline', color: '#6366F1', label: 'Property Type', value: lead.propertyType || 'Standard' },
+                    { icon: 'cash-outline', color: '#F59E0B', label: 'Budget / Quote', value: leadBudgetText, valueColor: '#059669' },
+                  ].filter(Boolean).map((row) => (
+                    <TouchableOpacity key={row.label} style={s.ovInfoRow} disabled={!row.onPress} onPress={row.onPress || undefined} activeOpacity={0.7}>
+                      <View style={s.ovInfoLabelWrap}>
+                        <Ionicons name={row.icon} size={13} color={row.color} />
+                        <Text style={s.ovInfoLabel}>{row.label}</Text>
                       </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
+                      <Text
+                        style={[s.ovInfoValue, row.onPress && { color: '#2563EB' }, row.valueColor && { color: row.valueColor }]}
+                        numberOfLines={2}
+                      >
+                        {row.value || 'Not specified'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
 
               {/* Activity Timeline */}
@@ -1854,234 +1882,208 @@ export default function Lead360Screen() {
                     </View>
                     )}
 
-                    {/* Active Scheduled Follow-up Card */}
-                    {activePendingFollowUp && (() => {
-                      const isOverdue = !isLeadProgressed && activePendingFollowUp.scheduledDate &&
-                        new Date(activePendingFollowUp.scheduledDate).getTime() < Date.now();
-                      const overdueMs = isOverdue
-                        ? Date.now() - new Date(activePendingFollowUp.scheduledDate).getTime() : 0;
-                      const overdueDays = Math.floor(overdueMs / (1000 * 60 * 60 * 24));
-                      const overdueHrs = Math.floor(overdueMs / (1000 * 60 * 60));
-                      const overdueText = overdueDays > 0
-                        ? `${overdueDays}d overdue`
-                        : overdueHrs > 0
-                        ? `${overdueHrs}h overdue`
-                        : 'Just overdue';
+                    {/* Current touchpoint (same structure as the web Follow-ups tab):
+                        the pending follow-up, else the most recent one */}
+                    {(() => {
+                      const sorted = [...followUpActs].sort((x, y) => {
+                        const xp = x.status?.toLowerCase() === 'pending';
+                        const yp = y.status?.toLowerCase() === 'pending';
+                        if (xp && !yp) return -1;
+                        if (yp && !xp) return 1;
+                        return new Date(y.scheduledDate || y.createdAt).getTime() - new Date(x.scheduledDate || x.createdAt).getTime();
+                      });
+                      const current = sorted[0];
+                      const userNameOf = (uRef) => {
+                        if (!uRef) return 'Team Member';
+                        const uId = typeof uRef === 'object' ? (uRef._id || uRef.id) : uRef;
+                        const matched = users.find((u) => (u._id || u.id) === uId);
+                        return matched ? userLabel(matched).split(' (')[0] : (typeof uRef === 'object' ? userLabel(uRef).split(' (')[0] : 'Team Member');
+                      };
+                      const typeIcon = (t) => (t === 'WhatsApp' ? 'logo-whatsapp' : t === 'Meeting' ? 'people-outline' : t === 'Office Visit' ? 'business-outline' : t === 'Email' ? 'mail-outline' : 'call-outline');
+                      const fmtWhen = (d) => new Date(d).toLocaleString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                      const isOverdueAct = (act) => !isLeadProgressed && act.status?.toLowerCase() === 'pending' && act.scheduledDate && new Date(act.scheduledDate).getTime() < Date.now();
+
+                      if (!current) {
+                        return (
+                          <View style={[s.card, { alignItems: 'center', paddingVertical: 28, gap: 8 }]}>
+                            <Ionicons name="calendar-clear-outline" size={36} color="#CBD5E1" />
+                            <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' }}>
+                              {isLeadProgressed ? 'Initial Follow-up Phase Completed' : 'No Follow-ups Scheduled'}
+                            </Text>
+                            <Text style={[s.emptySubText, { textAlign: 'center' }]}>
+                              {isLeadProgressed
+                                ? `This lead has already moved to the "${lead?.status || 'Site Visit'}" stage.`
+                                : 'Schedule client touchpoints (calls, WhatsApp or meetings) before planning the site visit.'}
+                            </Text>
+                            {!isReadOnly && !isLeadProgressed && canDo('crm_followups', 'create') && (
+                              <TouchableOpacity
+                                style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, marginTop: 4 }}
+                                onPress={() => setShowFollowUpModal(true)}
+                              >
+                                <Text style={{ color: '#2563EB', fontSize: 12, fontFamily: 'Inter-Bold' }}>+ Schedule Initial Follow-up</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        );
+                      }
+
+                      const currentPending = current.status?.toLowerCase() === 'pending' && !isLeadProgressed;
+                      const currentOverdue = isOverdueAct(current);
+                      const overdueMs = currentOverdue ? Date.now() - new Date(current.scheduledDate).getTime() : 0;
+                      const overdueText = Math.floor(overdueMs / 86400000) > 0
+                        ? `${Math.floor(overdueMs / 86400000)}d overdue`
+                        : Math.floor(overdueMs / 3600000) > 0 ? `${Math.floor(overdueMs / 3600000)}h overdue` : 'Just overdue';
+                      const statusText = currentPending
+                        ? (currentOverdue ? `Overdue (${overdueText})` : 'Pending Touchpoint')
+                        : isLeadProgressed ? 'Stage Completed' : current.status?.toLowerCase() === 'missed' ? 'Missed' : 'Completed';
+                      const statusColor = currentPending ? (currentOverdue ? '#DC2626' : '#D97706') : '#16A34A';
+
                       return (
-                      <View style={[s.card, isOverdue
-                        ? { borderColor: '#FCA5A5', backgroundColor: '#FFF5F5' }
-                        : { borderColor: '#BFDBFE', backgroundColor: '#F0F7FF' }
-                      ]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isOverdue ? '#DC2626' : '#2563EB' }} />
-                            <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: isOverdue ? '#991B1B' : '#1D4ED8' }}>
-                              {isOverdue ? 'Overdue Follow-up' : 'Current Active Follow-up'}
-                            </Text>
-                          </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            {isOverdue && (
-                              <View style={s.overdueBadge}>
-                                <View style={s.overdueDot} />
-                                <Text style={s.overdueBadgeText}>{overdueText}</Text>
+                        <>
+                          {/* Header: "<Type> Touchpoint" */}
+                          <View style={[s.card, currentOverdue && { borderColor: '#FCA5A5', backgroundColor: '#FFF5F5' }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                              <View style={[s.actionIconBox, { backgroundColor: currentOverdue ? '#FEE2E2' : '#EFF6FF' }]}>
+                                <Ionicons name={typeIcon(current.type)} size={17} color={currentOverdue ? '#DC2626' : '#2563EB'} />
                               </View>
-                            )}
-                            {!isOverdue && (
-                              <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE' }}>
-                                <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#1D4ED8', textTransform: 'uppercase' }}>Pending</Text>
-                              </View>
-                            )}
-                          </View>
-                        </View>
-
-                        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#DBEAFE', gap: 10 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                              <View style={[s.actionIconBox, { backgroundColor: '#EFF6FF' }]}>
-                                <Ionicons
-                                  name={activePendingFollowUp.type === 'WhatsApp' ? 'logo-whatsapp' : activePendingFollowUp.type === 'Meeting' ? 'people-outline' : 'call-outline'}
-                                  size={16}
-                                  color="#2563EB"
-                                />
-                              </View>
-                              <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>
-                                  {activePendingFollowUp.type || 'Touchpoint'}
-                                </Text>
-                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' }}>
-                                  Due: {activePendingFollowUp.scheduledDate
-                                    ? new Date(activePendingFollowUp.scheduledDate).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                                    : 'Not set'}
-                                </Text>
+                              <View style={{ flex: 1, gap: 3 }}>
+                                <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{current.type || 'Follow-up'} Touchpoint</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                  <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: statusColor + '18', borderWidth: 1, borderColor: statusColor + '40' }}>
+                                    <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: statusColor }}>{statusText}</Text>
+                                  </View>
+                                  {followUpActs.length > 1 && (
+                                    <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: '#F1F5F9' }}>
+                                      <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B' }}>{followUpActs.length} Total Logs</Text>
+                                    </View>
+                                  )}
+                                </View>
                               </View>
                             </View>
+                            <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: currentOverdue ? '#B91C1C' : '#64748B', marginTop: 10 }}>
+                              {currentPending ? 'Scheduled for: ' : 'Logged on: '}
+                              <Text style={{ fontFamily: 'Inter-Bold', color: currentOverdue ? '#B91C1C' : '#0F172A' }}>{fmtWhen(current.scheduledDate || current.createdAt)}</Text>
+                            </Text>
+                            {currentOverdue && (
+                              <View style={{ flexDirection: 'row', gap: 6, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#FECACA' }}>
+                                <Ionicons name="warning-outline" size={14} color="#DC2626" />
+                                <Text style={{ flex: 1, fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#991B1B' }}>
+                                  Scheduled window has expired. Contact the client and reschedule, or move to the next stage.
+                                </Text>
+                              </View>
+                            )}
+                            {!isReadOnly && currentPending && canDo('crm_followups', 'update') && (
+                              <TouchableOpacity
+                                style={[s.rescheduleBtn, { justifyContent: 'center', marginTop: 12 }]}
+                                onPress={() => openRescheduleModal(current)}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name="calendar-outline" size={13} color="#7C3AED" />
+                                <Text style={s.rescheduleBtnText}>Reschedule Follow-up</Text>
+                              </TouchableOpacity>
+                            )}
                           </View>
 
-                          {!isReadOnly && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
-                              {canDo('crm_followups', 'update') && (
+                          {/* Touchpoint Objective & Goal */}
+                          <View style={s.card}>
+                            <View style={s.cardHeaderRow}>
+                              <Ionicons name="document-text-outline" size={16} color="#2563EB" />
+                              <Text style={s.cardTitle}>Touchpoint Objective & Goal</Text>
+                              <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>Active Note</Text>
+                            </View>
+                            <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A', lineHeight: 19, backgroundColor: currentOverdue ? '#FFF5F5' : '#F8FAFC', borderWidth: 1, borderColor: currentOverdue ? '#FECACA' : '#F1F5F9', borderRadius: 10, padding: 12 }}>
+                              {current.remarks || 'No notes or objectives recorded for this touchpoint.'}
+                            </Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                              <View style={s.specBox}>
+                                <Text style={s.specLabel}>CHANNEL</Text>
+                                <Text style={s.specVal} numberOfLines={1}>{current.type || 'Phone Call'}</Text>
+                              </View>
+                              <View style={s.specBox}>
+                                <Text style={s.specLabel}>ASSIGNED TO</Text>
+                                <Text style={s.specVal} numberOfLines={1}>{lead.assignedSalesExecutive || current.user ? userNameOf(lead.assignedSalesExecutive || current.user) : 'Unassigned'}</Text>
+                              </View>
+                              <TouchableOpacity style={s.specBox} disabled={!lead.mobileNumber} onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`)}>
+                                <Text style={s.specLabel}>CLIENT MOBILE</Text>
+                                <Text style={[s.specVal, { color: '#2563EB' }]} numberOfLines={1}>{lead.mobileNumber || '—'}</Text>
+                              </TouchableOpacity>
+                              <View style={s.specBox}>
+                                <Text style={s.specLabel}>PROJECT CITY</Text>
+                                <Text style={s.specVal} numberOfLines={1}>{lead.city || lead.projectLocation || 'Standard'}</Text>
+                              </View>
+                            </View>
+                            {!!lead.mobileNumber && (
+                              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
                                 <TouchableOpacity
-                                  style={[s.rescheduleBtn, { flex: 1, justifyContent: 'center' }]}
-                                  onPress={() => openRescheduleModal(activePendingFollowUp)}
-                                  activeOpacity={0.7}
+                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
+                                  onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`)}
                                 >
-                                  <Ionicons name="calendar-outline" size={13} color="#7C3AED" />
-                                  <Text style={s.rescheduleBtnText}>Reschedule</Text>
+                                  <Ionicons name="call" size={12} color="#2563EB" />
+                                  <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' }}>Call</Text>
                                 </TouchableOpacity>
-                              )}
-                            </View>
-                          )}
+                                <TouchableOpacity
+                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
+                                  onPress={() => Linking.openURL(`https://wa.me/${lead.mobileNumber.replace(/\D/g, '')}`)}
+                                >
+                                  <Ionicons name="logo-whatsapp" size={12} color="#16A34A" />
+                                  <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#16A34A' }}>WhatsApp</Text>
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                          </View>
 
-                          {!!activePendingFollowUp.remarks && (
-                            <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#475569', backgroundColor: '#F8FAFC', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                              &quot;{activePendingFollowUp.remarks}&quot;
-                            </Text>
-                          )}
-
-                          {/* Quick Spec Matrix */}
-                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                            <View style={s.specBox}>
-                              <Text style={s.specLabel}>CHANNEL</Text>
-                              <Text style={s.specVal} numberOfLines={1}>{activePendingFollowUp.type || 'Phone Call'}</Text>
-                            </View>
-                            <View style={s.specBox}>
-                              <Text style={s.specLabel}>ASSIGNED TO</Text>
-                              <Text style={s.specVal} numberOfLines={1}>
-                                {(() => {
-                                  const uRef = lead.assignedSalesExecutive || activePendingFollowUp.user;
-                                  if (!uRef) return 'Unassigned';
-                                  const uId = typeof uRef === 'object' ? (uRef._id || uRef.id) : uRef;
-                                  const matched = users.find((u) => (u._id || u.id) === uId);
-                                  return matched ? userLabel(matched).split(' (')[0] : (typeof uRef === 'object' ? userLabel(uRef).split(' (')[0] : 'Team Member');
-                                })()}
+                          {/* History: every follow-up (pending, completed and missed) */}
+                          <View style={s.card}>
+                            <View style={s.cardHeaderRow}>
+                              <Ionicons name="time-outline" size={17} color="#2563EB" />
+                              <Text style={s.cardTitle}>Follow-up History & Past Touchpoints</Text>
+                              <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                {sorted.length} {sorted.length === 1 ? 'Record' : 'Records'}
                               </Text>
                             </View>
-                            <View style={s.specBox}>
-                              <Text style={s.specLabel}>CLIENT MOBILE</Text>
-                              <Text style={s.specVal} numberOfLines={1}>{lead.mobileNumber || '—'}</Text>
-                            </View>
-                            <View style={s.specBox}>
-                              <Text style={s.specLabel}>PROJECT CITY</Text>
-                              <Text style={s.specVal} numberOfLines={1}>{lead.city || lead.projectLocation || 'Standard'}</Text>
+                            <View style={{ borderLeftWidth: 2, borderLeftColor: '#E2E8F0', marginLeft: 6, paddingLeft: 14, gap: 12 }}>
+                              {sorted.map((item, idx) => {
+                                const isActive = item._id === current._id;
+                                const itemOverdue = isOverdueAct(item);
+                                const itemPending = item.status?.toLowerCase() === 'pending' && !isLeadProgressed;
+                                const badge = isActive
+                                  ? (itemOverdue ? 'Active • Overdue' : isLeadProgressed ? 'Stage Progressed' : itemPending ? 'Active Schedule' : 'Latest')
+                                  : itemOverdue ? 'Overdue' : itemPending ? 'Scheduled' : item.status?.toLowerCase() === 'missed' ? 'Missed' : 'Past Touchpoint';
+                                const color = itemOverdue ? '#DC2626' : itemPending ? '#2563EB' : item.status?.toLowerCase() === 'missed' ? '#D97706' : '#16A34A';
+                                return (
+                                  <View key={item._id || idx} style={[s.followUpCard, { marginBottom: 0 }, isActive && { borderColor: color + '55', backgroundColor: color + '0D' }]}>
+                                    <View style={{ position: 'absolute', left: -22, top: 14, width: 12, height: 12, borderRadius: 6, backgroundColor: color, borderWidth: 2, borderColor: '#FFFFFF' }} />
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' }}>
+                                        <Ionicons name={typeIcon(item.type)} size={13} color={color} />
+                                        <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{item.type || 'Follow-up'}</Text>
+                                        <View style={{ paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: color + '18' }}>
+                                          <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color, textTransform: 'uppercase' }}>{badge}</Text>
+                                        </View>
+                                      </View>
+                                      <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#64748B' }}>
+                                        {new Date(item.scheduledDate || item.createdAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                      </Text>
+                                    </View>
+                                    <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#334155', marginTop: 6, lineHeight: 17 }}>
+                                      {item.remarks || 'No notes logged.'}
+                                    </Text>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                                      <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#64748B', flex: 1 }} numberOfLines={1}>
+                                        Handled by: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{userNameOf(item.user)}</Text>
+                                      </Text>
+                                      {!!item.createdAt && (
+                                        <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' }}>Logged: {new Date(item.createdAt).toLocaleDateString('en-IN')}</Text>
+                                      )}
+                                    </View>
+                                  </View>
+                                );
+                              })}
                             </View>
                           </View>
-
-                          {/* Quick Outreach Links */}
-                          {!!lead.mobileNumber && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingTop: 2 }}>
-                              <TouchableOpacity
-                                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
-                                onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`)}
-                              >
-                                <Ionicons name="call" size={12} color="#2563EB" />
-                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' }}>Call</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
-                                onPress={() => Linking.openURL(`https://wa.me/${lead.mobileNumber.replace(/\D/g, '')}`)}
-                              >
-                                <Ionicons name="logo-whatsapp" size={12} color="#16A34A" />
-                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#16A34A' }}>WhatsApp</Text>
-                              </TouchableOpacity>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    );
+                        </>
+                      );
                     })()}
-
-                    {/* Follow-up Touchpoints / Completed History */}
-                    {/* Close the old activePendingFollowUp card wrapper */}
-
-                    <View style={s.card}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                          <Ionicons name="time-outline" size={18} color="#2563EB" />
-                          <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>
-                            Follow-up History ({completedFollowUps.length})
-                          </Text>
-                        </View>
-                        {completedFollowUps.length === 0 && !activePendingFollowUp && (
-                          canDo('crm_followups', 'create') && (
-                            <TouchableOpacity style={s.smallBtn} onPress={() => setShowFollowUpModal(true)}>
-                              <Ionicons name="add" size={14} color="#2563EB" />
-                              <Text style={s.smallBtnText}>Schedule</Text>
-                            </TouchableOpacity>
-                          )
-                        )}
-                      </View>
-
-                      {completedFollowUps.length === 0 && !activePendingFollowUp ? (
-                        <View style={{ alignItems: 'center', paddingVertical: 24, gap: 8 }}>
-                          <Ionicons name="calendar-clear-outline" size={36} color="#CBD5E1" />
-                          <Text style={s.emptySubText}>No follow-ups logged yet.</Text>
-                          {canDo('crm_followups', 'create') && (
-                            <TouchableOpacity
-                              style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 }}
-                              onPress={() => setShowFollowUpModal(true)}
-                            >
-                              <Text style={{ color: '#2563EB', fontSize: 12, fontFamily: 'Inter-Bold' }}>+ Schedule First Follow-up</Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      ) : completedFollowUps.length === 0 && activePendingFollowUp ? (
-                        <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 }}>
-                          Current follow-up is pending above. Tap &quot;Done&quot; once completed.
-                        </Text>
-                      ) : (
-                        completedFollowUps.map((act) => {
-                          const actDate = act.completedDate || act.updatedAt || act.scheduledDate || act.createdAt;
-                          return (
-                            <View key={act._id} style={s.followUpCard}>
-                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                                  <View style={[s.actionIconBox, { backgroundColor: '#F0FDF4' }]}>
-                                    <Ionicons
-                                      name={act.type === 'WhatsApp' ? 'logo-whatsapp' : act.type === 'Meeting' ? 'people-outline' : 'call-outline'}
-                                      size={16}
-                                      color="#16A34A"
-                                    />
-                                  </View>
-                                  <View style={{ flex: 1 }}>
-                                    <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{act.type || 'Touchpoint'}</Text>
-                                    <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B' }}>
-                                      {new Date(actDate).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                                    </Text>
-                                  </View>
-                                </View>
-                                <View style={{
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 3,
-                                  borderRadius: 6,
-                                  backgroundColor: '#F0FDF4',
-                                  borderWidth: 1,
-                                  borderColor: '#BBF7D0',
-                                  flexDirection: 'row',
-                                  alignItems: 'center',
-                                  gap: 3,
-                                }}>
-                                  <Ionicons name="checkmark-circle" size={12} color="#16A34A" />
-                                  <Text style={{
-                                    fontSize: 10,
-                                    fontFamily: 'Inter-Bold',
-                                    color: '#16A34A',
-                                    textTransform: 'uppercase',
-                                  }}>
-                                    Completed
-                                  </Text>
-                                </View>
-                              </View>
-
-                              {!!act.remarks && (
-                                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#475569', marginTop: 8, backgroundColor: '#F8FAFC', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                                  &quot;{act.remarks}&quot;
-                                </Text>
-                              )}
-                            </View>
-                          );
-                        })
-                      )}
-                    </View>
                   </>
                 );
               })()}
@@ -2113,6 +2115,60 @@ export default function Lead360Screen() {
                 const siteAssignedName = siteAssignedId
                   ? userLabel(users.find((u) => (u._id || u.id) === siteAssignedId) || {}).split(' (')[0]
                   : null;
+                // "Site Visit Briefing & Details" card (same content as the web): status,
+                // instructions, schedule, assigned member, property scope and location
+                const siteNote = latestSiteVisitAct?.remarks || lead?.remarks || lead?.siteMeasurements?.notes || '';
+                const surveyStatus = lead?.siteMeasurements ? 'Survey Completed' : isSiteVisitOverdue ? 'Survey Overdue' : 'Survey Pending';
+                const surveyColor = lead?.siteMeasurements ? '#059669' : isSiteVisitOverdue ? '#DC2626' : '#7C3AED';
+                const briefingCard = (
+                  <View style={[s.card, isSiteVisitOverdue && { borderColor: '#FCA5A5' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                      <View style={[s.actionIconBox, { backgroundColor: isSiteVisitOverdue ? '#FEE2E2' : '#F3E8FF', width: 34, height: 34, borderRadius: 9 }]}>
+                        <Ionicons name="location" size={17} color={isSiteVisitOverdue ? '#DC2626' : '#7C3AED'} />
+                      </View>
+                      <View style={{ flex: 1, gap: 4 }}>
+                        <Text style={[s.cardTitle, { flex: 0 }]}>Site Visit Briefing & Details</Text>
+                        <View style={{ alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: surveyColor + '18', borderWidth: 1, borderColor: surveyColor + '40' }}>
+                          <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: surveyColor }}>{surveyStatus}</Text>
+                        </View>
+                      </View>
+                      {siteVisitActs.length > 0 && (
+                        <TouchableOpacity style={s.smallBtn} onPress={() => setShowSiteHistoryModal(true)}>
+                          <Ionicons name="time-outline" size={13} color="#7C3AED" />
+                          <Text style={s.smallBtnText}>History ({siteVisitActs.length})</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <View style={{ backgroundColor: '#FAF5FF', borderWidth: 1, borderColor: '#E9D5FF', borderRadius: 10, padding: 10, gap: 6 }}>
+                      <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#7E22CE', letterSpacing: 0.4 }}>SITE VISIT INSTRUCTIONS</Text>
+                      <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#0F172A', lineHeight: 18, backgroundColor: '#FFFFFF', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#F3E8FF' }}>
+                        {siteNote || 'Lead passed to Site Visit and assigned to site team.'}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                      <View style={[s.specBox, isSiteVisitOverdue && { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+                        <Text style={s.specLabel}>SCHEDULE</Text>
+                        <Text style={[s.specVal, isSiteVisitOverdue && { color: '#DC2626' }]} numberOfLines={1}>
+                          {siteVisitScheduledDate
+                            ? new Date(siteVisitScheduledDate).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                            : 'Not scheduled'}
+                        </Text>
+                      </View>
+                      <View style={s.specBox}>
+                        <Text style={s.specLabel}>ASSIGNED MEMBER</Text>
+                        <Text style={s.specVal} numberOfLines={1}>{siteAssignedName || 'Assigned Site Member'}</Text>
+                      </View>
+                      <View style={s.specBox}>
+                        <Text style={s.specLabel}>PROPERTY SCOPE</Text>
+                        <Text style={s.specVal} numberOfLines={1}>{lead.propertyType || 'Residential'}</Text>
+                      </View>
+                      <View style={s.specBox}>
+                        <Text style={s.specLabel}>SITE LOCATION</Text>
+                        <Text style={s.specVal} numberOfLines={1}>{lead.projectLocation || lead.city || 'Pending'}</Text>
+                      </View>
+                    </View>
+                  </View>
+                );
                 if (lock.isLocked) {
                   return (
                     <View style={s.lockedCard}>
@@ -2181,36 +2237,14 @@ export default function Lead360Screen() {
                         </View>
                       )}
 
+                      {briefingCard}
                       <View style={s.emptyCard}>
-                        <Ionicons name="location-outline" size={40} color="#7C3AED" />
-                        <Text style={s.emptyCardTitle}>No Site Measurements</Text>
-                        <Text style={s.emptySubText}>Capture area, height, and site photos.</Text>
-                        {(!!lead.remarks || !!siteAssignedName) && (
-                          <View style={s.siteVisitBriefingCard}>
-                            <View style={s.siteVisitBriefingIconBox}>
-                              <Ionicons name="document-text-outline" size={15} color="#7C3AED" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={s.siteVisitBriefingLabel}>SITE VISIT BRIEFING NOTE</Text>
-                              <Text style={s.siteVisitBriefingText}>{lead.remarks || 'No specific instructions entered.'}</Text>
-                              {!!siteAssignedName && (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
-                                  <Ionicons name="person-outline" size={11} color="#64748B" />
-                                  <Text style={s.actMetaLine}>Assigned: {siteAssignedName}</Text>
-                                </View>
-                              )}
-                            </View>
-                          </View>
-                        )}
-                        {canDo('crm_site_visits', 'update') && (
+                        <Ionicons name="resize-outline" size={36} color="#7C3AED" />
+                        <Text style={s.emptyCardTitle}>Ready for On-Site Survey & Measurements</Text>
+                        <Text style={[s.emptySubText, { textAlign: 'center' }]}>Capture room dimensions, ceiling heights, door/window openings, MEP points and site photos.</Text>
+                        {!isReadOnly && canDo('crm_site_visits', 'update') && (
                           <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowSiteModal(true)}>
-                            <Text style={s.actionBtnText}>Log Site Visit</Text>
-                          </TouchableOpacity>
-                        )}
-                        {siteVisitActs.length > 0 && (
-                          <TouchableOpacity style={[s.smallBtn, { marginTop: 8 }]} onPress={() => setShowSiteHistoryModal(true)}>
-                            <Ionicons name="time-outline" size={13} color="#7C3AED" />
-                            <Text style={s.smallBtnText}>View History ({siteVisitActs.length})</Text>
+                            <Text style={s.actionBtnText}>Log Site Visit & Measurements</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -2220,38 +2254,15 @@ export default function Lead360Screen() {
 
                 return (
                   <View style={{ gap: 16 }}>
-                    {/* Site Visit Briefing Note (from scheduling) */}
-                    {(!!lead.remarks || !!siteAssignedName) && (
-                      <View style={s.siteVisitBriefingCard}>
-                        <View style={s.siteVisitBriefingIconBox}>
-                          <Ionicons name="document-text-outline" size={15} color="#7C3AED" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.siteVisitBriefingLabel}>SITE VISIT BRIEFING NOTE</Text>
-                          <Text style={s.siteVisitBriefingText}>{lead.remarks || 'No specific instructions entered.'}</Text>
-                          {!!siteAssignedName && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
-                              <Ionicons name="person-outline" size={11} color="#64748B" />
-                              <Text style={s.actMetaLine}>Assigned: {siteAssignedName}</Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    )}
-                    {siteVisitActs.length > 0 && (
-                      <TouchableOpacity style={[s.smallBtn, { alignSelf: 'flex-end' }]} onPress={() => setShowSiteHistoryModal(true)}>
-                        <Ionicons name="time-outline" size={13} color="#7C3AED" />
-                        <Text style={s.smallBtnText}>View History ({siteVisitActs.length})</Text>
-                      </TouchableOpacity>
-                    )}
-                    {/* 1. ROOM & SPATIAL DIMENSIONS */}
+                    {briefingCard}
+                    {/* 1. SPATIAL DIMENSIONS */}
                     <View style={s.card}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
                           <View style={[s.actionIconBox, { backgroundColor: '#F3E8FF', width: 32, height: 32, borderRadius: 8 }]}>
                             <Ionicons name="pencil-outline" size={16} color="#7C3AED" />
                           </View>
-                          <Text style={s.cardTitle} numberOfLines={1}>Room & Spatial Dimensions</Text>
+                          <Text style={s.cardTitle} numberOfLines={1}>Spatial Dimensions</Text>
                         </View>
                         {canDo('crm_site_visits', 'update') && (
                           <TouchableOpacity style={s.smallBtn} onPress={() => setShowSiteModal(true)}>
@@ -2265,11 +2276,11 @@ export default function Lead360Screen() {
                       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
                         <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
                           <Text style={s.metricLabel}>Carpet Area</Text>
-                          <Text style={s.measureVal}>{lead.siteMeasurements.carpetArea ? `${lead.siteMeasurements.carpetArea} Sq.Ft` : 'N/A'}</Text>
+                          <Text style={s.measureVal}>{lead.siteMeasurements.carpetArea ? `${lead.siteMeasurements.carpetArea} Sq.Ft` : '—'}</Text>
                         </View>
                         <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
                           <Text style={s.metricLabel}>Ceiling Height</Text>
-                          <Text style={s.measureVal}>{lead.siteMeasurements.ceilingHeight ? `${lead.siteMeasurements.ceilingHeight} Ft` : 'N/A'}</Text>
+                          <Text style={s.measureVal}>{lead.siteMeasurements.ceilingHeight ? `${lead.siteMeasurements.ceilingHeight} Ft` : '—'}</Text>
                         </View>
                       </View>
 
@@ -2281,128 +2292,94 @@ export default function Lead360Screen() {
                         </View>
                       )}
 
-                      {/* Rooms to Design */}
-                      {!!lead.siteMeasurements.rooms && (
-                        <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 10 }}>
-                          <Text style={s.metricLabel}>Rooms to Design</Text>
-                          <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.rooms}</Text>
-                        </View>
-                      )}
-
-                      {/* Room Length × Width */}
-                      {!!lead.siteMeasurements.roomDimensions && (
-                        <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                          <Text style={s.metricLabel}>Room Length × Width</Text>
-                          <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.roomDimensions}</Text>
-                        </View>
-                      )}
+                      {/* Room dimensions & rooms to design (always shown, like the web) */}
+                      <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 10 }}>
+                        <Text style={s.metricLabel}>Room Dimensions</Text>
+                        <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.roomDimensions || 'Not recorded'}</Text>
+                      </View>
+                      <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                        <Text style={s.metricLabel}>Rooms to Design</Text>
+                        <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.rooms || 'Not specified'}</Text>
+                      </View>
                     </View>
 
-                    {/* 2. OPENINGS & STRUCTURAL ELEMENTS */}
-                    {(!!lead.siteMeasurements.doorDimensions || !!lead.siteMeasurements.windowDimensions || !!lead.siteMeasurements.wallThickness || !!lead.siteMeasurements.columnBeamDimensions) && (
+                    {/* 2. OPENINGS & STRUCTURE */}
+                    {(
                       <View style={s.card}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                           <View style={[s.actionIconBox, { backgroundColor: '#EEF2FF', width: 32, height: 32, borderRadius: 8 }]}>
                             <Ionicons name="construct-outline" size={16} color="#4F46E5" />
                           </View>
-                          <Text style={s.cardTitle}>Openings & Structural Elements</Text>
+                          <Text style={s.cardTitle}>Openings & Structure</Text>
                         </View>
 
                         <View style={{ gap: 10 }}>
-                          {(!!lead.siteMeasurements.doorDimensions || !!lead.siteMeasurements.windowDimensions) && (
-                            <View style={{ flexDirection: 'row', gap: 10 }}>
-                              {!!lead.siteMeasurements.doorDimensions && (
-                                <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                                  <Text style={s.metricLabel}>Door Dimensions</Text>
-                                  <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.doorDimensions}</Text>
-                                </View>
-                              )}
-                              {!!lead.siteMeasurements.windowDimensions && (
-                                <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                                  <Text style={s.metricLabel}>Window Dimensions</Text>
-                                  <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.windowDimensions}</Text>
-                                </View>
-                              )}
-                            </View>
-                          )}
-                          {!!lead.siteMeasurements.wallThickness && (
-                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                              <Text style={s.metricLabel}>Wall Thickness</Text>
-                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.wallThickness}</Text>
-                            </View>
-                          )}
-                          {!!lead.siteMeasurements.columnBeamDimensions && (
-                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                              <Text style={s.metricLabel}>Column & Beam Dimensions</Text>
-                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.columnBeamDimensions}</Text>
-                            </View>
-                          )}
+                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                            <Text style={s.metricLabel}>Door Dimensions</Text>
+                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.doorDimensions || 'Not recorded'}</Text>
+                          </View>
+                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                            <Text style={s.metricLabel}>Window Dimensions</Text>
+                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.windowDimensions || 'Not recorded'}</Text>
+                          </View>
+                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                            <Text style={s.metricLabel}>Wall / Column Dimensions</Text>
+                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.columnBeamDimensions || lead.siteMeasurements.wallThickness || 'Not recorded'}</Text>
+                          </View>
                         </View>
                       </View>
                     )}
 
-                    {/* 3. MEP & SERVICES (ELECTRICAL, PLUMBING, AC) */}
-                    {(!!lead.siteMeasurements.electricalPoints || !!lead.siteMeasurements.plumbingPoints || !!lead.siteMeasurements.acLocations) && (
+                    {/* 3. MEP & UTILITY SERVICES */}
+                    {(
                       <View style={s.card}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                           <View style={[s.actionIconBox, { backgroundColor: '#FEF3C7', width: 32, height: 32, borderRadius: 8 }]}>
                             <Ionicons name="flash-outline" size={16} color="#D97706" />
                           </View>
-                          <Text style={s.cardTitle}>MEP & Services</Text>
+                          <Text style={s.cardTitle}>MEP & Utility Services</Text>
                         </View>
 
                         <View style={{ gap: 10 }}>
-                          {!!lead.siteMeasurements.electricalPoints && (
-                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                              <Text style={s.metricLabel}>Existing Electrical Points</Text>
-                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.electricalPoints}</Text>
-                            </View>
-                          )}
-                          {!!lead.siteMeasurements.plumbingPoints && (
-                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                              <Text style={s.metricLabel}>Plumbing Points</Text>
-                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.plumbingPoints}</Text>
-                            </View>
-                          )}
-                          {!!lead.siteMeasurements.acLocations && (
-                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                              <Text style={s.metricLabel}>AC Locations & Piping</Text>
-                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.acLocations}</Text>
-                            </View>
-                          )}
+                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                            <Text style={s.metricLabel}>Electrical Points</Text>
+                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.electricalPoints || 'None recorded'}</Text>
+                          </View>
+                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                            <Text style={s.metricLabel}>Plumbing Points</Text>
+                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.plumbingPoints || 'None recorded'}</Text>
+                          </View>
+                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                            <Text style={s.metricLabel}>AC Locations</Text>
+                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.acLocations || 'None recorded'}</Text>
+                          </View>
                         </View>
                       </View>
                     )}
 
-                    {/* 3. EXISTING FURNITURE & SITE CONSTRAINTS */}
-                    {(!!lead.siteMeasurements.furnitureDimensions || !!lead.siteMeasurements.siteConstraints || !!lead.siteMeasurements.notes) && (
+                    {/* 4. FURNITURE & CONSTRAINTS */}
+                    {(
                       <View style={s.card}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                           <View style={[s.actionIconBox, { backgroundColor: '#ECFDF5', width: 32, height: 32, borderRadius: 8 }]}>
                             <Ionicons name="cube-outline" size={16} color="#059669" />
                           </View>
-                          <Text style={s.cardTitle}>Existing Furniture & Site Constraints</Text>
+                          <Text style={s.cardTitle}>Furniture & Constraints</Text>
                         </View>
 
                         <View style={{ gap: 10 }}>
-                          {!!lead.siteMeasurements.furnitureDimensions && (
-                            <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                              <Text style={s.metricLabel}>Existing Furniture Dimensions</Text>
-                              <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.furnitureDimensions}</Text>
-                            </View>
-                          )}
-                          {!!lead.siteMeasurements.siteConstraints && (
-                            <View style={{ backgroundColor: '#FEF2F2', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#FEE2E2' }}>
-                              <Text style={[s.metricLabel, { color: '#DC2626' }]}>Any Site Constraints / Society Rules</Text>
-                              <Text style={[s.measureVal, { fontSize: 13, color: '#991B1B', marginTop: 2 }]}>{lead.siteMeasurements.siteConstraints}</Text>
-                            </View>
-                          )}
-                          {!!lead.siteMeasurements.notes && (
-                            <View style={{ backgroundColor: '#F3E8FF', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#E9D5FF' }}>
-                              <Text style={[s.metricLabel, { color: '#7C3AED' }]}>Additional Site Notes / Observations</Text>
-                              <Text style={[s.measureVal, { fontSize: 13, color: '#4C1D95', marginTop: 2 }]}>{lead.siteMeasurements.notes}</Text>
-                            </View>
-                          )}
+                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                            <Text style={s.metricLabel}>Existing Furniture</Text>
+                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.furnitureDimensions || 'None recorded'}</Text>
+                          </View>
+                          <View style={{ backgroundColor: '#FEF2F2', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#FEE2E2' }}>
+                            <Text style={[s.metricLabel, { color: '#DC2626' }]}>Site Constraints</Text>
+                            <Text style={[s.measureVal, { fontSize: 13, color: '#991B1B', marginTop: 2 }]}>{lead.siteMeasurements.siteConstraints || 'None reported'}</Text>
+                          </View>
+                          <View style={{ backgroundColor: '#F3E8FF', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#E9D5FF' }}>
+                            <Text style={[s.metricLabel, { color: '#7C3AED' }]}>Additional Site Notes</Text>
+                            <Text style={[s.measureVal, { fontSize: 13, color: '#4C1D95', marginTop: 2 }]}>{lead.siteMeasurements.notes || 'No notes added'}</Text>
+                          </View>
                         </View>
                       </View>
                     )}
@@ -2414,7 +2391,7 @@ export default function Lead360Screen() {
                           <View style={[s.actionIconBox, { backgroundColor: '#ECFDF5', width: 32, height: 32, borderRadius: 8, flexShrink: 0 }]}>
                             <Ionicons name="images-outline" size={16} color="#059669" />
                           </View>
-                          <Text style={s.cardTitle} numberOfLines={1}>Site Photos ({lead.sitePhotos?.length || 0})</Text>
+                          <Text style={s.cardTitle} numberOfLines={1}>Site Photos & Visual Records ({lead.sitePhotos?.length || 0})</Text>
                         </View>
                         {canDo('crm_site_visits', 'update') && (
                           <TouchableOpacity style={[s.smallBtn, { flexShrink: 0 }]} onPress={() => setShowSiteModal(true)}>
@@ -2425,12 +2402,22 @@ export default function Lead360Screen() {
                       </View>
                       {lead.sitePhotos && lead.sitePhotos.length > 0 ? (
                         <View style={s.photoGrid}>
-                          {lead.sitePhotos.map((photo, i) => (
-                            <Image key={i} source={{ uri: photo }} style={s.photoThumb} />
-                          ))}
+                          {lead.sitePhotos.map((photo, i) => {
+                            const uri = typeof photo === 'string' ? photo : photo?.url;
+                            if (!uri) return null;
+                            return (
+                              <TouchableOpacity
+                                key={i}
+                                activeOpacity={0.8}
+                                onPress={() => (uri.startsWith('http') ? Linking.openURL(uri) : null)}
+                              >
+                                <Image source={{ uri }} style={s.photoThumb} resizeMode="cover" />
+                              </TouchableOpacity>
+                            );
+                          })}
                         </View>
                       ) : (
-                        <Text style={s.emptySubText}>No site photos attached yet.</Text>
+                        <Text style={s.emptySubText}>No Site Photos Uploaded</Text>
                       )}
                     </View>
                     
@@ -2464,6 +2451,65 @@ export default function Lead360Screen() {
                   .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime())[0];
                 const isReqOverdue = Boolean(
                   pendingReqActEarly?.scheduledDate && new Date(pendingReqActEarly.scheduledDate).getTime() < Date.now()
+                );
+                // "Requirements Briefing & Specifications" card (same content as the web)
+                const reqCount = (lead.requirements || []).length;
+                const reqScheduled = lead?.requirementScheduledDate || reqActivity?.scheduledDate || reqActivity?.createdAt;
+                const consultantName = (() => {
+                  const d = lead?.designerAssigned;
+                  const dId = typeof d === 'object' && d !== null ? (d._id || d.id) : d;
+                  const au = reqActivity?.user;
+                  const auId = typeof au === 'object' && au !== null ? (au._id || au.id) : au;
+                  const match = users.find((u) => (u._id || u.id) === dId) || users.find((u) => (u._id || u.id) === auId);
+                  return match ? userLabel(match).split(' (')[0] : dId ? 'Assigned Consultant' : 'Requirement Consultant';
+                })();
+                const reqStatusText = reqCount > 0 ? `Configured (${reqCount} ${reqCount === 1 ? 'Space' : 'Spaces'})` : isReqOverdue ? 'Session Overdue' : 'Discussion Pending';
+                const reqStatusColor = reqCount > 0 ? '#059669' : isReqOverdue ? '#DC2626' : '#059669';
+                const reqBriefingCard = (
+                  <View style={[s.card, isReqOverdue && reqCount === 0 && { borderColor: '#FCA5A5' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                      <View style={[s.actionIconBox, { backgroundColor: '#ECFDF5', width: 34, height: 34, borderRadius: 9 }]}>
+                        <Ionicons name="color-palette-outline" size={17} color="#059669" />
+                      </View>
+                      <View style={{ flex: 1, gap: 4 }}>
+                        <Text style={[s.cardTitle, { flex: 0 }]}>Requirements Briefing & Specifications</Text>
+                        <View style={{ alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: reqStatusColor + '18', borderWidth: 1, borderColor: reqStatusColor + '40' }}>
+                          <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: reqStatusColor }}>{reqStatusText}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    {!!reqNote && (
+                      <View style={[s.briefingCardGreen, { marginBottom: 10 }]}>
+                        <View style={s.briefingIconBoxGreen}>
+                          <Ionicons name="chatbubble-ellipses-outline" size={15} color="#059669" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.briefingLabelGreen}>REQUIREMENT HANDOVER & SCOPE NOTES</Text>
+                          <BriefNoteBody raw={reqNote} textStyle={s.briefingTextGreen} metaTextStyle={s.actMetaLine} />
+                        </View>
+                      </View>
+                    )}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      <View style={s.specBox}>
+                        <Text style={s.specLabel}>SCHEDULE</Text>
+                        <Text style={[s.specVal, isReqOverdue && reqCount === 0 && { color: '#DC2626' }]} numberOfLines={1}>
+                          {reqScheduled ? new Date(reqScheduled).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not scheduled'}
+                        </Text>
+                      </View>
+                      <View style={s.specBox}>
+                        <Text style={s.specLabel}>CONSULTANT</Text>
+                        <Text style={s.specVal} numberOfLines={1}>{consultantName}</Text>
+                      </View>
+                      <View style={s.specBox}>
+                        <Text style={s.specLabel}>TARGET BUDGET</Text>
+                        <Text style={s.specVal} numberOfLines={1}>{lead.budgetRange || (lead.budget ? formatExactCurrency(Number(lead.budget), lead.currency || 'INR') : 'Not specified')}</Text>
+                      </View>
+                      <View style={s.specBox}>
+                        <Text style={s.specLabel}>PROPERTY SCOPE</Text>
+                        <Text style={s.specVal} numberOfLines={1}>{lead.propertyType || lead.projectType || 'Residential'}</Text>
+                      </View>
+                    </View>
+                  </View>
                 );
                 if (lock.isLocked) {
                   return (
@@ -2516,21 +2562,19 @@ export default function Lead360Screen() {
                         </View>
                       )}
 
+                      {reqBriefingCard}
+                      <ClientRequirementsCompare
+                        lead={lead}
+                        techPersonName={consultantName}
+                        canShare={!isReadOnly && canAnyCrmUpdate}
+                        canEditSpecs={!isReadOnly && (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update'))}
+                        onOpenShare={() => { setShareModalMode('requirements'); setShowShareModal(true); }}
+                        onEditSpecs={() => setShowReqModal(true)}
+                      />
                       <View style={s.emptyCard}>
                         <Ionicons name="create-outline" size={40} color="#059669" />
                         <Text style={s.emptyCardTitle}>No Requirements Recorded</Text>
                         <Text style={s.emptySubText}>Add room-by-room themes and specifications.</Text>
-                        {!!reqNote && (
-                          <View style={s.briefingCardGreen}>
-                            <View style={s.briefingIconBoxGreen}>
-                              <Ionicons name="chatbubble-ellipses-outline" size={15} color="#059669" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={s.briefingLabelGreen}>REQUIREMENT HANDOVER & SCOPE NOTES</Text>
-                              <BriefNoteBody raw={reqNote} textStyle={s.briefingTextGreen} metaTextStyle={s.actMetaLine} />
-                            </View>
-                          </View>
-                        )}
                         {!isReadOnly && (
                           (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update')) && (
                             <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
@@ -2553,21 +2597,8 @@ export default function Lead360Screen() {
 
                 return (
                   <View style={{ gap: 12 }}>
-                  {!!reqNote && (
-                    <View style={s.briefingCardGreen}>
-                      <View style={s.briefingIconBoxGreen}>
-                        <Ionicons name="chatbubble-ellipses-outline" size={15} color="#059669" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.briefingLabelGreen}>REQUIREMENT HANDOVER & SCOPE NOTES</Text>
-                        <BriefNoteBody raw={reqNote} textStyle={s.briefingTextGreen} metaTextStyle={s.actMetaLine} />
-                      </View>
-                    </View>
-                  )}
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                    {lead.budgetRange ? (
-                      <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#059669' }}>Budget: ₹{lead.budgetRange}</Text>
-                    ) : <View />}
+                  {reqBriefingCard}
+                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       {!isReadOnly && pendingReqAct && (
                         <TouchableOpacity style={s.smallBtn} onPress={() => openRescheduleRequirements(pendingReqAct)}>
@@ -2585,60 +2616,15 @@ export default function Lead360Screen() {
                       )}
                     </View>
                   </View>
-                  {lead.requirements.map((req, idx) => (
-                    <View key={idx} style={s.card}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
-                        <Text style={s.reqRoomName}>{req.roomName}</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          {req.interiorType && (
-                            <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#DBEAFE' }}>
-                              <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#2563EB' }}>{req.interiorType}</Text>
-                            </View>
-                          )}
-                          {(req.designStyle || req.theme) && (
-                            <Text style={s.reqThemeBadge}>{req.designStyle || req.theme}</Text>
-                          )}
-                        </View>
-                      </View>
-                      
-                      {/* Functional Details */}
-                      {(req.roomUsage || req.furnitureRequirements || req.storage || req.electricalPoints || req.lightingRequirements || req.plumbingRequirements || req.circulation) && (
-                        <View style={{ marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
-                          <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB', marginBottom: 6 }}>FUNCTIONAL REQUIREMENTS</Text>
-                          {req.roomUsage && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Usage:</Text> {req.roomUsage}</Text>}
-                          {req.furnitureRequirements && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Furniture:</Text> {req.furnitureRequirements}</Text>}
-                          {req.storage && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Storage:</Text> {req.storage}</Text>}
-                          {req.electricalPoints && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Electrical:</Text> {req.electricalPoints}</Text>}
-                          {req.lightingRequirements && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Lighting:</Text> {req.lightingRequirements}</Text>}
-                          {req.plumbingRequirements && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Plumbing:</Text> {req.plumbingRequirements}</Text>}
-                          {req.circulation && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Circulation:</Text> {req.circulation}</Text>}
-                        </View>
-                      )}
+                  <ClientRequirementsCompare
+                    lead={lead}
+                    techPersonName={consultantName}
+                    canShare={!isReadOnly && canAnyCrmUpdate}
+                    canEditSpecs={!isReadOnly && (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update'))}
+                    onOpenShare={() => { setShareModalMode('requirements'); setShowShareModal(true); }}
+                    onEditSpecs={() => setShowReqModal(true)}
+                  />
 
-                      {/* Aesthetic Details */}
-                      {(req.designStyle || req.colours || req.materials || req.flooring || req.ceiling || req.wallFinishes || req.furnitureStyle) && (
-                        <View style={{ marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
-                          <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#7C3AED', marginBottom: 6 }}>AESTHETIC REQUIREMENTS</Text>
-                          {req.designStyle && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Style:</Text> {req.designStyle}</Text>}
-                          {req.colours && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Colors:</Text> {req.colours}</Text>}
-                          {req.materials && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Materials:</Text> {req.materials}</Text>}
-                          {req.flooring && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Flooring:</Text> {req.flooring}</Text>}
-                          {req.ceiling && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Ceiling:</Text> {req.ceiling}</Text>}
-                          {req.wallFinishes && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Walls:</Text> {req.wallFinishes}</Text>}
-                          {req.furnitureStyle && <Text style={s.measureVal}><Text style={{fontWeight: '600'}}>Furniture Style:</Text> {req.furnitureStyle}</Text>}
-                        </View>
-                      )}
-
-                      {/* Observations & Notes */}
-                      {req.description && (
-                        <View style={{ marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
-                          <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#059669', marginBottom: 4 }}>OBSERVATIONS & NOTES</Text>
-                          <Text style={[s.measureVal, { color: '#334155' }]}>{req.description}</Text>
-                        </View>
-                      )}
-                    </View>
-                  ))}
-                  
                   <View style={{ gap: 8, marginTop: 8 }}>
                     {lead.status === 'Under Requirement' && (
                       canMoveLead(canDo, 'crm_requirements', 'crm_drawings') && (
@@ -2721,10 +2707,43 @@ export default function Lead360Screen() {
                   .filter((a) => a.type === '2D/3D Drawing' && a.status === 'Pending')
                   .sort((a, b) => new Date(b.scheduledDate || b.createdAt).getTime() - new Date(a.scheduledDate || a.createdAt).getTime())[0];
 
+                const files2D = lead.designFiles.filter((f) => !isDrawing3D(f));
+                const files3D = lead.designFiles.filter((f) => isDrawing3D(f));
+                const approvedCount = lead.designFiles.filter((f) => ['internally_approved', 'client_approved'].includes(getDrawingStatus(f))).length;
+                const pendingCount2 = lead.designFiles.filter((f) => getDrawingStatus(f) === 'pending_internal_approval').length;
+                const rejectedCount = lead.designFiles.filter((f) => ['internally_rejected', 'client_changes_requested'].includes(getDrawingStatus(f))).length;
+                const total = lead.designFiles.length;
+                const headerBadge = approvedCount === total
+                  ? { text: `✓ All Approved (${approvedCount}/${total})`, color: '#059669' }
+                  : approvedCount > 0 ? { text: `${approvedCount}/${total} Approved`, color: '#D97706' }
+                  : pendingCount2 > 0 ? { text: `${pendingCount2}/${total} Pending Approval`, color: '#D97706' }
+                  : rejectedCount > 0 ? { text: `${rejectedCount}/${total} Rejected`, color: '#DC2626' }
+                  : { text: `${total - approvedCount - pendingCount2 - rejectedCount} Draft${total > 1 ? 's' : ''}`, color: '#64748B' };
+                const designerName = (() => {
+                  const d = lead?.designerAssigned;
+                  const dId = typeof d === 'object' && d !== null ? (d._id || d.id) : d;
+                  const match = users.find((u) => (u._id || u.id) === dId);
+                  return match ? userLabel(match).split(' (')[0] : 'Assigned Designer';
+                })();
+                const visibleDrawings = drawingFilter === '2d' ? files2D : drawingFilter === '3d' ? files3D : lead.designFiles;
+
                 return (
                   <View style={{ gap: 12 }}>
-                    {!!drawingNote && (
-                      <View style={s.briefingCardBlue}>
+                    {/* 2D & 3D Design Drawings & Models (same as web) */}
+                    <View style={s.card}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                        <View style={[s.actionIconBox, { backgroundColor: '#EFF6FF', width: 34, height: 34, borderRadius: 9 }]}>
+                          <Ionicons name="resize-outline" size={17} color="#2563EB" />
+                        </View>
+                        <View style={{ flex: 1, gap: 4 }}>
+                          <Text style={[s.cardTitle, { flex: 0 }]}>2D & 3D Design Drawings & Models</Text>
+                          <View style={{ alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: headerBadge.color + '18', borderWidth: 1, borderColor: headerBadge.color + '40' }}>
+                            <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: headerBadge.color }}>{headerBadge.text}</Text>
+                          </View>
+                        </View>
+                      </View>
+                      {!!drawingNote && (
+                      <View style={[s.briefingCardBlue, { marginBottom: 10 }]}>
                         <View style={s.briefingIconBoxBlue}>
                           <Ionicons name="chatbubble-ellipses-outline" size={15} color="#1D4ED8" />
                         </View>
@@ -2734,6 +2753,43 @@ export default function Lead360Screen() {
                         </View>
                       </View>
                     )}
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        <View style={s.specBox}>
+                          <Text style={s.specLabel}>DESIGNER</Text>
+                          <Text style={s.specVal} numberOfLines={1}>{designerName}</Text>
+                        </View>
+                        <View style={s.specBox}>
+                          <Text style={s.specLabel}>STYLE</Text>
+                          <Text style={s.specVal} numberOfLines={1}>{lead.requirements?.find((r) => r.designStyle)?.designStyle || lead.requirements?.[0]?.theme || 'Custom Style'}</Text>
+                        </View>
+                        <View style={s.specBox}>
+                          <Text style={s.specLabel}>SUMMARY</Text>
+                          <Text style={s.specVal} numberOfLines={1}>{files2D.length} 2D • {files3D.length} 3D</Text>
+                        </View>
+                        <View style={s.specBox}>
+                          <Text style={s.specLabel}>SCOPE</Text>
+                          <Text style={s.specVal} numberOfLines={1}>{lead.propertyType || 'Execution'}</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* 2D / 3D filter */}
+                    <View style={{ flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 10, padding: 3 }}>
+                      {[
+                        { key: 'all', label: `All (${total})` },
+                        { key: '2d', label: `2D Drawings (${files2D.length})` },
+                        { key: '3d', label: `3D Models (${files3D.length})` },
+                      ].map((opt) => (
+                        <TouchableOpacity
+                          key={opt.key}
+                          style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: drawingFilter === opt.key ? (opt.key === '3d' ? '#7C3AED' : '#2563EB') : 'transparent' }}
+                          onPress={() => setDrawingFilter(opt.key)}
+                        >
+                          <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: drawingFilter === opt.key ? '#FFFFFF' : '#64748B' }}>{opt.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
                     <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
                       {!isReadOnly && pendingDrawingAct && (
                         <TouchableOpacity style={s.smallBtn} onPress={() => openRescheduleDrawing(pendingDrawingAct)}>
@@ -2780,7 +2836,7 @@ export default function Lead360Screen() {
                           </TouchableOpacity>
                         )}
                         {canAnyCrmUpdate && (
-                          <TouchableOpacity style={s.shareRibbonBtn} onPress={() => setShowShareModal(true)}>
+                          <TouchableOpacity style={s.shareRibbonBtn} onPress={() => { setShareModalMode('drawings'); setShowShareModal(true); }}>
                             <Ionicons name="link-outline" size={13} color="#FFFFFF" />
                             <Text style={s.shareRibbonBtnText}>{lead.shareSettings?.isPublic ? 'Manage / Copy Link' : 'Generate Share Link'}</Text>
                           </TouchableOpacity>
@@ -2788,7 +2844,12 @@ export default function Lead360Screen() {
                       </View>
                     </View>
 
-                    {lead.designFiles.map((file, idx) => {
+                    {visibleDrawings.length === 0 && (
+                      <View style={[s.card, { alignItems: 'center', paddingVertical: 22 }]}>
+                        <Text style={s.emptySubText}>No {drawingFilter === '3d' ? '3D models' : '2D drawings'} uploaded yet.</Text>
+                      </View>
+                    )}
+                    {visibleDrawings.map((file, idx) => {
                       const status = getDrawingStatus(file);
                       const statusMeta = DRAWING_STATUS_META[status] || DRAWING_STATUS_META.draft;
                       const isApprovingThis = approvingDrawingId === (file._id || file.id || idx);
@@ -2796,15 +2857,15 @@ export default function Lead360Screen() {
                         <View key={file._id || file.id || idx} style={[s.fileCard, { flexDirection: 'column', padding: 0, overflow: 'hidden' }]}>
                           <TouchableOpacity
                             onPress={() => {
-                              if (file.url) {
-                                setPreviewLightboxDrawing(file);
-                              }
+                              // The file link can live on the latest version only
+                              const url = drawingFileUrl(file);
+                              if (url) setPreviewLightboxDrawing({ ...file, url });
                             }}
                             activeOpacity={0.8}
                           >
                             {/* Thumbnail for image files */}
-                            {file.fileType === 'image' && file.url ? (
-                              <Image source={{ uri: file.url }} style={{ width: '100%', height: 160, resizeMode: 'cover', backgroundColor: '#E2E8F0' }} />
+                            {isDrawingImage(file) ? (
+                              <Image source={{ uri: drawingFileUrl(file) }} resizeMode="cover" style={{ width: '100%', height: 160, backgroundColor: '#E2E8F0' }} />
                             ) : (
                               <View style={{ width: '100%', height: 80, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
                                 <Ionicons
@@ -2820,11 +2881,9 @@ export default function Lead360Screen() {
 
                             {/* Overlay: category + version badge (top-left), status pill (top-right) */}
                             <View style={{ position: 'absolute', top: 8, left: 8, flexDirection: 'row', gap: 6 }}>
-                              {!!file.category && (
-                                <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
-                                  <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' }}>{file.category}</Text>
-                                </View>
-                              )}
+                              <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
+                                <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' }}>{isDrawing3D(file) ? '3D' : '2D'}</Text>
+                              </View>
                               <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
                                 <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>v{file.currentVersion || 1}</Text>
                               </View>
@@ -3031,76 +3090,91 @@ export default function Lead360Screen() {
                         </View>
                       </View>
                     )}
-                    {/* BOQ Header & Rev Switcher */}
-                    <View style={s.boqHeaderCard}>
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={s.boqNumberText}>{activeBoq.boqNumber || 'BOQ'}</Text>
-                          <View style={s.versionTag}>
-                            <Text style={s.versionTagText}>
-                              {activeBoq.version ? `v${activeBoq.version}.0` : 'v1.0'}
-                            </Text>
+                    {/* Bill of Quantities (BOQ) & Estimations — header (same as web) */}
+                    {(() => {
+                      const st = activeBoq?.status || 'draft';
+                      const badge = st === 'approved' ? { t: '✓ BOQ Approved', c: '#059669' }
+                        : st === 'pending_approval' ? { t: '⏳ Approval Pending', c: '#D97706' }
+                        : st === 'rejected' ? { t: '✕ Changes Requested', c: '#DC2626' }
+                        : { t: `BOQ Draft (v${activeBoq?.version || activeBoqIdx + 1})`, c: '#4F46E5' };
+                      const sectionCount = (activeBoq.sections && activeBoq.sections.length) || new Set(boqItems.map((it) => it.sectionTitle || it.category || 'General')).size;
+                      return (
+                        <View style={s.card}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                            <View style={[s.actionIconBox, { backgroundColor: '#EEF2FF', width: 34, height: 34, borderRadius: 9 }]}>
+                              <Ionicons name="calculator-outline" size={17} color="#4F46E5" />
+                            </View>
+                            <View style={{ flex: 1, gap: 4 }}>
+                              <Text style={[s.cardTitle, { flex: 0 }]}>Bill of Quantities (BOQ) & Estimations</Text>
+                              <View style={{ alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: badge.c + '18', borderWidth: 1, borderColor: badge.c + '40' }}>
+                                <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: badge.c }}>{badge.t}</Text>
+                              </View>
+                            </View>
                           </View>
-                        </View>
-                        <View style={{ marginTop: 4, gap: 2 }}>
-                          <Text style={s.boqDateText}>
-                            Created: {activeBoq.createdAt ? new Date(activeBoq.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleDateString()}
-                          </Text>
-                          <Text style={[s.boqDateText, { color: '#475569', fontWeight: '600' }]}>
-                            By: {activeBoq.createdByName || activeBoq.updatedByName || 'Estimator'}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        {canDo('crm_boq', 'export') && (
-                          <TouchableOpacity
-                            style={[s.editBoqBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
-                            onPress={() => handleDownloadBoqPdf(activeBoq)}
-                            disabled={downloadingBoqPdf}
-                          >
-                            {downloadingBoqPdf ? (
-                              <ActivityIndicator size="small" color="#475569" />
+                          <View style={[s.boqHeaderActions, { justifyContent: 'flex-start', flexWrap: 'wrap', marginBottom: 10 }]}>
+                            {canDo('crm_boq', 'export') && (
+                              <TouchableOpacity
+                                style={[s.editBoqBtn, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
+                                onPress={() => handleDownloadBoqPdf(activeBoq)}
+                                disabled={downloadingBoqPdf}
+                              >
+                                {downloadingBoqPdf ? (
+                                  <ActivityIndicator size="small" color="#475569" />
+                                ) : (
+                                  <>
+                                    <Ionicons name="share-outline" size={13} color="#475569" />
+                                    <Text style={[s.editBoqBtnText, { color: '#475569' }]}>Export</Text>
+                                  </>
+                                )}
+                              </TouchableOpacity>
+                            )}
+                            {boqIsLocked ? (
+                              <View style={s.boqLockedPill}>
+                                <Ionicons name="lock-closed" size={12} color="#64748B" />
+                                <Text style={s.boqLockedPillText}>{isLost ? 'Lead Lost (Locked)' : 'Quotation Approved (Locked)'}</Text>
+                              </View>
                             ) : (
                               <>
-                                <Ionicons name="share-outline" size={13} color="#475569" />
-                                <Text style={[s.editBoqBtnText, { color: '#475569' }]}>Export</Text>
+                                {canDo('crm_boq', 'update') && activeBoq?.status !== 'approved' && (
+                                  <TouchableOpacity style={s.editBoqBtn} onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}>
+                                    <Ionicons name="create-outline" size={13} color="#2563EB" />
+                                    <Text style={s.editBoqBtnText}>Edit BOQ</Text>
+                                  </TouchableOpacity>
+                                )}
+                                {canDo('crm_boq', 'create') && (
+                                  <TouchableOpacity style={s.newBoqBtn} onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}>
+                                    <Ionicons name="add" size={14} color="#FFFFFF" />
+                                    <Text style={s.newBoqBtnText}>New Version</Text>
+                                  </TouchableOpacity>
+                                )}
                               </>
                             )}
-                          </TouchableOpacity>
-                        )}
-                        {boqIsLocked ? (
-                          <View style={s.boqLockedPill}>
-                            <Ionicons name="lock-closed" size={12} color="#64748B" />
-                            <Text style={s.boqLockedPillText}>{isLost ? 'Lead Lost (Locked)' : 'Quotation Approved (Locked)'}</Text>
                           </View>
-                        ) : (
-                          <>
-                            {canDo('crm_boq', 'update') && activeBoq?.status !== 'approved' && (
-                              <TouchableOpacity
-                                style={s.editBoqBtn}
-                                onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}
-                              >
-                                <Ionicons name="create-outline" size={13} color="#2563EB" />
-                                <Text style={s.editBoqBtnText}>Edit</Text>
-                              </TouchableOpacity>
-                            )}
-                            {canDo('crm_boq', 'create') && (
-                              <TouchableOpacity
-                                style={s.newBoqBtn}
-                                onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
-                              >
-                                <Ionicons name="add" size={14} color="#FFFFFF" />
-                                <Text style={s.newBoqBtnText}>New Rev</Text>
-                              </TouchableOpacity>
-                            )}
-                          </>
-                        )}
-                      </View>
-                    </View>
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>TOTAL AMOUNT</Text>
+                              <Text style={[s.specVal, { color: boqIsOverBudget ? '#E11D48' : '#4F46E5' }]} numberOfLines={1}>₹{Math.round(estimatedTotal).toLocaleString('en-IN')}</Text>
+                            </View>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>SCOPE CATEGORIES</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{sectionCount} {sectionCount === 1 ? 'Category' : 'Categories'}</Text>
+                            </View>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>TARGET BUDGET</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{lead.budgetRange || 'Not specified'}</Text>
+                            </View>
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>SCOPE</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{lead.propertyType || 'Interior'}</Text>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })()}
 
                     {/* Primary action — placed right below the header so it's reachable
                         without scrolling past the full line-items list. */}
-                    {!boqIsLocked && lead.status === 'Under BOQ Creation' && (
+                    {!boqIsLocked && lead.status === 'Under BOQ Creation' && activeBoq?.status === 'approved' && (
                       canMoveLead(canDo, 'crm_boq', 'crm_quotations') && (
                         <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 0 }]} onPress={() => setShowSendQuoteModal(true)}>
                           <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
@@ -3147,6 +3221,67 @@ export default function Lead360Screen() {
                       </ScrollView>
                     )}
 
+                    {/* Internal Approval (same as the web BOQ preview) */}
+                    {(() => {
+                      const st = activeBoq?.status || 'draft';
+                      const meta = st === 'approved'
+                        ? { title: 'Internal Approval: Approved', pill: 'Approved', c: '#059669', bg: '#ECFDF5', icon: 'shield-checkmark-outline', text: `BOQ estimation approved${activeBoq.approvedByName ? ` by ${activeBoq.approvedByName}` : ''}. Ready for Quotations.` }
+                        : st === 'pending_approval'
+                        ? { title: 'Internal Approval: Pending Review', pill: 'Pending Review', c: '#D97706', bg: '#FFFBEB', icon: 'time-outline', text: `Submitted to ${activeBoq.assignedReviewerName || 'Manager'} for review.` }
+                        : st === 'rejected'
+                        ? { title: 'Internal Approval: Changes Requested', pill: 'Rejected', c: '#DC2626', bg: '#FEF2F2', icon: 'close-circle-outline', text: `Revisions required: "${activeBoq.rejectionReason || 'Please review items'}"` }
+                        : { title: 'Internal Approval: Draft', pill: 'Draft', c: '#475569', bg: '#F8FAFC', icon: 'document-text-outline', text: 'This estimation is in draft mode and requires manager approval before quotation.' };
+                      return (
+                        <View style={[s.card, { backgroundColor: meta.bg, borderColor: meta.c + '40' }]}>
+                          <View style={{ flexDirection: 'row', gap: 10 }}>
+                            <View style={[s.actionIconBox, { backgroundColor: meta.c + '1F', width: 34, height: 34, borderRadius: 9 }]}>
+                              <Ionicons name={meta.icon} size={17} color={meta.c} />
+                            </View>
+                            <View style={{ flex: 1, gap: 4 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{meta.title}</Text>
+                                <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, borderWidth: 1, borderColor: meta.c + '55', backgroundColor: '#FFFFFF' }}>
+                                  <Text style={{ fontSize: 9, fontFamily: 'Inter-Black', color: meta.c, textTransform: 'uppercase' }}>{meta.pill}</Text>
+                                </View>
+                              </View>
+                              <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17 }}>{meta.text}</Text>
+                              <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>
+                                Version {activeBoq.version || activeBoqIdx + 1} · Created {activeBoq.createdAt ? new Date(activeBoq.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'recently'} · By {activeBoq.createdByName || 'Estimator'}
+                                {activeBoq.updatedAt ? ` · Updated ${new Date(activeBoq.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}${activeBoq.updatedByName ? ` by ${activeBoq.updatedByName}` : ''}` : ''}
+                              </Text>
+                              {!!activeBoq.submissionNotes && (
+                                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#334155', backgroundColor: '#FFFFFF', borderRadius: 8, padding: 8, marginTop: 4, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                  Review focus: "{activeBoq.submissionNotes}"
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                          {!boqIsLocked && (
+                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                              {(st === 'draft' || st === 'rejected') && canDo('crm_boq', 'update') && (
+                                <TouchableOpacity style={[s.boqApprovalBtn, { backgroundColor: '#4F46E5' }]} onPress={() => openBoqApproval('submit')}>
+                                  <Ionicons name="send-outline" size={13} color="#FFFFFF" />
+                                  <Text style={s.boqApprovalBtnText}>{st === 'rejected' ? 'Resubmit for Approval' : 'Send for Approval'}</Text>
+                                </TouchableOpacity>
+                              )}
+                              {st === 'pending_approval' && canDo('crm_boq', 'approve') && (
+                                <>
+                                  <TouchableOpacity style={[s.boqApprovalBtn, { backgroundColor: '#059669' }]} onPress={() => openBoqApproval('approve')}>
+                                    <Ionicons name="checkmark-circle-outline" size={14} color="#FFFFFF" />
+                                    <Text style={s.boqApprovalBtnText}>Approve</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity style={[s.boqApprovalBtn, { backgroundColor: '#DC2626' }]} onPress={() => openBoqApproval('reject')}>
+                                    <Ionicons name="close-circle-outline" size={14} color="#FFFFFF" />
+                                    <Text style={s.boqApprovalBtnText}>Reject</Text>
+                                  </TouchableOpacity>
+                                </>
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })()}
+
                     {/* Summary Totals */}
                     <View style={s.costSummaryCard}>
                       <View style={s.costRow}>
@@ -3186,32 +3321,48 @@ export default function Lead360Screen() {
                       );
                     })()}
 
-                    {/* Items List */}
-                    <View style={s.card}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <Text style={s.cardTitle}>Line Items ({lead.boqs[activeBoqIdx]?.items?.length || 0})</Text>
-                      </View>
-
-                      {(lead.boqs[activeBoqIdx]?.items || []).map((it, idx) => (
-                        <View key={idx} style={s.boqItemRow}>
-                          <View style={{ flex: 1, marginRight: 10 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <View style={s.catBadgeSmall}>
-                                <Text style={s.catBadgeSmallText} numberOfLines={1} ellipsizeMode="tail">{it.category || 'Item'}</Text>
-                              </View>
-                              <Text style={s.itemNameText} numberOfLines={1} ellipsizeMode="tail">{it.itemName || 'Unnamed Item'}</Text>
+                    {/* BOQ in detail — grouped by section, with subtotals (same as web) */}
+                    {(() => {
+                      const groups = [];
+                      const byKey = new Map();
+                      boqItems.forEach((it) => {
+                        const key = it.sectionNumber || it.sectionTitle || it.category || 'General';
+                        if (!byKey.has(key)) {
+                          const sec = (activeBoq.sections || []).find((sx) => sx.sectionNumber === it.sectionNumber || sx.sectionTitle === it.sectionTitle);
+                          const g = { key, number: it.sectionNumber || sec?.sectionNumber || '', title: it.sectionTitle || sec?.sectionTitle || it.category || 'General', scope: it.sectionScope || sec?.scopeDescription || '', items: [] };
+                          byKey.set(key, g);
+                          groups.push(g);
+                        }
+                        byKey.get(key).items.push(it);
+                      });
+                      const itemAmount = (it) => Number(it.amount) || (parseFloat(it.quantity) || 0) * (parseFloat(it.rate || it.unitRate) || 0);
+                      return groups.map((g, gi) => (
+                        <View key={g.key} style={s.card}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                            <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
+                              <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#4F46E5' }}>Sec {g.number || gi + 1}</Text>
                             </View>
-                            {!!it.description && <Text style={s.itemDescText} numberOfLines={2} ellipsizeMode="tail">{it.description}</Text>}
-                            <Text style={s.itemQtyRateText}>
-                              {it.quantity} {it.unit} × ₹{Math.round(Number(it.rate || it.unitRate || 0)).toLocaleString('en-IN')}
-                            </Text>
+                            <Text style={[s.cardTitle, { fontSize: 13.5 }]} numberOfLines={2}>{g.title}</Text>
+                            <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>₹{Math.round(g.items.reduce((sum, it) => sum + itemAmount(it), 0)).toLocaleString('en-IN')}</Text>
                           </View>
-                          <Text style={s.itemTotalText}>
-                            ₹{Math.round(it.amount || (parseFloat(it.quantity) || 1) * (parseFloat(it.rate || it.unitRate) || 0)).toLocaleString('en-IN')}
-                          </Text>
+                          {!!g.scope && <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginBottom: 6 }}>{g.scope}</Text>}
+                          {g.items.map((it, idx) => (
+                            <View key={idx} style={s.boqItemRow}>
+                              <View style={{ flex: 1, marginRight: 10 }}>
+                                <Text style={s.itemNameText} numberOfLines={2}>{it.itemCode ? `${it.itemCode}  ` : ''}{it.itemName || 'Unnamed Item'}</Text>
+                                {!!it.description && <Text style={s.itemDescText} numberOfLines={3}>{it.description}</Text>}
+                                {!!it.brandMakes && <Text style={[s.itemDescText, { color: '#4F46E5' }]} numberOfLines={1}>Make: {it.brandMakes}</Text>}
+                                <Text style={s.itemQtyRateText}>
+                                  {it.quantity} {it.unit} × ₹{Math.round(Number(it.rate || it.unitRate || 0)).toLocaleString('en-IN')}
+                                </Text>
+                                {!!it.remarks && <Text style={[s.itemDescText, { fontStyle: 'italic' }]} numberOfLines={2}>{it.remarks}</Text>}
+                              </View>
+                              <Text style={s.itemTotalText}>₹{Math.round(itemAmount(it)).toLocaleString('en-IN')}</Text>
+                            </View>
+                          ))}
                         </View>
-                      ))}
-                    </View>
+                      ));
+                    })()}
 
                     {!!activeBoq.notes && (
                       <View style={s.quoteNotesBox}>
@@ -3368,12 +3519,19 @@ export default function Lead360Screen() {
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={s.quoteDocActionBtn}
-                            onPress={() => setSendQuoteModalQuote(currentQuote)}
-                            disabled={sendingQuoteEmail}
+                            onPress={() => openSendQuote(currentQuote, 'customer')}
                             activeOpacity={0.8}
                           >
                             <Ionicons name="paper-plane-outline" size={14} color="#4F46E5" />
-                            <Text style={s.quoteDocActionText}>Send / Email</Text>
+                            <Text style={s.quoteDocActionText}>Send to Client</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={s.quoteDocActionBtn}
+                            onPress={() => openSendQuote(currentQuote, 'vendor')}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="business-outline" size={14} color="#059669" />
+                            <Text style={[s.quoteDocActionText, { color: '#059669' }]}>Send to Vendor</Text>
                           </TouchableOpacity>
                           {canDo('crm_quotations', 'export') && (
                             <TouchableOpacity
@@ -3408,48 +3566,44 @@ export default function Lead360Screen() {
                               Date: {currentQuote.createdAt ? new Date(currentQuote.createdAt).toLocaleDateString('en-IN') : 'N/A'}
                             </Text>
                             <Text style={s.quoteMetaSub}>Lead ID: {lead.leadNumber || 'LD-XXXX'}</Text>
+                            <Text style={s.quoteMetaSub}>Scope: {(currentQuote.items || []).length} Items</Text>
                           </View>
                         </View>
 
-                        {/* Items Section: Horizontally Scrollable 4-Column Table */}
+                        {/* Scope / Items — fits the screen (no sideways scrolling) */}
                         <View style={s.quoteTable}>
-                          <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={true}
-                            nestedScrollEnabled
-                            contentContainerStyle={{ minWidth: 460 }}
-                          >
-                            <View style={{ minWidth: 460, width: '100%' }}>
-                              <View style={s.quoteHeaderRow}>
-                                <Text style={[s.quoteCol, { width: 170, paddingLeft: 8 }]}>Item</Text>
-                                <Text style={[s.quoteCol, { width: 50, textAlign: 'center' }]}>Qty</Text>
-                                <Text style={[s.quoteCol, { width: 110, textAlign: 'right' }]}>Rate</Text>
-                                <Text style={[s.quoteCol, { width: 130, textAlign: 'right', paddingRight: 8 }]}>Total</Text>
-                              </View>
-                              {(currentQuote.items || []).map((item, i) => {
-                                const qty = Number(item.quantity) || 1;
-                                const unitPrice = Number(item.unitPrice || item.rate || 0);
-                                const lineTotal = Number(item.total) || (qty * unitPrice);
-
-                                return (
-                                  <View key={i} style={s.quoteRow}>
-                                    <Text style={[s.quoteCell, { width: 170, paddingLeft: 8, fontFamily: 'Inter-Medium' }]} numberOfLines={2}>
-                                      {item.description || 'Line Item'}
-                                    </Text>
-                                    <Text style={[s.quoteCell, { width: 50, textAlign: 'center', fontFamily: 'Inter-Medium' }]}>
-                                      {qty}
-                                    </Text>
-                                    <Text style={[s.quoteCell, { width: 110, textAlign: 'right', fontFamily: 'Inter-Medium' }]} numberOfLines={1}>
-                                      ₹{Math.round(unitPrice).toLocaleString('en-IN')}
-                                    </Text>
-                                    <Text style={[s.quoteCell, { width: 130, textAlign: 'right', fontFamily: 'Inter-Bold', color: '#0F172A', paddingRight: 8 }]} numberOfLines={1}>
-                                      ₹{Math.round(lineTotal).toLocaleString('en-IN')}
-                                    </Text>
-                                  </View>
-                                );
-                              })}
+                          <View style={s.scopeHeader}>
+                            <Text style={s.scopeHeaderText}>SCOPE / ITEMS</Text>
+                            <View style={s.scopeCountPill}>
+                              <Text style={s.scopeCountText}>
+                                {(currentQuote.items || []).length} {(currentQuote.items || []).length === 1 ? 'item' : 'items'}
+                              </Text>
                             </View>
-                          </ScrollView>
+                          </View>
+                          {(currentQuote.items || []).length === 0 ? (
+                            <Text style={[s.quoteMetaSub, { padding: 12 }]}>No line items in this quotation.</Text>
+                          ) : (
+                            (currentQuote.items || []).map((item, i) => {
+                              const qty = Number(item.quantity) || 1;
+                              const unitPrice = Number(item.unitPrice || item.rate || 0);
+                              const lineTotal = Number(item.total) || qty * unitPrice;
+                              const title = typeof item.description === 'string' ? item.description.split('\n')[0] : item.itemName || 'Line Item';
+                              return (
+                                <View key={i} style={[s.scopeRow, i === (currentQuote.items || []).length - 1 && { borderBottomWidth: 0 }]}>
+                                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                                    <Text style={s.scopeIndex}>{i + 1}.</Text>
+                                    <Text style={s.scopeTitle}>{title}</Text>
+                                  </View>
+                                  <View style={s.scopeFigures}>
+                                    <Text style={s.scopeMeta}>
+                                      {qty}{item.unit ? ` ${item.unit}` : ''} × ₹{Math.round(unitPrice).toLocaleString('en-IN')}
+                                    </Text>
+                                    <Text style={s.scopeTotal}>₹{Math.round(lineTotal).toLocaleString('en-IN')}</Text>
+                                  </View>
+                                </View>
+                              );
+                            })
+                          )}
                         </View>
 
                         {/* Totals Summary Card */}
@@ -3493,16 +3647,16 @@ export default function Lead360Screen() {
                           );
                         })()}
 
-                        {/* Notes / Terms (falls back to default terms, matching web) */}
-                        <View style={s.quoteNotesBox}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                            <Ionicons name="document-text-outline" size={13} color="#64748B" />
-                            <Text style={s.quoteNotesHeader}>TERMS & CLIENT NOTES</Text>
+                        {/* Notes only — Terms & Conditions were removed from quotations (same as web) */}
+                        {!!currentQuote.notes?.trim() && (
+                          <View style={s.quoteNotesBox}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                              <Ionicons name="document-text-outline" size={13} color="#64748B" />
+                              <Text style={s.quoteNotesHeader}>NOTES & REMARKS</Text>
+                            </View>
+                            <Text style={s.quoteNotesBody}>{currentQuote.notes}</Text>
                           </View>
-                          <Text style={s.quoteNotesBody}>
-                            {currentQuote.notes || '1. Quotation is valid for 15 days.\n2. 50% advance payment required to commence work.\n3. Goods once sold will not be taken back.'}
-                          </Text>
-                        </View>
+                        )}
 
                         {/* Actions */}
                         {currentQuote.status === 'Accepted' ? (
@@ -3584,6 +3738,38 @@ export default function Lead360Screen() {
                   </View>
                 );
               })()}
+            </View>
+          )}
+
+          {activeTab === 'confirm_order' && (
+            <View style={{ gap: 16 }}>
+              {getTabLockState('confirm_order').isLocked ? (
+                <View style={s.lockedCard}>
+                  <View style={[s.lockedIconBox, { backgroundColor: '#FFFBEB' }]}>
+                    <Ionicons name="lock-closed" size={24} color="#D97706" />
+                  </View>
+                  <Text style={s.lockedTitle}>Order Confirmation Locked</Text>
+                  <Text style={s.lockedSub}>{getTabLockState('confirm_order').reason}</Text>
+                  {canViewLeadTab('quotations') && (
+                    <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('quotations')}>
+                      <Text style={s.unlockActionBtnText}>Go to Quotations</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : (
+                <ConfirmOrderView
+                  lead={lead}
+                  isReadOnly={isReadOnly}
+                  canEdit={canDo('crm_quotations', 'update')}
+                  saveUpdates={(updates) => interiorCrmService.updateCustomer(id, updates)}
+                  onRefresh={() => fetchData()}
+                  onViewQuotation={(idx) => {
+                    // Same as the web: open that quotation's document preview
+                    setActiveQuoteIdx(idx);
+                    setShowQuoteDocModal(true);
+                  }}
+                />
+              )}
             </View>
           )}
         </View>
@@ -3728,13 +3914,12 @@ export default function Lead360Screen() {
               )}
 
               <Text style={s.label}>Property Type</Text>
-              <View style={s.chipOptions}>
-                {['Flat', 'Villa', 'Office', 'Shop', 'Other'].map((opt) => (
-                  <TouchableOpacity key={opt} style={[s.optionChip, editForm.propertyType === opt && s.optionChipActive]} onPress={() => handleEditFieldChange('propertyType', opt)}>
-                    <Text style={[s.optionChipText, editForm.propertyType === opt && s.optionChipTextActive]}>{opt}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <SelectField
+                value={editForm.propertyType}
+                onChange={(v) => handleEditFieldChange('propertyType', v)}
+                options={['Flat', 'Villa', 'Office', 'Shop', 'Other']}
+                placeholder="Select property type"
+              />
 
               <Text style={s.label}>Assign Follow-up Executive</Text>
               <TouchableOpacity
@@ -3865,17 +4050,13 @@ export default function Lead360Screen() {
 
             <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
               <Text style={s.label}>Follow-up Type</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {FOLLOWUP_TYPES.map((opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[s.optionChip, followUpForm.type === opt && s.optionChipActive]}
-                    onPress={() => setFollowUpForm({ ...followUpForm, type: opt })}
-                  >
-                    <Text style={[s.optionChipText, followUpForm.type === opt && s.optionChipTextActive]}>{opt}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <SelectField
+                value={followUpForm.type}
+                onChange={(v) => setFollowUpForm((prev) => ({ ...prev, type: v }))}
+                options={FOLLOWUP_TYPES}
+                placeholder="Select follow-up type"
+                style={{ marginBottom: 8 }}
+              />
 
               <Text style={s.label}>Date & Time *</Text>
               <TouchableOpacity style={s.dateInput} onPress={openScheduleDatePicker}>
@@ -3899,21 +4080,13 @@ export default function Lead360Screen() {
               )}
 
               <Text style={s.label}>Assign Member *</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {users.map((u) => {
-                  const uId = u._id || u.id;
-                  const active = followUpForm.assignedSalesExecutive === uId;
-                  return (
-                    <TouchableOpacity
-                      key={uId}
-                      style={[s.optionChip, active && s.optionChipActive]}
-                      onPress={() => setFollowUpForm({ ...followUpForm, assignedSalesExecutive: uId })}
-                    >
-                      <Text style={[s.optionChipText, active && s.optionChipTextActive]}>{userLabel(u)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              <SelectField
+                value={followUpForm.assignedSalesExecutive}
+                onChange={(v) => setFollowUpForm((prev) => ({ ...prev, assignedSalesExecutive: v }))}
+                options={users.map((u) => ({ value: u._id || u.id, label: userLabel(u) }))}
+                placeholder="Select a team member"
+                style={{ marginBottom: 8 }}
+              />
 
               <Text style={s.label}>Follow-up Notes / Goal *</Text>
               <TextInput
@@ -3948,6 +4121,83 @@ export default function Lead360Screen() {
         }}
       />
 
+      {/* BOQ internal approval: send / approve / reject */}
+      <Modal visible={!!boqApprovalMode} transparent animationType="slide" onRequestClose={() => setBoqApprovalMode(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>
+                {boqApprovalMode === 'submit' ? 'Send BOQ for Internal Approval' : boqApprovalMode === 'approve' ? 'Approve BOQ' : 'Reject BOQ'}
+              </Text>
+              <TouchableOpacity onPress={() => setBoqApprovalMode(null)}>
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+              {(() => {
+                const b = lead?.boqs?.[activeBoqIdx];
+                if (!b) return null;
+                return (
+                  <View style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, marginBottom: 6 }}>
+                    <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' }}>BOQ Version {b.version || activeBoqIdx + 1}</Text>
+                    <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#475569', marginTop: 2 }}>
+                      ₹{Math.round(Number(b.totalAmount) || 0).toLocaleString('en-IN')} · {(b.items || []).length} items
+                    </Text>
+                    {boqApprovalMode !== 'submit' && !!b.assignedReviewerName && (
+                      <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 4 }}>Reviewer: {b.assignedReviewerName}</Text>
+                    )}
+                    {boqApprovalMode !== 'submit' && !!b.submissionNotes && (
+                      <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>Note: "{b.submissionNotes}"</Text>
+                    )}
+                  </View>
+                );
+              })()}
+
+              {boqApprovalMode === 'submit' && (
+                <>
+                  <Text style={s.label}>Reviewer *</Text>
+                  <SelectField
+                    value={boqReviewer}
+                    onChange={setBoqReviewer}
+                    options={users.map((u) => ({ value: u._id || u.id, label: userLabel(u) }))}
+                    placeholder="Select who approves this BOQ"
+                    style={{ marginBottom: 8 }}
+                  />
+                </>
+              )}
+              {boqApprovalMode !== 'approve' && (
+                <>
+                  <Text style={s.label}>{boqApprovalMode === 'reject' ? 'Reason & Required Changes *' : 'Review Focus / Note'}</Text>
+                  <TextInput
+                    style={[s.input, { height: 80 }]}
+                    multiline
+                    placeholder={boqApprovalMode === 'reject' ? 'What needs to change before approval...' : 'Anything the reviewer should check...'}
+                    placeholderTextColor="#94A3B8"
+                    value={boqApprovalNote}
+                    onChangeText={setBoqApprovalNote}
+                  />
+                </>
+              )}
+              {boqApprovalMode === 'approve' && (
+                <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', marginVertical: 8 }}>
+                  Approving this BOQ unlocks the Quotations stage for this lead.
+                </Text>
+              )}
+
+              <TouchableOpacity
+                style={[s.submitBtn, { backgroundColor: boqApprovalMode === 'reject' ? '#DC2626' : boqApprovalMode === 'approve' ? '#059669' : '#4F46E5' }, submittingBoqApproval && { opacity: 0.6 }]}
+                onPress={handleBoqApproval}
+                disabled={submittingBoqApproval}
+              >
+                <Text style={s.submitBtnText}>
+                  {submittingBoqApproval ? 'Saving...' : boqApprovalMode === 'submit' ? 'Send for Approval' : boqApprovalMode === 'approve' ? 'Approve BOQ' : 'Reject BOQ'}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Reschedule Follow-up Modal */}
       <Modal visible={showRescheduleModal} transparent animationType="slide" onRequestClose={() => setShowRescheduleModal(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
@@ -3958,19 +4208,28 @@ export default function Lead360Screen() {
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={s.label}>Follow-up Type</Text>
-              <View style={[s.chipOptions, { marginBottom: 12 }]}>
-                {FOLLOWUP_TYPES.map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    style={[s.optionChip, rescheduleForm.type === t && s.optionChipActive]}
-                    onPress={() => setRescheduleForm({ ...rescheduleForm, type: t })}
-                  >
-                    <Text style={[s.optionChipText, rescheduleForm.type === t && s.optionChipTextActive]}>{t}</Text>
-                  </TouchableOpacity>
-                ))}
+            <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+              {/* Previous schedule first */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 12, padding: 12, marginBottom: 6 }}>
+                <Ionicons name="time-outline" size={18} color="#D97706" />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#B45309', letterSpacing: 0.4 }}>PREVIOUSLY SCHEDULED</Text>
+                  <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 }}>
+                    {rescheduleForm.previousDate
+                      ? new Date(rescheduleForm.previousDate).toLocaleString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                      : 'No date was set'}
+                  </Text>
+                </View>
               </View>
+
+              <Text style={s.label}>Follow-up Type</Text>
+              <SelectField
+                value={rescheduleForm.type}
+                onChange={(v) => setRescheduleForm((prev) => ({ ...prev, type: v }))}
+                options={FOLLOWUP_TYPES}
+                placeholder="Select follow-up type"
+                style={{ marginBottom: 12 }}
+              />
 
               <Text style={s.label}>New Date & Time *</Text>
               <TouchableOpacity
@@ -3997,21 +4256,13 @@ export default function Lead360Screen() {
               )}
 
               <Text style={s.label}>Assign Member *</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {users.map((u) => {
-                  const uId = u._id || u.id;
-                  const active = rescheduleForm.assignedSalesExecutive === uId;
-                  return (
-                    <TouchableOpacity
-                      key={uId}
-                      style={[s.optionChip, active && s.optionChipActive]}
-                      onPress={() => setRescheduleForm({ ...rescheduleForm, assignedSalesExecutive: uId })}
-                    >
-                      <Text style={[s.optionChipText, active && s.optionChipTextActive]}>{userLabel(u)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              <SelectField
+                value={rescheduleForm.assignedSalesExecutive}
+                onChange={(v) => setRescheduleForm((prev) => ({ ...prev, assignedSalesExecutive: v }))}
+                options={users.map((u) => ({ value: u._id || u.id, label: userLabel(u) }))}
+                placeholder="Select a team member"
+                style={{ marginBottom: 8 }}
+              />
 
               <Text style={s.label}>Updated Notes / Goal *</Text>
               <TextInput
@@ -4042,6 +4293,7 @@ export default function Lead360Screen() {
         customerId={id}
         initialBudgetRange={lead?.budgetRange}
         initialRequirements={lead?.requirements}
+        clientRequirements={lead?.clientRequirements}
         isReadOnly={isReadOnly}
         onSuccess={() => {
           showToast('Requirements logged successfully!', 'success');
@@ -4106,6 +4358,7 @@ export default function Lead360Screen() {
         onClose={() => setShowShareModal(false)}
         customerId={id}
         lead={lead}
+        mode={shareModalMode}
         onSuccess={() => fetchData()}
       />
 
@@ -4131,6 +4384,7 @@ export default function Lead360Screen() {
       {/* 7b. Send Quotation Modal */}
       <SendQuotationModal
         isOpen={Boolean(sendQuoteModalQuote)}
+        initialTarget={sendQuoteTarget}
         onClose={() => setSendQuoteModalQuote(null)}
         customerId={id}
         customerName={lead?.name}
@@ -4275,15 +4529,26 @@ export default function Lead360Screen() {
               <Text style={s.quoteDocHeaderSub}>
                 {currentQuote ? `Version ${currentQuote.version} · ${currentQuote.status || 'Sent'}` : ''}
               </Text>
+              {currentQuote && (
+                <Text style={[s.quoteDocHeaderSub, { color: '#334155' }]} numberOfLines={1}>
+                  Client: {lead?.name} • Total Scope: {(currentQuote.items || []).length} Items ({formatExactCurrency(Number(currentQuote.grandTotal) || 0, lead?.currency || 'INR')})
+                </Text>
+              )}
             </View>
-            <TouchableOpacity
-              onPress={() => setSendQuoteModalQuote(currentQuote)}
-              disabled={sendingQuoteEmail}
-              style={s.quoteDocHeaderBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="paper-plane-outline" size={18} color="#4F46E5" />
-            </TouchableOpacity>
+            {canDo('crm_quotations', 'export') && (
+              <TouchableOpacity
+                onPress={() =>
+                  currentQuote &&
+                  printQuotation(lead, currentQuote).catch((e) => {
+                    if (!/cancel/i.test(e?.message || '')) showToast(e?.message || 'Failed to print quotation', 'error');
+                  })
+                }
+                style={s.quoteDocHeaderBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="print-outline" size={18} color="#4F46E5" />
+              </TouchableOpacity>
+            )}
             {canDo('crm_quotations', 'export') && (
               <TouchableOpacity
                 onPress={handleDownloadQuotationPdf}
@@ -4322,85 +4587,32 @@ export default function Lead360Screen() {
             }}>
               {currentQuote.status === 'Accepted' && !isConverted && !isLost ? (
                 <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    backgroundColor: '#4F46E5',
-                    borderRadius: 10,
-                    paddingVertical: 12,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                  }}
+                  style={[s.quoteFooterBtn, { backgroundColor: '#4F46E5', borderColor: '#4F46E5' }]}
                   onPress={() => {
                     setShowQuoteDocModal(false);
                     handleConvertToProject(activeQuoteIdx);
                   }}
                 >
-                  <Ionicons name="rocket-outline" size={17} color="#FFFFFF" />
-                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>Convert to Project</Text>
+                  <Ionicons name="rocket-outline" size={16} color="#FFFFFF" />
+                  <Text style={[s.quoteFooterText, { color: '#FFFFFF' }]}>Convert to Project</Text>
                 </TouchableOpacity>
-              ) : !isReadOnly && currentQuote.status !== 'Accepted' && currentQuote.status !== 'Rejected' ? (
-                <>
-                  <TouchableOpacity
-                    style={{
-                      flex: 1,
-                      backgroundColor: '#DCFCE7',
-                      borderWidth: 1,
-                      borderColor: '#86EFAC',
-                      borderRadius: 10,
-                      paddingVertical: 11,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                    }}
-                    onPress={async () => {
-                      await handleQuoteStatus(activeQuoteIdx, 'Accepted');
-                    }}
-                  >
-                    <Ionicons name="checkmark-circle-outline" size={16} color="#15803D" />
-                    <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#15803D' }}>Accept</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{
-                      flex: 1,
-                      backgroundColor: '#FEE2E2',
-                      borderWidth: 1,
-                      borderColor: '#FCA5A5',
-                      borderRadius: 10,
-                      paddingVertical: 11,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                    }}
-                    onPress={async () => {
-                      await handleQuoteStatus(activeQuoteIdx, 'Rejected');
-                    }}
-                  >
-                    <Ionicons name="close-circle-outline" size={16} color="#B91C1C" />
-                    <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#B91C1C' }}>Reject</Text>
-                  </TouchableOpacity>
-                </>
               ) : null}
+              {/* Same as the web preview: dispatch to the client or a vendor */}
               <TouchableOpacity
-                style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 11,
-                  backgroundColor: '#4F46E5',
-                  borderRadius: 10,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                }}
-                onPress={() => {
-                  setSendQuoteModalQuote(currentQuote);
-                }}
+                style={[s.quoteFooterBtn, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}
+                onPress={() => openSendQuote(currentQuote, 'customer')}
               >
-                <Ionicons name="mail-outline" size={16} color="#FFFFFF" />
-                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>Email</Text>
+                <Ionicons name="paper-plane-outline" size={15} color="#4338CA" />
+                <Text style={[s.quoteFooterText, { color: '#4338CA' }]}>
+                  {currentQuote.sentToClient ? 'Resend to Client' : 'Send to Client'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.quoteFooterBtn, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
+                onPress={() => openSendQuote(currentQuote, 'vendor')}
+              >
+                <Ionicons name="business-outline" size={15} color="#047857" />
+                <Text style={[s.quoteFooterText, { color: '#047857' }]}>Send to Vendor</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -4411,6 +4623,18 @@ export default function Lead360Screen() {
 }
 
 const s = StyleSheet.create({
+  scopeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 9, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  scopeHeaderText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#475569', letterSpacing: 0.5 },
+  scopeCountPill: { backgroundColor: '#EEF2FF', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  scopeCountText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#4338CA' },
+  scopeRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 4 },
+  scopeIndex: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#94A3B8', minWidth: 18 },
+  scopeTitle: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', lineHeight: 18 },
+  scopeFigures: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 26 },
+  scopeMeta: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B' },
+  scopeTotal: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  quoteFooterBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 10, borderWidth: 1 },
+  quoteFooterText: { fontSize: 12.5, fontFamily: 'Inter-Bold' },
   container: { flex: 1, backgroundColor: '#F8FAFF' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   loadingText: { marginTop: 10, fontSize: 14, color: '#64748B', fontWeight: '500' },
@@ -4577,6 +4801,20 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
     justifyContent: 'center',
   },
+  boqApprovalBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  boqApprovalBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  ovEditBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  ovEditBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  ovAddressBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, padding: 12, gap: 4 },
+  ovFieldLabel: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.5 },
+  ovAddressText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A', lineHeight: 19 },
+  ovAddressActions: { flexDirection: 'row', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0', flexWrap: 'wrap' },
+  ovPillBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
+  ovPillText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155' },
+  ovInfoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: 10, borderRadius: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9' },
+  ovInfoLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ovInfoLabel: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' },
+  ovInfoValue: { flex: 1, textAlign: 'right', fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
   metricCardFull: {
     width: '100%',
     backgroundColor: '#FFFFFF',
@@ -5264,14 +5502,21 @@ const s = StyleSheet.create({
 
   // BOQ Component Styles
   boqHeaderCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    gap: 12,
+  },
+  boqHeaderActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
   boqNumberText: {
     fontSize: 14,

@@ -60,6 +60,15 @@ export const formatCurrency = (num, currency = 'INR') => {
   return `${symbol} ${Intl.NumberFormat('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num)}`;
 };
 
+// Short form with K/M/B/T (e.g. ₹10.85M) — same as the web's formatCurrency
+export const formatCompactCurrency = (num, currency = 'INR') => {
+  const symbol = getCurrencySymbol(currency);
+  const separator = symbol.length > 1 ? ' ' : '';
+  const value = Number(num);
+  if (num == null || isNaN(value)) return `${symbol}${separator}0`;
+  return `${value < 0 ? '-' : ''}${symbol}${separator}${formatCompact(Math.abs(value))}`;
+};
+
 export const formatExactCurrency = (num, currency = 'INR') => {
   if (num == null || isNaN(num)) return `${getCurrencySymbol(currency)} 0`;
   const symbol = getCurrencySymbol(currency);

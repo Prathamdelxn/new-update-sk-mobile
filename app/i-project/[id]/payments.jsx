@@ -11,6 +11,8 @@ import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { formatExactCurrency, getCurrencySymbol } from '../../utils/format';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import { WebView } from 'react-native-webview';
+import { generateInvoiceHtml, printInvoice, shareInvoicePdf } from '../../utils/interior/invoiceDocument';
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
 function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
@@ -177,6 +179,10 @@ const { can: canDo } = useProjectPermissions(projectId);
   const [payments, setPayments] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [projectCurrency, setProjectCurrency] = useState('INR');
+  // Invoice / receipt for incoming payments (same as the web View / Download)
+  const [project, setProject] = useState(null);
+  const [previewInvoice, setPreviewInvoice] = useState(null);
+  const [invoiceBusy, setInvoiceBusy] = useState(null); // `${id}:pdf` | 'print'
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -200,6 +206,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       ]);
       setPayments(payRes.status === 'fulfilled' && payRes.value?.success ? payRes.value.data || [] : []);
       setPurchaseOrders(poRes.status === 'fulfilled' && poRes.value?.success ? poRes.value.data || [] : []);
+      if (projRes.status === 'fulfilled' && projRes.value?.data) setProject(projRes.value.data);
       if (projRes.status === 'fulfilled' && projRes.value?.data?.currency) {
         setProjectCurrency(projRes.value.data.currency);
       }
@@ -341,6 +348,18 @@ const { can: canDo } = useProjectPermissions(projectId);
     );
   };
 
+  const invoiceSymbol = getCurrencySymbol(project?.budget?.currency || projectCurrency);
+  const runInvoice = async (key, fn, tx) => {
+    setInvoiceBusy(key);
+    try {
+      await fn(tx, project, invoiceSymbol);
+    } catch (e) {
+      if (!/cancel/i.test(e?.message || '')) showToast(e?.message || 'Failed to generate the invoice', 'error');
+    } finally {
+      setInvoiceBusy(null);
+    }
+  };
+
   const openCreateModal = () => {
     if (activeCategory === 'incoming') setIncomingModalOpen(true);
     else if (activeCategory === 'outgoing') setOutgoingModalOpen(true);
@@ -366,11 +385,29 @@ const { can: canDo } = useProjectPermissions(projectId);
             <View style={[s.statusPill, { backgroundColor: '#F0FDF4' }]}>
               <Text style={[s.statusPillText, { color: '#16A34A' }]}>{tx.incomingStatus || 'Completed'}</Text>
             </View>
-            {canDo('financials', 'delete') && (
-              <TouchableOpacity onPress={() => handleDeletePayment(tx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            <View style={s.invoiceActions}>
+              <TouchableOpacity style={s.invoiceBtn} onPress={() => setPreviewInvoice(tx)}>
+                <Ionicons name="eye-outline" size={14} color="#1D4ED8" />
+                <Text style={s.invoiceBtnText}>View</Text>
               </TouchableOpacity>
-            )}
+              {canDo('financials', 'export') && (
+                <TouchableOpacity
+                  style={s.invoiceBtn}
+                  onPress={() => runInvoice(`${tx._id}:pdf`, shareInvoicePdf, tx)}
+                  disabled={invoiceBusy === `${tx._id}:pdf`}
+                >
+                  {invoiceBusy === `${tx._id}:pdf`
+                    ? <ActivityIndicator size="small" color="#1D4ED8" />
+                    : <Ionicons name="download-outline" size={14} color="#1D4ED8" />}
+                  <Text style={s.invoiceBtnText}>PDF</Text>
+                </TouchableOpacity>
+              )}
+              {canDo('financials', 'delete') && (
+                <TouchableOpacity onPress={() => handleDeletePayment(tx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
       ));
@@ -651,6 +688,45 @@ const { can: canDo } = useProjectPermissions(projectId);
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      {/* Invoice & Receipt preview (same document as the web) */}
+      <Modal visible={!!previewInvoice} animationType="slide" onRequestClose={() => setPreviewInvoice(null)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F5F9' }}>
+          <View style={s.invoiceHeader}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.invoiceHeaderTitle}>Payment Invoice & Receipt</Text>
+              <Text style={s.invoiceHeaderSub} numberOfLines={1}>
+                {previewInvoice?.invoiceNo || 'Invoice'} • {previewInvoice ? fmt(previewInvoice.amount) : ''}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setPreviewInvoice(null)} style={s.invoiceClose}>
+              <Ionicons name="close" size={20} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+          {previewInvoice && (
+            <WebView
+              originWhitelist={['*']}
+              source={{ html: generateInvoiceHtml(previewInvoice, project, invoiceSymbol) }}
+              style={{ flex: 1, backgroundColor: '#F1F5F9' }}
+            />
+          )}
+          <View style={s.invoiceFooter}>
+            <TouchableOpacity style={s.invoiceFooterBtn} onPress={() => runInvoice('print', printInvoice, previewInvoice)} disabled={!!invoiceBusy}>
+              {invoiceBusy === 'print' ? <ActivityIndicator size="small" color="#334155" /> : <Ionicons name="print-outline" size={16} color="#334155" />}
+              <Text style={s.invoiceFooterText}>Print</Text>
+            </TouchableOpacity>
+            {canDo('financials', 'export') && (
+              <TouchableOpacity
+                style={[s.invoiceFooterBtn, { backgroundColor: '#2563EB', borderColor: '#2563EB' }]}
+                onPress={() => runInvoice('preview:pdf', shareInvoicePdf, previewInvoice)}
+                disabled={!!invoiceBusy}
+              >
+                {invoiceBusy === 'preview:pdf' ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="download-outline" size={16} color="#FFFFFF" />}
+                <Text style={[s.invoiceFooterText, { color: '#FFFFFF' }]}>Download PDF</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
@@ -665,6 +741,16 @@ function Empty({ icon, text }) {
 }
 
 const s = StyleSheet.create({
+  invoiceActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  invoiceBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#EFF6FF' },
+  invoiceBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#1D4ED8' },
+  invoiceHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  invoiceHeaderTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  invoiceHeaderSub: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
+  invoiceClose: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  invoiceFooter: { flexDirection: 'row', gap: 8, padding: 12, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E2E8F0' },
+  invoiceFooterBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' },
+  invoiceFooterText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155' },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },

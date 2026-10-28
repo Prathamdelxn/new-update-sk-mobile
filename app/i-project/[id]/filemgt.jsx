@@ -281,7 +281,11 @@ const { can: canDo } = useProjectPermissions(projectId);
                           <Ionicons name="folder" size={24} color="#F59E0B" />
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={s.folderTitle} numberOfLines={1}>{fld.name}</Text>
-                            <Text style={s.folderSub}>{fld.itemCount || 0} items</Text>
+                            <Text style={s.folderSub}>
+                              {fld.itemCount != null
+                                ? `${fld.itemCount} ${fld.itemCount === 1 ? 'item' : 'items'}`
+                                : 'Folder'}
+                            </Text>
                           </View>
                           <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
                         </TouchableOpacity>

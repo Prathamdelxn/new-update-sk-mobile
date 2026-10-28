@@ -11,6 +11,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import SelectField from '../../components/common/SelectField';
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
 function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
@@ -61,6 +62,7 @@ const dfStyles = StyleSheet.create({
 });
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
+const PRIORITY_OPTIONS = PRIORITIES.map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }));
 const PRIORITY_META = {
   low: { color: '#2563EB', bg: '#EFF6FF' },
   medium: { color: '#2563EB', bg: '#EFF6FF' },
@@ -108,6 +110,8 @@ const { can: canDo } = useProjectPermissions(projectId);
   const [form, setForm] = useState(emptyForm);
   const [editSnagId, setEditSnagId] = useState(null);
   const [lightboxPhoto, setLightboxPhoto] = useState(null);
+  // Tap a card to see the full snag (same as the web "Deep Details")
+  const [detailSnag, setDetailSnag] = useState(null);
 
   const fetchSnags = useCallback(async () => {
     setLoading(true);
@@ -213,6 +217,7 @@ const { can: canDo } = useProjectPermissions(projectId);
           try {
             await interiorApiClient.delete(`/projects/${projectId}/snags?snagId=${snag._id}`);
             showToast('Snag deleted successfully', 'delete');
+            setDetailSnag(null);
             fetchSnags();
           } catch (e) {
             showToast(e.message || 'Failed to delete snag', 'error');
@@ -227,6 +232,7 @@ const { can: canDo } = useProjectPermissions(projectId);
     try {
       await interiorApiClient.put(`/projects/${projectId}/snags`, { snagId: snag._id, status });
       showToast(`Snag status updated to: ${status}`, 'success');
+      setDetailSnag((prev) => (prev && prev._id === snag._id ? { ...prev, status } : prev));
       fetchSnags();
     } catch (e) {
       showToast(e.message || 'Failed to update status', 'error');
@@ -264,7 +270,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                 const priority = PRIORITY_META[snag.priority] || PRIORITY_META.medium;
                 const status = STATUS_META[snag.status] || STATUS_META.open;
                 return (
-                  <View key={snag._id} style={s.snagCard}>
+                  <TouchableOpacity key={snag._id} style={s.snagCard} activeOpacity={0.85} onPress={() => setDetailSnag(snag)}>
                     <View style={s.snagTopRow}>
                       <View style={s.locationRow}>
                         <Ionicons name="location-outline" size={13} color="#3B82F6" />
@@ -275,43 +281,32 @@ const { can: canDo } = useProjectPermissions(projectId);
                           <Text style={[s.pillText, { color: priority.color }]}>{snag.priority}</Text>
                         </View>
                         <View style={[s.pill, { backgroundColor: status.bg }]}>
-                          <Text style={[s.pillText, { color: status.color }]}>{snag.status}</Text>
+                          <Text style={[s.pillText, { color: status.color }]}>{String(snag.status || '').replace('_', ' ')}</Text>
                         </View>
-                        {canDo('snags', 'update') && (
-                          <TouchableOpacity onPress={() => openEditModal(snag)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                            <Ionicons name="pencil-outline" size={13} color="#94A3B8" />
-                          </TouchableOpacity>
-                        )}
-                        {canDo('snags', 'delete') && (
-                          <TouchableOpacity onPress={() => handleDeleteSnag(snag)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                            <Ionicons name="trash-outline" size={13} color="#EF4444" />
-                          </TouchableOpacity>
-                        )}
                       </View>
                     </View>
 
-                    <Text style={s.snagDesc}>{snag.description}</Text>
-
-                    {snag.photos && snag.photos.length > 0 && (
-                      <View style={s.photoRow}>
-                        {snag.photos.map((photo, idx) => (
-                          <TouchableOpacity key={idx} style={s.photoThumb} onPress={() => setLightboxPhoto(photo)}>
-                            <Image source={{ uri: photo }} style={s.photoThumbImg} />
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
+                    <Text style={s.snagDesc} numberOfLines={2}>{snag.description}</Text>
 
                     <View style={s.snagBottomRow}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="calendar-outline" size={12} color="#94A3B8" />
-                        <Text style={s.dueText}>Due: {formatDate(snag.dueDate)}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Ionicons name="calendar-outline" size={12} color="#94A3B8" />
+                          <Text style={s.dueText}>Due: {formatDate(snag.dueDate)}</Text>
+                        </View>
+                        {snag.photos?.length > 0 && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                            <Ionicons name="image-outline" size={12} color="#94A3B8" />
+                            <Text style={s.dueText}>{snag.photos.length}</Text>
+                          </View>
+                        )}
                       </View>
-                      <TouchableOpacity style={s.actionBtn} onPress={() => toggleStatus(snag)}>
-                        <Text style={s.actionBtnText}>{nextStatusLabel(snag.status)}</Text>
-                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                        <Text style={s.detailsLink}>Details</Text>
+                        <Ionicons name="chevron-forward" size={13} color="#2563EB" />
+                      </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })
             )}
@@ -344,13 +339,12 @@ const { can: canDo } = useProjectPermissions(projectId);
               <TextInput style={s.input} placeholder="e.g. Floor 4, Cafeteria Pantry Zone" placeholderTextColor="#94A3B8" value={form.location} onChangeText={(v) => setForm({ ...form, location: v })} />
 
               <Text style={s.label}>Priority</Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                {PRIORITIES.map((p) => (
-                  <TouchableOpacity key={p} style={[s.chip, form.priority === p && s.chipActive]} onPress={() => setForm({ ...form, priority: p })}>
-                    <Text style={[s.chipText, form.priority === p && s.chipTextActive]}>{p}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <SelectField
+                value={form.priority}
+                onChange={(p) => setForm({ ...form, priority: p })}
+                options={PRIORITY_OPTIONS}
+                style={{ marginBottom: 8 }}
+              />
 
               <Text style={s.label}>Target Resolve Date</Text>
               <DateField value={form.dueDate} onChange={(v) => setForm({ ...form, dueDate: v })} inputStyle={s.input} />
@@ -389,8 +383,113 @@ const { can: canDo } = useProjectPermissions(projectId);
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Snag details */}
+      <Modal visible={!!detailSnag} animationType="slide" transparent onRequestClose={() => setDetailSnag(null)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            {detailSnag && (() => {
+              const pr = PRIORITY_META[detailSnag.priority] || PRIORITY_META.medium;
+              const st = STATUS_META[detailSnag.status] || STATUS_META.open;
+              return (
+                <>
+                  <View style={s.modalHeader}>
+                    <Text style={s.modalTitle}>Snag Details</Text>
+                    <TouchableOpacity onPress={() => setDetailSnag(null)}>
+                      <Ionicons name="close" size={22} color="#64748B" />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
+                      <View style={[s.pill, { backgroundColor: pr.bg }]}>
+                        <Text style={[s.pillText, { color: pr.color }]}>{detailSnag.priority}</Text>
+                      </View>
+                      <View style={[s.pill, { backgroundColor: st.bg }]}>
+                        <Text style={[s.pillText, { color: st.color }]}>{String(detailSnag.status || '').replace('_', ' ')}</Text>
+                      </View>
+                    </View>
+
+                    <Text style={s.label}>Defect Description</Text>
+                    <Text style={s.detailText}>{detailSnag.description || '—'}</Text>
+
+                    <Text style={s.label}>Location / Area</Text>
+                    <View style={s.locationRow}>
+                      <Ionicons name="location-outline" size={13} color="#3B82F6" />
+                      <Text style={s.detailText}>{detailSnag.location || '—'}</Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.label}>Target Resolve Date</Text>
+                        <Text style={s.detailText}>{formatDate(detailSnag.dueDate)}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.label}>Logged On</Text>
+                        <Text style={s.detailText}>{formatDate(detailSnag.createdAt)}</Text>
+                      </View>
+                    </View>
+
+                    <Text style={s.label}>Photos ({detailSnag.photos?.length || 0})</Text>
+                    {detailSnag.photos?.length > 0 ? (
+                      <View style={s.photoRow}>
+                        {detailSnag.photos.map((photo, idx) => (
+                          <TouchableOpacity key={idx} style={s.photoThumb} onPress={() => setLightboxPhoto(photo)}>
+                            <Image source={{ uri: photo }} style={s.photoThumbImg} />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={s.dueText}>No photos attached.</Text>
+                    )}
+
+                    <View style={s.detailActions}>
+                      {canDo('snags', 'update') && (
+                        <TouchableOpacity style={s.detailPrimaryBtn} onPress={() => toggleStatus(detailSnag)}>
+                          <Text style={s.saveBtnText}>{nextStatusLabel(detailSnag.status)}</Text>
+                        </TouchableOpacity>
+                      )}
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        {canDo('snags', 'update') && (
+                          <TouchableOpacity
+                            style={s.detailSecondaryBtn}
+                            onPress={() => { const sn = detailSnag; setDetailSnag(null); openEditModal(sn); }}
+                          >
+                            <Ionicons name="pencil-outline" size={14} color="#334155" />
+                            <Text style={s.detailSecondaryText}>Edit</Text>
+                          </TouchableOpacity>
+                        )}
+                        {canDo('snags', 'delete') && (
+                          <TouchableOpacity style={[s.detailSecondaryBtn, { borderColor: '#FECDD3', backgroundColor: '#FFF1F2' }]} onPress={() => handleDeleteSnag(detailSnag)}>
+                            <Ionicons name="trash-outline" size={14} color="#E11D48" />
+                            <Text style={[s.detailSecondaryText, { color: '#E11D48' }]}>Delete</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  </ScrollView>
+                </>
+              );
+            })()}
+          </View>
+          {!!lightboxPhoto && (
+            <View style={[StyleSheet.absoluteFill, s.lightboxOverlay]}>
+              <SafeAreaView style={{ flex: 1 }}>
+                <View style={s.lightboxHeader}>
+                  <Text style={s.lightboxTitle}>Snag Photo</Text>
+                  <TouchableOpacity style={s.lightboxCloseBtn} onPress={() => setLightboxPhoto(null)}>
+                    <Ionicons name="close" size={22} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+                <View style={s.lightboxBody}>
+                  <Image source={{ uri: lightboxPhoto }} style={s.lightboxImage} resizeMode="contain" />
+                </View>
+              </SafeAreaView>
+            </View>
+          )}
+        </View>
+      </Modal>
+
       {/* Full Screen Photo Lightbox */}
-      <Modal visible={!!lightboxPhoto} transparent animationType="fade" onRequestClose={() => setLightboxPhoto(null)}>
+      <Modal visible={!!lightboxPhoto && !detailSnag} transparent animationType="fade" onRequestClose={() => setLightboxPhoto(null)}>
         <View style={s.lightboxOverlay}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={s.lightboxHeader}>
@@ -410,6 +509,12 @@ const { can: canDo } = useProjectPermissions(projectId);
 }
 
 const s = StyleSheet.create({
+  detailsLink: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  detailText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', lineHeight: 19 },
+  detailActions: { gap: 8, marginTop: 18, marginBottom: 6 },
+  detailPrimaryBtn: { backgroundColor: '#2563EB', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  detailSecondaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' },
+  detailSecondaryText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155' },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -423,14 +528,14 @@ const s = StyleSheet.create({
   emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   emptySub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
-  snagCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', gap: 10 },
+  snagCard: { backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderColor: '#E2E8F0', gap: 7 },
   snagTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
   locationText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' },
   pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   pillText: { fontSize: 9.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
 
-  snagDesc: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  snagDesc: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', lineHeight: 18 },
 
   snagBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 10 },
   dueText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },

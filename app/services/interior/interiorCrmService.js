@@ -5,7 +5,25 @@ export const interiorCrmService = {
     const res = await interiorApiClient.get('/crm/customers', params);
     return res?.data || res || [];
   },
+  // Single-lead endpoint (same as web): the list endpoint leaves out site photos
   getCustomerById: async (id) => {
+    try {
+      const res = await interiorApiClient.get(`/crm/customers/${id}`);
+      const lead = res?.data ?? null;
+      if (lead && (lead._id || lead.id)) {
+        // This endpoint populates people / project refs; screens expect plain ids (like the list)
+        const idOf = (v) => (v && typeof v === 'object' ? v._id || v.id : v);
+        return {
+          ...lead,
+          assignedSalesExecutive: idOf(lead.assignedSalesExecutive),
+          designerAssigned: idOf(lead.designerAssigned),
+          createdBy: idOf(lead.createdBy),
+          linkedProject: idOf(lead.linkedProject),
+        };
+      }
+    } catch (e) {
+      if (e?.status === 403) throw e;
+    }
     const res = await interiorApiClient.get('/crm/customers');
     const list = res?.data || res || [];
     return Array.isArray(list) ? list.find((c) => c._id === id || c.id === id) || null : null;
