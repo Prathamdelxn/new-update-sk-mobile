@@ -565,7 +565,7 @@ const s = StyleSheet.create({
   emptyBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   fab: {
-    position: 'absolute', right: 20, bottom: 100,
+    position: 'absolute', right: 20, bottom: 20,
     width: 52, height: 52, borderRadius: 26, backgroundColor: '#2563EB',
     justifyContent: 'center', alignItems: 'center',
     shadowColor: '#2563EB', shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6,

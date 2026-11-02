@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import RemoteThumb from '../../components/interior/RemoteThumb';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 // ---------------------------------------------------------------------------
@@ -527,7 +528,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     {/* Image thumbnail (same as the web card) */}
                     {isImage && !!currentRev.url && (
                       <TouchableOpacity activeOpacity={0.85} onPress={() => handleOpenOrPreview(currentRev.url, dwg.title)}>
-                        <Image source={{ uri: currentRev.url }} style={s.dwgThumb} resizeMode="cover" />
+                        <RemoteThumb uri={currentRev.url} style={s.dwgThumb} height={150} />
                       </TouchableOpacity>
                     )}
                     {/* Top Row: DWG Number, File Type Badge, Status */}

@@ -3,11 +3,13 @@ import {
   View, Text, StyleSheet, TouchableOpacity, useWindowDimensions,
   Animated, StatusBar, PanResponder, Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ProjectScene, BlueprintScene, FinanceScene } from './components/OnboardingIllustrations';
 
 export default function OnboardingScreen() {
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const SLIDES = [
     {
@@ -123,6 +125,7 @@ export default function OnboardingScreen() {
       {/* Main content */}
       <Animated.View style={[
         styles.mainContent,
+        { paddingTop: insets.top + 24 },
         {
           opacity: entryAnim,
           transform: [{
@@ -208,7 +211,7 @@ export default function OnboardingScreen() {
  
       {/* Footer */}
       <View style={[styles.footer, { 
-        paddingBottom: Platform.OS === 'ios' ? (isSmallScreen ? 25 : 45) : (isSmallScreen ? 20 : 35) 
+        paddingBottom: insets.bottom + (isSmallScreen ? 16 : 24),
       }]}>
         {/* Pagination */}
         <View style={[styles.pagination, { marginBottom: isSmallScreen ? 20 : 35 }]}>

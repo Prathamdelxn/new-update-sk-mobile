@@ -15,6 +15,7 @@ import { queryKeys, invalidateCrmQueries, invalidateProjectQueries, useQuerySett
 import { parseMaxBudget, formatExactCurrency } from '../../utils/format';
 import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../../utils/crmValidation';
 import * as ImagePicker from 'expo-image-picker';
+import RemoteThumb from '../../components/interior/RemoteThumb';
 import * as Print from 'expo-print';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
@@ -2411,7 +2412,7 @@ export default function Lead360Screen() {
                                 activeOpacity={0.8}
                                 onPress={() => (uri.startsWith('http') ? Linking.openURL(uri) : null)}
                               >
-                                <Image source={{ uri }} style={s.photoThumb} resizeMode="cover" />
+                                <RemoteThumb uri={uri} style={s.photoThumb} height={80} fallbackLabel="" />
                               </TouchableOpacity>
                             );
                           })}
@@ -2854,7 +2855,9 @@ export default function Lead360Screen() {
                       const statusMeta = DRAWING_STATUS_META[status] || DRAWING_STATUS_META.draft;
                       const isApprovingThis = approvingDrawingId === (file._id || file.id || idx);
                       return (
-                        <View key={file._id || file.id || idx} style={[s.fileCard, { flexDirection: 'column', padding: 0, overflow: 'hidden' }]}>
+                        <View key={file._id || file.id || idx} style={[s.fileCard, { flexDirection: 'column', alignItems: 'stretch', padding: 0, overflow: 'hidden' }]}>
+                          {/* alignItems 'stretch': fileCard centres its children, which collapsed the
+                              thumbnail to 0px wide (blank card) and bunched the badges in the middle */}
                           <TouchableOpacity
                             onPress={() => {
                               // The file link can live on the latest version only
@@ -2862,10 +2865,11 @@ export default function Lead360Screen() {
                               if (url) setPreviewLightboxDrawing({ ...file, url });
                             }}
                             activeOpacity={0.8}
+                            style={{ width: '100%' }}
                           >
                             {/* Thumbnail for image files */}
                             {isDrawingImage(file) ? (
-                              <Image source={{ uri: drawingFileUrl(file) }} resizeMode="cover" style={{ width: '100%', height: 160, backgroundColor: '#E2E8F0' }} />
+                              <RemoteThumb uri={drawingFileUrl(file)} height={160} />
                             ) : (
                               <View style={{ width: '100%', height: 80, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
                                 <Ionicons
@@ -3515,7 +3519,7 @@ export default function Lead360Screen() {
                             activeOpacity={0.8}
                           >
                             <Ionicons name="document-text-outline" size={14} color="#4F46E5" />
-                            <Text style={s.quoteDocActionText}>Preview</Text>
+                            <Text style={s.quoteDocActionText} numberOfLines={1}>Preview</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={s.quoteDocActionBtn}
@@ -3523,7 +3527,7 @@ export default function Lead360Screen() {
                             activeOpacity={0.8}
                           >
                             <Ionicons name="paper-plane-outline" size={14} color="#4F46E5" />
-                            <Text style={s.quoteDocActionText}>Send to Client</Text>
+                            <Text style={s.quoteDocActionText} numberOfLines={1}>Send to Client</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={s.quoteDocActionBtn}
@@ -3531,7 +3535,7 @@ export default function Lead360Screen() {
                             activeOpacity={0.8}
                           >
                             <Ionicons name="business-outline" size={14} color="#059669" />
-                            <Text style={[s.quoteDocActionText, { color: '#059669' }]}>Send to Vendor</Text>
+                            <Text style={[s.quoteDocActionText, { color: '#059669' }]} numberOfLines={1}>Send to Vendor</Text>
                           </TouchableOpacity>
                           {canDo('crm_quotations', 'export') && (
                             <TouchableOpacity
@@ -3545,7 +3549,7 @@ export default function Lead360Screen() {
                               ) : (
                                 <>
                                   <Ionicons name="download-outline" size={14} color="#4F46E5" />
-                                  <Text style={s.quoteDocActionText}>Download</Text>
+                                  <Text style={s.quoteDocActionText} numberOfLines={1}>Download</Text>
                                 </>
                               )}
                             </TouchableOpacity>
@@ -4960,13 +4964,16 @@ const s = StyleSheet.create({
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0',
   },
   // Quotation Tab Layout Styles
+  // 2 × 2 grid: four buttons in one row were too narrow on phones (labels wrapped, Download clipped)
   quoteDocActionsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
   },
   quoteDocActionBtn: {
-    flex: 1,
+    flexBasis: '47%',
+    flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -4977,7 +4984,9 @@ const s = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 9,
   },
-  quoteDocActionText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#4F46E5' },
+  quoteDocActionText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#4F46E5', flexShrink: 1 },
+  stageBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
+  stageBadgeText: { fontSize: 10.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase', letterSpacing: 0.3 },
   quoteMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

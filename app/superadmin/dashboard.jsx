@@ -833,6 +833,7 @@ import {
 
 import { Ionicons, Feather } from '@expo/vector-icons';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { useSuperAdmin } from '../context/SuperAdminContext';
@@ -956,6 +957,7 @@ function formatDate(dateStr) {
 
 
 export default function SuperAdminDashboard() {
+  const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState('Dashboard');
 
@@ -1421,7 +1423,7 @@ export default function SuperAdminDashboard() {
 
       {/* Purple Header Container */}
 
-      <View style={styles.headerWrap}>
+      <View style={[styles.headerWrap, { paddingTop: insets.top + 16 }]}>
 
         <View style={styles.header}>
 
