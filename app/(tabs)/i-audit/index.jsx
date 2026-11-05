@@ -325,10 +325,9 @@ export default function InteriorAuditScreen() {
             <View style={s.restrictedIconBox}>
               <Ionicons name="shield-outline" size={36} color="#DC2626" />
             </View>
-            <Text style={s.restrictedTitle}>Administrator Access Required</Text>
+            <Text style={s.restrictedTitle}>Access Restricted</Text>
             <Text style={s.restrictedDesc}>
-              Audit logs contain sensitive workspace activity, authentication records, and deletion trails. Access is
-              restricted to organization administrators.
+              You do not have permission to view the audit management section. Ask an administrator for the Audit Logs permission.
             </Text>
           </View>
         ) : (

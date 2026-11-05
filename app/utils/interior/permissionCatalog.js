@@ -50,11 +50,17 @@ export const PERMISSION_MODULES = [
   { key: 'handover', label: 'Handover', category: 'Project Execution', actions: ['read', 'create', 'update', 'delete'] },
   { key: 'filemgt', label: 'File Management', category: 'Project Execution', actions: ['read', 'create', 'delete'] },
   { key: 'financials', label: 'Payments & Financials', category: 'Project Execution', actions: ['read', 'create', 'delete', 'export'] },
+  { key: 'purchase_orders', label: 'Purchase Orders', category: 'Project Execution', actions: CRUD },
   { key: 'users', label: 'Team / Members', category: 'Project Execution' },
   // Organization-wide
   { key: 'dashboard', label: 'Dashboard', category: 'Organization', actions: ['read'] },
   { key: 'vendors', label: 'Vendor Management', category: 'Organization', actions: CRUD },
   { key: 'roles', label: 'Roles & Permissions', category: 'Organization', actions: CRUD },
+  { key: 'audit_logs', label: 'Audit Logs', category: 'Organization', actions: ['read', 'export'] },
+  { key: 'settings', label: 'Organization Settings', category: 'Organization', actions: ['read', 'update'] },
+  { key: 'templates', label: 'Project Templates', category: 'Organization', actions: CRUD },
+  { key: 'notifications', label: 'Notifications', category: 'Organization', actions: ['read', 'update'] },
+  { key: 'reports', label: 'Analytics & Reports', category: 'Organization', actions: ['read', 'export'] },
 ];
 
 export const MODULE_CATEGORIES = ['CRM Pipeline', 'Project Execution', 'Organization'];

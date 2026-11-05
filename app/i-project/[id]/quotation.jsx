@@ -17,7 +17,7 @@ import interiorApiClient from '../../services/interiorApiClient';
 import { interiorCrmService } from '../../services/interiorCrmService';
 import { useToast } from '../../context/ToastContext';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
-import { formatCompactCurrency, formatExactCurrency } from '../../utils/format';
+import { formatCompactCurrency, formatSmartCurrency, getCurrencySymbol } from '../../utils/format';
 import QuotationBuilderModal from '../../components/crm/QuotationBuilderModal';
 import QuotationPreviewModal from '../../components/interior/QuotationPreviewModal';
 
@@ -53,18 +53,26 @@ export default function InteriorProjectQuotationScreen() {
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      let projectData = null;
-      try {
-        const prj = await interiorApiClient.get(`/projects/${projectId}`);
-        projectData = prj?.data?.data || prj?.data || null;
-        setProject(projectData);
-      } catch {
-        // project details are only used for the target budget
-      }
+      // Project + its linked lead in parallel (web: getProjectConfirmOrder). The confirm-order
+      // endpoint only needs project access, so it works for users without CRM rights.
+      const [prjResult, orderResult] = await Promise.allSettled([
+        interiorApiClient.get(`/projects/${projectId}`),
+        interiorApiClient.get(`/projects/${projectId}/confirm-order`),
+      ]);
+      const projectData = prjResult.status === 'fulfilled' ? prjResult.value?.data?.data || prjResult.value?.data || null : null;
+      setProject(projectData);
 
-      const res = await interiorApiClient.get('/crm/customers');
-      const customers = res?.success && res?.data ? res.data : Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      const matched = customers.find((c) => c.linkedProject && linkedProjectId(c) === String(projectId));
+      let matched = orderResult.status === 'fulfilled' ? orderResult.value?.data || null : null;
+      if (!matched) {
+        // Fallback: search the CRM list (needs CRM access)
+        try {
+          const res = await interiorApiClient.get('/crm/customers');
+          const customers = res?.success && res?.data ? res.data : Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+          matched = customers.find((c) => c.linkedProject && linkedProjectId(c) === String(projectId)) || null;
+        } catch {
+          matched = null;
+        }
+      }
 
       // Same fallback as the web when the project wasn't converted from a lead
       setLead(
@@ -94,6 +102,7 @@ export default function InteriorProjectQuotationScreen() {
   const hasAccepted = quotations.some((q) => q.status === 'Accepted' || q.status === 'Approved');
   const latestRejected = latestQuote?.status === 'Rejected';
   const currency = lead?.currency || project?.budget?.currency || 'INR';
+  const smart = (n) => formatSmartCurrency(Number(n) || 0, getCurrencySymbol(currency));
 
   // Edits need a real CRM lead to save to
   const canSave = !lead?.isSynthetic;
@@ -108,7 +117,8 @@ export default function InteriorProjectQuotationScreen() {
   const confirmDelete = (idx) => {
     const q = quotations[idx];
     const title = q?.title || `Quotation ${idx + 1}`;
-    Alert.alert('Delete Quotation', `Delete "${title}" (v${q?.version || idx + 1})? This action cannot be undone.`, [
+    const displayTitle = title.length > 50 ? `${title.slice(0, 50)}...` : title;
+    Alert.alert('Delete Quotation', `Are you sure you want to delete "${displayTitle}" (v${q?.version || idx + 1})? This action cannot be undone.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete Quotation',
@@ -176,7 +186,12 @@ export default function InteriorProjectQuotationScreen() {
               </View>
 
               <View style={s.kpiGrid}>
-                <Kpi label="Grand Total" value={latestQuote ? formatExactCurrency(Number(latestQuote.grandTotal) || 0, currency) : '—'} accent />
+                <Kpi
+                  label="Grand Total"
+                  value={latestQuote ? smart(latestQuote.grandTotal).display : '—'}
+                  sub={latestQuote && smart(latestQuote.grandTotal).isLarge ? `(${smart(latestQuote.grandTotal).exact})` : null}
+                  accent
+                />
                 <Kpi label="Breakdown" value={latestQuote ? `${latestQuote.taxPercentage || 0}% Tax • ${(latestQuote.items || []).length} Items` : 'No items'} />
                 <Kpi label="Latest Status" value={latestQuote?.status || (hasQuotations ? 'Generated' : 'Pending')} />
                 <Kpi label="Target Budget" value={targetBudget} />
@@ -236,15 +251,15 @@ export default function InteriorProjectQuotationScreen() {
                         </View>
                         <View style={{ flex: 1.4 }}>
                           <Text style={s.figLabel}>Subtotal & Tax</Text>
-                          <Text style={s.figValue}>{formatExactCurrency(Number(q.subtotal || q.subTotal || 0), currency)}</Text>
+                          <Text style={s.figValue} numberOfLines={1}>{smart(q.subtotal || q.subTotal).display}</Text>
                           <Text style={s.figSub}>
                             Tax: {q.taxPercentage || 0}%
-                            {discount > 0 ? <Text style={{ color: '#059669' }}> • Disc: {formatExactCurrency(discount, currency)}</Text> : null}
+                            {discount > 0 ? <Text style={{ color: '#059669' }}> • Disc: {smart(discount).display}</Text> : null}
                           </Text>
                         </View>
                         <View style={{ flex: 1.2, alignItems: 'flex-end' }}>
                           <Text style={s.figLabel}>Grand Total</Text>
-                          <Text style={s.grandValue}>{formatExactCurrency(Number(q.grandTotal) || 0, currency)}</Text>
+                          <Text style={s.grandValue} numberOfLines={1}>{smart(q.grandTotal).display}</Text>
                         </View>
                       </View>
 
@@ -306,11 +321,12 @@ export default function InteriorProjectQuotationScreen() {
   );
 }
 
-function Kpi({ label, value, accent }) {
+function Kpi({ label, value, sub, accent }) {
   return (
     <View style={s.kpi}>
       <Text style={s.kpiLabel}>{label}</Text>
       <Text style={[s.kpiValue, accent && { color: '#2563EB' }]} numberOfLines={1}>{value}</Text>
+      {!!sub && <Text style={{ fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' }} numberOfLines={1}>{sub}</Text>}
     </View>
   );
 }

@@ -24,8 +24,13 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import interiorApiClient from '../../services/interiorApiClient';
+import * as Clipboard from 'expo-clipboard';
 import { WEB_APP_URL } from '../../config';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+
+// Public RFQ link state: the isLinkActive flag, or the older "||CLOSED||" marker on the material name
+const isRfqLinkActive = (po) =>
+  po?.isLinkActive !== undefined ? Boolean(po.isLinkActive) : !String(po?.materialName || '').includes('||CLOSED||');
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
 function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
@@ -403,6 +408,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         poId: selectedPo._id,
         vendorIds: rfqVendors,
         notes: rfqNotes.trim(),
+        rfqLink: `${WEB_APP_URL}/rfq/${selectedPo._id}`,
       });
 
       // Update status to rfq and switch tab to rfq pipeline
@@ -421,6 +427,27 @@ const { can: canDo } = useProjectPermissions(projectId);
       showToast(e.message || 'Failed to send RFQ', 'error');
     } finally {
       setSendingRfq(false);
+    }
+  };
+
+  const [togglingLink, setTogglingLink] = useState(false);
+  const handleToggleRfqLink = async () => {
+    if (!selectedPo) return;
+    const next = !isRfqLinkActive(selectedPo);
+    const cleanName = String(selectedPo.materialName || '').replace(' ||CLOSED||', '').trim() || selectedPo.materialName;
+    setTogglingLink(true);
+    try {
+      await interiorApiClient.put(`/projects/${projectId}/procurement/${selectedPo._id}`, {
+        isLinkActive: next,
+        materialName: cleanName,
+      });
+      setSelectedPo((prev) => (prev ? { ...prev, isLinkActive: next, materialName: cleanName } : prev));
+      showToast(next ? 'Link reactivated' : 'Link manually expired', 'success');
+      loadAll();
+    } catch (e) {
+      showToast(e.message || 'Failed to update link status', 'error');
+    } finally {
+      setTogglingLink(false);
     }
   };
 
@@ -2257,6 +2284,50 @@ Thank you.`);
                 </View>
               )}
 
+              {selectedPo?.status === 'rfq' && (() => {
+                const active = isRfqLinkActive(selectedPo);
+                const link = `${WEB_APP_URL}/rfq/${selectedPo._id}`;
+                return (
+                  <View style={[s.rfqLinkBox, !active && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={[s.rfqLinkTitle, !active && { color: '#64748B' }]}>
+                        {active ? 'Public RFQ Link Active' : 'RFQ Link Expired'}
+                      </Text>
+                      {!active && <Text style={s.rfqLinkBadge}>Deactivated</Text>}
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={s.rfqLinkUrl} numberOfLines={1}>{link}</Text>
+                      <TouchableOpacity
+                        style={[s.rfqLinkBtn, !active && { opacity: 0.4 }]}
+                        disabled={!active}
+                        onPress={async () => {
+                          await Clipboard.setStringAsync(link);
+                          showToast('Link copied!', 'success');
+                        }}
+                      >
+                        <Text style={s.rfqLinkBtnText}>Copy</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <Text style={s.rfqLinkHint}>{active ? 'Vendors can currently submit quotes' : 'No longer accepting quotes'}</Text>
+                      {canDo('procurement', 'update') && (
+                        <TouchableOpacity
+                          style={[s.rfqLinkBtn, active ? { backgroundColor: '#DC2626', borderColor: '#DC2626' } : null]}
+                          onPress={handleToggleRfqLink}
+                          disabled={togglingLink}
+                        >
+                          {togglingLink ? (
+                            <ActivityIndicator size="small" color={active ? '#FFFFFF' : '#4F46E5'} />
+                          ) : (
+                            <Text style={[s.rfqLinkBtnText, active && { color: '#FFFFFF' }]}>{active ? 'Force Expire Now' : 'Reactivate Link'}</Text>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              })()}
+
               {selectedPo?.status === 'rfq' && (!selectedPo.quotes || selectedPo.quotes.length === 0) && (
                 <View style={s.awaitingQuotesBox}>
                   <Ionicons name="time-outline" size={18} color="#6366F1" />
@@ -3405,6 +3476,24 @@ const s = StyleSheet.create({
   awardBtnTextLowest: {
     color: '#FFFFFF',
   },
+  rfqLinkBox: {
+    backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#E0E7FF', borderRadius: 12, padding: 12, gap: 8, marginBottom: 12,
+  },
+  rfqLinkTitle: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#4F46E5', textTransform: 'uppercase', letterSpacing: 0.4 },
+  rfqLinkBadge: {
+    fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F1F5F9',
+    borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden',
+  },
+  rfqLinkUrl: {
+    flex: 1, fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7,
+  },
+  rfqLinkBtn: {
+    borderWidth: 1, borderColor: '#C7D2FE', backgroundColor: '#FFFFFF', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', justifyContent: 'center', minWidth: 56,
+  },
+  rfqLinkBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#4F46E5' },
+  rfqLinkHint: { flex: 1, fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#6366F1' },
   awaitingQuotesBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',

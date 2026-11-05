@@ -29,7 +29,10 @@ export default function InteriorSettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, logout, refreshUser } = useAuth();
-  const { isOrgAdmin, navAccess } = useInteriorPermissions();
+  const { isOrgAdmin, navAccess, hasPermission } = useInteriorPermissions();
+  // Company & regional settings are org-wide: readable with Settings → View, editable with Settings → Update
+  const canReadSettings = isOrgAdmin || hasPermission('settings', 'read');
+  const canUpdateSettings = isOrgAdmin || hasPermission('settings', 'update');
   const { showToast } = useToast();
 
   // Active Tab: 'profile' | 'general' | 'localization' | 'security'
@@ -127,10 +130,10 @@ export default function InteriorSettingsScreen() {
   }, []);
 
   useEffect(() => {
-    if (isOrgAdmin) {
+    if (canReadSettings) {
       loadOrgSettings();
     }
-  }, [isOrgAdmin, loadOrgSettings]);
+  }, [canReadSettings, loadOrgSettings]);
 
   // Computed Identity
   const displayName = useMemo(() => {
@@ -258,7 +261,7 @@ export default function InteriorSettingsScreen() {
   // Navigation Items
   const navItems = [
     { id: 'profile', label: 'Profile', icon: 'person-outline' },
-    ...(isOrgAdmin
+    ...(canReadSettings
       ? [
           { id: 'general', label: 'Company', icon: 'business-outline' },
           { id: 'localization', label: 'Regional', icon: 'globe-outline' },
@@ -441,7 +444,7 @@ export default function InteriorSettingsScreen() {
           )}
 
           {/* TAB 2: Company Profile (Admin) */}
-          {activeTab === 'general' && isOrgAdmin && (
+          {activeTab === 'general' && canReadSettings && (
             <View style={s.tabCard}>
               <View style={s.cardHeader}>
                 <Ionicons name="business-outline" size={20} color="#2563EB" />
@@ -487,10 +490,13 @@ export default function InteriorSettingsScreen() {
                   </Text>
                 </View>
 
+                {!canUpdateSettings && (
+                  <Text style={s.readOnlyNote}>Read-only view. Organization admin or settings update permission required to modify.</Text>
+                )}
                 <TouchableOpacity
-                  style={[s.actionButton, isSavingOrg && s.actionButtonDisabled]}
+                  style={[s.actionButton, (isSavingOrg || !canUpdateSettings) && s.actionButtonDisabled]}
                   onPress={handleSaveOrganization}
-                  disabled={isSavingOrg}
+                  disabled={isSavingOrg || !canUpdateSettings}
                   activeOpacity={0.8}
                 >
                   {isSavingOrg ? (
@@ -507,7 +513,7 @@ export default function InteriorSettingsScreen() {
           )}
 
           {/* TAB 3: Currency & Regional (Admin) */}
-          {activeTab === 'localization' && isOrgAdmin && (
+          {activeTab === 'localization' && canReadSettings && (
             <View style={s.tabCard}>
               <View style={s.cardHeader}>
                 <Ionicons name="globe-outline" size={20} color="#2563EB" />
@@ -582,10 +588,13 @@ export default function InteriorSettingsScreen() {
                   </View>
                 </View>
 
+                {!canUpdateSettings && (
+                  <Text style={s.readOnlyNote}>Read-only view. Organization admin or settings update permission required to modify.</Text>
+                )}
                 <TouchableOpacity
-                  style={[s.actionButton, isSavingOrg && s.actionButtonDisabled]}
+                  style={[s.actionButton, (isSavingOrg || !canUpdateSettings) && s.actionButtonDisabled]}
                   onPress={handleSaveOrganization}
-                  disabled={isSavingOrg}
+                  disabled={isSavingOrg || !canUpdateSettings}
                   activeOpacity={0.8}
                 >
                   {isSavingOrg ? (
@@ -1099,6 +1108,7 @@ const s = StyleSheet.create({
     gap: 8,
     marginTop: 6,
   },
+  readOnlyNote: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#D97706', marginBottom: 8 },
   actionButtonDisabled: { opacity: 0.6 },
   actionButtonText: { color: '#FFFFFF', fontSize: 13.5, fontFamily: 'Inter-Bold' },
 

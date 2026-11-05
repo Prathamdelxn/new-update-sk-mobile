@@ -19,7 +19,7 @@ import SelectField from '../../components/common/SelectField';
 
 const HEALTH_META = {
   'on-track': { label: 'On Track', color: '#16A34A', bg: '#F0FDF4' },
-  'at-risk':  { label: 'At Risk',  color: '#D97706', bg: '#FFFBEB' },
+  'at-risk':  { label: 'At Risk',  color: '#B45309', bg: '#FFFBEB' },
   delayed:    { label: 'Delayed',  color: '#DC2626', bg: '#FEF2F2' },
   completed:  { label: 'Completed', color: '#2563EB', bg: '#EFF6FF' },
 };

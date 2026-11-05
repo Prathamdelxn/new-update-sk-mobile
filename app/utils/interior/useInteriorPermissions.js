@@ -24,14 +24,15 @@ export function useInteriorPermissions() {
 
   /** Sections the server says this user can open (GET /auth/me → navAccess). */
   const navAccess = useMemo(() => {
-    if (isOrgAdmin) return { dashboard: true, crm: true, projects: true, vendors: true, usersRoles: true };
+    if (isOrgAdmin) return { dashboard: true, crm: true, projects: true, vendors: true, usersRoles: true, audit: true };
     const fromServer = user?.navAccess || {};
     return {
       dashboard: fromServer.dashboard ?? true,
       crm: fromServer.crm ?? CRM_MODULES.some((m) => permissionsAllow(perms, m, 'read')),
       projects: fromServer.projects ?? true,
       vendors: fromServer.vendors ?? permissionsAllow(perms, 'vendors', 'read'),
-      usersRoles: fromServer.usersRoles ?? permissionsAllow(perms, 'roles', 'read'),
+      usersRoles: fromServer.usersRoles ?? (permissionsAllow(perms, 'roles', 'read') || permissionsAllow(perms, 'users', 'read')),
+      audit: fromServer.audit ?? permissionsAllow(perms, 'audit_logs', 'read'),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOrgAdmin, user]);

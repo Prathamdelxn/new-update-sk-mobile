@@ -65,6 +65,10 @@ export const interiorCrmService = {
   revokeShareLink: async (customerId) => {
     return interiorApiClient.delete(`/crm/customers/${customerId}/share`);
   },
+  // Emails the client requirements intake link ({ recipientEmail, recipientName?, customMessage?, requirementsUrl?, expiresDays? })
+  sendRequirementsEmail: async (customerId, data) => {
+    return interiorApiClient.post(`/crm/customers/${customerId}/share/email`, data);
+  },
 
   // Activities
   getActivities: async (params) => {

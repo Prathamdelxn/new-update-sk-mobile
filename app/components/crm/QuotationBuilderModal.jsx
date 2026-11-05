@@ -14,7 +14,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { interiorCrmService } from '../../services/interiorCrmService';
-import { formatExactCurrency } from '../../utils/format';
+import { formatExactCurrency, formatSmartCurrency } from '../../utils/format';
+
+
+// Full number below 1M, then M / B / T (web formatSmartCurrency)
+const smartMoney = (n) => formatSmartCurrency(Number(n) || 0, '₹').display;
 
 export default function QuotationBuilderModal({
   visible,
@@ -37,6 +41,7 @@ export default function QuotationBuilderModal({
   const [taxPct, setTaxPct] = useState('18');
   const [discountAmt, setDiscountAmt] = useState('0');
   const [quoteNotes, setQuoteNotes] = useState('');
+  const [titleError, setTitleError] = useState(null);
 
   // Selected categories and items tracking
   const [selectedCategories, setSelectedCategories] = useState({});
@@ -268,6 +273,23 @@ export default function QuotationBuilderModal({
 
   // Save handler
   const handleSave = async () => {
+    if (!quotationTitle.trim()) {
+      setTitleError('Quotation title is required');
+      return;
+    }
+    if (quotationTitle.trim().length > 60) {
+      setTitleError('Quotation title cannot exceed 60 characters');
+      return;
+    }
+    if (quoteNotes && quoteNotes.length > 500) {
+      Alert.alert('Error', 'Quotation notes cannot exceed 500 characters.');
+      return;
+    }
+    const tooBig = quoteItems.find((i) => parseFloat(i.quantity) > 999999999 || parseFloat(i.unitPrice) > 999999999999);
+    if (tooBig) {
+      Alert.alert('Error', `Quantity or rate is too large for "${String(tooBig.description || 'item').slice(0, 25)}".`);
+      return;
+    }
     if (quoteItems.length === 0 || quoteItems.every((i) => !i.description.trim())) {
       Alert.alert('Error', 'Please include at least one valid line item.');
       return;
@@ -363,14 +385,24 @@ export default function QuotationBuilderModal({
 
           <ScrollView style={s.body} showsVerticalScrollIndicator={false}>
             {/* Title / Option Name */}
-            <Text style={s.fieldLabel}>Quotation Title / Option Name</Text>
+            <View style={s.labelCountRow}>
+              <Text style={[s.fieldLabel, titleError && { color: '#E11D48' }]}>Quotation Title *</Text>
+              <Text style={[s.countText, quotationTitle.length > 60 && { color: '#E11D48' }]}>{quotationTitle.length}/60</Text>
+            </View>
             <TextInput
-              style={s.input}
+              style={[s.input, titleError && { borderColor: '#FDA4AF' }]}
               value={quotationTitle}
-              onChangeText={setQuotationTitle}
-              placeholder="e.g. Option A - Luxury Specification"
+              maxLength={60}
+              onChangeText={(v) => {
+                setQuotationTitle(v);
+                if (titleError) {
+                  setTitleError(!v.trim() ? 'Quotation title is required' : v.length > 60 ? 'Quotation title cannot exceed 60 characters' : null);
+                }
+              }}
+              placeholder="Enter Quotation Title (e.g. Option A - Premium Fitout)"
               placeholderTextColor="#94A3B8"
             />
+            {!!titleError && <Text style={s.errorText}>{titleError}</Text>}
 
             {/* Scope Selection from BOQ */}
             {activeBoq && (
@@ -523,6 +555,7 @@ export default function QuotationBuilderModal({
                     <TextInput
                       style={[s.input, { flex: 1 }]}
                       value={item.description}
+                      maxLength={150}
                       onChangeText={(val) => updateQuoteItem(idx, 'description', val)}
                       placeholder="Line item description"
                       placeholderTextColor="#94A3B8"
@@ -534,12 +567,19 @@ export default function QuotationBuilderModal({
                     )}
                   </View>
 
+                  {!!item.category && item.category !== 'General Scope' && (
+                    <View style={s.itemCatTag}>
+                      <Ionicons name="pricetag-outline" size={10} color="#64748B" />
+                      <Text style={s.itemCatTagText} numberOfLines={1}>{item.category}</Text>
+                    </View>
+                  )}
                   <View style={s.quoteItemDetailsRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.miniLabel}>Qty</Text>
                       <TextInput
                         style={s.miniInput}
                         value={String(item.quantity)}
+                        maxLength={9}
                         onChangeText={(val) => updateQuoteItem(idx, 'quantity', val)}
                         keyboardType="numeric"
                         placeholder="1"
@@ -551,6 +591,7 @@ export default function QuotationBuilderModal({
                       <TextInput
                         style={s.miniInput}
                         value={item.unit}
+                        maxLength={10}
                         onChangeText={(val) => updateQuoteItem(idx, 'unit', val)}
                         placeholder="sqft"
                         placeholderTextColor="#94A3B8"
@@ -561,6 +602,7 @@ export default function QuotationBuilderModal({
                       <TextInput
                         style={s.miniInput}
                         value={String(item.unitPrice)}
+                        maxLength={12}
                         onChangeText={(val) => updateQuoteItem(idx, 'unitPrice', val)}
                         keyboardType="numeric"
                         placeholder="0"
@@ -569,7 +611,7 @@ export default function QuotationBuilderModal({
                     </View>
                     <View style={{ flex: 1.5, alignItems: 'flex-end', justifyContent: 'center' }}>
                       <Text style={s.miniLabel}>Total</Text>
-                      <Text style={s.itemTotalText}>{formatExactCurrency(item.total || 0)}</Text>
+                      <Text style={s.itemTotalText} numberOfLines={1}>{smartMoney(item.total)}</Text>
                     </View>
                   </View>
                 </View>
@@ -580,7 +622,7 @@ export default function QuotationBuilderModal({
             <View style={s.financialCard}>
               <View style={s.finRow}>
                 <Text style={s.finLabel}>Scope Subtotal</Text>
-                <Text style={s.finVal}>{formatExactCurrency(subtotal)}</Text>
+                <Text style={s.finVal}>{smartMoney(subtotal)}</Text>
               </View>
 
               <View style={s.finRow}>
@@ -595,7 +637,7 @@ export default function QuotationBuilderModal({
                     placeholderTextColor="#94A3B8"
                   />
                 </View>
-                <Text style={s.finVal}>+ {formatExactCurrency(taxAmount)}</Text>
+                <Text style={s.finVal}>+ {smartMoney(taxAmount)}</Text>
               </View>
 
               <View style={s.finRow}>
@@ -610,19 +652,28 @@ export default function QuotationBuilderModal({
                     placeholderTextColor="#94A3B8"
                   />
                 </View>
-                <Text style={[s.finVal, { color: '#059669' }]}>- {formatExactCurrency(discountVal)}</Text>
+                <Text style={[s.finVal, { color: '#059669' }]}>- {smartMoney(discountVal)}</Text>
               </View>
 
               <View style={s.grandTotalRow}>
                 <Text style={s.grandTotalLabel}>Grand Total Proposal</Text>
-                <Text style={s.grandTotalVal}>{formatExactCurrency(grandTotal)}</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={s.grandTotalVal}>{smartMoney(grandTotal)}</Text>
+                  {formatSmartCurrency(grandTotal, '₹').isLarge && (
+                    <Text style={s.countText}>({formatSmartCurrency(grandTotal, '₹').exact})</Text>
+                  )}
+                </View>
               </View>
             </View>
 
             {/* Notes (Terms & Conditions were removed from quotations — same as web) */}
-            <Text style={s.fieldLabel}>Quotation Notes / Remarks (Optional)</Text>
+            <View style={s.labelCountRow}>
+              <Text style={s.fieldLabel}>Quotation Notes / Remarks (Optional)</Text>
+              <Text style={[s.countText, quoteNotes.length >= 500 && { color: '#E11D48' }]}>{quoteNotes.length}/500</Text>
+            </View>
             <TextInput
               style={s.notesInput}
+              maxLength={500}
               value={quoteNotes}
               onChangeText={setQuoteNotes}
               placeholder="Optional notes or remarks for this quotation..."
@@ -1004,6 +1055,14 @@ const s = StyleSheet.create({
     fontFamily: 'Inter-Black',
     color: '#16A34A',
   },
+  labelCountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  countText: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  errorText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#E11D48', marginTop: 4 },
+  itemCatTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', maxWidth: 160, marginTop: 6,
+    backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  itemCatTagText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#475569', flexShrink: 1 },
   notesInput: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,

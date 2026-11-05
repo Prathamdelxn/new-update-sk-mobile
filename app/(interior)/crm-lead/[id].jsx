@@ -12,10 +12,14 @@ import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import interiorCrmService from '../../services/interiorCrmService';
 import { queryKeys, invalidateCrmQueries, invalidateProjectQueries, useQuerySetter } from '../../context/QueryProvider';
-import { parseMaxBudget, formatExactCurrency } from '../../utils/format';
+import { parseMaxBudget, formatExactCurrency, formatMillionBillion, formatSmartCurrency } from '../../utils/format';
+
+// Quote / BOQ amounts: full number below 1M, then M / B / T (web formatSmartCurrency)
+const smartMoney = (n) => formatSmartCurrency(Number(n) || 0, '₹', { threshold: 1_000_000 }).display;
 import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../../utils/crmValidation';
 import * as ImagePicker from 'expo-image-picker';
 import RemoteThumb from '../../components/interior/RemoteThumb';
+import { detectCrmFileType, getCrmFileBadge } from '../../utils/interior/crmFileBadge';
 import * as Print from 'expo-print';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
@@ -132,10 +136,10 @@ const STAGE_ORDER = {
   'New Lead': 0,
   'Contacted': 0,
   'Meeting Scheduled': 0,
-  'Under Site Visit': 1,
-  'Measurement Done': 1,
-  'Under Requirement': 2,
-  'Requirement Completed': 2,
+  'Under Requirement': 1,
+  'Requirement Completed': 1,
+  'Under Site Visit': 2,
+  'Measurement Done': 2,
   'Under Drawing': 3,
   'Design Approved': 3,
   'Under BOQ Creation': 4,
@@ -153,8 +157,8 @@ const STAGE_ORDER = {
 const TABS = [
   { id: 'overview', label: 'Overview', icon: 'grid-outline' },
   { id: 'follow_ups', label: 'Follow-ups', icon: 'calendar-outline' },
-  { id: 'site', label: 'Site Visits', icon: 'location-outline' },
   { id: 'requirements', label: 'Requirements', icon: 'document-text-outline' },
+  { id: 'site', label: 'Site Visits', icon: 'location-outline' },
   { id: 'designs', label: 'Drawings', icon: 'cube-outline' },
   { id: 'boq', label: 'BOQ', icon: 'calculator-outline' },
   { id: 'quotations', label: 'Quotations', icon: 'receipt-outline' },
@@ -354,25 +358,23 @@ export default function Lead360Screen() {
     const currentStage = STAGE_ORDER[lead?.status || 'New Lead'] ?? 0;
 
     switch (tabId) {
-      case 'site': {
-        // Matches web exactly: only a real stage advance (via the Pass-to-Site-Visit
-        // assignment form) or existing site data unlocks this tab — merely completing
-        // a follow-up does NOT, since that form is what actually assigns the visit.
-        const isUnlocked = currentStage >= 1 || !!lead?.siteMeasurements || (lead?.sitePhotos && lead.sitePhotos.length > 0);
-        return {
-          isLocked: !isUnlocked,
-          requiredStage: 'Under Site Visit',
-          stageTitle: 'Site Visit',
-          reason: 'Complete the initial follow-up before passing to the Site Visit stage.',
-        };
-      }
+      // Same order and rules as the web: Follow-ups → Requirements → Site Visit → Drawing → BOQ → Quotations
       case 'requirements': {
-        const isUnlocked = currentStage >= 2 || (lead?.requirements && lead.requirements.length > 0);
+        const isUnlocked = currentStage >= 1 || (lead?.requirements && lead.requirements.length > 0);
         return {
           isLocked: !isUnlocked,
           requiredStage: 'Under Requirement',
           stageTitle: 'Requirements',
-          reason: 'Complete site measurements before logging detailed room specifications.',
+          reason: 'Complete initial follow-up to unlock requirement logging.',
+        };
+      }
+      case 'site': {
+        const isUnlocked = currentStage >= 2 || !!lead?.siteMeasurements || (lead?.sitePhotos && lead.sitePhotos.length > 0);
+        return {
+          isLocked: !isUnlocked,
+          requiredStage: 'Under Site Visit',
+          stageTitle: 'Site Visit',
+          reason: 'Complete the Requirements phase first to unlock site visit and measurement logging.',
         };
       }
       case 'designs': {
@@ -381,7 +383,7 @@ export default function Lead360Screen() {
           isLocked: !isUnlocked,
           requiredStage: 'Under Drawing',
           stageTitle: '2D/3D Drawing',
-          reason: 'Finalize site requirements before initiating 2D/3D design drafting.',
+          reason: 'Complete the Site Visit & Measurements phase first to unlock drawing uploads.',
         };
       }
       case 'boq': {
@@ -390,7 +392,7 @@ export default function Lead360Screen() {
           isLocked: !isUnlocked,
           requiredStage: 'Under BOQ Creation',
           stageTitle: 'BOQ',
-          reason: 'Approval of 2D/3D drawings is required before building itemized BOQs.',
+          reason: 'Complete and approve drawings to unlock BOQ creation and itemized estimations.',
         };
       }
       case 'quotations': {
@@ -399,7 +401,7 @@ export default function Lead360Screen() {
           isLocked: !isUnlocked,
           requiredStage: 'Under Quotation',
           stageTitle: 'Quotations',
-          reason: 'An estimate BOQ is required before generating final sales quotations.',
+          reason: 'Finalize the BOQ estimate first to unlock commercial proposals.',
         };
       }
       case 'confirm_order': {
@@ -410,7 +412,7 @@ export default function Lead360Screen() {
           isLocked: !isUnlocked,
           requiredStage: 'Quotation Approved',
           stageTitle: 'Confirm Order',
-          reason: 'Create and finalize a quotation in the Quotations tab first to unlock the confirmed order.',
+          reason: 'Create and finalize a commercial proposal in the Quotations tab first to unlock the confirmed order workflow.',
         };
       }
       default:
@@ -1002,9 +1004,12 @@ export default function Lead360Screen() {
 
   const handleDeleteQuotation = (quoteIndex) => {
     const quote = lead?.quotations?.[quoteIndex];
+    // Same wording as the web: title capped at 50 characters, amount in M / B form
+    const rawTitle = quote?.title || `Quotation Option ${quote?.version || quoteIndex + 1}`;
+    const displayTitle = rawTitle.length > 50 ? `${rawTitle.slice(0, 50)}...` : rawTitle;
     Alert.alert(
-      `Delete Quotation Version ${quote?.version || quoteIndex + 1}`,
-      `Are you sure you want to delete Quotation Version ${quote?.version || quoteIndex + 1} (Total: ₹${(quote?.grandTotal || 0).toLocaleString('en-IN')})? This action cannot be undone.`,
+      'Delete Quotation',
+      `Are you sure you want to delete "${displayTitle}" (₹ ${formatMillionBillion(Number(quote?.grandTotal) || 0)})? This action cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -1831,14 +1836,14 @@ export default function Lead360Screen() {
                         {activePendingFollowUp ? (
                           canSendToSiteVisit ? (
                             !isActiveOverdue && (
-                              (canMoveLead(canDo, 'crm_followups', 'crm_site_visits') || canDo('crm_leads', 'update')) && (
+                              (canDo('crm_leads', 'update') || canDo('crm_followups', 'update') || canDo('crm_requirements', 'create') || canDo('crm_site_visits', 'update') || canDo('crm_site_visits', 'create')) && (
                                 <TouchableOpacity
-                                  style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#7C3AED', paddingVertical: 12 }]}
-                                  onPress={() => setShowSendSiteModal(true)}
+                                  style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#059669', paddingVertical: 12 }]}
+                                  onPress={() => setShowSendReqModal(true)}
                                   activeOpacity={0.7}
                                 >
-                                  <Ionicons name="location-outline" size={15} color="#FFFFFF" />
-                                  <Text style={s.saveBtnText}>Complete & Send to Site Visit </Text>
+                                  <Ionicons name="create-outline" size={15} color="#FFFFFF" />
+                                  <Text style={s.saveBtnText}>Complete & Send to Requirements</Text>
                                 </TouchableOpacity>
                               )
                               // Matches web: once overdue, only Reschedule is offered — no
@@ -1868,14 +1873,14 @@ export default function Lead360Screen() {
                             </TouchableOpacity>
                           )
                         ) : canSendToSiteVisit ? (
-                          (canMoveLead(canDo, 'crm_followups', 'crm_site_visits') || canDo('crm_leads', 'update')) && (
+                          (canDo('crm_leads', 'update') || canDo('crm_followups', 'update') || canDo('crm_requirements', 'create') || canDo('crm_site_visits', 'update') || canDo('crm_site_visits', 'create')) && (
                             <TouchableOpacity
-                              style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#7C3AED', paddingVertical: 12 }]}
-                              onPress={() => setShowSendSiteModal(true)}
+                              style={[s.saveBtn, { flex: 1, marginTop: 0, marginBottom: 0, backgroundColor: '#059669', paddingVertical: 12 }]}
+                              onPress={() => setShowSendReqModal(true)}
                               activeOpacity={0.7}
                             >
-                              <Ionicons name="location-outline" size={15} color="#FFFFFF" />
-                              <Text style={s.saveBtnText}>Pass to Site Visit</Text>
+                              <Ionicons name="create-outline" size={15} color="#FFFFFF" />
+                              <Text style={s.saveBtnText}>Complete & Send to Requirements</Text>
                             </TouchableOpacity>
                           )
                         ) : null}
@@ -2176,32 +2181,18 @@ export default function Lead360Screen() {
                       <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#F3E8FF' }]}>
                         <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#7C3AED'} />
                       </View>
-                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Site Visit Phase Locked'}</Text>
-                      <Text style={s.lockedSub}>{lock.reason || `Advance the lead from "${lead.status}" to begin physical site measurements.`}</Text>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Site Visit Stage is Locked'}</Text>
+                      <Text style={s.lockedSub}>{lock.reason}</Text>
                       {lock.isUnassigned ? (
                         <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
                           <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
                           <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
                         </TouchableOpacity>
                       ) : (
-                        (canMoveLead(canDo, 'crm_followups', 'crm_site_visits') || canDo('crm_leads', 'update')) && (
-                          <TouchableOpacity
-                            style={[s.unlockActionBtn, { backgroundColor: '#7C3AED' }]}
-                            onPress={() => {
-                              const hasLoggedFollowUp = activities.some(
-                                (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && ['completed', 'pending'].includes(a.status?.toLowerCase())
-                              );
-                              // Only users who can log follow-ups are asked to log one first; a
-                              // Site Visits-only user can't (and doesn't see the Follow-ups tab)
-                              if (!hasLoggedFollowUp && canDo('crm_followups', 'create')) {
-                                Alert.alert('Follow-up Required', 'Please log a follow-up before passing to the Site Visit stage.');
-                                setActiveTab('follow_ups');
-                                return;
-                              }
-                              setShowSendSiteModal(true);
-                            }}
-                          >
-                            <Text style={s.unlockActionBtnText}>Pass to Site Visit</Text>
+                        // Bring the lead into this stage from here (same as the web "Send to Site Visit")
+                        (canDo('crm_site_visits', 'create') || canDo('crm_site_visits', 'update') || canDo('crm_requirements', 'update') || canDo('crm_leads', 'update')) && (
+                          <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#7C3AED' }]} onPress={() => setShowSendSiteModal(true)}>
+                            <Text style={s.unlockActionBtnText}>Send to Site Visit</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -2423,10 +2414,10 @@ export default function Lead360Screen() {
                     </View>
                     
                     <View style={{ gap: 8, marginTop: 4 }}>
-                      {lead.status === 'Under Site Visit' && (
-                        canMoveLead(canDo, 'crm_site_visits', 'crm_requirements') && (
-                          <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#7C3AED', marginTop: 0 }]} onPress={() => setShowSendReqModal(true)}>
-                            <Text style={s.actionBtnText}>Complete Phase & Pass to Requirements</Text>
+                      {['Under Site Visit', 'Measurement Done'].includes(lead.status) && (
+                        (canDo('crm_site_visits', 'update') || canDo('crm_drawings', 'update') || canDo('crm_drawings', 'create') || canDo('crm_requirements', 'update')) && (
+                          <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#4F46E5', marginTop: 0 }]} onPress={() => setShowSendDrawingModal(true)}>
+                            <Text style={s.actionBtnText}>Pass to 2D/3D Drawing</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -2518,17 +2509,17 @@ export default function Lead360Screen() {
                       <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#EEF2FF' }]}>
                         <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#4F46E5'} />
                       </View>
-                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Requirements Phase Locked'}</Text>
-                      <Text style={s.lockedSub}>{lock.reason || 'Complete site measurements before logging detailed room specifications.'}</Text>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Requirements Stage is Locked'}</Text>
+                      <Text style={s.lockedSub}>{lock.reason}</Text>
                       {lock.isUnassigned ? (
                         <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
                           <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
                           <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
                         </TouchableOpacity>
                       ) : (
-                        canMoveLead(canDo, 'crm_site_visits', 'crm_requirements') && (
-                          <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#4F46E5' }]} onPress={() => setShowSendReqModal(true)}>
-                            <Text style={s.unlockActionBtnText}>Pass to Requirements</Text>
+                        (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update') || canDo('crm_followups', 'update') || canDo('crm_leads', 'update')) && (
+                          <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#059669' }]} onPress={() => setShowSendReqModal(true)}>
+                            <Text style={s.unlockActionBtnText}>Send to Requirements</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -2626,11 +2617,12 @@ export default function Lead360Screen() {
                     onEditSpecs={() => setShowReqModal(true)}
                   />
 
+                  {/* Same as the web Requirement stage: requirements pass on to the Site Visit */}
                   <View style={{ gap: 8, marginTop: 8 }}>
-                    {lead.status === 'Under Requirement' && (
-                      canMoveLead(canDo, 'crm_requirements', 'crm_drawings') && (
-                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#4F46E5', marginTop: 0 }]} onPress={() => setShowSendDrawingModal(true)}>
-                          <Text style={s.actionBtnText}>Complete Phase & Pass to Drawing</Text>
+                    {['Under Requirement', 'Requirement Completed'].includes(lead.status) && (
+                      (canDo('crm_requirements', 'update') || canDo('crm_site_visits', 'update') || canDo('crm_site_visits', 'create')) && (
+                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#7C3AED', marginTop: 0 }]} onPress={() => setShowSendSiteModal(true)}>
+                          <Text style={s.actionBtnText}>Pass to Site Visit</Text>
                         </TouchableOpacity>
                       )
                     )}
@@ -2652,17 +2644,17 @@ export default function Lead360Screen() {
                       <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#F0F9FF' }]}>
                         <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#0284C7'} />
                       </View>
-                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Drawing & Design Phase Locked'}</Text>
-                      <Text style={s.lockedSub}>{lock.reason || 'Finalize site requirements before initiating 2D/3D design drafting.'}</Text>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : '2D & 3D Drawings Stage is Locked'}</Text>
+                      <Text style={s.lockedSub}>{lock.reason}</Text>
                       {lock.isUnassigned ? (
                         <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
                           <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
                           <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
                         </TouchableOpacity>
                       ) : (
-                        canMoveLead(canDo, 'crm_requirements', 'crm_drawings') && (
+                        (canDo('crm_drawings', 'create') || canDo('crm_drawings', 'update') || canDo('crm_requirements', 'update')) && (
                           <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#0284C7' }]} onPress={() => setShowSendDrawingModal(true)}>
-                            <Text style={s.unlockActionBtnText}>Pass to Drawing</Text>
+                            <Text style={s.unlockActionBtnText}>Send to Drawings</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -2871,22 +2863,28 @@ export default function Lead360Screen() {
                             {isDrawingImage(file) ? (
                               <RemoteThumb uri={drawingFileUrl(file)} height={160} />
                             ) : (
-                              <View style={{ width: '100%', height: 80, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
-                                <Ionicons
-                                  name={file.fileType === 'pdf' ? 'document-text-outline' : file.fileType === '3d-model' ? 'cube-outline' : file.fileType === 'cad' ? 'git-branch-outline' : 'document-outline'}
-                                  size={36}
-                                  color="#2563EB"
-                                />
-                                <Text style={{ fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#2563EB', marginTop: 4, textTransform: 'uppercase' }}>
-                                  {file.fileType || 'File'}
-                                </Text>
-                              </View>
+                              (() => {
+                                // Placeholder tinted by file type (web: pdf red, cad amber, 3D purple, archive cyan)
+                                const ftype = detectCrmFileType(file.name, drawingFileUrl(file), file.fileType);
+                                const tint = ftype === 'pdf' ? ['#FEF2F2', '#EF4444', 'document-text-outline']
+                                  : ftype === 'cad' ? ['#FFFBEB', '#F59E0B', 'layers-outline']
+                                  : ftype === '3d-model' ? ['#FAF5FF', '#A855F7', 'cube-outline']
+                                  : ftype === 'archive' ? ['#ECFEFF', '#06B6D4', 'archive-outline']
+                                  : ['#EFF6FF', '#3B82F6', 'document-outline'];
+                                return (
+                                  <View style={{ width: '100%', height: 96, backgroundColor: tint[0], alignItems: 'center', justifyContent: 'center' }}>
+                                    <Ionicons name={tint[2]} size={32} color={tint[1]} />
+                                  </View>
+                                );
+                              })()
                             )}
 
                             {/* Overlay: category + version badge (top-left), status pill (top-right) */}
                             <View style={{ position: 'absolute', top: 8, left: 8, flexDirection: 'row', gap: 6 }}>
                               <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
-                                <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' }}>{isDrawing3D(file) ? '3D' : '2D'}</Text>
+                                <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' }}>
+                                  {getCrmFileBadge(file.name, file.category || (isDrawing3D(file) ? '3D' : '2D'), drawingFileUrl(file), file.fileType).label}
+                                </Text>
                               </View>
                               <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
                                 <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>v{file.currentVersion || 1}</Text>
@@ -3015,17 +3013,17 @@ export default function Lead360Screen() {
                       <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#ECFDF5' }]}>
                         <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#059669'} />
                       </View>
-                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'BOQ Estimation Phase Locked'}</Text>
-                      <Text style={s.lockedSub}>{lock.reason || 'Approval of 2D/3D drawings is required before building itemized BOQs.'}</Text>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'BOQ Stage is Locked'}</Text>
+                      <Text style={s.lockedSub}>{lock.reason}</Text>
                       {lock.isUnassigned ? (
                         <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
                           <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
                           <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
                         </TouchableOpacity>
                       ) : (
-                        canMoveLead(canDo, 'crm_drawings', 'crm_boq') && (
+                        (canDo('crm_boq', 'create') || canDo('crm_boq', 'update') || canDo('crm_drawings', 'update')) && (
                           <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#059669' }]} onPress={() => setShowSendBoqModal(true)}>
-                            <Text style={s.unlockActionBtnText}>Pass to BOQ Phase</Text>
+                            <Text style={s.unlockActionBtnText}>Send to BOQ</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -3083,13 +3081,13 @@ export default function Lead360Screen() {
                         <Ionicons name="warning" size={18} color="#E11D48" style={{ marginTop: 1 }} />
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <Text style={s.overBudgetTitle}>Over Budget Warning</Text>
+                            <Text style={s.overBudgetTitle}>Over Target Budget Warning</Text>
                             <View style={s.overBudgetPill}>
                               <Text style={s.overBudgetPillText}>+{boqExcessPct.toFixed(1)}% Over Estimate</Text>
                             </View>
                           </View>
                           <Text style={s.overBudgetSub}>
-                            Estimate ₹{estimatedTotal.toLocaleString('en-IN')} exceeds the client's target budget of ₹{boqMaxBudget.toLocaleString('en-IN')} by ₹{(estimatedTotal - boqMaxBudget).toLocaleString('en-IN')}.
+                            Current BOQ total of ₹ {formatMillionBillion(estimatedTotal)} exceeds estimated target budget of ₹ {formatMillionBillion(boqMaxBudget)} ({lead?.budgetRange || 'Estimate'}) by ₹ {formatMillionBillion(estimatedTotal - boqMaxBudget)}.
                           </Text>
                         </View>
                       </View>
@@ -3233,7 +3231,7 @@ export default function Lead360Screen() {
                         : st === 'pending_approval'
                         ? { title: 'Internal Approval: Pending Review', pill: 'Pending Review', c: '#D97706', bg: '#FFFBEB', icon: 'time-outline', text: `Submitted to ${activeBoq.assignedReviewerName || 'Manager'} for review.` }
                         : st === 'rejected'
-                        ? { title: 'Internal Approval: Changes Requested', pill: 'Rejected', c: '#DC2626', bg: '#FEF2F2', icon: 'close-circle-outline', text: `Revisions required: "${activeBoq.rejectionReason || 'Please review items'}"` }
+                        ? { title: 'Internal Approval: Changes Requested', pill: 'Rejected', c: '#DC2626', bg: '#FEF2F2', icon: 'close-circle-outline', text: 'Revisions requested by manager. Please review items and resubmit.' }
                         : { title: 'Internal Approval: Draft', pill: 'Draft', c: '#475569', bg: '#F8FAFC', icon: 'document-text-outline', text: 'This estimation is in draft mode and requires manager approval before quotation.' };
                       return (
                         <View style={[s.card, { backgroundColor: meta.bg, borderColor: meta.c + '40' }]}>
@@ -3248,14 +3246,24 @@ export default function Lead360Screen() {
                                   <Text style={{ fontSize: 9, fontFamily: 'Inter-Black', color: meta.c, textTransform: 'uppercase' }}>{meta.pill}</Text>
                                 </View>
                               </View>
-                              <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17 }}>{meta.text}</Text>
+                              {st === 'rejected' && !!activeBoq.rejectionReason ? (
+                                <View style={{ backgroundColor: '#FFFFFF', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#FECACA' }}>
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                    <Ionicons name="close-circle-outline" size={12} color="#DC2626" />
+                                    <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#DC2626' }}>Revisions Required:</Text>
+                                  </View>
+                                  <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17, marginTop: 3 }}>"{activeBoq.rejectionReason}"</Text>
+                                </View>
+                              ) : (
+                                <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17 }}>{meta.text}</Text>
+                              )}
                               <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>
                                 Version {activeBoq.version || activeBoqIdx + 1} · Created {activeBoq.createdAt ? new Date(activeBoq.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'recently'} · By {activeBoq.createdByName || 'Estimator'}
                                 {activeBoq.updatedAt ? ` · Updated ${new Date(activeBoq.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}${activeBoq.updatedByName ? ` by ${activeBoq.updatedByName}` : ''}` : ''}
                               </Text>
                               {!!activeBoq.submissionNotes && (
                                 <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#334155', backgroundColor: '#FFFFFF', borderRadius: 8, padding: 8, marginTop: 4, borderWidth: 1, borderColor: '#E2E8F0' }}>
-                                  Review focus: "{activeBoq.submissionNotes}"
+                                  Review Focus / Note: "{activeBoq.submissionNotes}"
                                 </Text>
                               )}
                             </View>
@@ -3295,7 +3303,7 @@ export default function Lead360Screen() {
                       <View style={[s.costRow, s.costRowTotal]}>
                         <Text style={s.grandTotalTitle}>Total BOQ Amount</Text>
                         <Text style={[s.grandTotalAmount, boqIsOverBudget && { color: '#E11D48' }]}>
-                          ₹{Math.round(estimatedTotal).toLocaleString('en-IN')}
+                          {smartMoney(estimatedTotal)}
                         </Text>
                       </View>
                     </View>
@@ -3319,6 +3327,7 @@ export default function Lead360Screen() {
                               <Ionicons name="pricetag-outline" size={11} color="#4F46E5" />
                               <Text style={s.catChipText} numberOfLines={1} ellipsizeMode="tail">{cat.name}</Text>
                               <Text style={s.catChipCount}>({cat.count})</Text>
+                              <Text style={[s.catChipCount, { fontFamily: 'Inter-Bold', color: '#334155' }]}>₹ {formatMillionBillion(cat.total)}</Text>
                             </View>
                           ))}
                         </ScrollView>
@@ -3347,7 +3356,7 @@ export default function Lead360Screen() {
                               <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#4F46E5' }}>Sec {g.number || gi + 1}</Text>
                             </View>
                             <Text style={[s.cardTitle, { fontSize: 13.5 }]} numberOfLines={2}>{g.title}</Text>
-                            <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>₹{Math.round(g.items.reduce((sum, it) => sum + itemAmount(it), 0)).toLocaleString('en-IN')}</Text>
+                            <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>₹ {formatMillionBillion(g.items.reduce((sum, it) => sum + itemAmount(it), 0))}</Text>
                           </View>
                           {!!g.scope && <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginBottom: 6 }}>{g.scope}</Text>}
                           {g.items.map((it, idx) => (
@@ -3357,11 +3366,11 @@ export default function Lead360Screen() {
                                 {!!it.description && <Text style={s.itemDescText} numberOfLines={3}>{it.description}</Text>}
                                 {!!it.brandMakes && <Text style={[s.itemDescText, { color: '#4F46E5' }]} numberOfLines={1}>Make: {it.brandMakes}</Text>}
                                 <Text style={s.itemQtyRateText}>
-                                  {it.quantity} {it.unit} × ₹{Math.round(Number(it.rate || it.unitRate || 0)).toLocaleString('en-IN')}
+                                  {formatMillionBillion(Number(it.quantity || 0))} {it.unit} × {smartMoney(it.rate || it.unitRate)}
                                 </Text>
                                 {!!it.remarks && <Text style={[s.itemDescText, { fontStyle: 'italic' }]} numberOfLines={2}>{it.remarks}</Text>}
                               </View>
-                              <Text style={s.itemTotalText}>₹{Math.round(itemAmount(it)).toLocaleString('en-IN')}</Text>
+                              <Text style={s.itemTotalText}>{smartMoney(itemAmount(it))}</Text>
                             </View>
                           ))}
                         </View>
@@ -3394,17 +3403,17 @@ export default function Lead360Screen() {
                       <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#FFF1F2' }]}>
                         <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#E11D48'} />
                       </View>
-                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Quotation Phase Locked'}</Text>
-                      <Text style={s.lockedSub}>{lock.reason || 'An estimate BOQ is required before generating final sales quotations.'}</Text>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Quotations Stage is Locked'}</Text>
+                      <Text style={s.lockedSub}>{lock.reason}</Text>
                       {lock.isUnassigned ? (
                         <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
                           <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
                           <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
                         </TouchableOpacity>
                       ) : (
-                        canMoveLead(canDo, 'crm_boq', 'crm_quotations') && (
+                        (canDo('crm_quotations', 'create') || canDo('crm_quotations', 'update') || canDo('crm_boq', 'update')) && (
                           <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#E11D48' }]} onPress={() => setShowSendQuoteModal(true)}>
-                            <Text style={s.unlockActionBtnText}>Pass to Quotation</Text>
+                            <Text style={s.unlockActionBtnText}>Send to Quotations</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -3445,7 +3454,7 @@ export default function Lead360Screen() {
                             </View>
                           </View>
                           <Text style={s.overBudgetSub}>
-                            Quote total ₹{quoteGrandTotal.toLocaleString('en-IN')} exceeds the client's target budget of ₹{quoteMaxBudget.toLocaleString('en-IN')} by ₹{(quoteGrandTotal - quoteMaxBudget).toLocaleString('en-IN')}.
+                            Quote total ₹ {formatMillionBillion(quoteGrandTotal)} exceeds the client's target budget of ₹ {formatMillionBillion(quoteMaxBudget)} by ₹ {formatMillionBillion(quoteGrandTotal - quoteMaxBudget)}.
                           </Text>
                         </View>
                       </View>
@@ -3600,9 +3609,9 @@ export default function Lead360Screen() {
                                   </View>
                                   <View style={s.scopeFigures}>
                                     <Text style={s.scopeMeta}>
-                                      {qty}{item.unit ? ` ${item.unit}` : ''} × ₹{Math.round(unitPrice).toLocaleString('en-IN')}
+                                      {qty}{item.unit ? ` ${item.unit}` : ''} × {smartMoney(unitPrice)}
                                     </Text>
-                                    <Text style={s.scopeTotal}>₹{Math.round(lineTotal).toLocaleString('en-IN')}</Text>
+                                    <Text style={s.scopeTotal}>{smartMoney(lineTotal)}</Text>
                                   </View>
                                 </View>
                               );
@@ -3628,23 +3637,23 @@ export default function Lead360Screen() {
                               </View>
                               <View style={s.totalRow}>
                                 <Text style={s.totalLabel}>Subtotal</Text>
-                                <Text style={s.totalVal}>₹{Math.round(subtotal).toLocaleString('en-IN')}</Text>
+                                <Text style={s.totalVal}>₹ {formatMillionBillion(subtotal)}</Text>
                               </View>
                               <View style={s.totalRow}>
                                 <Text style={s.totalLabel}>Tax ({taxPercentage}%)</Text>
-                                <Text style={s.totalVal}>₹{Math.round(taxAmount).toLocaleString('en-IN')}</Text>
+                                <Text style={s.totalVal}>₹ {formatMillionBillion(taxAmount)}</Text>
                               </View>
                               {discount > 0 && (
                                 <View style={s.totalRow}>
                                   <Text style={[s.totalLabel, { color: '#16A34A' }]}>Discount</Text>
-                                  <Text style={[s.totalVal, { color: '#16A34A' }]}>- ₹{Math.round(discount).toLocaleString('en-IN')}</Text>
+                                  <Text style={[s.totalVal, { color: '#16A34A' }]}>- ₹ {formatMillionBillion(discount)}</Text>
                                 </View>
                               )}
                               <View style={{ height: 1, backgroundColor: '#E2E8F0', marginVertical: 6 }} />
                               <View style={s.totalRow}>
                                 <Text style={s.grandTotalTitle}>Grand Total</Text>
                                 <Text style={s.grandTotalVal}>
-                                  ₹{Math.round(grandTotal).toLocaleString('en-IN')}
+                                  ₹ {formatMillionBillion(grandTotal)}
                                 </Text>
                               </View>
                             </View>
@@ -3752,11 +3761,11 @@ export default function Lead360Screen() {
                   <View style={[s.lockedIconBox, { backgroundColor: '#FFFBEB' }]}>
                     <Ionicons name="lock-closed" size={24} color="#D97706" />
                   </View>
-                  <Text style={s.lockedTitle}>Order Confirmation Locked</Text>
+                  <Text style={s.lockedTitle}>Order Confirmation Stage is Locked</Text>
                   <Text style={s.lockedSub}>{getTabLockState('confirm_order').reason}</Text>
                   {canViewLeadTab('quotations') && (
                     <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('quotations')}>
-                      <Text style={s.unlockActionBtnText}>Go to Quotations</Text>
+                      <Text style={s.unlockActionBtnText}>Go to Quotations Tab</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -4171,9 +4180,18 @@ export default function Lead360Screen() {
               )}
               {boqApprovalMode !== 'approve' && (
                 <>
-                  <Text style={s.label}>{boqApprovalMode === 'reject' ? 'Reason & Required Changes *' : 'Review Focus / Note'}</Text>
+                  {/* Same labels and 500-character cap as the web BOQ approval modals */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={[s.label, boqApprovalMode === 'reject' && { color: '#E11D48' }]}>
+                      {boqApprovalMode === 'reject' ? 'Rejection Reason / Required Revisions *' : 'Handover Notes / Review Focus (Optional)'}
+                    </Text>
+                    <Text style={{ fontSize: 10, fontFamily: 'Inter-Regular', color: boqApprovalMode === 'reject' ? '#F43F5E' : '#94A3B8' }}>
+                      {boqApprovalNote.length}/500
+                    </Text>
+                  </View>
                   <TextInput
                     style={[s.input, { height: 80 }]}
+                    maxLength={500}
                     multiline
                     placeholder={boqApprovalMode === 'reject' ? 'What needs to change before approval...' : 'Anything the reviewer should check...'}
                     placeholderTextColor="#94A3B8"
@@ -4298,6 +4316,7 @@ export default function Lead360Screen() {
         initialBudgetRange={lead?.budgetRange}
         initialRequirements={lead?.requirements}
         clientRequirements={lead?.clientRequirements}
+        currentStatus={lead?.status}
         isReadOnly={isReadOnly}
         onSuccess={() => {
           showToast('Requirements logged successfully!', 'success');
@@ -4411,6 +4430,7 @@ export default function Lead360Screen() {
         existingBoqs={lead?.boqs || []}
         editingBoqIndex={editingBoqIdx}
         budgetRange={lead?.budgetRange || lead?.estimatedBudget || lead?.budget}
+        leadStatus={lead?.status}
         isReadOnly={isReadOnly || Boolean(
           (lead?.quotations && lead.quotations.some((q) => ['accepted', 'approved', 'converted', 'signed & accepted'].includes(String(q.status || '').toLowerCase()))) ||
           ['Booking Pending', 'Won', 'Converted'].includes(lead?.status) ||
@@ -4450,9 +4470,6 @@ export default function Lead360Screen() {
         customerId={id}
         users={users}
         initialData={sendSiteInitialData}
-        isFollowUpCompleted={activities.some(
-          (a) => a.type !== 'System Update' && a.type !== 'Status Change' && a.type !== 'Site Visit' && ['completed', 'pending'].includes(a.status?.toLowerCase())
-        )}
         onSuccess={() => {
           showToast(sendSiteInitialData ? 'Site visit rescheduled successfully!' : 'Passed to Site Visit phase!', 'success');
           setSendSiteInitialData(null);

@@ -55,6 +55,19 @@ function ModalShell({ isOpen, onClose, icon, iconColor, title, subtitle, childre
 }
 
 // Reusable "Previous Schedule (Reference)" box shown when reopening a modal in reschedule mode
+// Handover notes are capped at 500 characters (same limit and counter as the web modals)
+const REMARKS_MAX = 500;
+function RemarksLabel({ label, length }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Text style={s.label}>{label}</Text>
+      <Text style={[s.label, { fontFamily: 'Inter-Regular', fontSize: 10, color: length >= REMARKS_MAX ? '#F43F5E' : '#94A3B8' }]}>
+        {length}/{REMARKS_MAX}
+      </Text>
+    </View>
+  );
+}
+
 function PreviousScheduleBox({ color, phaseLabel, scheduledDate, assignedLabel, remarks }) {
   return (
     <View style={[s.prevBox, { borderColor: `${color}33`, backgroundColor: `${color}0D` }]}>
@@ -293,8 +306,9 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
           />
         )}
 
-        <Text style={s.label}>Visit Instructions / Notes</Text>
+        <RemarksLabel label="Visit Instructions / Notes" length={remarks.length} />
         <TextInput
+          maxLength={REMARKS_MAX}
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
           multiline
           numberOfLines={2}
@@ -500,8 +514,9 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
           />
         )}
 
-        <Text style={s.label}>Client Brief / Onboarding Remarks</Text>
+        <RemarksLabel label="Client Brief / Onboarding Remarks" length={remarks.length} />
         <TextInput
+          maxLength={REMARKS_MAX}
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
           multiline
           numberOfLines={2}
@@ -642,8 +657,9 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
           </View>
         )}
 
-        <Text style={s.label}>Drawing Brief & Handover Notes</Text>
+        <RemarksLabel label="Drawing Brief & Handover Notes" length={remarks.length} />
         <TextInput
+          maxLength={REMARKS_MAX}
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
           multiline
           numberOfLines={2}
@@ -776,8 +792,9 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
           </View>
         )}
 
-        <Text style={s.label}>Estimation Notes</Text>
+        <RemarksLabel label="Estimation Notes" length={remarks.length} />
         <TextInput
+          maxLength={REMARKS_MAX}
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
           multiline
           numberOfLines={2}
@@ -895,8 +912,9 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
           </View>
         )}
 
-        <Text style={s.label}>Handover Notes & Pricing Assumptions *</Text>
+        <RemarksLabel label="Handover Notes & Pricing Assumptions *" length={remarks.length} />
         <TextInput
+          maxLength={REMARKS_MAX}
           style={[s.input, { minHeight: 70, textAlignVertical: 'top' }]}
           multiline
           numberOfLines={3}

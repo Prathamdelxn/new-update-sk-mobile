@@ -336,7 +336,10 @@ export default function InteriorMembersScreen() {
               filteredMembers.map((member) => {
                 const role = { ...(ROLE_META[member.projectRole] || ROLE_META.viewer), label: memberRoleLabel(member) };
                 const editable = !isVirtualAdminMember(member);
-                const permCount = member.permissions?.reduce((acc, p) => acc + p.actions.length, 0) || 0;
+                // Members linked to an org role get that role's permissions (same count as the web)
+                const linkedRole = member.roleId && typeof member.roleId === 'object' ? member.roleId : null;
+                const effectivePerms = linkedRole?.permissions?.length ? linkedRole.permissions : member.permissions;
+                const permCount = effectivePerms?.reduce((acc, p) => acc + (p.actions?.length || 0), 0) || 0;
                 return (
                   <View key={member._id} style={s.memberCard}>
                     <View style={s.memberTopRow}>

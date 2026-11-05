@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { interiorCrmService } from '../../services/interiorCrmService';
 import * as DocumentPicker from 'expo-document-picker';
 import cloudinaryService from '../../services/cloudinaryService';
+import { detectCrmFileType } from '../../utils/interior/crmFileBadge';
 
 export const STANDARD_ROOM_TAGS = [
   'General / Not Specified',
@@ -37,15 +38,8 @@ export const STANDARD_ROOM_TAGS = [
   'Other / Custom Area',
 ];
 
-function detectFileType(fileName) {
-  const ext = (fileName.split('.').pop() || '').toLowerCase();
-  if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'tiff', 'hdr', 'exr'].includes(ext)) return 'image';
-  if (['pdf'].includes(ext)) return 'pdf';
-  if (['dwg', 'skp', 'obj', 'fbx', '3ds', 'dae', 'blend', 'rvt', 'rfa', 'ifc', 'gltf', 'glb', 'max'].includes(ext)) return '3d-model';
-  if (['dxf'].includes(ext)) return 'cad';
-  if (['zip', 'rar', '7z', 'tar'].includes(ext)) return 'document';
-  return 'document';
-}
+// Same detection as the web upload modal (name, then URL; zip/rar count as archives)
+const detectFileType = (fileName, fileUrl) => detectCrmFileType(fileName, fileUrl);
 
 function sanitizeTitle(fileName) {
   const withoutExt = fileName.replace(/\.[^/.]+$/, '');

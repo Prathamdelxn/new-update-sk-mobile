@@ -23,7 +23,7 @@ const EXPIRY_OPTIONS = [
 function closestExpiryOption(expiresAt) {
   if (!expiresAt) return 'never';
   const diffHours = Math.round((new Date(expiresAt).getTime() - Date.now()) / (60 * 60 * 1000));
-  if (diffHours <= 0) return '1';
+  if (diffHours <= 0) return '168'; // expired: "Renew" defaults to 7 days, like the web
   let best = EXPIRY_OPTIONS[0];
   let bestDiff = Infinity;
   for (const opt of EXPIRY_OPTIONS) {
@@ -56,6 +56,9 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
 
   const shareSettings = lead?.shareSettings;
   const isPublic = !!shareSettings?.isPublic && !!shareSettings?.shareToken;
+  const isLinkExpired = Boolean(shareSettings?.expiresAt && new Date(shareSettings.expiresAt).getTime() < Date.now());
+  // A stopped or expired link can't be passed on (same as the web share modal)
+  const canShare = isPublic && !isLinkExpired;
   const shareUrl = shareSettings?.shareToken ? `${WEB_APP_URL}/share/${isReq ? 'requirements' : 'drawing'}/${shareSettings.shareToken}` : '';
   const approvedCount = useMemo(() => countApprovedDrawings(lead?.designFiles), [lead?.designFiles]);
 
@@ -161,14 +164,44 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
     );
   };
 
+  // Returns false (and explains why) when the link can't be shared right now
+  const ensureShareable = () => {
+    if (!isPublic) {
+      Alert.alert('Link Stopped', 'This link is currently stopped. Turn on "Public Link" to re-enable it.');
+      return false;
+    }
+    if (isLinkExpired) {
+      Alert.alert('Link Expired', 'This link has expired. Tap "Renew Link" to re-enable it.');
+      return false;
+    }
+    return !!shareUrl;
+  };
+
+  // Re-issuing the settings moves expiresAt forward by the selected duration
+  const handleRenew = () => persistSettings();
+
   const handleCopyLink = async () => {
-    if (!shareUrl) return;
+    if (!ensureShareable()) return;
     await Clipboard.setStringAsync(shareUrl);
     Alert.alert('Copied', 'Share link copied to clipboard.');
   };
 
+  // Same as the web share modal: opens the mail app with the link pre-filled
+  const handleEmailShare = () => {
+    if (!ensureShareable()) return;
+    const clientName = lead?.name || 'Client';
+    const subject = isReq
+      ? `Interior Design Requirements Intake - ${clientName}`
+      : `Interior Design & Drawings Review - ${clientName}`;
+    const body = isReq
+      ? `Hello ${clientName},\n\nPlease fill out your interior design requirements & room wishlist using this link:\n\n${shareUrl}\n\nOur design team will review your preferences right away!`
+      : `Hello ${clientName},\n\nHere is your interior design & drawings link for review:\n\n${shareUrl}\n\nPlease click to view your 2D plans and 3D renders.`;
+    Linking.openURL(`mailto:${lead?.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
+      .catch(() => Alert.alert('Error', 'Could not open the email app.'));
+  };
+
   const handleSendWhatsApp = () => {
-    if (!shareUrl) return;
+    if (!ensureShareable()) return;
     const digits = (lead?.mobileNumber || '').replace(/\D/g, '');
     const message = isReq
       ? `Hello ${lead?.name || 'Client'},\n\nPlease fill out your interior design requirements & room wishlist using this link:\n${shareUrl}\n\nOur design team will review your preferences and specifications right away!`
@@ -233,17 +266,36 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
 
             {isPublic && (
               <>
-                <View style={s.linkBox}>
-                  <Text numberOfLines={1} style={s.linkText}>{shareUrl}</Text>
+                <View style={[s.linkBox, isLinkExpired && s.linkBoxExpired]}>
+                  <Text numberOfLines={1} style={[s.linkText, isLinkExpired && s.linkTextExpired]}>
+                    {isLinkExpired ? 'Link Expired (Renew below)' : shareUrl}
+                  </Text>
                 </View>
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-                  <TouchableOpacity style={s.actionBtn} onPress={handleCopyLink}>
-                    <Ionicons name="copy-outline" size={14} color="#334155" />
-                    <Text style={s.actionBtnText}>Copy Link</Text>
+                {isLinkExpired && (
+                  <TouchableOpacity style={s.renewBtn} onPress={handleRenew} disabled={loading}>
+                    {loading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
+                      <>
+                        <Ionicons name="refresh-outline" size={14} color="#FFFFFF" />
+                        <Text style={s.renewBtnText}>Renew Link ({EXPIRY_OPTIONS.find((o) => o.value === expiryOption)?.label || '7 Days'})</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
-                  <TouchableOpacity style={[s.actionBtn, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]} onPress={handleSendWhatsApp}>
+                )}
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                  <TouchableOpacity style={[s.actionBtn, !canShare && s.actionBtnDisabled]} onPress={handleCopyLink}>
+                    <Ionicons name="copy-outline" size={14} color="#334155" />
+                    <Text style={s.actionBtnText}>Copy</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.actionBtn, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }, !canShare && s.actionBtnDisabled]} onPress={handleSendWhatsApp}>
                     <Ionicons name="logo-whatsapp" size={14} color="#16A34A" />
                     <Text style={[s.actionBtnText, { color: '#16A34A' }]}>WhatsApp</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.actionBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }, !canShare && s.actionBtnDisabled]}
+                    onPress={handleEmailShare}
+                  >
+                    <Ionicons name="mail-outline" size={14} color="#1D4ED8" />
+                    <Text style={[s.actionBtnText, { color: '#1D4ED8' }]}>Email</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -310,6 +362,11 @@ const s = StyleSheet.create({
 
   linkBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 8, marginBottom: 10 },
   linkText: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#2563EB' },
+  linkBoxExpired: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
+  linkTextExpired: { color: '#B45309', fontStyle: 'italic' },
+  actionBtnDisabled: { opacity: 0.4 },
+  renewBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#D97706', borderRadius: 10, paddingVertical: 10, marginBottom: 10 },
+  renewBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingVertical: 9 },
   actionBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155' },

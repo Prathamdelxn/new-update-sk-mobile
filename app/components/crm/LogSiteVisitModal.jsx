@@ -66,6 +66,8 @@ export default function LogSiteVisitModal({
   onSuccess,
   instructions,
   isReadOnly = false,
+  // Project Site Details edits the profile of an already converted lead: don't move its status
+  keepStatus = false,
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeSection, setActiveSection] = useState('All');
@@ -203,7 +205,7 @@ export default function LogSiteVisitModal({
       setPhotos(uploadedPhotos);
 
       const updatePayload = {
-        status: 'Measurement Done',
+        ...(keepStatus ? {} : { status: 'Measurement Done' }),
         siteMeasurements: measurements,
         sitePhotos: uploadedPhotos,
       };

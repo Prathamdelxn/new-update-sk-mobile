@@ -32,7 +32,7 @@ function userLabel(u) {
 // it does NOT include "Negotiation"/"Converted" (those were leftover copy from
 // a different status vocabulary); the real terminal stages are "Booking
 // Pending" and "Won".
-const STAGES = ['New Lead', 'Contacted', 'Meeting Scheduled', 'Measurement Done', 'Requirement Completed', 'Design Approved', 'Quotation Sent', 'Booking Pending', 'Won', 'Lost'];
+const STAGES = ['New Lead', 'Contacted', 'Meeting Scheduled', 'Requirement Completed', 'Measurement Done', 'Design Approved', 'Quotation Sent', 'Booking Pending', 'Won', 'Lost'];
 
 const STAGE_META = {
   'New Lead':               { color: '#0284C7', bg: '#F0F9FF' },
@@ -149,7 +149,7 @@ export default function CRMScreen() {
     leads: leads.filter((l) => l.status !== 'Lost').length,
     follow_ups: leads.filter((l) => l.status !== 'Lost' && ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status)).length,
     site_visits: leads.filter((l) => l.status !== 'Lost' && (['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0))).length,
-    requirement_design: leads.filter((l) => l.status !== 'Lost' && (['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0))).length,
+    requirement_design: leads.filter((l) => l.status !== 'Lost' && (['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0) || (l.clientRequirements && l.clientRequirements.length > 0))).length,
     drawing: leads.filter((l) => l.status !== 'Lost' && (['Under Drawing', 'Design Approved'].includes(l.status) || (l.designFiles && l.designFiles.length > 0))).length,
     boq: leads.filter((l) => l.status !== 'Lost' && (['Under BOQ Creation', 'BOQ Approved'].includes(l.status) || (l.boqs && l.boqs.length > 0))).length,
     quotations: leads.filter((l) => l.status !== 'Lost' && (['Under Quotation', 'Quotation Sent', 'Booking Pending'].includes(l.status) || (l.quotations && l.quotations.length > 0))).length,
@@ -160,8 +160,8 @@ export default function CRMScreen() {
   // "Add to <stage>" per stage tab (opens the lead on that stage's send-to form)
   const STAGE_ADD = {
     follow_ups: { label: 'Schedule Follow-up', module: 'crm_followups', index: 1, action: 'followup' },
-    site_visits: { label: 'Add to Site Visits', module: 'crm_site_visits', index: 2, action: 'site' },
-    requirement_design: { label: 'Add to Requirements', module: 'crm_requirements', index: 3, action: 'requirements' },
+    requirement_design: { label: 'Add to Requirements', module: 'crm_requirements', index: 2, action: 'requirements' },
+    site_visits: { label: 'Add to Site Visits', module: 'crm_site_visits', index: 3, action: 'site' },
     drawing: { label: 'Add to Drawings', module: 'crm_drawings', index: 4, action: 'drawing' },
     boq: { label: 'Add to BOQ', module: 'crm_boq', index: 5, action: 'boq' },
     quotations: { label: 'Add to Quotations', module: 'crm_quotations', index: 6, action: 'quotation' },
@@ -198,7 +198,7 @@ export default function CRMScreen() {
     if (activeFlowTab === 'leads') return true;
     if (activeFlowTab === 'follow_ups') return ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status);
     if (activeFlowTab === 'site_visits') return ['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0);
-    if (activeFlowTab === 'requirement_design') return ['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0);
+    if (activeFlowTab === 'requirement_design') return ['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0) || (l.clientRequirements && l.clientRequirements.length > 0);
     if (activeFlowTab === 'drawing') return ['Under Drawing', 'Design Approved'].includes(l.status) || (l.designFiles && l.designFiles.length > 0);
     if (activeFlowTab === 'boq') return ['Under BOQ Creation', 'BOQ Approved'].includes(l.status) || (l.boqs && l.boqs.length > 0);
     if (activeFlowTab === 'quotations') return ['Under Quotation', 'Quotation Sent', 'Booking Pending'].includes(l.status) || (l.quotations && l.quotations.length > 0);

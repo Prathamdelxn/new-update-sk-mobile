@@ -37,9 +37,13 @@ export default function LogRequirementsModal({
   clientRequirements = [],
   onSuccess,
   isReadOnly = false,
+  // Project Site Details edits the profile of an already converted lead: don't move its status
+  keepStatus = false,
+  // Lead's status: only early-stage leads move to "Under Requirement" (same rule as the web)
+  currentStatus,
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const [budgetRange, setBudgetRange] = useState('');
   const [requirements, setRequirements] = useState([]);
   
@@ -160,10 +164,13 @@ export default function LogRequirementsModal({
       }));
 
       const updatePayload = {
-        status: 'Requirement Completed',
         budgetRange: budgetRange.trim(),
         requirements: sanitizedRequirements
       };
+      const EARLY_STAGES = ['New Lead', 'Contacted', 'Meeting Scheduled', 'Under Site Visit', 'Measurement Done'];
+      if (!keepStatus && (!currentStatus || EARLY_STAGES.includes(currentStatus))) {
+        updatePayload.status = 'Under Requirement';
+      }
 
       await interiorCrmService.updateCustomer(customerId, updatePayload);
 

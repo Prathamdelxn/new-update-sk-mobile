@@ -337,21 +337,15 @@ export default function DashboardScreen() {
                   <>
                     <SectionLabel title="Project Health" />
                     <View style={[s.card, s.chartRow]}>
+                      {/* Full pie, same as the web chart */}
                       <PieChart
-                        donut
                         data={healthDonutData}
                         radius={64}
-                        innerRadius={44}
-                        centerLabelComponent={() => (
-                          <View style={{ alignItems: 'center' }}>
-                            <Text style={s.donutNum}>{healthTotal}</Text>
-                            <Text style={s.donutLbl}>projects</Text>
-                          </View>
-                        )}
-                        isAnimated
+                        isAnimated={healthTotal > 0}
                         animationDuration={600}
                       />
                       <View style={s.legendBlock}>
+                        <Text style={s.donutLbl}>{healthTotal} {healthTotal === 1 ? 'project' : 'projects'}</Text>
                         {projectHealth.map((h) => (
                           <LegendItem key={h.name} color={h.color} label={h.name} value={`${h.value}`} />
                         ))}

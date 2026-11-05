@@ -32,6 +32,11 @@ const STANDARD_UOMS = [
   { value: 'cum', label: 'CUM' },
 ];
 
+const STAGES_AT_OR_PAST_BOQ = [
+  'Under BOQ Creation', 'BOQ Approved', 'Under Quotation', 'Quotation Sent', 'Negotiation', 'Under Negotiation',
+  'Booking Pending', 'Confirmed Order', 'Won', 'Converted', 'Converted to Project', 'Lost',
+];
+
 export default function BoqBuilderModal({
   visible,
   isOpen,
@@ -43,6 +48,7 @@ export default function BoqBuilderModal({
   editingBoqIndex = null,
   isReadOnly = false,
   budgetRange,
+  leadStatus,
   onSuccess,
 }) {
   const isModalOpen = Boolean(visible ?? isOpen);
@@ -321,12 +327,54 @@ export default function BoqBuilderModal({
       Alert.alert('Error', 'Please add at least one line item.');
       return;
     }
-    if (items.some((i) => !i.itemName || !i.itemName.trim())) {
-      Alert.alert('Error', 'Please provide an item title for all line items.');
-      return;
+    for (const sec of sections) {
+      const t = String(sec.sectionTitle || '').trim();
+      if (!t) {
+        Alert.alert('Error', 'Please provide a category/section name for all sections.');
+        return;
+      }
+      if (t.length > 80) {
+        Alert.alert('Error', `Section name "${t.slice(0, 25)}..." exceeds maximum allowed length of 80 characters.`);
+        return;
+      }
+      if (sec.scopeDescription && sec.scopeDescription.trim().length > 1000) {
+        Alert.alert('Error', `Section Scope Note in "${t.slice(0, 25)}" exceeds maximum allowed length of 1000 characters.`);
+        return;
+      }
     }
-    if (items.some((i) => !i.quantity || parseFloat(i.quantity) <= 0)) {
-      Alert.alert('Error', 'Quantity must be greater than 0 for all items.');
+    for (const i of items) {
+      const name = String(i.itemName || '').trim();
+      if (!name) {
+        Alert.alert('Error', 'Please provide an Item Short Description for all line items.');
+        return;
+      }
+      if (name.length > 120) {
+        Alert.alert('Error', `Item title "${name.slice(0, 25)}..." exceeds maximum allowed length of 120 characters.`);
+        return;
+      }
+      if (i.description && i.description.trim().length > 1000) {
+        Alert.alert('Error', `Item description for "${name.slice(0, 25)}" exceeds maximum allowed length of 1000 characters.`);
+        return;
+      }
+      if (i.unit && i.unit.trim().length > 15) {
+        Alert.alert('Error', `Unit "${i.unit}" exceeds maximum allowed length of 15 characters.`);
+        return;
+      }
+      if (!i.quantity || parseFloat(i.quantity) <= 0) {
+        Alert.alert('Error', `Quantity must be greater than 0 for "${name.slice(0, 25)}".`);
+        return;
+      }
+      if (parseFloat(i.quantity) > 999999999) {
+        Alert.alert('Error', `Quantity is too large for "${name.slice(0, 25)}" (maximum 999,999,999).`);
+        return;
+      }
+      if (parseFloat(i.rate) > 999999999) {
+        Alert.alert('Error', `Rate is too large for "${name.slice(0, 25)}" (maximum 999,999,999).`);
+        return;
+      }
+    }
+    if (notes && notes.trim().length > 2000) {
+      Alert.alert('Error', 'Overall BOQ terms/notes cannot exceed 2000 characters.');
       return;
     }
     if (items.some((i) => i.rate === undefined || i.rate === null || parseFloat(i.rate) <= 0)) {
@@ -392,10 +440,24 @@ export default function BoqBuilderModal({
         });
       }
 
-      await interiorCrmService.updateCustomer(customerId, {
-        boqs: updatedBoqs,
-        status: 'Under BOQ Creation',
-      });
+      // Creating a BOQ moves the lead to "Under BOQ Creation", but never backwards from a later stage;
+      // editing an existing BOQ leaves the status alone (same rule as the web builder)
+      const updatePayload = { boqs: updatedBoqs };
+      if (!isEditing) {
+        let currentStatus = leadStatus;
+        if (!currentStatus) {
+          try {
+            const fresh = await interiorCrmService.getCustomerById(customerId);
+            currentStatus = fresh?.status;
+          } catch {
+            // keep the existing status if it can't be read
+          }
+        }
+        if (currentStatus && !STAGES_AT_OR_PAST_BOQ.includes(currentStatus)) {
+          updatePayload.status = 'Under BOQ Creation';
+        }
+      }
+      await interiorCrmService.updateCustomer(customerId, updatePayload);
 
       await interiorCrmService.createActivity({
         customer: customerId,
@@ -479,6 +541,7 @@ export default function BoqBuilderModal({
                           <TextInput
                             style={s.sectionTitleInput}
                             value={section.sectionTitle}
+                            maxLength={80}
                             onChangeText={(val) => handleUpdateSection(section.id, 'sectionTitle', val)}
                             placeholder={`Section ${secIdx + 1} Name (e.g. Living Room)`}
                             placeholderTextColor="#94A3B8"
@@ -503,6 +566,7 @@ export default function BoqBuilderModal({
                       <TextInput
                         style={[s.scopeDescInput, isReadOnly && s.inputDisabled]}
                         value={section.scopeDescription}
+                        maxLength={1000}
                         onChangeText={(val) => handleUpdateSection(section.id, 'scopeDescription', val)}
                         placeholder="Scope description / technical specs for this zone (Optional)"
                         placeholderTextColor="#94A3B8"
@@ -576,6 +640,7 @@ export default function BoqBuilderModal({
                             <TextInput
                               style={[s.input, isReadOnly && s.inputDisabled]}
                               value={item.itemName}
+                              maxLength={120}
                               onChangeText={(val) => handleUpdateItemField(item.id, 'itemName', val)}
                               placeholder="e.g. 18mm BWP Marine Plywood Wardrobe"
                               placeholderTextColor="#94A3B8"
@@ -613,6 +678,7 @@ export default function BoqBuilderModal({
                             <TextInput
                               style={[s.specInput, isReadOnly && s.inputDisabled]}
                               value={item.description}
+                              maxLength={1000}
                               onChangeText={(val) => handleUpdateItemField(item.id, 'description', val)}
                               placeholder="Finish specifications, laminate thickness, edge-banding, hardware make..."
                               placeholderTextColor="#94A3B8"
@@ -627,6 +693,7 @@ export default function BoqBuilderModal({
                                 <TextInput
                                   style={[s.input, isReadOnly && s.inputDisabled]}
                                   value={String(item.quantity)}
+                                  maxLength={9}
                                   onChangeText={(val) => handleUpdateItemField(item.id, 'quantity', val)}
                                   keyboardType="numeric"
                                   placeholder="1"
@@ -640,6 +707,7 @@ export default function BoqBuilderModal({
                                 <TextInput
                                   style={[s.input, isReadOnly && s.inputDisabled]}
                                   value={item.unit}
+                                  maxLength={15}
                                   onChangeText={(val) => handleUpdateItemField(item.id, 'unit', val)}
                                   placeholder="sqft"
                                   placeholderTextColor="#94A3B8"
@@ -652,6 +720,7 @@ export default function BoqBuilderModal({
                                 <TextInput
                                   style={[s.input, isReadOnly && s.inputDisabled]}
                                   value={String(item.rate)}
+                                  maxLength={9}
                                   onChangeText={(val) => handleUpdateItemField(item.id, 'rate', val)}
                                   keyboardType="numeric"
                                   placeholder="0"
@@ -743,9 +812,15 @@ export default function BoqBuilderModal({
 
             {/* Notes / Terms */}
             <View style={{ marginTop: 4 }}>
-              <Text style={s.fieldLabel}>Notes & Scope Conditions (Optional)</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={s.fieldLabel}>Notes & Scope Conditions (Optional)</Text>
+                {!isReadOnly && (
+                  <Text style={{ fontSize: 10, fontFamily: 'Inter-Regular', color: notes.length >= 2000 ? '#E11D48' : '#94A3B8' }}>{notes.length}/2000</Text>
+                )}
+              </View>
               <TextInput
                 style={[s.notesInput, isReadOnly && s.inputDisabled]}
+                maxLength={2000}
                 value={notes}
                 onChangeText={setNotes}
                 placeholder="Exclusions, payment terms, or client stipulations for this BOQ..."

@@ -69,6 +69,57 @@ export const formatCompactCurrency = (num, currency = 'INR') => {
   return `${value < 0 ? '-' : ''}${symbol}${separator}${formatCompact(Math.abs(value))}`;
 };
 
+// ── Same helpers as the web lib/utils (formatInternational / formatMillionBillion / formatSmartCurrency) ──
+
+// en-US grouping, e.g. 250,000 or 1,500.5
+export function formatInternational(num, minDecimals = 0, maxDecimals = 2) {
+  if (num == null || isNaN(num)) return '0';
+  return Intl.NumberFormat('en-US', { minimumFractionDigits: minDecimals, maximumFractionDigits: maxDecimals }).format(num);
+}
+
+// Below the threshold (1,000,000 by default) the full number with commas; above it M / B / T,
+// e.g. 1,500,000 → "1.50M", 2,312,341,230 → "2.31B"
+export function formatMillionBillion(num, options = {}) {
+  if (num == null || isNaN(num)) return '0';
+  if (Number(num) === 0) return '0';
+  const sign = num < 0 ? '-' : '';
+  const abs = Math.abs(num);
+  const threshold = options.threshold ?? 1_000_000;
+  const decimals = options.decimals ?? 2;
+  if (abs < threshold) return sign + formatInternational(abs, 0, 2);
+  const scales = [
+    { value: 1e12, short: 'T', long: 'Trillion' },
+    { value: 1e9, short: 'B', long: 'Billion' },
+    { value: 1e6, short: 'M', long: 'Million' },
+  ];
+  for (const { value, short, long } of scales) {
+    if (abs >= value) {
+      const quotient = abs / value;
+      if (short === 'T' && quotient >= 1000) return `${sign}>999T`;
+      const text = quotient.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      return `${sign}${text}${options.fullWord ? ` ${long}` : short}`;
+    }
+  }
+  return sign + formatInternational(abs, 0, 2);
+}
+
+// { display: "₹ 1.50M", exact: "₹ 1,500,000.00", isLarge, compactText }. `symbol` is the currency
+// symbol itself (web passes currencySymbol); use getCurrencySymbol(code) to get it from a code.
+export function formatSmartCurrency(num, symbol = '₹', options = {}) {
+  const sym = symbol || '₹';
+  const separator = sym.length > 1 ? ' ' : '';
+  const abs = Math.abs(num || 0);
+  const isLarge = abs >= (options.threshold ?? 1_000_000);
+  const sign = (num || 0) < 0 ? '-' : '';
+  const compactText = formatMillionBillion(num, options);
+  return {
+    display: `${sign}${sym}${separator}${compactText}`,
+    exact: `${sign}${sym}${separator}${formatInternational(abs, 2, 2)}`,
+    isLarge,
+    compactText,
+  };
+}
+
 export const formatExactCurrency = (num, currency = 'INR') => {
   if (num == null || isNaN(num)) return `${getCurrencySymbol(currency)} 0`;
   const symbol = getCurrencySymbol(currency);

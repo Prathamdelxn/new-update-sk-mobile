@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { interiorCrmService } from '../../services/interiorCrmService';
 import cloudinaryService from '../../services/cloudinaryService';
+import { detectCrmFileType } from '../../utils/interior/crmFileBadge';
 
 function userLabel(u) {
   if (!u) return 'User';
@@ -14,14 +15,8 @@ function userLabel(u) {
   return `${name}${u.role?.name || u.role ? ` (${u.role?.name || u.role})` : ''}`;
 }
 
-function detectFileType(fileName) {
-  const ext = (fileName.split('.').pop() || '').toLowerCase();
-  if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'tiff', 'hdr', 'exr'].includes(ext)) return 'image';
-  if (['pdf'].includes(ext)) return 'pdf';
-  if (['dwg', 'skp', 'obj', 'fbx', '3ds', 'dae', 'blend', 'rvt', 'rfa', 'ifc', 'gltf', 'glb', 'max'].includes(ext)) return '3d-model';
-  if (['dxf'].includes(ext)) return 'cad';
-  return 'document';
-}
+// Same detection as the web upload modal (name, then URL; zip/rar count as archives)
+const detectFileType = (fileName, fileUrl) => detectCrmFileType(fileName, fileUrl);
 
 export default function UploadRevisionModal({ isOpen, onClose, customerId, drawing, users = [], onSuccess }) {
   const [title, setTitle] = useState('');

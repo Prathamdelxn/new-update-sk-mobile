@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,11 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import RemoteThumb from '../../components/interior/RemoteThumb';
+import SelectField from '../../components/common/SelectField';
+import SendForApprovalModal, { approvalStyles } from '../../components/interior/SendForApprovalModal';
+import ApprovalDecisionModal from '../../components/interior/ApprovalDecisionModal';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import { fetchProjectReviewers } from '../../utils/interior/projectReviewers';
 
 // ---------------------------------------------------------------------------
 // File Type Detection & Badging (Mirrors Web detectDrawingFileType & getFileTypeBadge)
@@ -133,6 +137,13 @@ const STATUS_META = {
   rejected: { label: 'Rejected', color: '#DC2626', bg: '#FEF2F2' },
 };
 
+// Same rule as the web card: nothing is "in review" until a reviewer has been assigned
+const getStatusMeta = (dwg) => {
+  const s = dwg.status;
+  if ((s === 'draft' || s === 'submitted' || !s) && !dwg.assignedReviewer) return STATUS_META.draft;
+  return STATUS_META[s] || STATUS_META.submitted;
+};
+
 async function pickFile() {
   const result = await DocumentPicker.getDocumentAsync({
     type: ['application/pdf', 'image/*', 'application/acad', 'image/vnd.dwg', '*/*'],
@@ -141,6 +152,42 @@ async function pickFile() {
   if (result.canceled || !result.assets?.length) return null;
   return result.assets[0];
 }
+
+async function pickFiles() {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: ['application/pdf', 'image/*', 'application/acad', 'image/vnd.dwg', '*/*'],
+    copyToCacheDirectory: true,
+    multiple: true,
+  });
+  if (result.canceled || !result.assets?.length) return [];
+  return result.assets;
+}
+
+const MODEL_3D_EXT = ['dwg', 'skp', 'obj', 'fbx', '3ds', 'dae', 'blend', 'rvt', 'rfa', 'ifc', 'gltf', 'glb', 'max'];
+
+// "master_bedroom-ceiling.pdf" → "master bedroom ceiling" (web sanitizeTitle)
+const titleFromFileName = (name = '') =>
+  name
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const GENERAL_ROOM = 'General / Not Specified';
+const CUSTOM_ROOM = 'Other / Custom Area';
+// Same list as the web upload modal (STANDARD_ROOM_TAGS)
+const ROOM_TAGS = [
+  'Living Room', 'Master Bedroom', 'Kitchen', 'Dining Area', 'Kids Bedroom', 'Guest Bedroom',
+  'Foyer / Entrance', 'Balcony / Terrace', 'Master Bathroom', 'Common Bathroom', 'Devotional Room',
+  'Walk-in Wardrobe', 'Home Office / Study', 'Whole House / Entire Space',
+];
+const ROOM_OPTIONS = [
+  { value: GENERAL_ROOM, label: '-- General / Not Specified --' },
+  ...ROOM_TAGS.map((r) => ({ value: r, label: r })),
+  { value: CUSTOM_ROOM, label: 'Other / Custom Area...' },
+];
+
+const fileSizeMb = (asset) => (asset?.size ? `${(asset.size / (1024 * 1024)).toFixed(2)} MB • ` : '');
 
 export default function InteriorDrawingsScreen() {
   const insets = useSafeAreaInsets();
@@ -168,9 +215,17 @@ const { can: canDo } = useProjectPermissions(projectId);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [createType, setCreateType] = useState('2D'); // '2D' | '3D'
-  const [title, setTitle] = useState('');
-  const [discipline, setDiscipline] = useState('Architectural');
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadFiles, setUploadFiles] = useState([]); // [{ key, asset }]
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [titleTouched, setTitleTouched] = useState(false);
+  const [roomTag, setRoomTag] = useState(GENERAL_ROOM);
+  const [customRoom, setCustomRoom] = useState('');
+
+  // Approval flow
+  const [reviewers, setReviewers] = useState([]);
+  const [sendTarget, setSendTarget] = useState(null);
+  const [decisionTarget, setDecisionTarget] = useState(null);
+  const [decisionAction, setDecisionAction] = useState(null);
 
   // Modal: Upload Revision
   const [revTarget, setRevTarget] = useState(null);
@@ -193,6 +248,13 @@ const { can: canDo } = useProjectPermissions(projectId);
   }, [projectId, showToast]);
 
   useFocusEffect(useCallback(() => { fetchDrawings(); }, [fetchDrawings]));
+
+  useEffect(() => {
+    if (!projectId) return;
+    fetchProjectReviewers(projectId)
+      .then(setReviewers)
+      .catch((e) => console.warn('Failed to load project members for approval', e));
+  }, [projectId]);
 
   // Infer 2D vs 3D type
   const inferType = (d) => {
@@ -229,7 +291,10 @@ const { can: canDo } = useProjectPermissions(projectId);
       const type = inferType(d);
       if (type !== activeCategory) return false;
 
-      if (selectedStatus !== 'all' && d.status !== selectedStatus) return false;
+      if (selectedStatus !== 'all') {
+        const isDraft = getStatusMeta(d) === STATUS_META.draft;
+        if (selectedStatus === 'draft' ? !isDraft : isDraft || d.status !== selectedStatus) return false;
+      }
 
       if (selectedDiscipline !== 'all') {
         const dDisc = (d.discipline || '').toLowerCase();
@@ -251,11 +316,28 @@ const { can: canDo } = useProjectPermissions(projectId);
   // Actions
   const closeCreate = () => {
     setIsCreateOpen(false);
-    setTitle('');
-    setDiscipline('Architectural');
-    setSelectedFile(null);
+    setUploadFiles([]);
+    setUploadTitle('');
+    setTitleTouched(false);
+    setRoomTag(GENERAL_ROOM);
+    setCustomRoom('');
     setCreateType('2D');
   };
+
+  // Same validation as the web: 3–50 characters, unique within the category
+  const getTitleError = (val = uploadTitle) => {
+    const t = val.trim();
+    if (!t) return 'Drawing title is required';
+    if (t.length < 3) return 'Drawing title must be at least 3 characters';
+    if (t.length > 50) return 'Drawing title cannot exceed 50 characters';
+    const clash = drawings.some((d) => {
+      const cat = String(d.drawingType || d.category || '2D').toUpperCase() === '3D' ? '3D' : '2D';
+      return cat === createType && String(d.title || d.name || '').trim().toLowerCase() === t.toLowerCase();
+    });
+    if (clash) return `A ${createType} drawing with title "${t}" already exists. Please enter a unique title.`;
+    return null;
+  };
+  const effectiveRoom = () => (roomTag === CUSTOM_ROOM ? customRoom.trim() || GENERAL_ROOM : roomTag || GENERAL_ROOM);
 
   const closeRev = () => {
     setRevTarget(null);
@@ -264,16 +346,21 @@ const { can: canDo } = useProjectPermissions(projectId);
     setRevFile(null);
   };
 
-  const handlePickCreateFile = async () => {
-    const asset = await pickFile();
-    if (asset) {
-      setSelectedFile(asset);
-      if (!title.trim() && asset.name) {
-        const cleanTitle = asset.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-        setTitle(cleanTitle);
-      }
-    }
+  const handlePickCreateFiles = async () => {
+    const assets = await pickFiles();
+    if (!assets.length) return;
+    // A 3D model file switches the upload to the 3D category (same as the web)
+    const has3D = assets.some((a) => MODEL_3D_EXT.includes((a.name || '').split('.').pop().toLowerCase()));
+    if (has3D) setCreateType('3D');
+    // First file names the drawing if no title was typed yet
+    if (!uploadTitle.trim() && assets[0]) setUploadTitle(titleFromFileName(assets[0].name).slice(0, 50));
+    setUploadFiles((prev) => [
+      ...prev,
+      ...assets.map((a, i) => ({ key: `${Date.now()}-${i}-${a.name}`, asset: a })),
+    ]);
   };
+
+  const removeUploadFile = (key) => setUploadFiles((prev) => prev.filter((f) => f.key !== key));
 
   const handlePickRevFile = async () => {
     const asset = await pickFile();
@@ -281,31 +368,115 @@ const { can: canDo } = useProjectPermissions(projectId);
   };
 
   const handleSubmitDrawing = async () => {
-    if (!title.trim()) return showToast('Please enter drawing title', 'error');
-    if (!selectedFile) return showToast('Please select a drawing file to upload', 'error');
+    if (uploadFiles.length === 0) return showToast('Please choose at least one drawing file or photo to upload.', 'error');
+    const titleErr = getTitleError();
+    if (titleErr) {
+      setTitleTouched(true);
+      return showToast(titleErr, 'error');
+    }
 
+    const room = effectiveRoom();
+    const total = uploadFiles.length;
     setSubmitting(true);
+    let done = 0;
     try {
-      const uploadRes = await interiorApiClient.postForm(`/projects/${projectId}/drawings/upload`, {
-        file: { uri: selectedFile.uri, name: selectedFile.name, type: selectedFile.mimeType || 'application/octet-stream' },
-      });
-      if (!uploadRes?.success || !uploadRes?.data?.url) throw new Error('Drawing upload failed');
+      for (let index = 0; index < total; index++) {
+        const f = uploadFiles[index];
+        const base = uploadTitle.trim() || titleFromFileName(f.asset.name);
+        const uploadRes = await interiorApiClient.postForm(`/projects/${projectId}/drawings/upload`, {
+          file: { uri: f.asset.uri, name: f.asset.name, type: f.asset.mimeType || 'application/octet-stream' },
+        });
+        if (!uploadRes?.success || !uploadRes?.data?.url) throw new Error(`Upload failed for ${f.asset.name}`);
 
-      await interiorApiClient.post(`/projects/${projectId}/drawings`, {
-        title: title.trim(),
-        discipline,
-        drawingType: createType,
-        fileUrl: uploadRes.data.url,
-      });
+        await interiorApiClient.post(`/projects/${projectId}/drawings`, {
+          // Several files share the title with a running number, like the web
+          title: total === 1 ? base : `${base} (${index + 1})`,
+          discipline: room !== GENERAL_ROOM ? room : createType === '3D' ? '3D Model' : '2D Drawing',
+          roomTag: room,
+          drawingType: createType,
+          fileType: detectDrawingFileType(f.asset.name, uploadRes.data.url),
+          fileUrl: uploadRes.data.url,
+          status: 'draft',
+        });
+        done += 1;
+      }
 
-      showToast('Drawing registered successfully!', 'success');
+      showToast(
+        done === 1 ? `${createType} drawing uploaded successfully as Draft!` : `${done} ${createType} drawings uploaded successfully as Draft!`,
+        'success'
+      );
       closeCreate();
-      fetchDrawings();
     } catch (e) {
-      showToast(e.message || 'Failed to register drawing', 'error');
+      // Keep the files that didn't make it so the user can retry them
+      if (done > 0) setUploadFiles((prev) => prev.slice(done));
+      showToast(e.message || 'Failed to upload drawing', 'error');
     } finally {
       setSubmitting(false);
+      if (done > 0) fetchDrawings();
     }
+  };
+
+  const handleSendForApproval = async ({ reviewerId, reviewerName, notes }) => {
+    await interiorApiClient.put(`/projects/${projectId}/drawings`, {
+      drawingId: sendTarget._id,
+      status: 'under_review',
+      assignedReviewer: reviewerId,
+      assignedReviewerName: reviewerName,
+      submissionNotes: notes || undefined,
+    });
+    showToast(`Drawing sent to ${reviewerName} for approval!`, 'success');
+    fetchDrawings();
+  };
+
+  const handleDecision = async (action, reason) => {
+    await interiorApiClient.put(`/projects/${projectId}/drawings`, {
+      drawingId: decisionTarget._id,
+      status: action === 'approve' ? 'approved' : 'rejected',
+      ...(action === 'reject' ? { rejectionReason: reason } : {}),
+    });
+    showToast(
+      action === 'approve' ? `Drawing "${decisionTarget.title}" approved successfully!` : 'Drawing marked as rejected with change request notes.',
+      action === 'approve' ? 'success' : 'info'
+    );
+    fetchDrawings();
+  };
+
+  // Version number the web modals show (v1, v2, …): one per uploaded revision
+  const drawingVersion = (dwg) => dwg.revisions?.length || dwg.currentVersion || 1;
+
+  // Drawing preview card at the top of both approval sheets (web "Drawing Preview Card")
+  const renderApprovalCard = (dwg, extra) => {
+    const rev = dwg.revisions?.[dwg.revisions.length - 1] || {};
+    const badge = getFileTypeBadge(dwg.title, rev.url, dwg.drawingType || '2D');
+    const isImg = detectDrawingFileType(dwg.title, rev.url) === 'image';
+    return (
+      <View style={[approvalStyles.summaryBox, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
+        {isImg && rev.url ? (
+          <RemoteThumb uri={rev.url} style={s.approvalThumb} height={52} />
+        ) : (
+          <View style={[s.approvalThumb, { backgroundColor: badge.bg, alignItems: 'center', justifyContent: 'center' }]}>
+            <Ionicons name={badge.icon} size={22} color={badge.color} />
+          </View>
+        )}
+        <View style={{ flex: 1, gap: 5 }}>
+          <Text style={approvalStyles.summaryTitle} numberOfLines={2}>{dwg.title}</Text>
+          <View style={approvalStyles.chipRow}>
+            <Text style={[approvalStyles.chip, { color: badge.color, backgroundColor: badge.bg }]}>{badge.label}</Text>
+            <Text style={approvalStyles.chip}>Version v{drawingVersion(dwg)}</Text>
+            {!!dwg.drawingNumber && <Text style={approvalStyles.chip}>#{dwg.drawingNumber}</Text>}
+            {extra === 'discipline' && !!dwg.discipline && <Text style={approvalStyles.chip}>{dwg.discipline}</Text>}
+            {extra === 'reviewer' && !!dwg.assignedReviewerName && (
+              <Text style={approvalStyles.reviewerChip}>Reviewer: {dwg.assignedReviewerName}</Text>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const openDecision = (dwg, action) => {
+    setDecisionAction(action);
+    setDecisionTarget(dwg);
   };
 
   const openRevModal = (dwg) => {
@@ -341,16 +512,6 @@ const { can: canDo } = useProjectPermissions(projectId);
       showToast(e.message || 'Failed to upload revision', 'error');
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const updateStatus = async (dwg, status) => {
-    try {
-      await interiorApiClient.put(`/projects/${projectId}/drawings`, { drawingId: dwg._id, status });
-      showToast(`Drawing status updated to: ${status.replace('_', ' ')}`, 'success');
-      fetchDrawings();
-    } catch (e) {
-      showToast(e.message || 'Failed to update approval status', 'error');
     }
   };
 
@@ -469,6 +630,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         >
           {[
             { id: 'all', label: 'All Status' },
+            { id: 'draft', label: 'Draft' },
             { id: 'approved', label: 'Approved ✓' },
             { id: 'under_review', label: 'Under Review' },
             { id: 'rejected', label: 'Rejected' },
@@ -518,7 +680,10 @@ const { can: canDo } = useProjectPermissions(projectId);
               filteredDrawings.map((dwg) => {
                 const revisions = dwg.revisions || [];
                 const currentRev = revisions[revisions.length - 1] || {};
-                const meta = STATUS_META[dwg.status] || STATUS_META.submitted;
+                const meta = getStatusMeta(dwg);
+                const hasReviewer = Boolean(dwg.assignedReviewer);
+                const canSend = !hasReviewer && dwg.status !== 'approved' && dwg.status !== 'rejected' && canDo('drawings', 'update');
+                const awaitingDecision = hasReviewer && (dwg.status === 'under_review' || dwg.status === 'submitted');
                 const fileBadge = getFileTypeBadge(dwg.title, currentRev.url, activeCategory);
                 const isExpanded = expandedDwgId === dwg._id;
                 const isImage = detectDrawingFileType(dwg.title, currentRev.url) === 'image';
@@ -556,6 +721,18 @@ const { can: canDo } = useProjectPermissions(projectId);
 
                     {/* Title */}
                     <Text style={s.dwgTitle}>{dwg.title}</Text>
+
+                    {!!dwg.assignedReviewerName && (
+                      <View style={s.reviewerChip}>
+                        <Ionicons name="person-circle-outline" size={12} color="#B45309" />
+                        <Text style={s.reviewerChipText} numberOfLines={1}>Reviewer: {dwg.assignedReviewerName}</Text>
+                      </View>
+                    )}
+                    {dwg.status === 'rejected' && !!dwg.rejectionReason && (
+                      <View style={s.rejectionBox}>
+                        <Text style={s.rejectionText} numberOfLines={2}>Changes: {dwg.rejectionReason}</Text>
+                      </View>
+                    )}
 
                     {/* Latest Revision Details */}
                     <View style={s.latestRevRow}>
@@ -626,6 +803,32 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </View>
                     )}
 
+                    {/* Approval flow */}
+                    {canSend && (
+                      <TouchableOpacity style={s.sendApprovalBtn} onPress={() => setSendTarget(dwg)}>
+                        <Ionicons name="paper-plane-outline" size={13} color="#FFFFFF" />
+                        <Text style={s.sendApprovalText}>Send for Approval</Text>
+                      </TouchableOpacity>
+                    )}
+                    {awaitingDecision && canDo('drawings', 'approve') && (
+                      <View style={s.decisionRow}>
+                        <TouchableOpacity style={[s.decisionBtn, s.approveBtn]} onPress={() => openDecision(dwg, 'approve')}>
+                          <Ionicons name="checkmark-circle-outline" size={14} color="#FFFFFF" />
+                          <Text style={[s.decisionText, { color: '#FFFFFF' }]}>Approve</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[s.decisionBtn, s.rejectBtn]} onPress={() => openDecision(dwg, 'reject')}>
+                          <Ionicons name="close-circle-outline" size={14} color="#B91C1C" />
+                          <Text style={[s.decisionText, { color: '#B91C1C' }]}>Reject</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    {dwg.status === 'rejected' && canDo('drawings', 'update') && (
+                      <TouchableOpacity style={[s.sendApprovalBtn, { backgroundColor: '#0F172A' }]} onPress={() => openRevModal(dwg)}>
+                        <Ionicons name="cloud-upload-outline" size={13} color="#FFFFFF" />
+                        <Text style={s.sendApprovalText}>Upload Revision</Text>
+                      </TouchableOpacity>
+                    )}
+
                     {/* Actions Row */}
                     <View style={s.actionsRow}>
                       <TouchableOpacity
@@ -636,7 +839,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                         <Text style={[s.actionBtnText, { color: '#2563EB' }]}>{isImage ? 'Preview' : 'Open'}</Text>
                       </TouchableOpacity>
 
-                      {canDo('drawings', 'update') && (
+                      {dwg.status !== 'rejected' && canDo('drawings', 'update') && (
                         <TouchableOpacity
                           style={s.actionBtn}
                           onPress={() => openRevModal(dwg)}
@@ -644,30 +847,6 @@ const { can: canDo } = useProjectPermissions(projectId);
                           <Ionicons name="cloud-upload-outline" size={13} color="#475569" />
                           <Text style={s.actionBtnText}>+ Revision</Text>
                         </TouchableOpacity>
-                      )}
-
-                      {dwg.status !== 'approved' && (
-                        canDo('drawings', 'approve') && (
-                          <TouchableOpacity
-                            style={[s.actionBtn, { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' }]}
-                            onPress={() => updateStatus(dwg, 'approved')}
-                          >
-                            <Ionicons name="checkmark-circle-outline" size={13} color="#16A34A" />
-                            <Text style={[s.actionBtnText, { color: '#16A34A' }]}>Approve</Text>
-                          </TouchableOpacity>
-                        )
-                      )}
-
-                      {dwg.status !== 'rejected' && (
-                        canDo('drawings', 'approve') && (
-                          <TouchableOpacity
-                            style={[s.actionBtn, { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }]}
-                            onPress={() => updateStatus(dwg, 'rejected')}
-                          >
-                            <Ionicons name="close-circle-outline" size={13} color="#DC2626" />
-                            <Text style={[s.actionBtnText, { color: '#DC2626' }]}>Reject</Text>
-                          </TouchableOpacity>
-                        )
                       )}
 
                       {canDo('drawings', 'delete') && (
@@ -693,7 +872,6 @@ const { can: canDo } = useProjectPermissions(projectId);
             style={[s.fab, activeCategory === '3D' && { backgroundColor: '#7C3AED', shadowColor: '#7C3AED' }]}
             onPress={() => {
               setCreateType(activeCategory);
-              setDiscipline(activeCategory === '3D' ? '3D Visual' : 'Architectural');
               setIsCreateOpen(true);
             }}
           >
@@ -710,8 +888,8 @@ const { can: canDo } = useProjectPermissions(projectId);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.modalTitle}>2D Drawings & 3D Models Management</Text>
-                <Text style={s.modalSubtitle}>Upload CAD (.dwg, .dxf), 3D Models (.skp, .obj, .fbx, .blend, .rvt), Renders & PDFs.</Text>
+                <Text style={s.modalTitle}>Upload Drawing</Text>
+                <Text style={s.modalSubtitle}>Upload 2D architectural plans, working layouts, or 3D models.</Text>
               </View>
               <TouchableOpacity onPress={closeCreate} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -720,62 +898,138 @@ const { can: canDo } = useProjectPermissions(projectId);
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Category selector */}
-              <Text style={s.label}>Drawing Classification *</Text>
+              <Text style={s.label}>Drawing Category *</Text>
               <View style={s.createTypeSwitchRow}>
                 <TouchableOpacity
-                  style={[s.createTypeOption, createType === '2D' && s.createTypeOptionActive]}
-                  onPress={() => {
-                    setCreateType('2D');
-                    setDiscipline('Architectural');
-                  }}
+                  style={[s.createTypeOption, s.createTypeCard, createType === '2D' && s.createTypeOptionActive]}
+                  onPress={() => setCreateType('2D')}
                 >
-                  <Ionicons name="layers-outline" size={15} color={createType === '2D' ? '#2563EB' : '#64748B'} />
-                  <Text style={[s.createTypeOptionText, createType === '2D' && s.createTypeOptionTextActive]}>
-                    2D Working Drawing
-                  </Text>
+                  <Ionicons name="document-text-outline" size={16} color={createType === '2D' ? '#2563EB' : '#64748B'} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.createTypeOptionText, createType === '2D' && s.createTypeOptionTextActive]}>2D Working Drawing</Text>
+                    <Text style={s.createTypeHint}>Floor plans, RCP, Electrical, PDF, DXF</Text>
+                  </View>
                 </TouchableOpacity>
-
                 <TouchableOpacity
-                  style={[s.createTypeOption, createType === '3D' && s.createTypeOptionActive3D]}
-                  onPress={() => {
-                    setCreateType('3D');
-                    setDiscipline('3D Visual');
-                  }}
+                  style={[s.createTypeOption, s.createTypeCard, createType === '3D' && s.createTypeOptionActive3D]}
+                  onPress={() => setCreateType('3D')}
                 >
-                  <Ionicons name="cube-outline" size={15} color={createType === '3D' ? '#7C3AED' : '#64748B'} />
-                  <Text style={[s.createTypeOptionText, createType === '3D' && { color: '#7C3AED' }]}>
-                    3D Visual / Concept
-                  </Text>
+                  <Ionicons name="cube-outline" size={16} color={createType === '3D' ? '#7C3AED' : '#64748B'} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.createTypeOptionText, createType === '3D' && { color: '#7C3AED', fontFamily: 'Inter-Bold' }]}>3D Model / Render</Text>
+                    <Text style={s.createTypeHint}>DWG, SketchUp (.skp), Renders</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
 
-              <Text style={s.label}>Drawing Document File (PDF, Image, CAD, SKP) *</Text>
-              <TouchableOpacity style={s.uploadBox} onPress={handlePickCreateFile}>
-                <Ionicons name="cloud-upload-outline" size={26} color="#2563EB" />
-                <Text style={s.uploadBoxText} numberOfLines={1}>
-                  {selectedFile ? selectedFile.name : 'Tap to select document from device'}
+              {/* Title (3–50 chars, unique per category) */}
+              <View style={s.labelRow}>
+                <Text style={[s.label, { marginTop: 0, marginBottom: 0 }]}>Drawing Title *</Text>
+                <Text
+                  style={[
+                    s.charCount,
+                    uploadTitle.length > 45 && { color: '#D97706' },
+                    uploadTitle.length > 0 && uploadTitle.trim().length < 3 && { color: '#F43F5E' },
+                  ]}
+                >
+                  {uploadTitle.length}/50
                 </Text>
-                <Text style={s.uploadBoxSub}>Supports PDF, DWG, SKP, PNG, JPG</Text>
-              </TouchableOpacity>
-
-              <Text style={s.label}>Drawing Title *</Text>
+              </View>
               <TextInput
-                style={s.input}
-                placeholder="e.g. Master Bedroom False Ceiling & Lighting Grid"
+                style={[s.input, titleTouched && !!getTitleError() && { borderColor: '#FDA4AF' }]}
+                value={uploadTitle}
+                maxLength={50}
+                onBlur={() => setTitleTouched(true)}
+                onChangeText={(v) => { setUploadTitle(v); if (!titleTouched) setTitleTouched(true); }}
+                placeholder="e.g. Master Bedroom — False Ceiling (min 3 chars)"
                 placeholderTextColor="#94A3B8"
-                value={title}
-                onChangeText={setTitle}
+                editable={!submitting}
               />
+              {titleTouched && !!getTitleError() && <Text style={s.fieldError}>{getTitleError()}</Text>}
+
+              {/* Room / Area (optional) */}
+              <View style={s.labelRow}>
+                <Text style={[s.label, { marginTop: 0, marginBottom: 0 }]}>
+                  Room / Area <Text style={s.optionalText}>(Optional)</Text>
+                </Text>
+                {roomTag === GENERAL_ROOM && <Text style={s.charCount}>Default: General</Text>}
+              </View>
+              <SelectField value={roomTag} onChange={setRoomTag} options={ROOM_OPTIONS} disabled={submitting} />
+              {roomTag === CUSTOM_ROOM && (
+                <TextInput
+                  style={[s.input, { marginTop: 8 }]}
+                  value={customRoom}
+                  maxLength={40}
+                  onChangeText={setCustomRoom}
+                  placeholder="Type custom room/area (e.g. Home Theater, Balcony Garden)"
+                  placeholderTextColor="#94A3B8"
+                />
+              )}
+
+              {/* Files */}
+              <View style={s.labelRow}>
+                <Text style={[s.label, { marginTop: 0, marginBottom: 0 }]}>File Attachment(s) *</Text>
+                {uploadFiles.length > 0 && (
+                  <Text style={s.fileCountBadge}>
+                    {uploadFiles.length} {uploadFiles.length === 1 ? 'file' : 'files'} selected
+                  </Text>
+                )}
+              </View>
+              {uploadFiles.length > 0 ? (
+                <View style={{ gap: 8 }}>
+                  {uploadFiles.map((f) => {
+                    const kind = detectDrawingFileType(f.asset.name, f.asset.uri);
+                    return (
+                      <View key={f.key} style={s.uploadItem}>
+                        {kind === 'image' ? (
+                          <Image source={{ uri: f.asset.uri }} style={s.uploadItemThumb} />
+                        ) : (
+                          <View style={[s.uploadItemIcon, { backgroundColor: createType === '3D' ? '#7C3AED' : '#2563EB' }]}>
+                            <Ionicons name={createType === '3D' ? 'cube-outline' : 'document-text-outline'} size={18} color="#FFFFFF" />
+                          </View>
+                        )}
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={s.uploadItemTitle} numberOfLines={1}>{f.asset.name}</Text>
+                          <Text style={s.uploadItemName} numberOfLines={1}>
+                            {fileSizeMb(f.asset)}{(kind === 'other' ? 'document' : kind).toUpperCase()}
+                          </Text>
+                        </View>
+                        <TouchableOpacity onPress={() => removeUploadFile(f.key)} disabled={submitting} style={{ padding: 4 }}>
+                          <Ionicons name="trash-outline" size={16} color="#94A3B8" />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                  <TouchableOpacity style={s.addMoreBtn} onPress={handlePickCreateFiles} disabled={submitting}>
+                    <Ionicons name="add" size={14} color="#1D4ED8" />
+                    <Text style={s.addMoreText}>Add More Files</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={s.uploadBox} onPress={handlePickCreateFiles} disabled={submitting}>
+                  <Ionicons name="cloud-upload-outline" size={24} color="#2563EB" />
+                  <Text style={s.uploadBoxText} numberOfLines={1}>Tap to choose files/photos to upload</Text>
+                  <Text style={s.uploadBoxSub}>Select one or multiple files (Photos, PDFs, 3D models)</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
-                style={[s.saveBtn, submitting && { opacity: 0.7 }]}
+                style={[
+                  s.saveBtn,
+                  (submitting || uploadFiles.length === 0) && { opacity: 0.6 },
+                ]}
                 onPress={handleSubmitDrawing}
-                disabled={submitting}
+                disabled={submitting || uploadFiles.length === 0}
               >
                 {submitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={s.saveBtnText}>Uploading...</Text>
                 ) : (
-                  <Text style={s.saveBtnText}>Upload Drawing / Model</Text>
+                  <>
+                    <Ionicons name="cloud-upload-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={s.saveBtnText}>
+                      {uploadFiles.length > 1 ? `Upload ${uploadFiles.length} Drawings` : 'Upload Drawing'}
+                    </Text>
+                  </>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -833,6 +1087,49 @@ const { can: canDo } = useProjectPermissions(projectId);
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODALS: Send for Approval & Approve / Reject */}
+      {/* ========================================================================= */}
+      <SendForApprovalModal
+        visible={!!sendTarget}
+        onClose={() => setSendTarget(null)}
+        title="Send Drawing for Approval"
+        subtitle="Assign a project lead or manager to review specifications & verify layout"
+        users={reviewers}
+        initialReviewer={sendTarget?.assignedReviewer}
+        reviewerLabel="Select Approver / Reviewer"
+        reviewerHint="The reviewer will be notified to review the blueprint, place inspection pins, and approve or request changes."
+        notesLabel="Submission Notes / Scope Covered (Optional)"
+        notesPlaceholder="E.g., Updated electrical conduit layout per client discussion, revised structural beam cutouts..."
+        submitLabel="Send for Approval"
+        submittingLabel="Sending..."
+        summary={sendTarget && renderApprovalCard(sendTarget, 'discipline')}
+        onSubmit={handleSendForApproval}
+      />
+
+      <ApprovalDecisionModal
+        visible={!!decisionTarget}
+        onClose={() => { setDecisionTarget(null); setDecisionAction(null); }}
+        approveTitle="Verify & Approve Drawing"
+        approveSubtitle="Formal sign-off to authorize blueprint for site execution"
+        rejectTitle="Request Changes / Reject Drawing"
+        rejectSubtitle="Document specific revision requests for the design team"
+        summary={decisionTarget && renderApprovalCard(decisionTarget, 'reviewer')}
+        submissionNotes={decisionTarget?.submissionNotes}
+        submissionNotesLabel="Submission Notes:"
+        pastRejection={decisionTarget?.status === 'rejected' ? decisionTarget?.rejectionReason || decisionTarget?.submissionNotes : ''}
+        pastRejectionLabel="Previous Rejection Reason:"
+        initialAction={decisionAction}
+        rejectPlaceholder="Specify what needs correction (e.g., HVAC duct clash on grid B-4, missing elevation heights, inaccurate wall thickness)..."
+        rejectHint="This note will be saved in the drawing audit history and shown to the designer to guide version revision."
+        rejectMissingMessage="Please provide a rejection reason explaining the required changes for the designer."
+        confirmTitle="Confirm Architectural Approval"
+        confirmText={decisionTarget ? `By approving this drawing version (v${drawingVersion(decisionTarget)}), you confirm that dimensions, structural allowances, and working specifications comply with project requirements and are authorized for site execution.` : ''}
+        approveLabel={decisionTarget ? `Approve Drawing (v${drawingVersion(decisionTarget)})` : 'Approve Drawing'}
+        backLabel="← Back to Approve Options"
+        onDecision={handleDecision}
+      />
 
       {/* ========================================================================= */}
       {/* MODAL: Full Screen Image Lightbox */}
@@ -1057,6 +1354,7 @@ const s = StyleSheet.create({
   },
   fileTypeBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
   dwgThumb: { width: '100%', height: 150, borderRadius: 10, backgroundColor: '#E2E8F0', marginBottom: 10 },
+  approvalThumb: { width: 52, height: 52, borderRadius: 10, backgroundColor: '#E2E8F0', overflow: 'hidden' },
 
   disciplineTag: {
     backgroundColor: '#F1F5F9',
@@ -1075,6 +1373,54 @@ const s = StyleSheet.create({
   statusBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
 
   dwgTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
+
+  reviewerChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', maxWidth: '100%',
+    backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3,
+  },
+  reviewerChipText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#B45309', flexShrink: 1 },
+  rejectionBox: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FEE2E2', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  rejectionText: { fontSize: 10.5, fontFamily: 'Inter-Medium', fontStyle: 'italic', color: '#DC2626' },
+
+  sendApprovalBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    height: 36, borderRadius: 10, backgroundColor: '#2563EB', marginTop: 2,
+  },
+  sendApprovalText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  decisionRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
+  decisionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 36, borderRadius: 10 },
+  approveBtn: { backgroundColor: '#059669' },
+  rejectBtn: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
+  decisionText: { fontSize: 12, fontFamily: 'Inter-Bold' },
+
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 6 },
+  charCount: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#94A3B8' },
+  optionalText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  fieldError: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#F43F5E', marginTop: 4 },
+  fileCountBadge: {
+    fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#2563EB', backgroundColor: '#EFF6FF',
+    borderWidth: 1, borderColor: '#DBEAFE', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, overflow: 'hidden',
+  },
+  createTypeCard: { justifyContent: 'flex-start', paddingHorizontal: 10, alignItems: 'flex-start' },
+  createTypeHint: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  uploadItemThumb: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
+  uploadItemTitle: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  addMoreBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end',
+    backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+  },
+  addMoreText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#1D4ED8' },
+  uploadItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10,
+    borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC',
+  },
+  uploadItemIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  uploadItemInput: {
+    fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+  },
+  uploadItemName: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 3 },
+  uploadItemError: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#DC2626', marginTop: 3 },
 
   latestRevRow: {
     flexDirection: 'row',

@@ -86,13 +86,20 @@ const { hasPermission: canDo } = useInteriorPermissions();
       showToast('Vendor name is required', 'error');
       return;
     }
+    // Same cleanup as the web form: trim everything and leave out empty optional fields,
+    // so blank email / phone / GST don't fail the server's format checks
+    const payload = { name: vendorForm.name.trim(), vendorCategory: vendorForm.vendorCategory };
+    ['contactPerson', 'email', 'phoneNumber', 'gstNumber', 'address'].forEach((k) => {
+      const v = String(vendorForm[k] || '').trim();
+      if (v) payload[k] = v;
+    });
     setSubmitting(true);
     try {
       if (editingVendor) {
-        await interiorApiClient.patch(`/vendors/${editingVendor._id}`, vendorForm);
+        await interiorApiClient.patch(`/vendors/${editingVendor._id}`, payload);
         showToast('Vendor updated successfully', 'success');
       } else {
-        await interiorApiClient.post('/vendors', vendorForm);
+        await interiorApiClient.post('/vendors', payload);
         showToast('Vendor added successfully', 'success');
       }
       setVendorModalOpen(false);

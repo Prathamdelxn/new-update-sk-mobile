@@ -36,10 +36,18 @@ export default function InteriorUsersRolesScreen() {
   const router = useRouter();
   const { showToast } = useToast();
 
-  // Managing users is admin-only on the server; the Roles tab needs Roles → View
-  const { isOrgAdmin, hasPermission } = useInteriorPermissions();
-  const showUsersTab = isOrgAdmin;
+  // Users tab needs Users → View (add / edit / delete need their own actions); Roles tab needs Roles → View
+  const { isOrgAdmin, hasPermission, user: currentUser } = useInteriorPermissions();
+  const showUsersTab = isOrgAdmin || hasPermission('users', 'read');
   const showRolesTab = isOrgAdmin || hasPermission('roles', 'read');
+  const canAddUsers = isOrgAdmin || hasPermission('users', 'create');
+  const canManageUsers = isOrgAdmin || hasPermission('users', 'update');
+  const canDeleteUsers = isOrgAdmin || hasPermission('users', 'delete');
+  const isSelf = (u) =>
+    !!currentUser &&
+    (String(currentUser._id || currentUser.id) === String(u._id) ||
+      (!!currentUser.email && currentUser.email.toLowerCase() === (u.email || '').toLowerCase()));
+  const isAdminUser = (u) => u?.systemRole === 'org_admin' || u?.systemRole === 'super_admin' || u?.role?.slug === 'admin';
   const [selectedTab, setActiveTab] = useState('users');
   const activeTab = selectedTab === 'users' && showUsersTab ? 'users' : showRolesTab ? 'roles' : showUsersTab ? 'users' : null;
   const [users, setUsers] = useState([]);
@@ -96,19 +104,23 @@ export default function InteriorUsersRolesScreen() {
   const [orgRoles, setOrgRoles] = useState([]);
   useEffect(() => {
     if (!addUserOpen) return;
+    // Admins (and anyone editing an admin) may pick the Admin role; others only non-admin roles
+    const editingUser = editingUserId ? users.find((u) => u._id === editingUserId) : null;
+    const allowAdminRole = isOrgAdmin || isAdminUser(editingUser);
     interiorApiClient.get('/roles')
       .then((res) => {
-        const list = (Array.isArray(res?.data) ? res.data : []).filter((r) => r.slug !== 'admin');
+        const list = (Array.isArray(res?.data) ? res.data : []).filter((r) => allowAdminRole || r.slug !== 'admin');
         setOrgRoles(list);
         const viewer = list.find((r) => r.slug === 'viewer') || list[0];
         // New users default to Viewer; editing keeps the user's current role (or none)
         setUserForm((f) => (editingUserId || f.roleId || !viewer ? f : { ...f, roleId: viewer._id }));
       })
       .catch(() => setOrgRoles([]));
-  }, [addUserOpen, editingUserId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addUserOpen, editingUserId, isOrgAdmin]);
 
   const loadUsers = useCallback(async () => {
-    if (!isOrgAdmin) { setLoading(false); return; } // Users tab is admin-only
+    if (!showUsersTab) { setLoading(false); return; }
     setLoading(true);
     try {
       const res = await interiorApiClient.get('/users/with-projects');
@@ -119,7 +131,7 @@ export default function InteriorUsersRolesScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isOrgAdmin]);
+  }, [showUsersTab]);
 
   useFocusEffect(useCallback(() => { loadUsers(); }, [loadUsers]));
 
@@ -188,7 +200,7 @@ export default function InteriorUsersRolesScreen() {
             <Text style={s.headerTitle}>Users & Roles</Text>
             <Text style={s.headerSub}>Team assignments & role permission matrix.</Text>
           </View>
-          {activeTab === 'users' && (
+          {activeTab === 'users' && canAddUsers && (
             <TouchableOpacity style={s.addBtn} onPress={openAddUser}>
               <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
             </TouchableOpacity>
@@ -283,16 +295,22 @@ export default function InteriorUsersRolesScreen() {
 
                       {expanded && (
                         <View style={s.assignmentsBox}>
-                          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                            <TouchableOpacity style={s.userActionBtn} onPress={() => openEditUser(u)}>
-                              <Ionicons name="create-outline" size={14} color="#2563EB" />
-                              <Text style={s.userActionText}>Edit</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[s.userActionBtn, { borderColor: '#FECACA' }]} onPress={() => confirmDeleteUser(u)}>
-                              <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                              <Text style={[s.userActionText, { color: '#DC2626' }]}>Delete</Text>
-                            </TouchableOpacity>
-                          </View>
+                          {(canManageUsers || (canDeleteUsers && !isSelf(u))) && (
+                            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+                              {canManageUsers && (
+                                <TouchableOpacity style={s.userActionBtn} onPress={() => openEditUser(u)}>
+                                  <Ionicons name="create-outline" size={14} color="#2563EB" />
+                                  <Text style={s.userActionText}>Edit</Text>
+                                </TouchableOpacity>
+                              )}
+                              {canDeleteUsers && !isSelf(u) && (
+                                <TouchableOpacity style={[s.userActionBtn, { borderColor: '#FECACA' }]} onPress={() => confirmDeleteUser(u)}>
+                                  <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                                  <Text style={[s.userActionText, { color: '#DC2626' }]}>Delete</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          )}
                           {assignments.length === 0 ? (
                             <Text style={s.noAssignments}>Not assigned to any project yet.</Text>
                           ) : (

@@ -9,18 +9,18 @@ import { queryKeys, invalidateCrmQueries, useRefreshOnFocus } from '../context/Q
 
 const STAGES = [
   {
-    key: 'site_visits',
-    label: 'Site Visits',
-    icon: 'location-outline',
-    color: '#7C3AED',
-    statuses: ['Meeting Scheduled', 'Under Site Visit', 'Measurement Done'],
-  },
-  {
     key: 'requirement_design',
     label: 'Requirements',
     icon: 'create-outline',
     color: '#059669',
     statuses: ['Under Requirement', 'Requirement Completed'],
+  },
+  {
+    key: 'site_visits',
+    label: 'Site Visits',
+    icon: 'location-outline',
+    color: '#7C3AED',
+    statuses: ['Meeting Scheduled', 'Under Site Visit', 'Measurement Done'],
   },
   {
     key: 'drawing',

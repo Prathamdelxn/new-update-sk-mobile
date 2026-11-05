@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
@@ -10,6 +10,10 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import { fetchProjectReviewers } from '../../utils/interior/projectReviewers';
+import { parseMaxBudget, formatExactCurrency } from '../../utils/format';
+import SendForApprovalModal, { approvalStyles } from '../../components/interior/SendForApprovalModal';
+import ApprovalDecisionModal from '../../components/interior/ApprovalDecisionModal';
 
 const STATUS_META = {
   approved: { color: '#16A34A', bg: '#F0FDF4' },
@@ -61,8 +65,23 @@ const { can: canDo } = useProjectPermissions(projectId);
   // Set when the BOQ form is editing a draft / rejected BOQ (PUT) instead of creating one
   const [editingBoqId, setEditingBoqId] = useState(null);
 
-  const [isRejectOpen, setIsRejectOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
+  // Approval flow
+  const [isSendOpen, setIsSendOpen] = useState(false);
+  const [decisionAction, setDecisionAction] = useState(null); // 'approve' | 'reject' | null
+  const [isDecisionOpen, setIsDecisionOpen] = useState(false);
+  const [reviewers, setReviewers] = useState([]);
+  const [project, setProject] = useState(null);
+
+  useEffect(() => {
+    if (!projectId) return;
+    fetchProjectReviewers(projectId)
+      .then(setReviewers)
+      .catch((e) => console.warn('Failed to load project members for BOQ approval', e));
+    interiorApiClient
+      .get(`/projects/${projectId}`)
+      .then((res) => setProject(res?.data || null))
+      .catch(() => setProject(null));
+  }, [projectId]);
 
   const fetchBoqDetail = useCallback(async (boqId) => {
     try {
@@ -107,21 +126,96 @@ const { can: canDo } = useProjectPermissions(projectId);
     if (tab === 'actual' && !actualData) fetchActual();
   };
 
-  const handleApprovalAction = async (action, reason) => {
-    if (!selectedBoq) return;
-    setActionLoading(true);
-    try {
-      await interiorApiClient.post(`/projects/${projectId}/boq/${selectedBoq._id}/approve`, { action, reason });
-      showToast(`BOQ successfully ${action}ed`, 'success');
-      setIsRejectOpen(false);
-      setRejectReason('');
-      await fetchBoqs(false);
-      await fetchBoqDetail(selectedBoq._id);
-    } catch (e) {
-      showToast(e.message || `Failed to ${action} BOQ`, 'error');
-    } finally {
-      setActionLoading(false);
-    }
+  // Errors are thrown back to the approval sheets, which show them inline
+  const runApprovalAction = async (payload) => {
+    await interiorApiClient.post(`/projects/${projectId}/boq/${selectedBoq._id}/approve`, payload);
+    await fetchBoqs(false);
+    await fetchBoqDetail(selectedBoq._id);
+  };
+
+  const handleSendForApproval = async ({ reviewerId, reviewerName, notes }) => {
+    await runApprovalAction({
+      action: 'submit',
+      assignedReviewer: reviewerId,
+      assignedReviewerName: reviewerName,
+      submissionNotes: notes || undefined,
+    });
+    showToast(`BOQ (${selectedBoq.versionLabel}) submitted for approval to ${reviewerName}!`, 'success');
+  };
+
+  const handleDecision = async (action, reason) => {
+    await runApprovalAction(action === 'reject' ? { action, reason } : { action });
+    showToast(
+      action === 'approve'
+        ? `BOQ (${selectedBoq.versionLabel}) approved successfully! Baseline project budget locked.`
+        : `BOQ (${selectedBoq.versionLabel}) rejected. Returned to draft status for revision.`,
+      action === 'approve' ? 'success' : 'info'
+    );
+  };
+
+  const boqCurrency = project?.budget?.currency || selectedBoq?.currency || 'INR';
+  const money = (n) => formatExactCurrency(n, boqCurrency);
+
+  const openDecision = (action) => {
+    setDecisionAction(action);
+    setIsDecisionOpen(true);
+  };
+
+  // Shown in both approval sheets: version, size, reviewer and the check against the project budget.
+  // The two web modals word the budget banner differently (send: "Notice / Within Budget Target",
+  // review: "Warning / Within Approved Target Budget").
+  const maxBudget = parseMaxBudget(project?.budget) || 0;
+  const renderBoqSummary = (variant) => {
+    if (!selectedBoq) return null;
+    const total = Number(selectedBoq.totalAmount) || 0;
+    const overBy = maxBudget > 0 && total > maxBudget ? total - maxBudget : 0;
+    const sectionsCount = Array.isArray(selectedBoq.sections) && selectedBoq.sections.length > 0
+      ? selectedBoq.sections.length
+      : new Set((selectedBoq.items || []).map((it) => it.category || 'General')).size;
+    const itemsCount = selectedBoq.items?.length || 0;
+    const titles = variant === 'send'
+      ? ['Budget Excess Notice', 'Within Budget Target']
+      : ['Budget Excess Warning', 'Within Approved Target Budget'];
+    return (
+      <View style={{ gap: 10 }}>
+        <View style={approvalStyles.summaryBox}>
+          <View style={approvalStyles.summaryRow}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={approvalStyles.summaryTitle}>BOQ {selectedBoq.versionLabel}</Text>
+              <Text style={approvalStyles.summaryLabel}>
+                {sectionsCount} {sectionsCount === 1 ? 'Section' : 'Sections'} • {itemsCount} items
+              </Text>
+              {variant === 'review' && !!selectedBoq.assignedReviewerName && (
+                <View style={approvalStyles.chipRow}>
+                  <Text style={approvalStyles.reviewerChip}>Reviewer: {selectedBoq.assignedReviewerName}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={approvalStyles.summaryValue}>{money(total)}</Text>
+          </View>
+        </View>
+        {maxBudget > 0 && (
+          <View style={[s.budgetBanner, overBy ? s.budgetBannerOver : s.budgetBannerOk]}>
+            <Ionicons
+              name={overBy ? 'warning-outline' : 'checkmark-circle-outline'}
+              size={16}
+              color={overBy ? '#B45309' : '#047857'}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={[s.budgetBannerTitle, { color: overBy ? '#78350F' : '#064E3B' }]}>
+                {overBy ? titles[0] : titles[1]}
+              </Text>
+              <Text style={s.budgetBannerText}>
+                Project Target Budget: <Text style={{ fontFamily: 'Inter-SemiBold' }}>{money(maxBudget)}</Text>
+                {overBy ? (
+                  <Text style={{ color: '#B45309', fontFamily: 'Inter-Bold' }}>{' • '}Exceeds by {money(overBy)}</Text>
+                ) : null}
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+    );
   };
 
   const handleCreateRevision = async () => {
@@ -219,6 +313,16 @@ const { can: canDo } = useProjectPermissions(projectId);
   const handleManualCreate = async () => {
     if (newItems.some((it) => !it.itemName.trim())) return showToast('Please fill in all item names', 'error');
     if (newItems.some((it) => !String(it.category || '').trim() || !String(it.unit || '').trim())) return showToast('Every item needs a category and a unit', 'error');
+    // Same limits as the web project BOQ builder
+    for (const it of newItems) {
+      const name = it.itemName.trim();
+      if (name.length > 120) return showToast(`Item title "${name.slice(0, 25)}..." exceeds maximum allowed length of 120 characters.`, 'error');
+      if (String(it.remarks || '').trim().length > 500) return showToast(`Remarks for "${name.slice(0, 25)}" exceeds maximum allowed length of 500 characters.`, 'error');
+      if (!(parseFloat(it.quantity) > 0)) return showToast(`Quantity must be greater than 0 for "${name.slice(0, 25)}".`, 'error');
+      if (parseFloat(it.quantity) > 999999999) return showToast(`Quantity is too large for "${name.slice(0, 25)}" (maximum 999,999,999).`, 'error');
+      if (parseFloat(it.rate) > 999999999) return showToast(`Rate is too large for "${name.slice(0, 25)}" (maximum 999,999,999).`, 'error');
+    }
+    if (newBoqNotes.trim().length > 2000) return showToast('Overall BOQ terms/notes cannot exceed 2000 characters.', 'error');
     setActionLoading(true);
     try {
       const items = newItems.map((it, idx) => {
@@ -387,6 +491,18 @@ const { can: canDo } = useProjectPermissions(projectId);
                     <Text style={s.notesText}>{selectedBoq.notes}</Text>
                   </View>
                 )}
+                {!!selectedBoq.assignedReviewerName && (
+                  <View style={s.reviewerChip}>
+                    <Ionicons name="person-circle-outline" size={13} color="#B45309" />
+                    <Text style={s.reviewerChipText} numberOfLines={1}>Reviewer: {selectedBoq.assignedReviewerName}</Text>
+                  </View>
+                )}
+                {selectedBoq.status === 'rejected' && !!selectedBoq.rejectionReason && (
+                  <View style={s.rejectionBox}>
+                    <Ionicons name="close-circle-outline" size={13} color="#DC2626" />
+                    <Text style={s.rejectionText}>Changes Requested: {selectedBoq.rejectionReason}</Text>
+                  </View>
+                )}
 
                 <View style={{ marginTop: 12, gap: 8 }}>
                   {(selectedBoq.status === 'draft' || selectedBoq.status === 'rejected') && (
@@ -396,9 +512,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </TouchableOpacity>
                     )
                   )}
-                  {selectedBoq.status === 'draft' && (
+                  {(selectedBoq.status === 'draft' || !selectedBoq.status) && (
                     canDo('boq', 'update') && (
-                      <TouchableOpacity style={s.primaryBtn} onPress={() => handleApprovalAction('submit')} disabled={actionLoading}>
+                      <TouchableOpacity style={[s.primaryBtn, s.iconBtnRow]} onPress={() => setIsSendOpen(true)} disabled={actionLoading}>
+                        <Ionicons name="paper-plane-outline" size={14} color="#FFFFFF" />
                         <Text style={s.primaryBtnText}>Submit for Approval</Text>
                       </TouchableOpacity>
                     )
@@ -406,12 +523,14 @@ const { can: canDo } = useProjectPermissions(projectId);
                   {selectedBoq.status === 'pending_approval' && (
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       {canDo('boq', 'approve') && (
-                        <TouchableOpacity style={[s.primaryBtn, { flex: 1, backgroundColor: '#059669' }]} onPress={() => handleApprovalAction('approve')} disabled={actionLoading}>
+                        <TouchableOpacity style={[s.primaryBtn, s.iconBtnRow, { flex: 1, backgroundColor: '#059669' }]} onPress={() => openDecision('approve')} disabled={actionLoading}>
+                          <Ionicons name="checkmark-circle-outline" size={15} color="#FFFFFF" />
                           <Text style={s.primaryBtnText}>Approve</Text>
                         </TouchableOpacity>
                       )}
                       {canDo('boq', 'approve') && (
-                        <TouchableOpacity style={[s.primaryBtn, { flex: 1, backgroundColor: '#DC2626' }]} onPress={() => setIsRejectOpen(true)} disabled={actionLoading}>
+                        <TouchableOpacity style={[s.primaryBtn, s.iconBtnRow, { flex: 1, backgroundColor: '#DC2626' }]} onPress={() => openDecision('reject')} disabled={actionLoading}>
+                          <Ionicons name="close-circle-outline" size={15} color="#FFFFFF" />
                           <Text style={s.primaryBtnText}>Reject</Text>
                         </TouchableOpacity>
                       )}
@@ -597,7 +716,8 @@ const { can: canDo } = useProjectPermissions(projectId);
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={s.label}>Revision Notes</Text>
-              <TextInput style={s.input} placeholder="e.g. Initial draft base price calculations" placeholderTextColor="#94A3B8" value={newBoqNotes} onChangeText={setNewBoqNotes} />
+              <TextInput style={s.input} placeholder="e.g. Initial draft base price calculations" placeholderTextColor="#94A3B8" value={newBoqNotes} onChangeText={setNewBoqNotes} maxLength={2000} />
+              <Text style={{ fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8', alignSelf: 'flex-end', marginTop: 2 }}>{newBoqNotes.length}/2000</Text>
 
               <View style={s.sectionHeaderRow}>
                 <Text style={s.formSectionLabel}>BOQ LINE ITEMS ({newItems.length})</Text>
@@ -628,17 +748,18 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
-                  <TextInput style={[s.input, { marginBottom: 6 }]} placeholder="Item / material specifications" placeholderTextColor="#94A3B8" value={item.itemName} onChangeText={(v) => updateItemRow(idx, 'itemName', v)} />
+                  <TextInput style={[s.input, { marginBottom: 6 }]} placeholder="Item / material specifications" placeholderTextColor="#94A3B8" value={item.itemName} onChangeText={(v) => updateItemRow(idx, 'itemName', v)} maxLength={120} />
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TextInput style={[s.input, { flex: 1 }]} placeholder="Qty" placeholderTextColor="#94A3B8" keyboardType="numeric" value={item.quantity} onChangeText={(v) => updateItemRow(idx, 'quantity', v)} />
+                    <TextInput style={[s.input, { flex: 1 }]} placeholder="Qty" placeholderTextColor="#94A3B8" keyboardType="numeric" value={item.quantity} onChangeText={(v) => updateItemRow(idx, 'quantity', v)} maxLength={9} />
                     <TextInput style={[s.input, { flex: 1 }]} placeholder="Unit" placeholderTextColor="#94A3B8" value={item.unit} onChangeText={(v) => updateItemRow(idx, 'unit', v)} />
-                    <TextInput style={[s.input, { flex: 1 }]} placeholder="Rate ₹" placeholderTextColor="#94A3B8" keyboardType="numeric" value={item.rate} onChangeText={(v) => updateItemRow(idx, 'rate', v)} />
+                    <TextInput style={[s.input, { flex: 1 }]} placeholder="Rate ₹" placeholderTextColor="#94A3B8" keyboardType="numeric" value={item.rate} onChangeText={(v) => updateItemRow(idx, 'rate', v)} maxLength={9} />
                   </View>
                   <TextInput
                     style={[s.input, { marginTop: 6 }]}
                     placeholder="Remarks (optional)"
                     placeholderTextColor="#94A3B8"
                     value={item.remarks || ''}
+                    maxLength={500}
                     onChangeText={(v) => updateItemRow(idx, 'remarks', v)}
                   />
                 </View>
@@ -652,28 +773,46 @@ const { can: canDo } = useProjectPermissions(projectId);
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Reject reason */}
-      <Modal visible={isRejectOpen} animationType="slide" transparent onRequestClose={() => setIsRejectOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Specify Rejection Reason</Text>
-              <TouchableOpacity onPress={() => setIsRejectOpen(false)}>
-                <Ionicons name="close" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-            <Text style={s.label}>Comments *</Text>
-            <TextInput style={[s.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]} placeholder="Enter reason for rejecting this BOQ draft..." placeholderTextColor="#94A3B8" value={rejectReason} onChangeText={setRejectReason} multiline />
-            <TouchableOpacity
-              style={[s.saveBtn, { backgroundColor: '#DC2626' }, (!rejectReason.trim() || actionLoading) && { opacity: 0.6 }]}
-              onPress={() => handleApprovalAction('reject', rejectReason)}
-              disabled={!rejectReason.trim() || actionLoading}
-            >
-              {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Reject BOQ</Text>}
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      {/* Send for approval / Approve-Reject review */}
+      <SendForApprovalModal
+        visible={isSendOpen}
+        onClose={() => setIsSendOpen(false)}
+        title="Submit BOQ for Approval"
+        subtitle={selectedBoq ? `Request internal sign-off for ${selectedBoq.versionLabel} of project "${project?.name || 'Project'}"` : ''}
+        users={reviewers}
+        initialReviewer={selectedBoq?.assignedReviewer}
+        reviewerLabel="Select Approver / Manager"
+        notesLabel="Submission Remarks (Optional)"
+        notesPlaceholder="Highlight rate adjustments, brand selections, or major scope inclusions..."
+        submitLabel="Submit for Approval"
+        submittingLabel="Submitting..."
+        notesMaxLength={500}
+        summary={renderBoqSummary('send')}
+        onSubmit={handleSendForApproval}
+      />
+
+      <ApprovalDecisionModal
+        visible={isDecisionOpen}
+        onClose={() => { setIsDecisionOpen(false); setDecisionAction(null); }}
+        approveTitle="Verify & Approve BOQ"
+        approveSubtitle={selectedBoq ? `Authorize ${selectedBoq.versionLabel} for execution and procurement in "${project?.name || 'Project'}"` : ''}
+        rejectTitle="Reject Project BOQ"
+        rejectSubtitle={selectedBoq ? `Provide revision feedback for ${selectedBoq.versionLabel}` : ''}
+        summary={renderBoqSummary('review')}
+        submissionNotes={selectedBoq?.submissionNotes}
+        submissionNotesLabel="Estimator Submission Remarks:"
+        initialAction={decisionAction}
+        rejectPlaceholder="Explain what needs to be changed (e.g., reduce rate for carpentry, trim false ceiling scope to meet target budget)..."
+        rejectHint="The BOQ status will be set to Rejected, allowing the estimator to revise quantities/rates and re-submit."
+        rejectMissingMessage="Please specify the reason for rejection / modifications needed."
+        rejectLabel="Reason for Rejection / Adjustments Required"
+        rejectMaxLength={500}
+        confirmTitle="Confirm Commercial Sign-off"
+        confirmText="Approving this BOQ will set it as the approved cost plan for the project. Site engineers and procurement heads will use these baseline quantities and rates for Purchase Orders (POs) and inventory tracking."
+        approveLabel={selectedBoq ? `Approve BOQ (${selectedBoq.versionLabel})` : 'Approve BOQ'}
+        backLabel="← Switch to Approve"
+        onDecision={handleDecision}
+      />
     </View>
   );
 }
@@ -688,6 +827,23 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
   headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
   headerIconBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
+
+  iconBtnRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  reviewerChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 10, maxWidth: '100%',
+    backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 4,
+  },
+  reviewerChipText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#B45309', flexShrink: 1 },
+  rejectionBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 8,
+    backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6,
+  },
+  rejectionText: { flex: 1, fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#B91C1C' },
+  budgetBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, borderWidth: 1, padding: 10 },
+  budgetBannerOk: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
+  budgetBannerOver: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
+  budgetBannerTitle: { fontSize: 12, fontFamily: 'Inter-Bold' },
+  budgetBannerText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#475569', marginTop: 2 },
 
   sectionLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3, marginBottom: 8 },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 8 },
