@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Keyboard, LayoutAnimation, Dimensions, Modal, Alert, UIManager, DeviceEventEmitter } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -47,6 +47,7 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
   const flatListRef = useRef(null);
 
   const [messages, setMessages] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -426,6 +427,14 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
     );
   };
 
+  // Same filter as the web chat search: message text or sender name
+  const query = searchQuery.toLowerCase().trim();
+  const visibleMessages = useMemo(() => (
+    query
+      ? messages.filter((m) => m.content?.toLowerCase().includes(query) || m.senderName?.toLowerCase().includes(query))
+      : messages
+  ), [messages, query]);
+
   if (isLoading) {
     return (
       <View style={styles.center}>
@@ -440,14 +449,47 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
+      <View style={styles.searchBar}>
+        <Ionicons name="search" size={15} color="#94A3B8" />
+        <TextInput
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={t('searchChat', 'Search chat...')}
+          placeholderTextColor="#94A3B8"
+          returnKeyType="search"
+        />
+        {!!searchQuery && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={16} color="#94A3B8" />
+          </TouchableOpacity>
+        )}
+      </View>
+      {!!query && (
+        <View style={styles.searchResultBar}>
+          <Text style={styles.searchResultText} numberOfLines={1}>
+            {t('foundMatches', 'Found {{count}} matching message(s)', { count: visibleMessages.length })} · “{searchQuery.trim()}”
+          </Text>
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Text style={styles.searchClear}>{t('clearFilter', 'Clear filter')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <FlatList
         ref={flatListRef}
-        data={messages}
+        data={visibleMessages}
         renderItem={renderMessage}
         keyExtractor={(item, index) => item._id || item.id || `msg-${index}`}
         contentContainerStyle={[styles.listContent, { paddingBottom: 20 }]}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        onContentSizeChange={() => !query && flatListRef.current?.scrollToEnd({ animated: true })}
+        onLayout={() => !query && flatListRef.current?.scrollToEnd({ animated: true })}
+        ListEmptyComponent={query ? (
+          <View style={{ alignItems: 'center', paddingTop: 40, gap: 6 }}>
+            <Ionicons name="search-outline" size={32} color="#CBD5E1" />
+            <Text style={styles.searchEmptyText}>{t('noMatchingMessages', 'No matching messages')}</Text>
+          </View>
+        ) : null}
       />
 
       <View style={[
@@ -603,6 +645,12 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
+  searchInput: { flex: 1, paddingVertical: 9, fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  searchResultBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginHorizontal: 16, marginTop: 8, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: '#EFF6FF' },
+  searchResultText: { flex: 1, fontSize: 12, fontFamily: 'Inter-Medium', color: '#1D4ED8' },
+  searchClear: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  searchEmptyText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { padding: 20, gap: 16 },
   messageRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, maxWidth: '85%' },

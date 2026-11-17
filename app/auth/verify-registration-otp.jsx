@@ -23,9 +23,10 @@ export default function VerifyRegistrationOtpScreen() {
   useEffect(() => {
     if (Platform.OS === 'android') {
       try {
-        NavigationBar.setPositionAsync('relative').catch(() => {});
-        NavigationBar.setVisibilityAsync('hidden').catch(() => {});
-        NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => {});
+        // Keep the navigation bar visible so safe-area insets include it (edge-to-edge:
+        // a hidden bar reports 0, and the bottom tab bar ended up underneath it when it came back)
+        NavigationBar.setVisibilityAsync('visible').catch(() => {});
+        NavigationBar.setButtonStyleAsync('dark').catch(() => {});
       } catch (e) {}
     }
   }, []);
@@ -121,7 +122,8 @@ export default function VerifyRegistrationOtpScreen() {
       <SimpleBackground />
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // Edge-to-edge Android doesn't resize for the keyboard, so pad on both platforms
+        behavior="padding"
       >
         <View style={[styles.formContainer, { paddingTop: Math.max(insets.top + 20, 36), paddingBottom: Math.max(insets.bottom + 24, 36) }]}>
           <TouchableOpacity 

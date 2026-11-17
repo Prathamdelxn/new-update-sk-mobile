@@ -143,6 +143,21 @@ export default function DashboardScreen() {
   const ts     = data?.taskStats     || { total: 0, completed: 0, overdue: 0, dueToday: 0, dueTodayList: [] };
   const rs     = data?.riskStats     || { total: 0, statusCounts: {}, criticalRisks: [] };
   const recent = data?.recentProjects || [];
+  const snagStats = data?.snagStats || { open: 0, recentSnags: [] };
+  const projectMilestones = Array.isArray(data?.milestones) ? data.milestones : [];
+  // Web "Site Risks & Snags Watch": critical risks first, then open snags (max 5)
+  const watchItems = [
+    ...(rs.criticalRisks || []).map((r) => ({
+      key: `risk-${r.title}-${r.projectId}`, type: 'risk', title: r.title, projectName: r.projectName, projectId: r.projectId,
+      badge: r.status === 'Critical' ? 'Critical Risk' : `${r.impact || 'High'} Impact`,
+      color: r.status === 'Critical' ? '#E11D48' : '#D97706',
+    })),
+    ...(snagStats.recentSnags || []).map((sn) => ({
+      key: `snag-${sn._id || sn.title}`, type: 'snag', title: sn.title, projectName: sn.projectName, projectId: sn.projectId,
+      badge: `Snag · ${sn.priority || 'Medium'}`,
+      color: sn.priority === 'Critical' || sn.priority === 'High' ? '#E11D48' : '#7C3AED',
+    })),
+  ].slice(0, 5);
 
   const taskPct = ts.total > 0 ? Math.round((ts.completed / ts.total) * 100) : 0;
 
@@ -480,8 +495,9 @@ export default function DashboardScreen() {
             <Text style={s.pageTitle}>Dashboard</Text>
           </View>
           <View style={s.headerRight}>
+            {/* Attendance check-in (Online / Offline) hidden with the Attendance tab
             {!isAdmin && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[s.attendanceBtn, attendanceActive ? s.btnOnline : s.btnOffline]}
                 onPress={() => router.push('/attendance-module')}
               >
@@ -491,6 +507,7 @@ export default function DashboardScreen() {
                 </Text>
               </TouchableOpacity>
             )}
+            */}
             <View style={s.bellScale}>
               <HeaderNotification />
             </View>
@@ -632,17 +649,17 @@ export default function DashboardScreen() {
           {/* ── Due today ── */}
           {ts.dueTodayList.length > 0 && (
             <>
-              <SectionLabel title="Due Today" />
+              <SectionLabel title={`Attention Required · ${ts.dueTodayList.length} pending today`} />
               <View style={s.listCard}>
-                {ts.dueTodayList.map((t, i) => (
+                {ts.dueTodayList.slice(0, 4).map((t, i, arr) => (
                   <AlertRow
                     key={i}
-                    last={i === ts.dueTodayList.length - 1}
+                    last={i === arr.length - 1}
                     icon="today-outline"
                     iconColor="#2563EB"
                     iconBg="#DBEAFE"
-                    title={t.title}
-                    badge="Today"
+                    title={t.title || t.name || 'Scheduled deliverable'}
+                    badge="Due today"
                     badgeColor="#2563EB"
                   />
                 ))}
@@ -650,23 +667,69 @@ export default function DashboardScreen() {
             </>
           )}
 
-          {/* ── Critical risks ── */}
-          {rs.criticalRisks.length > 0 && (
+          {/* ── Site delivery milestones (web dashboard) ── */}
+          {projectMilestones.length > 0 && (
             <>
-              <SectionLabel title="Critical Risks" />
+              <SectionLabel title="Site Delivery Milestones" />
               <View style={s.listCard}>
-                {rs.criticalRisks.map((r, i) => (
-                  <AlertRow
-                    key={i}
-                    last={i === rs.criticalRisks.length - 1}
-                    icon="warning"
-                    iconColor={RISK_META[r.status]?.color || '#DC2626'}
-                    iconBg={RISK_META[r.status]?.bg       || '#FEF2F2'}
-                    title={r.title}
-                    subtitle={`Impact: ${r.impact}`}
-                    badge={r.status}
-                    badgeColor={RISK_META[r.status]?.color || '#DC2626'}
-                  />
+                {projectMilestones.slice(0, 4).map((m, i, arr) => {
+                  const done = m.status === 'Completed' || m.progress === 100;
+                  const active = m.status === 'In Progress' || (m.progress > 0 && m.progress < 100);
+                  const color = done ? '#059669' : active ? '#2563EB' : '#64748B';
+                  return (
+                    <TouchableOpacity
+                      key={m._id || i}
+                      activeOpacity={0.7}
+                      disabled={!m.projectId}
+                      onPress={() => router.push(`/project/${m.projectId}`)}
+                      style={[s.alertRow, { flexDirection: 'column', alignItems: 'stretch', gap: 6 }, i === arr.length - 1 && { borderBottomWidth: 0 }]}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.alertTitle} numberOfLines={1}>{m.name}</Text>
+                          {!!m.projectName && <Text style={s.alertSub} numberOfLines={1}>{m.projectName}</Text>}
+                        </View>
+                        <View style={[s.alertBadge, { backgroundColor: color + '18' }]}>
+                          <Text style={[s.alertBadgeText, { color }]}>{m.status || (done ? 'Completed' : 'Pending')}</Text>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={s.alertSub}>{m.totalTasks > 0 ? `${m.completedTasks || 0} of ${m.totalTasks} tasks` : `${m.progress || 0}% complete`}</Text>
+                        {!!m.dueDate && <Text style={s.alertSub}>{new Date(m.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>}
+                      </View>
+                      <View style={{ height: 5, borderRadius: 3, backgroundColor: '#F1F5F9', overflow: 'hidden' }}>
+                        <View style={{ height: '100%', width: `${Math.min(100, m.progress || 0)}%`, backgroundColor: done ? '#059669' : active ? '#2563EB' : '#CBD5E1' }} />
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {/* ── Site risks & snags watch (web dashboard) ── */}
+          {watchItems.length > 0 && (
+            <>
+              <SectionLabel title={`Site Risks & Snags Watch · ${snagStats.open || 0} snags · ${rs.criticalRisks.length} critical`} />
+              <View style={s.listCard}>
+                {watchItems.map((item, i) => (
+                  <TouchableOpacity
+                    key={item.key}
+                    activeOpacity={0.7}
+                    disabled={!item.projectId}
+                    onPress={() => router.push(`/project/${item.projectId}/${item.type === 'risk' ? 'risk' : 'snagging'}`)}
+                  >
+                    <AlertRow
+                      last={i === watchItems.length - 1}
+                      icon={item.type === 'risk' ? 'warning' : 'bug-outline'}
+                      iconColor={item.color}
+                      iconBg={item.color + '18'}
+                      title={item.title}
+                      subtitle={item.projectName}
+                      badge={item.badge}
+                      badgeColor={item.color}
+                    />
+                  </TouchableOpacity>
                 ))}
               </View>
             </>
@@ -708,11 +771,11 @@ export default function DashboardScreen() {
           )}
 
           {/* All clear (No urgent alerts) */}
-          {ps.total > 0 && ts.dueTodayList.length === 0 && rs.criticalRisks.length === 0 && (
+          {ps.total > 0 && ts.dueTodayList.length === 0 && watchItems.length === 0 && (
             <View style={s.allClear}>
               <Ionicons name="checkmark-circle" size={52} color="#16A34A" />
-              <Text style={s.allClearTitle}>Everything looks good</Text>
-              <Text style={s.allClearSub}>No urgent alerts at this time</Text>
+              <Text style={s.allClearTitle}>All deliverables on schedule</Text>
+              <Text style={s.allClearSub}>Zero critical risks or unresolved snags reported across your active construction portfolio.</Text>
             </View>
           )}
 

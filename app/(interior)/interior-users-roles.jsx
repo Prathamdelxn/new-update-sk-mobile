@@ -235,11 +235,11 @@ export default function InteriorUsersRolesScreen() {
             <View style={s.summaryRow}>
               <View style={s.summaryCard}>
                 <Text style={s.summaryValue}>{users.length}</Text>
-                <Text style={s.summaryLabel}>Total Users</Text>
+                <Text style={s.summaryLabel}>Total Members</Text>
               </View>
               <View style={s.summaryCard}>
                 <Text style={[s.summaryValue, { color: '#059669' }]}>{activeUsers}</Text>
-                <Text style={s.summaryLabel}>Active</Text>
+                <Text style={s.summaryLabel}>Active Accounts</Text>
               </View>
               <View style={s.summaryCard}>
                 <Text style={[s.summaryValue, { color: '#2563EB' }]}>{totalProjects}</Text>
@@ -249,7 +249,7 @@ export default function InteriorUsersRolesScreen() {
 
             <View style={s.searchRow}>
               <Ionicons name="search" size={15} color="#94A3B8" style={{ marginRight: 8 }} />
-              <TextInput style={s.searchInput} placeholder="Search by name, email, or project..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
+              <TextInput style={s.searchInput} placeholder="Search member by name, email, designation..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10, marginBottom: 4 }}>
@@ -312,7 +312,7 @@ export default function InteriorUsersRolesScreen() {
                             </View>
                           )}
                           {assignments.length === 0 ? (
-                            <Text style={s.noAssignments}>Not assigned to any project yet.</Text>
+                            <Text style={s.noAssignments}>No project assignments linked to this member.</Text>
                           ) : (
                             assignments.map((a) => (
                               <View key={a.projectId} style={s.assignmentRow}>
@@ -337,10 +337,6 @@ export default function InteriorUsersRolesScreen() {
           </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-            <View style={s.infoBanner}>
-              <Ionicons name="shield-checkmark-outline" size={16} color="#2563EB" />
-              <Text style={s.infoBannerText}>Organization roles. Assign one to a user, or use it as a member's role in a project. Tap a role to see its permissions.</Text>
-            </View>
             <InteriorRolesManager />
             <View style={{ height: 60 }} />
           </ScrollView>
@@ -351,7 +347,7 @@ export default function InteriorUsersRolesScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{editingUserId ? 'Edit User' : 'Add New User'}</Text>
+              <Text style={s.modalTitle}>{editingUserId ? 'Edit User Account' : 'Add New Member'}</Text>
               <TouchableOpacity onPress={() => setAddUserOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
@@ -372,7 +368,7 @@ export default function InteriorUsersRolesScreen() {
               <TextInput style={s.input} placeholder="john@company.com" placeholderTextColor="#94A3B8" keyboardType="email-address" autoCapitalize="none" value={userForm.email} onChangeText={(v) => setUserForm({ ...userForm, email: v })} />
 
               <Text style={s.label}>Password</Text>
-              <TextInput style={s.input} placeholder="Leave blank for welcome123" placeholderTextColor="#94A3B8" secureTextEntry value={userForm.password} onChangeText={(v) => setUserForm({ ...userForm, password: v })} />
+              <TextInput style={s.input} placeholder="Leave blank for default: welcome123" placeholderTextColor="#94A3B8" secureTextEntry value={userForm.password} onChangeText={(v) => setUserForm({ ...userForm, password: v })} />
 
               <Text style={s.label}>Phone</Text>
               <TextInput style={s.input} placeholder="+91 9876543210" placeholderTextColor="#94A3B8" keyboardType="phone-pad" value={userForm.phone} onChangeText={(v) => setUserForm({ ...userForm, phone: v })} />

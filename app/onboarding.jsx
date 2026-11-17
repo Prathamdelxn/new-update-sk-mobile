@@ -14,17 +14,17 @@ export default function OnboardingScreen() {
   const SLIDES = [
     {
       title: t('onboardingSlide1Title', 'Manage Your Villa,\nInterior & Building Projects'),
-      description: t('onboardingSlide1Desc', 'Streamline villa, interior, and building management with real-time collaboration'),
+      description: t('onboardingSlide1Desc', 'Plan, track and manage villa, interior and building projects with your team.'),
       Scene: ProjectScene,
     },
     {
-      title: t('onboardingSlide2Title', 'Stay in Control of Every\nProject Task'),
-      description: t('onboardingSlide2Desc', 'Monitor progress, assign tasks, and approve updates from anywhere, effortlessly.'),
+      title: t('onboardingSlide2Title', 'Track Every\nProject Task'),
+      description: t('onboardingSlide2Desc', 'Check progress, assign tasks and approve updates from your phone.'),
       Scene: BlueprintScene,
     },
     {
-      title: t('onboardingSlide3Title', 'Connect, Collaborate &\nSimplify Project'),
-      description: t('onboardingSlide3Desc', 'Work with teams, share designs, and manage projects all in one place.'),
+      title: t('onboardingSlide3Title', 'Work Together\nWith Your Team'),
+      description: t('onboardingSlide3Desc', 'Share designs, drawings and documents with your team and clients.'),
       Scene: FinanceScene,
     },
   ];

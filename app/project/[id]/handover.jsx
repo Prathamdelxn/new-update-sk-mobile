@@ -532,7 +532,7 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
             ) : (
               <View style={styles.emptyDetailRow}>
                 <Ionicons name="checkmark-circle-outline" size={16} color="#10B981" />
-                <Text style={styles.emptyDetailText}>All checks passed successfully.</Text>
+                <Text style={styles.emptyDetailText}>All validation criteria in this section have passed successfully.</Text>
               </View>
             )}
           </View>

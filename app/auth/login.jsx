@@ -38,10 +38,9 @@ export default function LoginScreen() {
   useEffect(() => {
     if (Platform.OS === 'android') {
       try {
-        NavigationBar.setPositionAsync('relative').catch(() => {});
-        NavigationBar.setVisibilityAsync('hidden').catch(() => {});
-        NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => {});
-        NavigationBar.setBackgroundColorAsync('#F8FAFC').catch(() => {});
+        // Keep the navigation bar visible so safe-area insets include it (edge-to-edge:
+        // a hidden bar reports 0, and the bottom tab bar ended up underneath it when it came back)
+        NavigationBar.setVisibilityAsync('visible').catch(() => {});
         NavigationBar.setButtonStyleAsync('dark').catch(() => {});
       } catch (e) {}
     }
@@ -111,7 +110,8 @@ export default function LoginScreen() {
 
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // Edge-to-edge Android doesn't resize for the keyboard, so pad on both platforms
+        behavior="padding"
       >
         <ScrollView
           contentContainerStyle={[
@@ -135,8 +135,8 @@ export default function LoginScreen() {
             <Text style={styles.mainTitle}>Welcome Back</Text>
             <Text style={styles.subTitle}>
               {industryType === 'interior'
-                ? 'Sign in to your studio command centre'
-                : 'Sign in to your project command centre'}
+                ? 'Sign in to manage your interior projects'
+                : 'Sign in to manage your construction projects'}
             </Text>
           </View>
 

@@ -51,6 +51,15 @@ export default function SiteSurveyScreen() {
     structuralModification: false,
     structuralNotes: '',
     clientStylePreference: '',
+    ceilingHeightUnit: 'ft',
+    wallCondition: 'Solid Brick',
+    dampnessObserved: false,
+    dampnessNotes: '',
+    electricalPhase: 'Single Phase',
+    acPipingReady: false,
+    plumbingDrainReady: false,
+    elevatorAccessibility: 'Service Elevator Available',
+    elevatorCapacityKg: '',
   });
 
   const [imageUri, setImageUri] = useState(null);
@@ -83,6 +92,15 @@ export default function SiteSurveyScreen() {
               structuralModification: data.structuralModification || false,
               structuralNotes: data.structuralNotes || '',
               clientStylePreference: data.clientStylePreference || '',
+              ceilingHeightUnit: data.ceilingHeightUnit || 'ft',
+              wallCondition: data.wallCondition || 'Solid Brick',
+              dampnessObserved: data.dampnessObserved || false,
+              dampnessNotes: data.dampnessNotes || '',
+              electricalPhase: data.electricalPhase || 'Single Phase',
+              acPipingReady: data.acPipingReady || false,
+              plumbingDrainReady: data.plumbingDrainReady || false,
+              elevatorAccessibility: data.elevatorAccessibility || 'Service Elevator Available',
+              elevatorCapacityKg: data.elevatorCapacityKg?.toString() || '',
             });
             if (data.observationImage) setImageUri(data.observationImage);
             if (data.additionalPhotos?.length) setAdditionalImageUris(data.additionalPhotos);
@@ -103,6 +121,36 @@ export default function SiteSurveyScreen() {
   const handleToggle = (field) => {
     setFormData(prev => ({ ...prev, [field]: !prev[field] }));
   };
+
+  const renderOptions = (label, field, options) => (
+    <View style={styles.fieldBlock}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.accessGrid}>
+        {options.map((opt) => (
+          <TouchableOpacity
+            key={opt}
+            activeOpacity={0.8}
+            style={[styles.accessBtn, formData[field] === opt && styles.accessBtnActive]}
+            onPress={() => setFormData(prev => ({ ...prev, [field]: opt }))}
+          >
+            <Text style={[styles.accessText, formData[field] === opt && styles.accessTextActive]}>{opt}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderToggle = (label, sub, field) => (
+    <View style={styles.toggleRow}>
+      <View style={styles.toggleTextCol}>
+        <Text style={styles.toggleLabel}>{label}</Text>
+        <Text style={styles.toggleSub}>{sub}</Text>
+      </View>
+      <TouchableOpacity activeOpacity={0.8} onPress={() => handleToggle(field)} style={[styles.switchTrack, formData[field] && styles.switchTrackActive]}>
+        <View style={[styles.switchThumb, formData[field] && styles.switchThumbActive]} />
+      </TouchableOpacity>
+    </View>
+  );
 
   const handleSelectAccessibility = (acc) => {
     setFormData(prev => ({ ...prev, accessibility: acc }));
@@ -207,11 +255,33 @@ export default function SiteSurveyScreen() {
 
       const url = `${API_BASE_URL}/projects/${id}/survey`;
       const method = editMode === 'true' ? 'PATCH' : 'POST';
+      const {
+        roomCount, ceilingHeight, ceilingHeightUnit, naturalLighting, ventilationAvailable, structuralModification,
+        structuralNotes, clientStylePreference, wallCondition, dampnessObserved, dampnessNotes, electricalPhase,
+        acPipingReady, plumbingDrainReady, elevatorAccessibility, elevatorCapacityKg, terrainNotes, ...common
+      } = formData;
       const body = {
-        ...formData,
-        roomCount: formData.roomCount ? Number(formData.roomCount) : undefined,
+        ...common,
         observationImage: observationImageUrl,
         additionalPhotos: uploadedAdditional,
+        ...(isInterior ? {
+          roomCount: roomCount ? Number(roomCount) : undefined,
+          ceilingHeight: ceilingHeight || undefined,
+          ceilingHeightUnit,
+          naturalLighting,
+          ventilationAvailable,
+          structuralModification,
+          structuralNotes: structuralModification ? structuralNotes : undefined,
+          clientStylePreference: clientStylePreference || undefined,
+          wallCondition,
+          dampnessObserved,
+          dampnessNotes: dampnessObserved ? dampnessNotes : undefined,
+          elevatorAccessibility,
+          elevatorCapacityKg: elevatorCapacityKg ? Number(elevatorCapacityKg) : undefined,
+          electricalPhase,
+          acPipingReady,
+          plumbingDrainReady,
+        } : { terrainNotes }),
       };
 
       if (editMode === 'true') {
@@ -276,7 +346,16 @@ export default function SiteSurveyScreen() {
           </TouchableOpacity>
           <View style={styles.titleWrapper}>
             <Text style={styles.preTitle}>{t('reportEntry', 'REPORT ENTRY')}</Text>
-            <Text style={styles.title}>{editMode === 'true' ? `Edit ${isInterior ? 'Interior' : 'Site'} Survey` : (isInterior ? 'Interior Space Survey' : t('projectSiteSurvey', 'Project Site Survey'))}</Text>
+            <Text style={styles.title}>
+              {editMode === 'true'
+                ? (isInterior ? t('editInteriorSurvey', 'Edit Interior Survey') : t('editSiteSurvey', 'Edit Site Survey'))
+                : (isInterior ? t('recordInteriorSurvey', 'Record Interior Survey') : t('recordSiteSurvey', 'Record Site Survey'))}
+            </Text>
+            <Text style={styles.subTitle}>
+              {isInterior
+                ? t('surveyInteriorSubtitle', 'Space condition, MEP & architectural diagnostics')
+                : t('surveySiteSubtitle', 'Physical terrain, MEP points & site conditions')}
+            </Text>
           </View>
         </View>
 
@@ -326,22 +405,119 @@ export default function SiteSurveyScreen() {
             </View>
           </AdaptiveGlass>
 
+          {!isInterior && (
+            <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
+              <Text style={styles.sectionLabel}>{t('terrainAndSoil', 'Terrain & Soil')}</Text>
+              <Text style={styles.fieldLabel}>{t('terrainSoilNotes', 'Terrain / Soil Notes')}</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                placeholder={t('terrainSoilPlaceholder', 'Soil type, slope, clearing needed...')}
+                placeholderTextColor="#94A3B8"
+                multiline
+                textAlignVertical="top"
+                value={formData.terrainNotes}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, terrainNotes: text }))}
+              />
+            </AdaptiveGlass>
+          )}
+
+          {isInterior && (
+            <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
+              <Text style={styles.sectionLabel}>{t('roomDetails', 'Room Details')}</Text>
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>{t('roomCount', 'Room Count')}</Text>
+                <TextInput style={styles.textInput} placeholder="e.g. 8" placeholderTextColor="#94A3B8" keyboardType="numeric" value={formData.roomCount} onChangeText={(text) => setFormData(prev => ({ ...prev, roomCount: text }))} />
+              </View>
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>{t('ceilingHeight', 'Ceiling Height')}</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput style={[styles.textInput, { flex: 1 }]} placeholder="e.g. 10.5" placeholderTextColor="#94A3B8" keyboardType="decimal-pad" value={formData.ceilingHeight} onChangeText={(text) => setFormData(prev => ({ ...prev, ceilingHeight: text }))} />
+                  <View style={styles.unitRow}>
+                    {['ft', 'm', 'in', 'mm', 'cm'].map((u) => (
+                      <TouchableOpacity key={u} style={[styles.unitBtn, formData.ceilingHeightUnit === u && styles.accessBtnActive]} onPress={() => setFormData(prev => ({ ...prev, ceilingHeightUnit: u }))}>
+                        <Text style={[styles.unitText, formData.ceilingHeightUnit === u && styles.accessTextActive]}>{u}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+              {renderOptions(t('naturalLighting', 'Natural Lighting'), 'naturalLighting', ['Excellent', 'Good', 'Limited', 'None'])}
+              <View style={styles.divider} />
+              {renderToggle(t('ventilationAvailable', 'Ventilation / AC Available'), t('ventilationAvailableSub', 'Existing ducting or split unit points'), 'ventilationAvailable')}
+            </AdaptiveGlass>
+          )}
+
+          {isInterior && (
+            <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
+              <Text style={styles.sectionLabel}>{t('wallMoistureDiagnostics', 'Wall & Moisture Diagnostics')}</Text>
+              {renderOptions(t('wallConstructionType', 'Wall Construction Type'), 'wallCondition', ['Solid Brick', 'Gypsum Drywall', 'RCC Concrete', 'Mixed'])}
+              <View style={styles.divider} />
+              {renderToggle(t('dampnessObserved', 'Dampness / Water Seepage Observed'), t('dampnessObservedSub', 'Check for water stains or damp walls before woodwork'), 'dampnessObserved')}
+              {formData.dampnessObserved && (
+                <View style={{ marginTop: 16 }}>
+                  <Text style={styles.fieldLabel}>{t('dampnessDetails', 'Dampness & Leakage Details')}</Text>
+                  <TextInput style={[styles.textInput, styles.textArea]} placeholder="e.g. Seepage observed on Bedroom 2 outer wall..." placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={formData.dampnessNotes} onChangeText={(text) => setFormData(prev => ({ ...prev, dampnessNotes: text }))} />
+                </View>
+              )}
+            </AdaptiveGlass>
+          )}
+
+          {isInterior && (
+            <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
+              <Text style={styles.sectionLabel}>{t('mepServicesReadiness', 'MEP & Services Readiness')}</Text>
+              {renderOptions(t('electricalSupplyPhase', 'Electrical Supply Phase'), 'electricalPhase', ['Single Phase', 'Three Phase', 'Unsure'])}
+              <View style={styles.divider} />
+              {renderToggle(t('acPipingReady', 'AC Copper Piping Laid'), t('acPipingReadySub', 'Internal refrigerant pipes pre-installed'), 'acPipingReady')}
+              <View style={styles.divider} />
+              {renderToggle(t('plumbingDrainReady', 'Plumbing & Waste Outlets Positioned'), t('plumbingDrainReadySub', 'Drainage points ready for kitchen/baths'), 'plumbingDrainReady')}
+            </AdaptiveGlass>
+          )}
+
+          {isInterior && (
+            <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
+              <Text style={styles.sectionLabel}>{t('materialAccessLogistics', 'Material Access & Freight Logistics')}</Text>
+              {renderOptions(t('elevatorStairAccess', 'Elevator / Stair Access'), 'elevatorAccessibility', ['Service Elevator Available', 'Passenger Elevator Only', 'Stairs Only'])}
+              {formData.elevatorAccessibility !== 'Stairs Only' && (
+                <View>
+                  <Text style={styles.fieldLabel}>{t('elevatorCapacityKg', 'Elevator Capacity (kg)')}</Text>
+                  <TextInput style={styles.textInput} placeholder="e.g. 1000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={formData.elevatorCapacityKg} onChangeText={(text) => setFormData(prev => ({ ...prev, elevatorCapacityKg: text }))} />
+                </View>
+              )}
+            </AdaptiveGlass>
+          )}
+
+          {isInterior && (
+            <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
+              <Text style={styles.sectionLabel}>{t('structuralAndDesign', 'Structural & Design')}</Text>
+              {renderToggle(t('structuralModificationNeeded', 'Structural Modifications Needed'), t('structuralModificationSub', 'Wall removal, partition additions, beam work'), 'structuralModification')}
+              {formData.structuralModification && (
+                <View style={{ marginTop: 16 }}>
+                  <Text style={styles.fieldLabel}>{t('structuralNotes', 'Structural Notes')}</Text>
+                  <TextInput style={[styles.textInput, styles.textArea]} placeholder="Describe required structural changes..." placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={formData.structuralNotes} onChangeText={(text) => setFormData(prev => ({ ...prev, structuralNotes: text }))} />
+                </View>
+              )}
+              <View style={styles.divider} />
+              <Text style={styles.fieldLabel}>{t('clientStylePreference', 'Client Style Preference')}</Text>
+              <TextInput style={[styles.textInput, styles.textArea, { minHeight: 80 }]} placeholder="e.g. Modern minimalist, warm tones, open-plan kitchen preferred..." placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={formData.clientStylePreference} onChangeText={(text) => setFormData(prev => ({ ...prev, clientStylePreference: text }))} />
+            </AdaptiveGlass>
+          )}
+
           <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
-            <Text style={styles.sectionLabel}>{t('mediaObservations', 'Media Observations')}</Text>
-            
+            <Text style={styles.sectionLabel}>{t('siteObservationMedia', 'Site Observation Media')}</Text>
+
             <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>{isInterior ? 'Space Photo (Observation)' : t('sitePhotoObservation', 'Site Photo (Observation)')}</Text>
-              <TouchableOpacity 
-                style={styles.imagePickerBtn} 
-                onPress={handleImagePickChoice}
-                activeOpacity={0.7}
-              >
+              <Text style={styles.fieldLabel}>
+                {isInterior ? t('primarySpacePhoto', 'Primary Space Photo (Key Observation)') : t('primarySitePhoto', 'Primary Site Photo (Key Observation)')}
+              </Text>
+              <TouchableOpacity style={styles.imagePickerBtn} onPress={handleImagePickChoice} activeOpacity={0.7}>
                 {imageUri ? (
                   <Image source={{ uri: imageUri }} style={styles.previewImage} />
                 ) : (
                   <View style={styles.imagePickerPlaceholder}>
                     <Ionicons name="camera" size={32} color="#94A3B8" />
-                    <Text style={styles.imagePickerText}>{t('selectSiteObservationImage', 'Select Site Observation Image')}</Text>
+                    <Text style={styles.imagePickerText}>
+                      {isInterior ? t('selectSpaceObservationImage', 'Select space observation image') : t('selectSiteObservationImage', 'Select site observation image')}
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -351,130 +527,43 @@ export default function SiteSurveyScreen() {
                 </TouchableOpacity>
               )}
             </View>
+
+            {isInterior && (
+              <View>
+                <Text style={styles.fieldLabel}>{t('additionalSpacePhotos', 'Additional Space Photos')}</Text>
+                <View style={styles.additionalPhotoGrid}>
+                  {additionalImageUris.map((uri, idx) => (
+                    <View key={idx} style={styles.additionalPhotoWrap}>
+                      <Image source={{ uri }} style={styles.additionalPhoto} />
+                      <TouchableOpacity style={styles.removePhotoBtn} onPress={() => removeAdditionalPhoto(idx)}>
+                        <Ionicons name="close-circle" size={22} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  <TouchableOpacity style={styles.addPhotoBtn} onPress={pickAdditionalPhoto} activeOpacity={0.7}>
+                    <Ionicons name="add" size={28} color="#3B82F6" />
+                    <Text style={styles.addPhotoBtnText}>{t('addPhoto', 'Add Photo')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </AdaptiveGlass>
 
-          {isInterior && (
-            <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
-              <Text style={styles.sectionLabel}>Room Details</Text>
-              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>Room Count</Text>
-                  <TextInput style={styles.textInput} placeholder="e.g. 4" placeholderTextColor="#94A3B8" keyboardType="numeric" value={formData.roomCount} onChangeText={(text) => setFormData(prev => ({ ...prev, roomCount: text }))} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>Ceiling Height</Text>
-                  <TextInput style={styles.textInput} placeholder="e.g. 10 ft" placeholderTextColor="#94A3B8" value={formData.ceilingHeight} onChangeText={(text) => setFormData(prev => ({ ...prev, ceilingHeight: text }))} />
-                </View>
-              </View>
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Natural Lighting</Text>
-                <View style={styles.accessGrid}>
-                  {['Excellent', 'Good', 'Limited', 'None'].map(opt => (
-                    <TouchableOpacity key={opt} activeOpacity={0.8} style={[styles.accessBtn, formData.naturalLighting === opt && styles.accessBtnActive]} onPress={() => setFormData(prev => ({ ...prev, naturalLighting: opt }))}>
-                      <Text style={[styles.accessText, formData.naturalLighting === opt && styles.accessTextActive]}>{opt}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.toggleRow}>
-                <View style={styles.toggleTextCol}>
-                  <Text style={styles.toggleLabel}>Ventilation / AC Available</Text>
-                  <Text style={styles.toggleSub}>Existing ducting or split unit points</Text>
-                </View>
-                <TouchableOpacity activeOpacity={0.8} onPress={() => handleToggle('ventilationAvailable')} style={[styles.switchTrack, formData.ventilationAvailable && styles.switchTrackActive]}>
-                  <View style={[styles.switchThumb, formData.ventilationAvailable && styles.switchThumbActive]} />
-                </TouchableOpacity>
-              </View>
-            </AdaptiveGlass>
-          )}
-
-          {isInterior && (
-            <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
-              <Text style={styles.sectionLabel}>Structural & Design</Text>
-              <View style={styles.toggleRow}>
-                <View style={styles.toggleTextCol}>
-                  <Text style={styles.toggleLabel}>Structural Modifications Needed</Text>
-                  <Text style={styles.toggleSub}>Wall removal, partition additions, beam work</Text>
-                </View>
-                <TouchableOpacity activeOpacity={0.8} onPress={() => handleToggle('structuralModification')} style={[styles.switchTrack, formData.structuralModification && styles.switchTrackActive]}>
-                  <View style={[styles.switchThumb, formData.structuralModification && styles.switchThumbActive]} />
-                </TouchableOpacity>
-              </View>
-              {formData.structuralModification && (
-                <View style={{ marginTop: 16 }}>
-                  <Text style={styles.fieldLabel}>Structural Notes</Text>
-                  <TextInput style={[styles.textInput, styles.textArea]} placeholder="Describe required structural changes..." placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={formData.structuralNotes} onChangeText={(text) => setFormData(prev => ({ ...prev, structuralNotes: text }))} />
-                </View>
-              )}
-              <View style={styles.divider} />
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Client Style Preference</Text>
-                <TextInput style={[styles.textInput, styles.textArea, { minHeight: 80 }]} placeholder="e.g. Modern minimalist, warm tones, open-plan kitchen preferred..." placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={formData.clientStylePreference} onChangeText={(text) => setFormData(prev => ({ ...prev, clientStylePreference: text }))} />
-              </View>
-            </AdaptiveGlass>
-          )}
-
-          {isInterior && (
-            <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
-              <Text style={styles.sectionLabel}>Additional Room Photos</Text>
-              <View style={styles.additionalPhotoGrid}>
-                {additionalImageUris.map((uri, idx) => (
-                  <View key={idx} style={styles.additionalPhotoWrap}>
-                    <Image source={{ uri }} style={styles.additionalPhoto} />
-                    <TouchableOpacity style={styles.removePhotoBtn} onPress={() => removeAdditionalPhoto(idx)}>
-                      <Ionicons name="close-circle" size={22} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                <TouchableOpacity style={styles.addPhotoBtn} onPress={pickAdditionalPhoto} activeOpacity={0.7}>
-                  <Ionicons name="add" size={28} color="#3B82F6" />
-                  <Text style={styles.addPhotoBtnText}>Add Photo</Text>
-                </TouchableOpacity>
-              </View>
-            </AdaptiveGlass>
-          )}
-
           <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
-            <Text style={styles.sectionLabel}>{isInterior ? 'Space Observations' : t('technicalAssessment', 'Technical Assessment')}</Text>
-
-            <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>{isInterior ? 'Space & Condition Notes' : t('terrainSoilNotes', 'Terrain / Soil Notes')}</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                placeholder={isInterior ? 'Describe wall condition, floor type, ceiling height, natural lighting...' : t('describeGradientsSoil', 'Describe gradients, soil composition, hazards...')}
-                placeholderTextColor="#94A3B8"
-                multiline
-                textAlignVertical="top"
-                value={formData.terrainNotes}
-                onChangeText={(text) => setFormData(prev => ({...prev, terrainNotes: text}))}
-              />
-            </View>
-
-            <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>{t('surveyorCommentsLabel', 'Surveyor Comments')}</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea, { minHeight: 120 }]}
-                placeholder={isInterior ? 'Any design constraints, structural concerns, or client preferences?' : t('anyAdhocRequests', 'Any ad-hoc requests or major blockers?')}
-                placeholderTextColor="#94A3B8"
-                multiline
-                textAlignVertical="top"
-                value={formData.surveyorComments}
-                onChangeText={(text) => setFormData(prev => ({...prev, surveyorComments: text}))}
-              />
-            </View>
+            <Text style={styles.sectionLabel}>{t('observationsAndRemarks', 'Observations & Remarks')}</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea, { minHeight: 110 }]}
+              placeholder={t('observationsPlaceholder', 'General observations, access notes, or site constraints...')}
+              placeholderTextColor="#94A3B8"
+              multiline
+              textAlignVertical="top"
+              value={formData.surveyorComments}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, surveyorComments: text }))}
+            />
 
             <View style={styles.divider} />
 
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleTextCol}>
-                <Text style={styles.toggleLabel}>{t('affectsInitialBudget', 'Affects Initial Budget?')}</Text>
-                <Text style={styles.toggleSub}>{t('doesSurveyRequireBudgetChange', 'Does this survey require a budget change?')}</Text>
-              </View>
-              <TouchableOpacity activeOpacity={0.8} onPress={() => handleToggle('affectsBudget')} style={[styles.switchTrack, formData.affectsBudget && styles.switchTrackActive]}>
-                 <View style={[styles.switchThumb, formData.affectsBudget && styles.switchThumbActive]} />
-              </TouchableOpacity>
-            </View>
+            {renderToggle(t('affectsInitialBudget', 'Affects Initial Budget?'), t('surveyBudgetChangeSub', 'Does this survey identify scope changes requiring budget adjustment?'), 'affectsBudget')}
 
             {formData.affectsBudget && (
               <View style={{ marginTop: 20, gap: 16 }}>
@@ -483,26 +572,26 @@ export default function SiteSurveyScreen() {
                   <Text style={styles.referenceText}>{t('currentActiveBudget', 'Current Active Budget:')} <Text style={{ fontFamily: 'Inter-Black' }}>{formatCurrency(Number(currentBudget), currency || 'AED')}</Text></Text>
                 </View>
                 <View>
-                  <Text style={styles.fieldLabel}>{t('newEstimatedBudget', 'New Estimated Budget')} ({currency || 'AED' || 'AED'})</Text>
+                  <Text style={styles.fieldLabel}>{t('newEstimatedBudget', 'New Estimated Budget')} ({currency || 'AED'})</Text>
                   <TextInput
                     style={styles.textInput}
-                    placeholder={t('egAmount', 'e.g. 150000')}
+                    placeholder="e.g. 850000"
                     placeholderTextColor="#94A3B8"
                     keyboardType="numeric"
                     value={formData.recommendedBudget}
-                    onChangeText={(text) => setFormData(prev => ({...prev, recommendedBudget: text}))}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, recommendedBudget: text }))}
                   />
                 </View>
                 <View>
-                  <Text style={styles.fieldLabel}>{t('reasonForBudgetChange', 'Reason for Budget Change')}</Text>
+                  <Text style={styles.fieldLabel}>{t('reason', 'Reason')}</Text>
                   <TextInput
                     style={[styles.textInput, styles.textArea, { minHeight: 80 }]}
-                    placeholder={t('egRoughTerrain', 'e.g. Rough terrain requires special grading equipment...')}
+                    placeholder={t('budgetReasonPlaceholder', 'e.g. Structural modifications required')}
                     placeholderTextColor="#94A3B8"
                     multiline
                     textAlignVertical="top"
                     value={formData.budgetReason}
-                    onChangeText={(text) => setFormData(prev => ({...prev, budgetReason: text}))}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, budgetReason: text }))}
                   />
                 </View>
               </View>
@@ -545,6 +634,10 @@ const styles = StyleSheet.create({
   titleWrapper: { flex: 1, marginLeft: 16 },
   preTitle: { fontSize: 10, fontFamily: 'Inter-Black', color: '#3B82F6', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 2 },
   title: { fontSize: 22, fontFamily: 'Inter-Black', color: '#0F172A' },
+  subTitle: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
+  unitRow: { flexDirection: 'row', gap: 4, alignItems: 'center' },
+  unitBtn: { paddingHorizontal: 8, paddingVertical: 12, borderRadius: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+  unitText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   contentScroll: { paddingHorizontal: 20, paddingTop: 10, gap: 20 },
   sectionForm: { padding: 24, borderRadius: 28, borderWidth: 1, borderColor: '#E0F2FE', backgroundColor: 'rgba(255,255,255,0.7)' },
   sectionLabel: { fontSize: 11, fontFamily: 'Inter-Black', color: '#94A3B8', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 20 },

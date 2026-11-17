@@ -17,11 +17,12 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import HeaderNotification from '../../components/HeaderNotification';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
-import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
-import interiorApiClient from '../../services/interiorApiClient';
+import HeaderNotification from '../components/HeaderNotification';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { useInteriorPermissions } from '../utils/interior/useInteriorPermissions';
+import interiorApiClient from '../services/interiorApiClient';
+import { useRouter } from 'expo-router';
 
 // ── Action Themes (matching Web InteriorAuditManagementView) ─────────────────
 const ACTION_THEMES = {
@@ -45,7 +46,9 @@ const QUICK_SEGMENTS = [
   { id: 'delete', label: 'Deletions', action: 'delete' },
 ];
 
+// Opened from Settings → Workspace Tools (no longer a bottom-bar tab)
 export default function InteriorAuditScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isOrgAdmin } = useInteriorPermissions();
@@ -280,7 +283,10 @@ export default function InteriorAuditScreen() {
       <SafeAreaView style={s.container} edges={['bottom']}>
         {/* Top Header */}
         <View style={[s.header, { paddingTop: insets.top + 10 }]}>
-          <View>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 10 }}>
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
             <View style={s.headerBadgeRow}>
               <Text style={s.headerSubtitle}>Workspace Security</Text>
               <View style={s.liveSyncPill}>

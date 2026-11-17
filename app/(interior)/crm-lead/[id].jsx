@@ -12,7 +12,7 @@ import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import interiorCrmService from '../../services/interiorCrmService';
 import { queryKeys, invalidateCrmQueries, invalidateProjectQueries, useQuerySetter } from '../../context/QueryProvider';
-import { parseMaxBudget, formatExactCurrency, formatMillionBillion, formatSmartCurrency } from '../../utils/format';
+import { parseMaxBudget, formatExactCurrency, formatMillionBillion, formatSmartCurrency, getCurrencySymbol } from '../../utils/format';
 
 // Quote / BOQ amounts: full number below 1M, then M / B / T (web formatSmartCurrency)
 const smartMoney = (n) => formatSmartCurrency(Number(n) || 0, '₹', { threshold: 1_000_000 }).display;
@@ -1488,7 +1488,7 @@ export default function Lead360Screen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} tintColor="#2563EB" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchData} tintColor="#2563EB" />}
       >
         {/* --- TAB NAVIGATION --- */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabRow}>
@@ -2444,8 +2444,13 @@ export default function Lead360Screen() {
                 const isReqOverdue = Boolean(
                   pendingReqActEarly?.scheduledDate && new Date(pendingReqActEarly.scheduledDate).getTime() < Date.now()
                 );
-                // "Requirements Briefing & Specifications" card (same content as the web)
-                const reqCount = (lead.requirements || []).length;
+                // "Requirements Briefing & Specifications" card (same content and actions as the web)
+                const teamReqCount = Array.isArray(lead.requirements) ? lead.requirements.length : 0;
+                const clientReqCount = Array.isArray(lead.clientRequirements) ? lead.clientRequirements.length
+                  : Array.isArray(lead.clientRequirements?.rooms) ? lead.clientRequirements.rooms.length
+                  : Array.isArray(lead.clientWishlist?.rooms) ? lead.clientWishlist.rooms.length : 0;
+                const reqCount = teamReqCount || clientReqCount;
+                const hasRequirements = reqCount > 0;
                 const reqScheduled = lead?.requirementScheduledDate || reqActivity?.scheduledDate || reqActivity?.createdAt;
                 const consultantName = (() => {
                   const d = lead?.designerAssigned;
@@ -2455,11 +2460,26 @@ export default function Lead360Screen() {
                   const match = users.find((u) => (u._id || u.id) === dId) || users.find((u) => (u._id || u.id) === auId);
                   return match ? userLabel(match).split(' (')[0] : dId ? 'Assigned Consultant' : 'Requirement Consultant';
                 })();
-                const reqStatusText = reqCount > 0 ? `Configured (${reqCount} ${reqCount === 1 ? 'Space' : 'Spaces'})` : isReqOverdue ? 'Session Overdue' : 'Discussion Pending';
-                const reqStatusColor = reqCount > 0 ? '#059669' : isReqOverdue ? '#DC2626' : '#059669';
+                const reqStatusText = hasRequirements
+                  ? `Configured (${reqCount} ${reqCount === 1 ? 'Space' : 'Spaces'}${!teamReqCount ? ' - Client Intake' : ''})`
+                  : 'Discussion Pending';
+                const reqStatusColor = !hasRequirements && isReqOverdue ? '#DC2626' : '#059669';
+                const hasPassedToSiteVisit = (STAGE_ORDER[lead?.status || ''] ?? 0) >= 2
+                  || Boolean(lead?.siteMeasurements)
+                  || Boolean(lead?.sitePhotos?.length)
+                  || activities.some((a) => a.type === 'Site Visit')
+                  || Boolean(lead?.designFiles?.length)
+                  || Boolean(lead?.boqs?.length)
+                  || Boolean(lead?.quotations?.length)
+                  || Boolean(lead?.linkedProject);
+                const firstReq = Array.isArray(lead.requirements) ? lead.requirements : [];
+                const globalScopeOfWork = lead.scopeOfWork || lead.scope || firstReq.find((r) => r.scopeOfWork)?.scopeOfWork;
+                const globalTimeline = lead.timeline || lead.targetTimeline || firstReq.find((r) => r.timeline)?.timeline;
+                const globalSpecialRequests = lead.specialRequests || lead.specialNotes || firstReq.find((r) => r.specialRequests)?.specialRequests;
+                const reschedule = () => (pendingReqActEarly ? openRescheduleRequirements(pendingReqActEarly) : setShowSendReqModal(true));
                 const reqBriefingCard = (
-                  <View style={[s.card, isReqOverdue && reqCount === 0 && { borderColor: '#FCA5A5' }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <View style={[s.card, isReqOverdue && !hasRequirements && { borderColor: '#FCA5A5' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                       <View style={[s.actionIconBox, { backgroundColor: '#ECFDF5', width: 34, height: 34, borderRadius: 9 }]}>
                         <Ionicons name="color-palette-outline" size={17} color="#059669" />
                       </View>
@@ -2470,6 +2490,43 @@ export default function Lead360Screen() {
                         </View>
                       </View>
                     </View>
+                    {!isReadOnly && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                        {hasRequirements ? (
+                          <>
+                            {canDo('crm_requirements', 'update') && (
+                              <TouchableOpacity style={s.smallBtn} onPress={() => setShowReqModal(true)}>
+                                <Ionicons name="create-outline" size={14} color="#334155" />
+                                <Text style={[s.smallBtnText, { color: '#334155' }]}>Edit Requirements</Text>
+                              </TouchableOpacity>
+                            )}
+                            {['Under Requirement', 'Requirement Completed'].includes(lead.status) && (
+                              (canDo('crm_requirements', 'update') || canDo('crm_site_visits', 'update') || canDo('crm_site_visits', 'create')) && (
+                                <TouchableOpacity style={[s.smallBtn, { backgroundColor: '#7C3AED', borderColor: '#7C3AED' }]} onPress={() => setShowSendSiteModal(true)}>
+                                  <Text style={[s.smallBtnText, { color: '#FFFFFF' }]}>Pass to Site Visit</Text>
+                                  <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
+                                </TouchableOpacity>
+                              )
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {canDo('crm_requirements', 'update') && (
+                              <TouchableOpacity style={s.smallBtn} onPress={reschedule}>
+                                <Ionicons name="calendar-outline" size={14} color="#334155" />
+                                <Text style={[s.smallBtnText, { color: '#334155' }]}>Reschedule Session</Text>
+                              </TouchableOpacity>
+                            )}
+                            {canDo('crm_requirements', 'create') && (
+                              <TouchableOpacity style={[s.smallBtn, { backgroundColor: '#059669', borderColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
+                                <Ionicons name="add" size={14} color="#FFFFFF" />
+                                <Text style={[s.smallBtnText, { color: '#FFFFFF' }]}>Add Requirements</Text>
+                              </TouchableOpacity>
+                            )}
+                          </>
+                        )}
+                      </View>
+                    )}
                     {!!reqNote && (
                       <View style={[s.briefingCardGreen, { marginBottom: 10 }]}>
                         <View style={s.briefingIconBoxGreen}>
@@ -2484,7 +2541,7 @@ export default function Lead360Screen() {
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                       <View style={s.specBox}>
                         <Text style={s.specLabel}>SCHEDULE</Text>
-                        <Text style={[s.specVal, isReqOverdue && reqCount === 0 && { color: '#DC2626' }]} numberOfLines={1}>
+                        <Text style={[s.specVal, isReqOverdue && !hasRequirements && { color: '#DC2626' }]} numberOfLines={1}>
                           {reqScheduled ? new Date(reqScheduled).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not scheduled'}
                         </Text>
                       </View>
@@ -2527,108 +2584,75 @@ export default function Lead360Screen() {
                   );
                 }
 
-                if (!lead.requirements || lead.requirements.length === 0) {
-                  return (
-                    <View style={{ gap: 14 }}>
-                      {isReqOverdue && (
-                        <View style={s.siteOverdueBanner}>
-                          <View style={s.siteOverdueIconBox}>
-                            <Ionicons name="warning" size={20} color="#DC2626" />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={s.siteOverdueTitle}>Requirements Session Overdue</Text>
-                            <Text style={s.siteOverdueSub}>
-                              The scheduled session for {new Date(pendingReqActEarly.scheduledDate).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} has passed without requirements being logged.
-                            </Text>
-                            {!isReadOnly && (
-                              <TouchableOpacity
-                                style={s.siteOverdueRescheduleBtn}
-                                onPress={() => openRescheduleRequirements(pendingReqActEarly)}
-                                activeOpacity={0.8}
-                              >
-                                <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
-                                <Text style={s.siteOverdueRescheduleBtnText}>Reschedule Session</Text>
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                        </View>
-                      )}
-
-                      {reqBriefingCard}
-                      <ClientRequirementsCompare
-                        lead={lead}
-                        techPersonName={consultantName}
-                        canShare={!isReadOnly && canAnyCrmUpdate}
-                        canEditSpecs={!isReadOnly && (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update'))}
-                        onOpenShare={() => { setShareModalMode('requirements'); setShowShareModal(true); }}
-                        onEditSpecs={() => setShowReqModal(true)}
-                      />
-                      <View style={s.emptyCard}>
-                        <Ionicons name="create-outline" size={40} color="#059669" />
-                        <Text style={s.emptyCardTitle}>No Requirements Recorded</Text>
-                        <Text style={s.emptySubText}>Add room-by-room themes and specifications.</Text>
-                        {!isReadOnly && (
-                          (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update')) && (
-                            <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
-                              <Text style={s.actionBtnText}>Log Requirement</Text>
-                            </TouchableOpacity>
-                          )
-                        )}
-                        {!isReadOnly && pendingReqActEarly && !isReqOverdue && (
-                          <TouchableOpacity style={[s.smallBtn, { marginTop: 8 }]} onPress={() => openRescheduleRequirements(pendingReqActEarly)}>
-                            <Ionicons name="time-outline" size={13} color="#4F46E5" />
-                            <Text style={s.smallBtnText}>Reschedule Session</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-                  );
-                }
-
-                const pendingReqAct = pendingReqActEarly;
-
                 return (
                   <View style={{ gap: 12 }}>
-                  {reqBriefingCard}
-                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      {!isReadOnly && pendingReqAct && (
-                        <TouchableOpacity style={s.smallBtn} onPress={() => openRescheduleRequirements(pendingReqAct)}>
-                          <Ionicons name="time-outline" size={14} color="#4F46E5" />
-                          <Text style={[s.smallBtnText, { color: '#4F46E5' }]}>Reschedule</Text>
-                        </TouchableOpacity>
-                      )}
-                      {!isReadOnly && (
-                        (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update')) && (
-                          <TouchableOpacity style={s.smallBtn} onPress={() => setShowReqModal(true)}>
-                            <Ionicons name="create-outline" size={14} color="#059669" />
-                            <Text style={[s.smallBtnText, { color: '#059669' }]}>Edit / Add</Text>
-                          </TouchableOpacity>
-                        )
-                      )}
-                    </View>
-                  </View>
-                  <ClientRequirementsCompare
-                    lead={lead}
-                    techPersonName={consultantName}
-                    canShare={!isReadOnly && canAnyCrmUpdate}
-                    canEditSpecs={!isReadOnly && (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update'))}
-                    onOpenShare={() => { setShareModalMode('requirements'); setShowShareModal(true); }}
-                    onEditSpecs={() => setShowReqModal(true)}
-                  />
-
-                  {/* Same as the web Requirement stage: requirements pass on to the Site Visit */}
-                  <View style={{ gap: 8, marginTop: 8 }}>
-                    {['Under Requirement', 'Requirement Completed'].includes(lead.status) && (
-                      (canDo('crm_requirements', 'update') || canDo('crm_site_visits', 'update') || canDo('crm_site_visits', 'create')) && (
-                        <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#7C3AED', marginTop: 0 }]} onPress={() => setShowSendSiteModal(true)}>
-                          <Text style={s.actionBtnText}>Pass to Site Visit</Text>
-                        </TouchableOpacity>
-                      )
+                    {isReqOverdue && !hasRequirements && (
+                      <View style={s.siteOverdueBanner}>
+                        <View style={s.siteOverdueIconBox}>
+                          <Ionicons name="warning" size={20} color="#DC2626" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.siteOverdueTitle}>Requirements Session Overdue</Text>
+                          <Text style={s.siteOverdueSub}>
+                            The scheduled session for {new Date(pendingReqActEarly.scheduledDate).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} has passed without requirements being logged.
+                          </Text>
+                          {!isReadOnly && (
+                            <TouchableOpacity
+                              style={s.siteOverdueRescheduleBtn}
+                              onPress={() => openRescheduleRequirements(pendingReqActEarly)}
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
+                              <Text style={s.siteOverdueRescheduleBtnText}>Reschedule Session</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
                     )}
+
+                    {reqBriefingCard}
+
+                    {!!(globalScopeOfWork || globalTimeline || globalSpecialRequests) && (
+                      <View style={s.card}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 8, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                          <Ionicons name="options-outline" size={14} color="#3B82F6" />
+                          <Text style={[s.specLabel, { color: '#0F172A' }]}>OVERALL PROJECT DIRECTIVES & SCOPE</Text>
+                        </View>
+                        <View style={{ gap: 8 }}>
+                          {!!globalScopeOfWork && (
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>SCOPE OF WORK</Text>
+                              <Text style={s.specVal}>{globalScopeOfWork}</Text>
+                            </View>
+                          )}
+                          {!!globalTimeline && (
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>TARGET TIMELINE</Text>
+                              <Text style={s.specVal}>{globalTimeline}</Text>
+                            </View>
+                          )}
+                          {!!globalSpecialRequests && (
+                            <View style={s.specBox}>
+                              <Text style={s.specLabel}>SPECIAL REQUESTS</Text>
+                              <Text style={s.specVal}>{globalSpecialRequests}</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    )}
+
+                    <ClientRequirementsCompare
+                      lead={lead}
+                      isReadOnly={isReadOnly}
+                      canEdit={canAnyCrmUpdate || canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update')}
+                      hasPassedToSiteVisit={hasPassedToSiteVisit}
+                      currencySymbol={getCurrencySymbol(lead.currency || 'INR')}
+                      onEditSpecs={() => setShowReqModal(true)}
+                      onRefresh={fetchData}
+                      onOpenShare={() => { setShareModalMode('requirements'); setShowShareModal(true); }}
+                    />
                   </View>
-                </View>
-              );
+                );
             })()}
           </View>
         )}
@@ -3573,13 +3597,26 @@ export default function Lead360Screen() {
                             <Text style={s.quoteMetaSub}>{lead.mobileNumber}</Text>
                             {!!lead.email && <Text style={s.quoteMetaSub}>{lead.email}</Text>}
                           </View>
-                          <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={s.quoteMetaLabel}>DETAILS</Text>
+                          <View style={{ alignItems: 'flex-end', gap: 3 }}>
+                            <Text style={s.quoteMetaLabel}>QUOTATION DETAILS</Text>
                             <Text style={s.quoteMetaSub}>
-                              Date: {currentQuote.createdAt ? new Date(currentQuote.createdAt).toLocaleDateString('en-IN') : 'N/A'}
+                              Issue Date: {new Date(currentQuote.createdAt || Date.now()).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
                             </Text>
-                            <Text style={s.quoteMetaSub}>Lead ID: {lead.leadNumber || 'LD-XXXX'}</Text>
-                            <Text style={s.quoteMetaSub}>Scope: {(currentQuote.items || []).length} Items</Text>
+                            <Text style={s.quoteMetaSub}>Lead Reference: {lead.leadNumber || 'LD-XXXX'}</Text>
+                            <Text style={s.quoteMetaSub}>
+                              Quote Reference: {currentQuote.quotationNumber || currentQuote.quoteNumber
+                                || (lead.leadNumber ? `QTN-${lead.leadNumber.replace(/^LD-/, '')}-${currentQuote.version || activeQuoteIdx + 1}` : `QTN-${String(activeQuoteIdx + 1).padStart(3, '0')}`)}
+                            </Text>
+                            <View style={{
+                              paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, borderWidth: 1,
+                              backgroundColor: currentQuote.status === 'Accepted' ? '#ECFDF5' : currentQuote.status === 'Rejected' ? '#FFF1F2' : '#FFFBEB',
+                              borderColor: currentQuote.status === 'Accepted' ? '#A7F3D0' : currentQuote.status === 'Rejected' ? '#FECDD3' : '#FDE68A',
+                            }}>
+                              <Text style={{
+                                fontSize: 9.5, fontFamily: 'Inter-Black', letterSpacing: 0.4,
+                                color: currentQuote.status === 'Accepted' ? '#047857' : currentQuote.status === 'Rejected' ? '#BE123C' : '#B45309',
+                              }}>{(currentQuote.status || 'Draft').toUpperCase()}</Text>
+                            </View>
                           </View>
                         </View>
 
@@ -3632,11 +3669,7 @@ export default function Lead360Screen() {
                           return (
                             <View style={s.quoteTotalsBox}>
                               <View style={s.totalRow}>
-                                <Text style={s.totalLabel}>Total Items Count</Text>
-                                <Text style={s.totalVal}>{quoteItems.length} item{quoteItems.length === 1 ? '' : 's'}</Text>
-                              </View>
-                              <View style={s.totalRow}>
-                                <Text style={s.totalLabel}>Subtotal</Text>
+                                <Text style={s.totalLabel}>Subtotal ({quoteItems.length} items)</Text>
                                 <Text style={s.totalVal}>₹ {formatMillionBillion(subtotal)}</Text>
                               </View>
                               <View style={s.totalRow}>
@@ -3645,13 +3678,16 @@ export default function Lead360Screen() {
                               </View>
                               {discount > 0 && (
                                 <View style={s.totalRow}>
-                                  <Text style={[s.totalLabel, { color: '#16A34A' }]}>Discount</Text>
+                                  <Text style={[s.totalLabel, { color: '#16A34A' }]}>Discount Applied</Text>
                                   <Text style={[s.totalVal, { color: '#16A34A' }]}>- ₹ {formatMillionBillion(discount)}</Text>
                                 </View>
                               )}
                               <View style={{ height: 1, backgroundColor: '#E2E8F0', marginVertical: 6 }} />
                               <View style={s.totalRow}>
-                                <Text style={s.grandTotalTitle}>Grand Total</Text>
+                                <View>
+                                  <Text style={s.grandTotalTitle}>Grand Total</Text>
+                                  <Text style={s.quoteMetaSub}>Net Payable</Text>
+                                </View>
                                 <Text style={s.grandTotalVal}>
                                   ₹ {formatMillionBillion(grandTotal)}
                                 </Text>

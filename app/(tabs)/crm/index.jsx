@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, StatusBar, KeyboardAvoidingView, Platform,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -112,6 +112,12 @@ export default function CRMScreen() {
   const loading = leadsQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // Web leads table filters: source / property type / status + sort order
+  const [showFilters, setShowFilters] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState('all');
+  const [propertyFilter, setPropertyFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
   const [selectedFlowTab, setActiveFlowTab] = useState('leads');
   // Only tabs this user can view; start on the first one they can see
   const { hasPermission } = useInteriorPermissions();
@@ -175,16 +181,25 @@ export default function CRMScreen() {
       })
     : [];
 
+  const uniqueOf = (key) => [...new Set(leads.map((l) => l[key]).filter(Boolean))];
+  const activeFiltersCount = [sourceFilter !== 'all', propertyFilter !== 'all', statusFilter !== 'all', sortBy !== 'newest'].filter(Boolean).length;
+  const resetFilters = () => { setSourceFilter('all'); setPropertyFilter('all'); setStatusFilter('all'); setSortBy('newest'); };
+
   const filteredLeads = leads.filter((l) => {
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
       l.name?.toLowerCase().includes(q) ||
       l.email?.toLowerCase().includes(q) ||
       l.mobileNumber?.toLowerCase().includes(q) ||
+      l.leadNumber?.toLowerCase().includes(q) ||
+      l.projectLocation?.toLowerCase().includes(q) ||
       l.lostReason?.toLowerCase().includes(q);
 
     if (!matchesSearch) return false;
+    if (sourceFilter !== 'all' && l.leadSource !== sourceFilter) return false;
+    if (propertyFilter !== 'all' && l.propertyType !== propertyFilter) return false;
+    if (statusFilter !== 'all' && l.status !== statusFilter) return false;
 
     // Dedicated Lost Leads tab explicitly displays only leads where status === 'Lost'
     if (activeFlowTab === 'lost_leads') {
@@ -204,6 +219,11 @@ export default function CRMScreen() {
     if (activeFlowTab === 'quotations') return ['Under Quotation', 'Quotation Sent', 'Booking Pending'].includes(l.status) || (l.quotations && l.quotations.length > 0);
     if (activeFlowTab === 'won_projects') return l.status === 'Won' || l.status === 'Converted' || !!l.linkedProject;
     return true;
+  }).sort((a, b) => {
+    if (sortBy === 'oldest') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+    if (sortBy === 'name_desc') return (b.name || '').localeCompare(a.name || '');
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
   const handleLeadFieldChange = (field, value) => {
@@ -397,22 +417,74 @@ export default function CRMScreen() {
             contentContainerStyle={s.scroll}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadLeads(true)} tintColor="#2563EB" colors={['#2563EB']} />}
           >
-            {/* Search */}
-            <View style={s.searchRow}>
-              <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
-              <TextInput
-                style={s.searchInput}
-                placeholder="Search by name, email or phone..."
-                placeholderTextColor="#94A3B8"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {!!searchQuery && (
-                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name="close-circle" size={16} color="#94A3B8" />
-                </TouchableOpacity>
-              )}
+            {/* Search + filters */}
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+              <View style={[s.searchRow, { flex: 1 }]}>
+                <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
+                <TextInput
+                  style={s.searchInput}
+                  placeholder="Search by name, phone, lead no. or location..."
+                  placeholderTextColor="#94A3B8"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {!!searchQuery && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <TouchableOpacity
+                style={[s.filterBtn, (showFilters || activeFiltersCount > 0) && s.filterBtnActive]}
+                onPress={() => setShowFilters((v) => !v)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="options-outline" size={18} color={(showFilters || activeFiltersCount > 0) ? '#FFFFFF' : '#475569'} />
+                {activeFiltersCount > 0 && (
+                  <View style={s.filterCount}><Text style={s.filterCountText}>{activeFiltersCount}</Text></View>
+                )}
+              </TouchableOpacity>
             </View>
+
+            {showFilters && (
+              <View style={s.filterPanel}>
+                <View style={s.filterGrid}>
+                  <View style={s.filterCell}>
+                    <Text style={s.filterLabel}>SOURCE</Text>
+                    <SelectField value={sourceFilter} onChange={setSourceFilter} options={[{ value: 'all', label: 'All Sources' }, ...uniqueOf('leadSource')]} />
+                  </View>
+                  <View style={s.filterCell}>
+                    <Text style={s.filterLabel}>PROPERTY TYPE</Text>
+                    <SelectField value={propertyFilter} onChange={setPropertyFilter} options={[{ value: 'all', label: 'All Property Types' }, ...uniqueOf('propertyType')]} />
+                  </View>
+                  {activeFlowTab === 'leads' && (
+                    <View style={s.filterCell}>
+                      <Text style={s.filterLabel}>PIPELINE STATUS</Text>
+                      <SelectField value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Statuses' }, ...uniqueOf('status')]} />
+                    </View>
+                  )}
+                  <View style={s.filterCell}>
+                    <Text style={s.filterLabel}>SORT ORDER</Text>
+                    <SelectField
+                      value={sortBy}
+                      onChange={setSortBy}
+                      options={[
+                        { value: 'newest', label: 'Recently Created (Default)' },
+                        { value: 'oldest', label: 'Oldest First' },
+                        { value: 'name_asc', label: 'Name: A → Z' },
+                        { value: 'name_desc', label: 'Name: Z → A' },
+                      ]}
+                    />
+                  </View>
+                </View>
+                {activeFiltersCount > 0 && (
+                  <TouchableOpacity style={s.resetFiltersBtn} onPress={resetFilters} activeOpacity={0.7}>
+                    <Ionicons name="refresh" size={13} color="#E11D48" />
+                    <Text style={s.resetFiltersText}>Reset Filters</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
             {/* Follow-ups Board Banner when in follow_ups tab */}
             {activeFlowTab === 'follow_ups' && (
@@ -463,8 +535,16 @@ export default function CRMScreen() {
                   <Text style={s.emptyTitle}>
                     {activeFlowTab === 'lost_leads' ? 'No Lost Leads' : 'No leads found'}
                   </Text>
-                  {activeFlowTab === 'lost_leads' && (
+                  {activeFlowTab === 'lost_leads' && !activeFiltersCount && !searchQuery && (
                     <Text style={s.emptySub}>All leads in your workspace are active or won.</Text>
+                  )}
+                  {(activeFiltersCount > 0 || !!searchQuery) && (
+                    <>
+                      <Text style={s.emptySub}>No leads matched your search or active filter criteria.</Text>
+                      <TouchableOpacity onPress={() => { resetFilters(); setSearchQuery(''); }}>
+                        <Text style={[s.resetFiltersText, { marginTop: 8 }]}>Clear All Filters</Text>
+                      </TouchableOpacity>
+                    </>
                   )}
                 </View>
               ) : (
@@ -521,6 +601,30 @@ export default function CRMScreen() {
                               : 'Unassigned'}
                           </Text>
                         </View>
+                        {!!lead.mobileNumber && (
+                          <View style={{ flexDirection: 'row', gap: 6 }}>
+                            <TouchableOpacity
+                              style={[s.quickContactBtn, { backgroundColor: '#EFF6FF' }]}
+                              onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`).catch(() => {})}
+                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                              accessibilityLabel="Call Lead"
+                            >
+                              <Ionicons name="call-outline" size={14} color="#2563EB" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[s.quickContactBtn, { backgroundColor: '#F0FDF4' }]}
+                              onPress={() => {
+                                const digits = String(lead.mobileNumber).replace(/\D/g, '');
+                                const phone = digits.length === 10 ? `91${digits}` : digits;
+                                Linking.openURL(`https://wa.me/${phone}`).catch(() => {});
+                              }}
+                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                              accessibilityLabel="Chat on WhatsApp"
+                            >
+                              <Ionicons name="logo-whatsapp" size={14} color="#16A34A" />
+                            </TouchableOpacity>
+                          </View>
+                        )}
                       </View>
 
                       {/* Quotation Info (Quotations tab only) */}
@@ -997,6 +1101,17 @@ const s = StyleSheet.create({
   statValue: { fontSize: 17, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 2 },
   statValueSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
+  filterBtn: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, borderColor: '#DBEAFE', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  filterBtnActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
+  filterCount: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#E11D48', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  filterCountText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  filterPanel: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, padding: 12, marginBottom: 14, gap: 10 },
+  filterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  filterCell: { flexBasis: '47%', flexGrow: 1, gap: 4 },
+  filterLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
+  resetFiltersBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-end' },
+  resetFiltersText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#E11D48' },
+  quickContactBtn: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',

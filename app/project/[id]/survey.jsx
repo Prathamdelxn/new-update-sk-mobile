@@ -973,10 +973,32 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
           <Text style={styles.cardLabel}>ROOM DETAILS</Text>
           <View style={styles.detailStrip}>
             {survey.roomCount != null && <View style={styles.detailItem}><Ionicons name="grid-outline" size={18} color="#3B82F6" /><Text style={styles.detailVal}>{survey.roomCount}</Text><Text style={styles.detailLabel}>Rooms</Text></View>}
-            {survey.ceilingHeight ? <View style={styles.detailItem}><Ionicons name="arrow-up-outline" size={18} color="#8B5CF6" /><Text style={styles.detailVal}>{survey.ceilingHeight}</Text><Text style={styles.detailLabel}>Ceiling Height</Text></View> : null}
+            {survey.ceilingHeight ? <View style={styles.detailItem}><Ionicons name="arrow-up-outline" size={18} color="#8B5CF6" /><Text style={styles.detailVal}>{survey.ceilingHeight} {survey.ceilingHeightUnit || 'ft'}</Text><Text style={styles.detailLabel}>Ceiling Height</Text></View> : null}
             {survey.naturalLighting ? <View style={styles.detailItem}><Ionicons name="sunny-outline" size={18} color="#F59E0B" /><Text style={styles.detailVal}>{survey.naturalLighting}</Text><Text style={styles.detailLabel}>Natural Light</Text></View> : null}
             <View style={styles.detailItem}><Ionicons name="thermometer-outline" size={18} color={survey.ventilationAvailable ? '#10B981' : '#94A3B8'} /><Text style={styles.detailVal}>{survey.ventilationAvailable ? 'Yes' : 'No'}</Text><Text style={styles.detailLabel}>Ventilation</Text></View>
           </View>
+        </AdaptiveGlass>
+      )}
+
+      {/* Interior: wall, MEP and access diagnostics (same rows as the web survey details) */}
+      {isInterior && (survey.wallCondition || survey.electricalPhase || survey.elevatorAccessibility || survey.dampnessObserved !== undefined) && (
+        <AdaptiveGlass intensity={20} tint="light" style={styles.card}>
+          <Text style={styles.cardLabel}>SITE DIAGNOSTICS</Text>
+          {[
+            ['Wall Condition', survey.wallCondition],
+            survey.dampnessObserved !== undefined && ['Dampness Check', survey.dampnessObserved ? 'Dampness Observed' : 'No Dampness', survey.dampnessObserved ? '#DC2626' : '#059669'],
+            ['Dampness Notes', survey.dampnessNotes],
+            ['Electrical Phase', survey.electricalPhase],
+            survey.acPipingReady !== undefined && ['AC Copper Piping', survey.acPipingReady ? 'Laid' : 'Not laid'],
+            survey.plumbingDrainReady !== undefined && ['Plumbing & Waste Outlets', survey.plumbingDrainReady ? 'Positioned' : 'Not ready'],
+            ['Elevator Access', survey.elevatorAccessibility],
+            survey.elevatorCapacityKg ? ['Elevator Capacity', `${survey.elevatorCapacityKg} kg`] : null,
+          ].filter((row) => row && row[1]).map(([label, value, color]) => (
+            <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+              <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#64748B' }}>{label}</Text>
+              <Text style={{ flex: 1, textAlign: 'right', fontSize: 12.5, fontFamily: 'Inter-Bold', color: color || '#0F172A' }}>{value}</Text>
+            </View>
+          ))}
         </AdaptiveGlass>
       )}
 

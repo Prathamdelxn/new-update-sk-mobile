@@ -37,7 +37,7 @@ const PROJECT_TYPES = ['Commercial Office', 'Residential', 'Tech Office', 'Co-wo
 
 const emptyForm = {
   name: '', client: '', type: 'General', startDate: null, endDate: null,
-  budgetAmount: '', description: '', city: '', address: '', templateId: '',
+  budgetAmount: '', description: '', city: '', address: '',
 };
 
 function formatDate(d) {
@@ -77,16 +77,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
       return res?.success && res?.data ? res.data : [];
     },
   });
-  const templatesQuery = useQuery({
-    queryKey: queryKeys.interiorTemplates,
-    queryFn: async () => {
-      const res = await interiorApiClient.get('/templates');
-      return res?.success && res?.data?.templates ? res.data.templates : [];
-    },
-    staleTime: 10 * 60 * 1000,
-  });
   const projects = projectsQuery.data ?? [];
-  const templates = templatesQuery.data ?? [];
   const loading = projectsQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -147,7 +138,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
     }
   }, [queryClient]);
 
-  useRefreshOnFocus([queryKeys.interiorProjects, queryKeys.interiorTemplates]);
+  useRefreshOnFocus([queryKeys.interiorProjects]);
 
   const filteredProjects = projects.filter((p) => {
     const q = searchQuery.toLowerCase();
@@ -187,7 +178,6 @@ const { hasPermission: canDo } = useInteriorPermissions();
       description: project.description || '',
       city: project.location?.city || '',
       address: project.location?.address || '',
-      templateId: project.templateId || '',
     });
     setIsModalVisible(true);
   };
@@ -235,7 +225,6 @@ const { hasPermission: canDo } = useInteriorPermissions();
         budget: { amount: parseFloat(form.budgetAmount) || 0, currency: 'INR' },
         location: { city: form.city, address: form.address },
         description: form.description,
-        templateId: form.templateId || undefined,
       };
       if (editingProjectId) {
         await interiorApiClient.put(`/projects/${editingProjectId}`, payload);
@@ -392,7 +381,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
 
                       <View style={s.cardFooterRow}>
                         <TouchableOpacity style={s.viewProjectBtn} onPress={() => openProject(project)}>
-                          <Text style={s.viewProjectBtnText}>View Project</Text>
+                          <Text style={s.viewProjectBtnText}>View</Text>
                         </TouchableOpacity>
                         {canDo('projects', 'update') && (
                           <TouchableOpacity style={s.cardIconBtn} onPress={() => openEdit(project)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -460,22 +449,6 @@ const { hasPermission: canDo } = useInteriorPermissions();
                   placeholder="Select project type"
                   style={{ marginBottom: 14 }}
                 />
-
-                {!editingProjectId && templates.length > 0 && (
-                  <>
-                    <Text style={s.fieldLabel}>Interior Template (Optional)</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 14 }}>
-                      <TouchableOpacity style={[s.typeChip, !form.templateId && s.typeChipActive]} onPress={() => setForm({ ...form, templateId: '' })}>
-                        <Text style={[s.typeChipText, !form.templateId && s.typeChipTextActive]}>No Template</Text>
-                      </TouchableOpacity>
-                      {templates.map((t) => (
-                        <TouchableOpacity key={t._id} style={[s.typeChip, form.templateId === t._id && s.typeChipActive]} onPress={() => setForm({ ...form, templateId: t._id })}>
-                          <Text style={[s.typeChipText, form.templateId === t._id && s.typeChipTextActive]}>{t.name}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </>
-                )}
 
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <View style={{ flex: 1, marginBottom: 14 }}>
@@ -649,10 +622,6 @@ const s = StyleSheet.create({
   },
   dateInputText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
 
-  typeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
-  typeChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  typeChipText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  typeChipTextActive: { color: '#FFFFFF' },
 
   createCatBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 6 },
   createCatBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },

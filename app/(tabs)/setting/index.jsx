@@ -14,6 +14,7 @@ import { hasProjectPermission } from '../../utils/permissions';
 import { I18nManager } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as SecureStore from 'expo-secure-store';
+import AccountSheet from '../../components/settings/AccountSheet';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,9 +28,9 @@ const SettingItem = ({ icon, title, subtitle, type = 'chevron', value, onPress, 
       <View style={[styles.iconContainer, { backgroundColor: '#EFF6FF' }]}>
         <Ionicons name={icon} size={20} color="#2563EB" />
       </View>
-      <View>
-        <Text style={styles.itemTitle}>{title}</Text>
-        {subtitle && <Text style={styles.itemSubtitle}>{subtitle}</Text>}
+      <View style={styles.itemText}>
+        <Text style={styles.itemTitle} numberOfLines={2}>{title}</Text>
+        {!!subtitle && <Text style={styles.itemSubtitle} numberOfLines={1}>{subtitle}</Text>}
       </View>
     </View>
     {type === 'chevron' && <Ionicons name="chevron-forward" size={18} color="#94A3B8" />}
@@ -45,6 +46,7 @@ export default function SettingScreen() {
   const [isAppInfoVisible, setIsAppInfoVisible] = useState(false);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
+  const [accountSheet, setAccountSheet] = useState(null); // 'profile' | 'organization' | 'password'
   const { user, logout } = useAuth();
   const { showToast } = useToast();
   const { t, i18n } = useTranslation();
@@ -103,7 +105,6 @@ export default function SettingScreen() {
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
     return name.slice(0, 2).toUpperCase();
   };
-console.log(hasPermission('users', 'view'));
   return (
     <View style={styles.outerContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#DBEAFE" translucent={false} />
@@ -139,6 +140,30 @@ console.log(hasPermission('users', 'view'));
               </View>
             </View>
           </AdaptiveGlass>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>{t('accountAndSecurity', 'ACCOUNT & SECURITY')}</Text>
+            <View style={styles.flatGroup}>
+              <SettingItem
+                icon="person-circle"
+                title={t('profileDetails', 'Profile Details')}
+                subtitle={t('profileDetailsSub', 'Name and phone number')}
+                onPress={() => setAccountSheet('profile')}
+              />
+              <SettingItem
+                icon="business"
+                title={t('organizationWorkspace', 'Organization & Workspace Details')}
+                subtitle={user?.organizationName || (typeof user?.organization === 'object' ? user?.organization?.name : '') || t('workspaceName', 'Workspace name')}
+                onPress={() => setAccountSheet('organization')}
+              />
+              <SettingItem
+                icon="key"
+                title={t('changePassword', 'Change Password')}
+                subtitle={t('changePasswordSub', 'Minimum 8 characters')}
+                onPress={() => setAccountSheet('password')}
+              />
+            </View>
+          </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>{t('preferences')}</Text>
@@ -205,6 +230,8 @@ console.log(hasPermission('users', 'view'));
             <Text style={styles.logoutText}>{t('logout')}</Text>
           </TouchableOpacity>
 
+
+          <AccountSheet mode={accountSheet} onClose={() => setAccountSheet(null)} />
 
           {/* Language Selection Modal */}
           <Modal
@@ -556,9 +583,16 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   itemLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    marginRight: 8,
+  },
+  // Long titles (e.g. "Organization & Workspace Details") wrap inside the card
+  itemText: {
+    flex: 1,
+    minWidth: 0,
   },
   iconContainer: {
     width: 44,

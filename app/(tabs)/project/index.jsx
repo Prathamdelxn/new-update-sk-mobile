@@ -44,8 +44,12 @@ export default function ProjectScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState('date'); // 'date' | 'name' | 'progress' (same as web)
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalStep, setModalStep] = useState('category'); // 'category' | 'create-category' | 'template'
+  // Web CreateProjectModal: search boxes appear once a list has more than 3 entries
+  const [categorySearch, setCategorySearch] = useState('');
+  const [templateSearch, setTemplateSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -435,13 +439,19 @@ export default function ProjectScreen() {
     });
   };
 
+  const pq = searchQuery.toLowerCase().trim();
   const filteredProjects = projectsList.filter(project => {
-    const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (project.createdBy?.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = !pq || [project.name, project.status, project.createdBy?.name, project.clientName, project.projectCode, project.description]
+      .some((x) => String(x || '').toLowerCase().includes(pq));
     const matchesStatus = statusFilter === 'All' || project.status === statusFilter;
     return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
+    if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+    if (sortBy === 'progress') return (b.progress || 0) - (a.progress || 0);
+    const dateOf = (p) => new Date(p.startDate || p.createdAt || 0).getTime();
+    return dateOf(b) - dateOf(a);
   });
+  const statusCounts = projectsList.reduce((acc, p) => { acc[p.status] = (acc[p.status] || 0) + 1; return acc; }, {});
 
   const renderProjectCard = ({ item }) => {
     const statusProgressMap = {
@@ -703,22 +713,47 @@ export default function ProjectScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="options" size={20} color={showFilters ? '#FFF' : '#64748B'} />
+                {statusFilter !== 'All' && <View style={styles.filterDot} />}
               </TouchableOpacity>
             </View>
 
             {showFilters && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterChips} contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}>
-                {['All', 'Initialized', 'Planning', 'Site Survey', 'Ongoing', 'Completed', 'On Hold', 'Cancelled'].map(status => (
-                  <TouchableOpacity
-                    key={status}
-                    style={[styles.filterChip, statusFilter === status && styles.filterChipActive]}
-                    onPress={() => setStatusFilter(status)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.filterChipText, statusFilter === status && styles.filterChipTextActive]}>{t(status.replace(/ /g, ''), status)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterChips} contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}>
+                  {['All', 'Initialized', 'Planning', 'Site Survey', 'Ongoing', 'Under Snagging', 'Completed', 'On Hold', 'Cancelled'].map(status => {
+                    const count = status === 'All' ? projectsList.length : (statusCounts[status] || 0);
+                    const active = statusFilter === status;
+                    return (
+                      <TouchableOpacity
+                        key={status}
+                        style={[styles.filterChip, active && styles.filterChipActive]}
+                        onPress={() => setStatusFilter(status)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                          {t(status.replace(/ /g, ''), status)} · {count}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterChips} contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}>
+                  {[
+                    ['date', t('sortByDate', 'Sort: Newest')],
+                    ['name', t('sortByName', 'Sort: Name A → Z')],
+                    ['progress', t('sortByProgress', 'Sort: Progress')],
+                  ].map(([key, label]) => (
+                    <TouchableOpacity
+                      key={key}
+                      style={[styles.filterChip, sortBy === key && styles.filterChipActive]}
+                      onPress={() => setSortBy(key)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.filterChipText, sortBy === key && styles.filterChipTextActive]}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
             )}
           </View>
 
@@ -749,9 +784,21 @@ export default function ProjectScreen() {
             </AdaptiveGlass>
           ) : (
             <AdaptiveGlass intensity={10} tint="light" style={styles.emptyProjectsCard}>
-              <MaterialIcons name="work-outline" size={48} color="#CBD5E1" />
-              <Text style={styles.emptyTitle}>{t('noActiveProjects')}</Text>
-              <Text style={styles.emptySub}>{t('startNewProject')}</Text>
+              <MaterialIcons name={pq || statusFilter !== 'All' ? 'search-off' : 'work-outline'} size={48} color="#CBD5E1" />
+              {pq || statusFilter !== 'All' ? (
+                <>
+                  <Text style={styles.emptyTitle}>{t('noMatchingProjects', 'No matching projects found')}</Text>
+                  <Text style={[styles.emptySub, { textAlign: 'center' }]}>{t('noMatchingProjectsSub', 'Try adjusting your search query or status filter to locate projects.')}</Text>
+                  <TouchableOpacity onPress={() => { setSearchQuery(''); setStatusFilter('All'); }} style={{ marginTop: 10 }}>
+                    <Text style={styles.clearFiltersText}>{t('clearAllFilters', 'Clear All Filters')}</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.emptyTitle}>{t('noActiveProjects')}</Text>
+                  <Text style={styles.emptySub}>{t('startNewProject')}</Text>
+                </>
+              )}
             </AdaptiveGlass>
           )}
 
@@ -781,6 +828,11 @@ export default function ProjectScreen() {
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleRow}>
                   <View style={styles.modalTitleContent}>
+                    <Text style={styles.modalStepLabel}>
+                      {modalStep === 'template'
+                        ? t('stepTemplateSelection', 'Step 2 of 3 · Template Selection')
+                        : t('stepCategorySelection', 'Step 1 of 3 · Category Selection')}
+                    </Text>
                     <Text style={styles.modalTitle}>
                       {modalStep === 'create-category' ? t('createCategory') : modalStep === 'category' ? t('selectProjectCategory') : `${t('templatesLabel')} ${selectedCategory?.name}`}
                     </Text>
@@ -864,23 +916,43 @@ export default function ProjectScreen() {
                         </View>
                       ) : (
                         <View style={styles.categoryList}>
-
-                          {categories.map((cat) => (
-                            <TouchableOpacity
-                              key={cat._id}
-                              style={styles.categorySelectItem}
-                              activeOpacity={0.7}
-                              onPress={() => handleSelectCategory(cat)}
-                            >
-                              <View style={styles.categorySelectIcon}>
-                                <MaterialIcons name="folder-open" size={16} color="#64748B" />
-                              </View>
-                              <View style={styles.categorySelectInfo}>
-                                <Text style={styles.categorySelectName}>{cat.name}</Text>
-                              </View>
-                              <MaterialIcons name="chevron-right" size={20} color="#CBD5E1" />
-                            </TouchableOpacity>
-                          ))}
+                          {categories.length > 3 && (
+                            <View style={styles.modalSearch}>
+                              <MaterialIcons name="search" size={16} color="#94A3B8" />
+                              <TextInput
+                                style={styles.modalSearchInput}
+                                value={categorySearch}
+                                onChangeText={setCategorySearch}
+                                placeholder={t('searchCategories', 'Search categories...')}
+                                placeholderTextColor="#94A3B8"
+                              />
+                            </View>
+                          )}
+                          {categories
+                            .filter((cat) => (cat.name || '').toLowerCase().includes(categorySearch.toLowerCase().trim()))
+                            .map((cat) => {
+                              const count = templates.filter((tp) => (tp.category?._id || tp.category) === cat._id).length;
+                              return (
+                                <TouchableOpacity
+                                  key={cat._id}
+                                  style={styles.categorySelectItem}
+                                  activeOpacity={0.7}
+                                  onPress={() => { setTemplateSearch(''); handleSelectCategory(cat); }}
+                                >
+                                  <View style={styles.categorySelectIcon}>
+                                    <MaterialIcons name="folder-open" size={16} color="#64748B" />
+                                  </View>
+                                  <View style={styles.categorySelectInfo}>
+                                    <Text style={styles.categorySelectName}>{cat.name}</Text>
+                                    <Text style={styles.categoryCountText}>
+                                      {count} {count === 1 ? t('templateSingular', 'template') : t('templatePlural', 'templates')}
+                                    </Text>
+                                  </View>
+                                  <Text style={styles.browseText}>{t('browseTemplates', 'Browse templates')}</Text>
+                                  <MaterialIcons name="chevron-right" size={20} color="#CBD5E1" />
+                                </TouchableOpacity>
+                              );
+                            })}
                         </View>
                       )
                     ) : (
@@ -891,27 +963,7 @@ export default function ProjectScreen() {
                             <Text style={{ color: '#065F46', fontFamily: 'Inter-Medium', fontSize: 13, flex: 1 }}>{inlineSuccessMsg}</Text>
                           </View>
                         )}
-                        {templates
-                          .filter(t => t.category?._id === selectedCategory?._id || t.category === selectedCategory?._id)
-                          .map((tpl) => (
-                            <TouchableOpacity
-                              key={tpl._id}
-                              style={styles.tplSelectItem}
-                              activeOpacity={0.7}
-                              onPress={() => handleSelectTemplate(tpl)}
-                            >
-                              <View style={styles.tplSelectIcon}>
-                                <MaterialIcons name="description" size={22} color="#3B82F6" />
-                              </View>
-                              <View style={styles.tplSelectInfo}>
-                                <Text style={styles.tplSelectName}>{tpl.name}</Text>
-                                <Text style={styles.tplSelectSub}>{t('presetConfigurationsReady')}</Text>
-                              </View>
-                              <MaterialIcons name="chevron-right" size={18} color="#CBD5E1" />
-                            </TouchableOpacity>
-                          ))}
-
-                        {/* Custom Requirement Option */}
+                        {/* Custom Requirement first, same as web */}
                         <TouchableOpacity
                           style={[styles.tplSelectItem, styles.customTplItem]}
                           activeOpacity={0.7}
@@ -921,11 +973,73 @@ export default function ProjectScreen() {
                             <MaterialIcons name="bolt" size={22} color="#F59E0B" />
                           </View>
                           <View style={styles.tplSelectInfo}>
-                            <Text style={[styles.tplSelectName, { color: '#B45309' }]}>{t('customRequirement')}</Text>
-                            <Text style={styles.tplSelectSub}>{t('startFromScratch')}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              <Text style={[styles.tplSelectName, { color: '#B45309' }]}>{t('customRequirement')}</Text>
+                              <View style={styles.startBlankBadge}>
+                                <Text style={styles.startBlankText}>{t('startBlank', 'Start Blank')}</Text>
+                              </View>
+                            </View>
+                            <Text style={styles.tplSelectSub}>{t('buildFromScratchHint', 'Build from scratch without a template · Configure custom phases & milestones')}</Text>
                           </View>
                           <MaterialIcons name="chevron-right" size={18} color="#F59E0B" />
                         </TouchableOpacity>
+
+                        {(() => {
+                          const forCategory = templates.filter((tp) => (tp.category?._id || tp.category) === selectedCategory?._id);
+                          const tq = templateSearch.toLowerCase().trim();
+                          const shown = forCategory.filter((tp) => (tp.name || '').toLowerCase().includes(tq));
+                          return (
+                            <>
+                              <View style={styles.availableHeader}>
+                                <Text style={styles.availableTitle}>{t('availableTemplates', 'AVAILABLE TEMPLATES')}</Text>
+                                <View style={styles.availableCount}><Text style={styles.availableCountText}>{forCategory.length}</Text></View>
+                              </View>
+                              {forCategory.length > 3 && (
+                                <View style={styles.modalSearch}>
+                                  <MaterialIcons name="search" size={16} color="#94A3B8" />
+                                  <TextInput
+                                    style={styles.modalSearchInput}
+                                    value={templateSearch}
+                                    onChangeText={setTemplateSearch}
+                                    placeholder={t('filterTemplates', 'Filter templates...')}
+                                    placeholderTextColor="#94A3B8"
+                                  />
+                                </View>
+                              )}
+                              {shown.length > 0 ? shown.map((tpl) => (
+                                <TouchableOpacity
+                                  key={tpl._id}
+                                  style={styles.tplSelectItem}
+                                  activeOpacity={0.7}
+                                  onPress={() => handleSelectTemplate(tpl)}
+                                >
+                                  <View style={styles.tplSelectIcon}>
+                                    <MaterialIcons name="description" size={22} color="#3B82F6" />
+                                  </View>
+                                  <View style={styles.tplSelectInfo}>
+                                    <Text style={styles.tplSelectName} numberOfLines={1}>{tpl.name}</Text>
+                                    <View style={styles.tplMetaRow}>
+                                      {!!tpl.area && <Text style={styles.tplMetaChip}>{tpl.area} {tpl.areaUnit || 'sqft'}</Text>}
+                                      {!!tpl.estimatedDays && <Text style={styles.tplMetaChip}>{tpl.estimatedDays} {t('days', 'days')}</Text>}
+                                      {Array.isArray(tpl.phases) && <Text style={styles.tplMetaChip}>{tpl.phases.length} {t('phasesLabel', 'phases')}</Text>}
+                                    </View>
+                                  </View>
+                                  <MaterialIcons name="chevron-right" size={18} color="#CBD5E1" />
+                                </TouchableOpacity>
+                              )) : (
+                                <View style={styles.noTplBox}>
+                                  <MaterialIcons name="description" size={30} color="#CBD5E1" />
+                                  <Text style={styles.noTplTitle}>{t('noTemplatesForCategory', 'No templates found for this category')}</Text>
+                                  <Text style={styles.noTplSub}>{t('proceedCustomHint', 'You can proceed directly with a custom setup')}</Text>
+                                  <TouchableOpacity style={styles.noTplBtn} onPress={handleCustomRequirement} activeOpacity={0.8}>
+                                    <MaterialIcons name="bolt" size={14} color="#F59E0B" />
+                                    <Text style={styles.noTplBtnText}>{t('proceedWithCustom', 'Proceed with Custom Requirement')}</Text>
+                                  </TouchableOpacity>
+                                </View>
+                              )}
+                            </>
+                          );
+                        })()}
                       </View>
                     )}
                   </ScrollView>
@@ -1060,6 +1174,26 @@ export default function ProjectScreen() {
 }
 
 const styles = StyleSheet.create({
+  filterDot: { position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#E11D48' },
+  clearFiltersText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  modalStepLabel: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#2563EB', letterSpacing: 0.4, marginBottom: 2, textTransform: 'uppercase' },
+  modalSearch: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 10, height: 40, marginBottom: 10 },
+  modalSearchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A', paddingVertical: 0 },
+  categoryCountText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#94A3B8', marginTop: 2 },
+  browseText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8', marginRight: 2 },
+  startBlankBadge: { backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  startBlankText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#B45309' },
+  availableHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, marginBottom: 8 },
+  availableTitle: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#334155', letterSpacing: 0.5 },
+  availableCount: { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
+  availableCountText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B' },
+  tplMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 4 },
+  tplMetaChip: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#64748B', backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden' },
+  noTplBox: { alignItems: 'center', paddingVertical: 22, paddingHorizontal: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: '#E2E8F0', borderRadius: 12, backgroundColor: '#F8FAFC', gap: 4 },
+  noTplTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#334155', textAlign: 'center' },
+  noTplSub: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#94A3B8', textAlign: 'center', marginBottom: 6 },
+  noTplBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
+  noTplBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#334155' },
   outerContainer: {
     flex: 1,
     backgroundColor: '#DBEAFE',

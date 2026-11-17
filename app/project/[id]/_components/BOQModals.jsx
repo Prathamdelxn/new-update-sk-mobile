@@ -205,7 +205,7 @@ export const ChoiceModal = ({
             {isImporting ? <ActivityIndicator size="small" color="#10B981" /> : <Ionicons name="cloud-upload" size={22} color="#10B981" />}
           </View>
           <View style={styles.choiceTextCol}>
-            <Text style={styles.choiceBtnTitle}>Excel Smart Sync</Text>
+            <Text style={styles.choiceBtnTitle}>Import from Excel</Text>
             <Text style={styles.choiceBtnSub}>Bulk import from spreadsheets</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#94A3B8" />

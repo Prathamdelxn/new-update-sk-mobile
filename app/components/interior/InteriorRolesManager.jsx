@@ -153,7 +153,7 @@ function RoleEditor({ role, visible, onClose, onSaved }) {
             <TextInput
               value={description}
               onChangeText={setDescription}
-              placeholder="What this role is for"
+              placeholder="Brief summary of what this role does"
               placeholderTextColor="#94A3B8"
               style={s.input}
             />

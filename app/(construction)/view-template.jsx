@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTranslation } from 'react-i18next';
+import { getCachedTemplate, rememberTemplate } from '../utils/construction/templateCache';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -30,8 +31,9 @@ export default function ViewTemplateScreen() {
   const { token } = useAuth();
   const { showToast } = useToast();
 
-  const [template, setTemplate] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Show the copy from the Templates list right away; the request below refreshes it
+  const [template, setTemplate] = useState(() => getCachedTemplate(params.id));
+  const [isLoading, setIsLoading] = useState(() => !getCachedTemplate(params.id));
 
   useEffect(() => {
     fetchTemplateDetails();
@@ -42,23 +44,32 @@ export default function ViewTemplateScreen() {
       setIsLoading(false);
       return;
     }
-    try {
-      const response = await fetch(`${API_BASE_URL}/templates/${params.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+    const cached = getCachedTemplate(params.id);
+    // One retry: a cold server instance can fail the first request
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/templates/${params.id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data?._id) {
+          setTemplate(data);
+          rememberTemplate(data);
+          break;
         }
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setTemplate(data);
-      } else {
-        showToast(data.message || 'Could not load template', 'error');
+        // A real "not found" won't change on retry
+        if (response.status === 404 || attempt === 2) {
+          if (!cached) showToast(data.message || 'Could not load template', 'error');
+          break;
+        }
+      } catch (e) {
+        if (attempt === 2 && !cached) showToast(t('networkError'), 'error');
       }
-    } catch (e) {
-      showToast(t('networkError'), 'error');
-    } finally {
-      setIsLoading(false);
+      await new Promise((resolve) => setTimeout(resolve, 800));
     }
+    setIsLoading(false);
   };
 
   if (isLoading) {
@@ -185,7 +196,7 @@ export default function ViewTemplateScreen() {
 
           {/* Plan Files */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Plan Files & Blueprints</Text>
+            <Text style={styles.sectionLabel}>Plan Files & Documents</Text>
             {template.files && template.files.length > 0 ? (
               <View style={styles.fileList}>
                 {template.files.map((file, idx) => (

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator,
-  TextInput, Modal, KeyboardAvoidingView, Platform, Alert,
+  TextInput, Modal, KeyboardAvoidingView, Platform, Alert, Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
+import SelectField from '../../components/common/SelectField';
 
 const RATINGS = [4.8, 4.2, 4.6, 3.9];
 const COMPLIANCE = [95, 88, 92, 75];
@@ -42,6 +43,12 @@ const { hasPermission: canDo } = useInteriorPermissions();
   const [editingVendor, setEditingVendor] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [vendorForm, setVendorForm] = useState(emptyVendorForm);
+  // Web Vendor Management filters: search, category, partner status, sort order
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -137,7 +144,26 @@ const { hasPermission: canDo } = useInteriorPermissions();
     vendorsMap.set(name, { count: existing.count + 1, totalValue: existing.totalValue + (po.amount || 0) });
   });
 
-  const vendors = dbVendors.map((vendor, index) => {
+  const q = searchQuery.toLowerCase().trim();
+  const activeFiltersCount = [categoryFilter !== 'All', statusFilter !== 'all', sortBy !== 'newest'].filter(Boolean).length;
+  const categoryOptions = [...new Set([...VENDOR_CATEGORIES, ...dbVendors.map((v) => v.vendorCategory || v.category).filter(Boolean)])];
+  const resetFilters = () => { setCategoryFilter('All'); setStatusFilter('all'); setSortBy('newest'); };
+  const visibleVendors = dbVendors.filter((v) => {
+    const cat = v.vendorCategory || v.category || 'Other';
+    const matchesSearch = !q || [v.name, v.vendorCode, v.contactPerson, v.email, v.phoneNumber || v.phone, v.gstNumber, cat]
+      .some((x) => String(x || '').toLowerCase().includes(q));
+    const matchesCategory = categoryFilter === 'All' || cat === categoryFilter;
+    const matchesStatus = statusFilter === 'all' || (v.status || 'Active').toLowerCase() === statusFilter.toLowerCase();
+    return matchesSearch && matchesCategory && matchesStatus;
+  }).sort((a, b) => {
+    if (sortBy === 'name-asc') return (a.name || '').localeCompare(b.name || '');
+    if (sortBy === 'name-desc') return (b.name || '').localeCompare(a.name || '');
+    if (sortBy === 'category') return (a.vendorCategory || a.category || 'Other').localeCompare(b.vendorCategory || b.category || 'Other');
+    if (a.createdAt && b.createdAt) return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    return 0;
+  });
+
+  const vendors = visibleVendors.map((vendor, index) => {
     const stats = vendorsMap.get(vendor.name) || { count: 0, totalValue: 0 };
     return {
       raw: vendor,
@@ -179,11 +205,78 @@ const { hasPermission: canDo } = useInteriorPermissions();
           </View>
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-            {vendors.length === 0 ? (
+            {dbVendors.length > 0 && (
+              <View style={{ gap: 10 }}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={s.searchBox}>
+                    <Ionicons name="search" size={15} color="#94A3B8" />
+                    <TextInput
+                      style={s.searchInput}
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                      placeholder="Search vendors by name, category, contact, GSTIN..."
+                      placeholderTextColor="#94A3B8"
+                    />
+                    {!!searchQuery && (
+                      <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                        <Ionicons name="close-circle" size={15} color="#94A3B8" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    style={[s.filterBtn, (showFilters || activeFiltersCount > 0) && s.filterBtnActive]}
+                    onPress={() => setShowFilters((v) => !v)}
+                  >
+                    <Ionicons name="options-outline" size={17} color={(showFilters || activeFiltersCount > 0) ? '#FFFFFF' : '#475569'} />
+                    {activeFiltersCount > 0 && <View style={s.filterCount}><Text style={s.filterCountText}>{activeFiltersCount}</Text></View>}
+                  </TouchableOpacity>
+                </View>
+                {showFilters && (
+                  <View style={s.filterPanel}>
+                    <View style={s.filterCell}>
+                      <Text style={s.label}>Vendor Category</Text>
+                      <SelectField value={categoryFilter} onChange={setCategoryFilter} options={[{ value: 'All', label: 'All Categories' }, ...categoryOptions]} />
+                    </View>
+                    <View style={s.filterCell}>
+                      <Text style={s.label}>Partner Status</Text>
+                      <SelectField value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Statuses' }, { value: 'Active', label: 'Active Only' }, { value: 'Inactive', label: 'Inactive' }]} />
+                    </View>
+                    <View style={s.filterCell}>
+                      <Text style={s.label}>Sort Order</Text>
+                      <SelectField
+                        value={sortBy}
+                        onChange={setSortBy}
+                        options={[
+                          { value: 'newest', label: 'Recently Added (Default)' },
+                          { value: 'name-asc', label: 'Name: A → Z' },
+                          { value: 'name-desc', label: 'Name: Z → A' },
+                          { value: 'category', label: 'Category' },
+                        ]}
+                      />
+                    </View>
+                    {activeFiltersCount > 0 && (
+                      <TouchableOpacity onPress={resetFilters} style={{ alignSelf: 'flex-end' }}>
+                        <Text style={s.resetText}>Reset Filters</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
+            {dbVendors.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="car-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No vendors found in the database</Text>
+                <Text style={s.emptyTitle}>No vendors registered yet</Text>
                 <Text style={s.emptySub}>Tap "Add Vendor" to register a new vendor.</Text>
+              </View>
+            ) : vendors.length === 0 ? (
+              <View style={s.empty}>
+                <Ionicons name="search-outline" size={40} color="#CBD5E1" />
+                <Text style={s.emptyTitle}>No matching vendors found</Text>
+                <Text style={s.emptySub}>Try adjusting your search query or filters.</Text>
+                <TouchableOpacity onPress={() => { resetFilters(); setSearchQuery(''); }}>
+                  <Text style={[s.resetText, { marginTop: 8 }]}>Reset Filters</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               vendors.map((vendor) => (
@@ -219,7 +312,20 @@ const { hasPermission: canDo } = useInteriorPermissions();
                         <View style={s.contactRow}><Ionicons name="person-outline" size={13} color="#64748B" /><Text style={s.contactText}>{vendor.raw.contactPerson}</Text></View>
                       )}
                       {!!vendor.raw.phoneNumber && (
-                        <View style={s.contactRow}><Ionicons name="call-outline" size={13} color="#64748B" /><Text style={s.contactText}>{vendor.raw.phoneNumber}</Text></View>
+                        <View style={s.contactRow}>
+                          <Ionicons name="call-outline" size={13} color="#64748B" />
+                          <Text style={[s.contactText, { flex: 1 }]}>{vendor.raw.phoneNumber}</Text>
+                          <TouchableOpacity
+                            onPress={() => {
+                              const digits = String(vendor.raw.phoneNumber).replace(/\D/g, '');
+                              Linking.openURL(`https://wa.me/${digits.length === 10 ? `91${digits}` : digits}`).catch(() => {});
+                            }}
+                            hitSlop={6}
+                            accessibilityLabel="Chat on WhatsApp"
+                          >
+                            <Ionicons name="logo-whatsapp" size={15} color="#16A34A" />
+                          </TouchableOpacity>
+                        </View>
                       )}
                       {!!vendor.raw.email && (
                         <View style={s.contactRow}><Ionicons name="mail-outline" size={13} color="#64748B" /><Text style={s.contactText} numberOfLines={1}>{vendor.raw.email}</Text></View>
@@ -336,6 +442,15 @@ const s = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingHorizontal: 20, paddingTop: 16, gap: 12 },
+  searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 42, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  filterBtn: { width: 42, height: 42, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  filterBtnActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
+  filterCount: { position: 'absolute', top: -4, right: -4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#E11D48', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  filterCountText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  filterPanel: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, padding: 12, paddingTop: 2 },
+  filterCell: {},
+  resetText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#E11D48', marginTop: 10 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },

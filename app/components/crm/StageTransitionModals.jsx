@@ -570,7 +570,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
 
   const handleSubmit = async () => {
     if (!assignedArchitect) {
-      Alert.alert('Assignee Required', 'Please select a draftsperson or architect before commissioning drawings.');
+      Alert.alert('Assignee Required', 'Please assign a designer');
       return;
     }
 
@@ -611,8 +611,8 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
       onClose={onClose}
       icon="pencil-outline"
       iconColor="#0284C7"
-      title={isRescheduling ? 'Reassign Drawing Designer' : 'Pass to Drawing & Layout'}
-      subtitle={isRescheduling ? 'Update assigned designer / architect' : 'Commission 2D CAD floor plans and 3D visual concepts'}
+      title={isRescheduling ? 'Reassign Drawing Phase' : 'Pass to 2D/3D Drawing'}
+      subtitle={isRescheduling ? 'Update assigned designer and handover brief notes.' : 'Assign a 2D/3D designer and handover requirements.'}
     >
       <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         {isRescheduling && (

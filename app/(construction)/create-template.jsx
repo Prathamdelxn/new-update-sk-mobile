@@ -11,6 +11,7 @@ import cloudinaryService from '../services/cloudinaryService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTranslation } from 'react-i18next';
+import { getCachedTemplate, rememberTemplate } from '../utils/construction/templateCache';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -51,36 +52,52 @@ export default function CreateTemplateScreen() {
     }
   }, [params.id]);
 
-  const fetchTemplateDetails = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/templates/${params.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setTemplateName(data.name);
-        setDescription(data.description || '');
-        setActiveCategory(data.category?._id || data.category);
-        setMinBudget(data.minBudget?.toString() || '');
-        setMaxBudget(data.maxBudget?.toString() || '');
-        setArea(data.area?.toString() || '');
-        setEstimatedDays(data.estimatedDays?.toString() || '');
-        
-        // Load existing images
-        if (data.images) setImages(data.images);
-        
-        // Load existing files
-        if (data.files) {
-          setPlanFiles(data.files.map(f => ({
-            name: f.name,
-            uri: f.url,
-            size: f.size
-          })));
-        }
-      }
-    } catch (e) {
-      console.error('Fetch template details error', e);
+  const applyTemplate = (data) => {
+    setTemplateName(data.name);
+    setDescription(data.description || '');
+    setActiveCategory(data.category?._id || data.category);
+    setMinBudget(data.minBudget?.toString() || '');
+    setMaxBudget(data.maxBudget?.toString() || '');
+    setArea(data.area?.toString() || '');
+    setEstimatedDays(data.estimatedDays?.toString() || '');
+    
+    // Load existing images
+    if (data.images) setImages(data.images);
+    
+    // Load existing files
+    if (data.files) {
+      setPlanFiles(data.files.map(f => ({
+        name: f.name,
+        uri: f.url,
+        size: f.size
+      })));
     }
+  };
+
+  const fetchTemplateDetails = async () => {
+    // Fill the form from the Templates list copy first, so a failed request below can't
+    // leave it half-empty (saving that would wipe the template's images / files)
+    const cached = getCachedTemplate(params.id);
+    if (cached) applyTemplate(cached);
+    // One retry: a cold server instance can fail the first request
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/templates/${params.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data?._id) {
+          applyTemplate(data);
+          rememberTemplate(data);
+          return;
+        }
+        if (response.status === 404) break;
+      } catch (e) {
+        console.error('Fetch template details error', e);
+      }
+      if (attempt === 1) await new Promise((resolve) => setTimeout(resolve, 800));
+    }
+    if (!cached) showToast('Could not load template details. Please go back and try again.', 'error');
   };
 
   useEffect(() => {

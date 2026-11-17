@@ -658,7 +658,7 @@ export default function ProjectIssuesTab({ project }) {
                   <Feather name="git-merge" size={48} color="#CBD5E1" />
                   <Text style={styles.emptyText}>No Matrix Configured</Text>
                   <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 }}>
-                    Set up a chain of command to automatically escalate unresolved snags.
+                    Set up escalation levels to automatically escalate unresolved snags.
                   </Text>
                   <TouchableOpacity 
                     style={[styles.addBtn, { marginTop: 24, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }]}

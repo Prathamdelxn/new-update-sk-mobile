@@ -30,10 +30,9 @@ export default function RegisterScreen() {
   useEffect(() => {
     if (Platform.OS === 'android') {
       try {
-        NavigationBar.setPositionAsync('relative').catch(() => {});
-        NavigationBar.setVisibilityAsync('hidden').catch(() => {});
-        NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => {});
-        NavigationBar.setBackgroundColorAsync('#F8FAFC').catch(() => {});
+        // Keep the navigation bar visible so safe-area insets include it (edge-to-edge:
+        // a hidden bar reports 0, and the bottom tab bar ended up underneath it when it came back)
+        NavigationBar.setVisibilityAsync('visible').catch(() => {});
         NavigationBar.setButtonStyleAsync('dark').catch(() => {});
       } catch (e) {}
     }
@@ -193,7 +192,8 @@ export default function RegisterScreen() {
 
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // Edge-to-edge Android doesn't resize for the keyboard, so pad on both platforms
+        behavior="padding"
       >
         <ScrollView
           contentContainerStyle={[
@@ -216,7 +216,7 @@ export default function RegisterScreen() {
             />
             <Text style={styles.mainTitle}>Create Workspace</Text>
             <Text style={styles.subTitle}>
-              {isInterior ? 'Set up your studio command centre' : 'Set up your project command centre'}
+              {isInterior ? 'Set up your interior workspace' : 'Set up your construction workspace'}
             </Text>
           </View>
 

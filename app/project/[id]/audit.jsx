@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, SectionList
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,22 +44,30 @@ const FILTERS = [
   { key: 'finance', label: 'Finance', icon: 'cash-outline' },
 ];
 
-function formatTime(ts) {
+// Plain formatting instead of toLocaleDateString: on Hermes every call builds a new
+// Intl formatter, and doing that 2–3× per entry froze the tab switch.
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function shortDate(d) {
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function formatTime(ts, now = Date.now()) {
   const d = new Date(ts);
-  const now = new Date();
-  const diffMs = now - d;
-  const diffMin = Math.floor(diffMs / 60000);
+  const diffMin = Math.floor((now - d.getTime()) / 60000);
   if (diffMin < 1) return 'just now';
   if (diffMin < 60) return `${diffMin}m ago`;
   const diffH = Math.floor(diffMin / 60);
   if (diffH < 24) return `${diffH}h ago`;
   const diffD = Math.floor(diffH / 24);
   if (diffD < 7) return `${diffD}d ago`;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return shortDate(d);
 }
 
 function formatDate(ts) {
-  return new Date(ts).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  const d = new Date(ts);
+  return `${WEEKDAYS[d.getDay()]}, ${shortDate(d)}`;
 }
 
 // ─── Build combined log from project data ────────────────────────────────────
@@ -67,9 +75,9 @@ function buildAuditLog(project) {
   const entries = [];
 
   // From auditTrail
-  (project?.auditTrail || []).forEach(a => {
+  (project?.auditTrail || []).forEach((a, i) => {
     entries.push({
-      id: `audit-${a._id || Math.random()}`,
+      id: `audit-${a._id || i}`,
       action: a.action || 'Update',
       details: a.details,
       userName: a.userName || 'System',
@@ -79,13 +87,13 @@ function buildAuditLog(project) {
   });
 
   // From budgetHistory
-  (project?.budgetHistory || []).forEach(b => {
+  (project?.budgetHistory || []).forEach((b, i) => {
     const actionKey =
       b.approvalStatus === 'Approved' ? 'BudgetApproved' :
       b.approvalStatus === 'Rejected' ? 'BudgetRejected' : 'BudgetPending';
 
     entries.push({
-      id: `budget-${b._id || Math.random()}`,
+      id: `budget-${b._id || i}`,
       action: actionKey,
       details: `${project?.currency || '$'} ${formatCompact(Number(b.amount))} — ${b.reason}`,
       userName: b.updatedByName || 'System',
@@ -94,12 +102,20 @@ function buildAuditLog(project) {
     });
   });
 
+  // Labels worked out once here, not on every render
+  const now = Date.now();
+  entries.forEach((e) => {
+    e.ts = new Date(e.timestamp).getTime() || 0;
+    e.dateLabel = formatDate(e.timestamp);
+    e.timeLabel = formatTime(e.timestamp, now);
+  });
+
   // Sort newest first
-  return entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  return entries.sort((a, b) => b.ts - a.ts);
 }
 
 // ─── Entry card ───────────────────────────────────────────────────────────────
-function AuditEntry({ entry, isLast }) {
+const AuditEntry = memo(function AuditEntry({ entry, isLast }) {
   const meta = ACTION_META[entry.action] || ACTION_META.Update;
   return (
     <View style={styles.entryRow}>
@@ -117,7 +133,7 @@ function AuditEntry({ entry, isLast }) {
           <View style={[styles.actionBadge, { backgroundColor: meta.bg }]}>
             <Text style={[styles.actionBadgeText, { color: meta.color }]}>{meta.label}</Text>
           </View>
-          <Text style={styles.entryTime}>{formatTime(entry.timestamp)}</Text>
+          <Text style={styles.entryTime}>{entry.timeLabel}</Text>
         </View>
 
         {entry.details ? (
@@ -130,12 +146,12 @@ function AuditEntry({ entry, isLast }) {
             {entry.userName}
             {entry.userRole ? ` · ${entry.userRole}` : ''}
           </Text>
-          <Text style={styles.entryDate}>{formatDate(entry.timestamp)}</Text>
+          <Text style={styles.entryDate}>{entry.dateLabel}</Text>
         </View>
       </View>
     </View>
   );
-}
+});
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ProjectAuditTab({ project }) {
@@ -154,15 +170,18 @@ export default function ProjectAuditTab({ project }) {
     });
   }, [allEntries, activeFilter]);
 
-  // Group by date
-  const grouped = useMemo(() => {
-    const groups = {};
+  // Group by date (newest first, as sorted)
+  const sections = useMemo(() => {
+    const list = [];
+    const byKey = {};
     filtered.forEach(e => {
-      const dateKey = formatDate(e.timestamp);
-      if (!groups[dateKey]) groups[dateKey] = [];
-      groups[dateKey].push(e);
+      if (!byKey[e.dateLabel]) {
+        byKey[e.dateLabel] = { title: e.dateLabel, data: [] };
+        list.push(byKey[e.dateLabel]);
+      }
+      byKey[e.dateLabel].data.push(e);
     });
-    return groups;
+    return list;
   }, [filtered]);
 
   const totalByCategory = useMemo(() => {
@@ -220,29 +239,35 @@ export default function ProjectAuditTab({ project }) {
         })}
       </ScrollView>
 
-      {/* Log */}
-      <ScrollView style={styles.logScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.logContent, { paddingBottom: insets.bottom + 40 }]}>
-        {Object.keys(grouped).length === 0 ? (
+      {/* Log — virtualized, so only what's on screen is drawn */}
+      <SectionList
+        style={styles.logScroll}
+        sections={sections}
+        keyExtractor={(entry) => entry.id}
+        renderItem={({ item, index, section }) => (
+          <AuditEntry entry={item} isLast={index === section.data.length - 1} />
+        )}
+        renderSectionHeader={({ section }) => (
+          <View style={styles.dateHeader}>
+            <View style={styles.dateLine} />
+            <Text style={styles.dateLabel}>{section.title}</Text>
+            <View style={styles.dateLine} />
+          </View>
+        )}
+        stickySectionHeadersEnabled={false}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.logContent, { paddingBottom: insets.bottom + 40 }]}
+        ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="document-text-outline" size={48} color="#CBD5E1" />
             <Text style={styles.emptyTitle}>{t('noActivity')}</Text>
             <Text style={styles.emptyDesc}>{t('noEventsFound')}</Text>
           </View>
-        ) : (
-          Object.entries(grouped).map(([dateKey, entries]) => (
-            <View key={dateKey}>
-              <View style={styles.dateHeader}>
-                <View style={styles.dateLine} />
-                <Text style={styles.dateLabel}>{dateKey}</Text>
-                <View style={styles.dateLine} />
-              </View>
-              {entries.map((entry, idx) => (
-                <AuditEntry key={entry.id} entry={entry} isLast={idx === entries.length - 1} />
-              ))}
-            </View>
-          ))
-        )}
-      </ScrollView>
+        }
+      />
     </View>
   );
 }

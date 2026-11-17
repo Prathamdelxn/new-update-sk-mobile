@@ -23,6 +23,26 @@ import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissi
 import interiorApiClient from '../../services/interiorApiClient';
 import { getAllCountries, getCountryByCode } from '../../services/common/countryService';
 
+// The organization stores the country by name (no code), so match by code, then name,
+// then currency — falling back to India only when nothing matches (it used to show
+// Qatar with the Indian flag and ₹)
+function resolveOrgCountry(org = {}) {
+  const all = getAllCountries();
+  const code = org.countryCode;
+  const name = (org.address?.country || org.country || '').trim().toLowerCase();
+  const currency = org.settings?.currency;
+  return (code && all.find((c) => c.cca2 === code))
+    || (name && all.find((c) => c.name.toLowerCase() === name))
+    || (currency && all.find((c) => c.currencyCode === currency))
+    || getCountryByCode('IN');
+}
+
+// Symbol for the saved currency (it can differ from the country's own)
+function currencySymbolFor(currency, country) {
+  if (country?.currencyCode === currency) return country.currencySymbol || currency;
+  return getAllCountries().find((c) => c.currencyCode === currency)?.currencySymbol || currency || '$';
+}
+
 const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
 
 export default function InteriorSettingsScreen() {
@@ -88,16 +108,17 @@ export default function InteriorSettingsScreen() {
       setPhone(user.phone || user.phoneNumber || '');
 
       const initialOrg = user.organization || {};
-      const countryName = initialOrg.address?.country || initialOrg.country || 'India';
-      const matched = getCountryByCode(initialOrg.countryCode || 'IN') || getCountryByCode('IN');
+      const matched = resolveOrgCountry(initialOrg);
+      const countryName = initialOrg.address?.country || initialOrg.country || matched?.name || 'India';
+      const currency = initialOrg.settings?.currency || matched?.currencyCode || 'INR';
 
       setOrgForm({
         name: initialOrg.name || 'Workspace',
         slug: initialOrg.slug || 'workspace',
         country: countryName,
         countryCode: matched?.cca2 || 'IN',
-        currency: initialOrg.settings?.currency || matched?.currencyCode || 'INR',
-        currencySymbol: matched?.currencySymbol || '₹',
+        currency,
+        currencySymbol: currencySymbolFor(currency, matched),
         timezone: initialOrg.settings?.timezone || matched?.primaryTimezone || 'Asia/Kolkata',
         dateFormat: initialOrg.settings?.dateFormat || 'DD/MM/YYYY',
       });
@@ -110,8 +131,8 @@ export default function InteriorSettingsScreen() {
       const res = await interiorApiClient.get('/organizations/settings');
       const data = res?.data?.data || res?.data;
       if (data) {
-        const countryName = data.address?.country || data.country || 'India';
-        const matched = getCountryByCode(data.countryCode || 'IN');
+        const matched = resolveOrgCountry(data);
+        const countryName = data.address?.country || data.country || matched?.name || 'India';
         setOrgForm((prev) => ({
           ...prev,
           name: data.name || prev.name,
@@ -119,7 +140,7 @@ export default function InteriorSettingsScreen() {
           country: countryName,
           countryCode: matched?.cca2 || prev.countryCode,
           currency: data.settings?.currency || prev.currency,
-          currencySymbol: matched?.currencySymbol || prev.currencySymbol,
+          currencySymbol: currencySymbolFor(data.settings?.currency || prev.currency, matched),
           timezone: data.settings?.timezone || prev.timezone,
           dateFormat: data.settings?.dateFormat || prev.dateFormat,
         }));
@@ -330,7 +351,9 @@ export default function InteriorSettingsScreen() {
               </View>
               <View style={s.heroFooterDivider} />
               <View style={s.heroFooterItem}>
-                <Text style={s.currencyMiniBadge}>{orgForm.currencySymbol}</Text>
+                {orgForm.currencySymbol !== orgForm.currency && (
+                  <Text style={s.currencyMiniBadge}>{orgForm.currencySymbol}</Text>
+                )}
                 <Text style={s.heroFooterText}>{orgForm.currency}</Text>
               </View>
               <View style={s.heroFooterDivider} />
@@ -482,7 +505,7 @@ export default function InteriorSettingsScreen() {
                       <Text style={s.planBadgeText}>Enterprise Pro</Text>
                     </View>
                     <View style={s.activeStatusPill}>
-                      <Text style={s.activeStatusText}>Active Studio</Text>
+                      <Text style={s.activeStatusText}>Active</Text>
                     </View>
                   </View>
                   <Text style={s.planDesc}>
@@ -527,12 +550,22 @@ export default function InteriorSettingsScreen() {
                 {/* Live Currency Preview Box */}
                 <View style={s.currencyPreviewCard}>
                   <View style={s.currencyIconBox}>
-                    <Text style={s.currencyLargeSymbol}>{orgForm.currencySymbol}</Text>
+                    {/* Symbols can be several letters (QAR, AED…) — keep them on one line inside the badge */}
+                    <Text
+                      style={[s.currencyLargeSymbol, (orgForm.currencySymbol || '').length > 1 && { fontSize: (orgForm.currencySymbol || '').length > 3 ? 11 : 13 }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                    >
+                      {orgForm.currencySymbol}
+                    </Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.currencyPreviewLabel}>Standard Currency</Text>
-                    <Text style={s.currencyPreviewVal}>
-                      {orgForm.currency} ({orgForm.currencySymbol})
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.currencyPreviewLabel} numberOfLines={1}>Standard Currency</Text>
+                    <Text style={s.currencyPreviewVal} numberOfLines={1}>
+                      {orgForm.currencySymbol && orgForm.currencySymbol !== orgForm.currency
+                        ? `${orgForm.currency} (${orgForm.currencySymbol})`
+                        : orgForm.currency}
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
@@ -766,8 +799,26 @@ export default function InteriorSettingsScreen() {
                 </TouchableOpacity>
               )}
 
+              {/* Audit Management moved here from the bottom bar */}
+              {navAccess.audit && (
+                <TouchableOpacity
+                  style={[s.managementItem, { borderTopWidth: navAccess.usersRoles || navAccess.vendors ? 1 : 0, borderTopColor: '#F1F5F9' }]}
+                  onPress={() => router.push('/interior-audit')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[s.mgmtIconBox, { backgroundColor: '#EFF6FF' }]}>
+                    <Ionicons name="shield-checkmark-outline" size={19} color="#2563EB" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.mgmtItemTitle}>Audit Management</Text>
+                    <Text style={s.mgmtItemSubtitle}>Activity log of logins, changes & deletions</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
-                style={[s.managementItem, { borderTopWidth: navAccess.usersRoles || navAccess.vendors ? 1 : 0, borderTopColor: '#F1F5F9' }]}
+                style={[s.managementItem, { borderTopWidth: navAccess.usersRoles || navAccess.vendors || navAccess.audit ? 1 : 0, borderTopColor: '#F1F5F9' }]}
                 onPress={() => setActiveModal('appInfo')}
                 activeOpacity={0.7}
               >
@@ -1159,6 +1210,7 @@ const s = StyleSheet.create({
     backgroundColor: '#2563EB',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 4,
   },
   currencyLargeSymbol: { fontSize: 20, fontFamily: 'Inter-Black', color: '#FFFFFF' },
   currencyPreviewLabel: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' },

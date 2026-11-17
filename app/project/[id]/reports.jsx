@@ -7,6 +7,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useLocalSearchParams } from 'expo-router';
 import { LineChart } from 'react-native-gifted-charts';
 import { hasProjectPermission } from '../../utils/permissions';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const { width } = Dimensions.get('window');
@@ -296,6 +299,127 @@ export default function ProjectReportsTab() {
     }
   };
 
+  // Same window as the on-screen report: last 7 days / last 6 months / the custom range
+  const reportWindow = () => {
+    if (reportType === 'Custom') {
+      const start = new Date(startDate); start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate); end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    const start = new Date();
+    if (reportType === 'Daily') start.setDate(start.getDate() - 7);
+    else start.setMonth(start.getMonth() - 6);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(); end.setHours(23, 59, 59, 999);
+    return { start, end };
+  };
+
+  const memberName = (ref) => {
+    if (!ref) return '-';
+    if (typeof ref === 'object' && ref.name) return ref.name;
+    const refId = typeof ref === 'object' ? ref._id : ref;
+    const m = projectMembers.find((pm) => (pm?.user?._id || pm?._id) === refId);
+    return m?.user?.name || m?.name || '-';
+  };
+
+  const fmtDate = (v) => {
+    const d = new Date(v);
+    return v && !isNaN(d.getTime()) ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+  };
+
+  const csvSafeName = () => `Project_Report_${reportType}_${new Date().toISOString().slice(0, 10)}`;
+
+  // Web "Export Report as CSV": completed tasks grouped by milestone
+  const handleExportCSV = async () => {
+    const entries = Object.entries(groupedTasks);
+    if (entries.length === 0) {
+      Alert.alert('Nothing to export', 'No report data available to export.');
+      return;
+    }
+    const rows = [['Milestone Name', 'Task Title', 'Completed By', 'Completed Date', 'Completion Note']];
+    entries.forEach(([milestoneName, tasks]) => tasks.forEach((task) => {
+      rows.push([milestoneName, task.title, task.completedByName || memberName(task.assignedTo), fmtDate(task.completedAtDate), task.completionNote || '']);
+    }));
+    const csv = rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    try {
+      const uri = `${FileSystem.cacheDirectory}${csvSafeName()}.csv`;
+      await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(uri, { mimeType: 'text/csv', dialogTitle: 'Export Report as CSV', UTI: 'public.comma-separated-values-text' });
+    } catch (e) {
+      Alert.alert('Error', e.message || 'Failed to export the report.');
+    }
+  };
+
+  // Web "Download Report PDF": tasks, issues, snags and activity logs for the window
+  const handleDownloadPDF = async () => {
+    const { start, end } = reportWindow();
+    const inRange = (v) => { const d = new Date(v); return d >= start && d <= end; };
+    const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const tasks = Object.values(groupedTasks).flat();
+    const rIssues = issues.filter((i) => inRange(i.createdAt));
+    const rSnags = snags.filter((s) => inRange(s.createdAt));
+    const rLogs = (project?.auditTrail || []).filter((l) => inRange(l.timestamp));
+    const pr = (p) => `<span class="priority-${String(p || '').toLowerCase()}">${esc(p)}</span>`;
+    const table = (heads, rows, empty) => rows.length === 0
+      ? `<div class="empty">${empty}</div>`
+      : `<table><thead><tr>${heads.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+    const title = reportType === 'Daily' ? 'Daily Project Report (Last 7 Days)'
+      : reportType === 'Monthly' ? 'Monthly Project Report (Last 6 Months)'
+      : `Project Report (${fmtDate(start)} – ${fmtDate(end)})`;
+    const html = `<html><head><meta name="viewport" content="width=device-width, initial-scale=1" /><style>
+      body { font-family: Helvetica, Arial, sans-serif; padding: 24px; color: #1e293b; line-height: 1.5; }
+      .header { margin-bottom: 24px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; }
+      .project-label { color: #2563eb; font-size: 14px; font-weight: bold; margin: 0; }
+      .report-title { font-size: 20px; font-weight: 800; color: #0f172a; margin: 4px 0 0 0; }
+      .gen-date { color: #64748b; font-size: 11px; margin: 4px 0 0 0; }
+      h3 { color: #0f172a; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 28px; margin-bottom: 8px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10px; }
+      th { background: #f8fafc; border: 1.5px solid #e2e8f0; color: #475569; padding: 6px 8px; text-align: left; text-transform: uppercase; font-size: 8px; }
+      td { border: 1px solid #e2e8f0; padding: 6px 8px; color: #334155; vertical-align: top; }
+      .empty { padding: 12px; text-align: center; color: #94a3b8; font-style: italic; border: 1px dashed #e2e8f0; border-radius: 8px; font-size: 10px; }
+      .priority-critical { color: #dc2626; font-weight: bold; } .priority-high { color: #ea580c; font-weight: bold; }
+      .priority-medium { color: #d97706; font-weight: bold; } .priority-low { color: #2563eb; font-weight: bold; }
+      small { color: #64748b; font-size: 8px; display: block; margin-top: 2px; }
+    </style></head><body>
+      <div class="header">
+        <p class="project-label">Project: ${esc(project?.name || '')}</p>
+        <h2 class="report-title">${title}</h2>
+        <p class="gen-date">Generated on: ${fmtDate(new Date())}</p>
+      </div>
+      <h3>Completed Tasks</h3>
+      ${table(['Milestone', 'Task Title', 'Completion Date'],
+        tasks.map((x) => `<tr><td style="font-weight:600">${esc(x.milestoneName)}</td><td>${esc(x.title)}</td><td>${fmtDate(x.completedAtDate)}</td></tr>`),
+        'No tasks completed in this range.')}
+      <h3>Reported Issues</h3>
+      ${table(['Issue Title', 'Category', 'Priority', 'Status', 'Reported Date'],
+        rIssues.map((i) => `<tr><td><b>${esc(i.title)}</b>${i.description ? `<small>${esc(i.description)}</small>` : ''}</td><td>${esc(i.category || 'Other')}</td><td>${pr(i.priority)}</td><td>${esc(i.status)}</td><td>${fmtDate(i.createdAt)}</td></tr>`),
+        'No issues reported in this range.')}
+      <h3>Reported Snags</h3>
+      ${table(['Snag Title', 'Priority', 'Status', 'Reported Date'],
+        rSnags.map((s) => `<tr><td><b>${esc(s.title)}</b>${s.description ? `<small>${esc(s.description)}</small>` : ''}</td><td>${pr(s.priority)}</td><td>${esc(s.status)}</td><td>${fmtDate(s.createdAt)}</td></tr>`),
+        'No snags reported in this range.')}
+      <h3>Activity Logs</h3>
+      ${table(['User', 'Role', 'Action', 'Details', 'Date'],
+        rLogs.map((l) => `<tr><td><b>${esc(l.userName || l.user?.name || 'System')}</b></td><td style="text-transform:capitalize">${esc(l.userRole || l.user?.role || '-')}</td><td><b style="color:#2563eb">${esc(l.action)}</b></td><td>${esc(l.details)}</td><td>${fmtDate(l.timestamp)}</td></tr>`),
+        'No activity logs in this range.')}
+    </body></html>`;
+    try {
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Download Report PDF', UTI: 'com.adobe.pdf' });
+    } catch (e) {
+      Alert.alert('Error', e.message || 'Failed to download the PDF report.');
+    }
+  };
+
+  const openExportOptions = () => {
+    Alert.alert('Export Report', 'Choose how to export this report.', [
+      { text: 'Download Report PDF', onPress: handleDownloadPDF },
+      { text: 'Email PDF', onPress: handleExportPDF },
+      { text: 'Export Report as CSV', onPress: handleExportCSV },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   // Display count dynamically based on selection
   const headerCount = useMemo(() => {
     if (reportType !== 'Custom') return totalFiltered;
@@ -416,7 +540,7 @@ export default function ProjectReportsTab() {
               {reportType === 'Custom' && `from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`}
             </Text>
           </View>
-          <TouchableOpacity style={styles.exportButton} onPress={handleExportPDF} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.exportButton} onPress={openExportOptions} activeOpacity={0.8}>
             <Feather name="download" size={16} color="#FFFFFF" />
             <Text style={styles.exportButtonText}>Export</Text>
           </TouchableOpacity>

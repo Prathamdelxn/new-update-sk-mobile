@@ -12,6 +12,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useTranslation } from 'react-i18next';
 import { hasAnyRolePermission } from '../../utils/permissions';
+import CategoryList from '../../components/templates/CategoryList';
+import { rememberTemplate } from '../../utils/construction/templateCache';
 
 const { width, height } = Dimensions.get('window');
 
@@ -40,6 +42,14 @@ export default function TemplateScreen() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [templatesList, setTemplatesList] = useState([]);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
+  // Templates / Categories tabs (same as the web Templates Management page); each needs its own View permission
+  const canViewTemplates = hasAnyRolePermission(user, 'template:view');
+  const canViewCategories = hasAnyRolePermission(user, 'category:view');
+  const pageTabs = [['templates', 'layers-outline', 'Templates'], ['categories', 'folder-outline', 'Categories']]
+    .filter(([key]) => (key === 'templates' ? canViewTemplates : canViewCategories));
+  const [selectedPageTab, setSelectedPageTab] = useState('templates');
+  // Fall back to whichever tab the user is allowed to see
+  const pageTab = pageTabs.some(([key]) => key === selectedPageTab) ? selectedPageTab : pageTabs[0]?.[0];
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -71,6 +81,7 @@ export default function TemplateScreen() {
     if (isInterior) return;
     fetchInitialData();
     const sub = DeviceEventEmitter.addListener('new_template', (newTpl) => {
+      rememberTemplate(newTpl);
       setTemplatesList(prev => {
         const id = newTpl._id || newTpl.id;
         const exists = prev.some(t => (t._id || t.id) === id);
@@ -115,6 +126,7 @@ export default function TemplateScreen() {
       const data = await response.json();
       if (response.ok) {
         setTemplatesList(data);
+        if (Array.isArray(data)) data.forEach(rememberTemplate);
       }
     } catch (e) {
       console.error('Fetch templates error', e);
@@ -239,6 +251,7 @@ export default function TemplateScreen() {
   };
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'name' | 'budget' | 'days' (same as web)
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isCategorySheetVisible, setIsCategorySheetVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -247,6 +260,24 @@ export default function TemplateScreen() {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [isDeleteTemplateModalVisible, setIsDeleteTemplateModalVisible] = useState(false);
   const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
+
+  // Card tap opens the template; the ⋮ button opens View / Edit / Delete
+  const openTemplateView = (tpl) => {
+    if (!tpl) return;
+    rememberTemplate(tpl);
+    router.push({
+      pathname: '/view-template',
+      params: {
+        id: tpl._id || tpl.id,
+        title: tpl.name,
+        category: tpl.category?.name,
+        description: tpl.description,
+        minBudget: tpl.minBudget,
+        maxBudget: tpl.maxBudget,
+        area: tpl.area
+      }
+    });
+  };
 
   const openTemplateActions = (item) => {
     setSelectedTemplate(item);
@@ -289,19 +320,27 @@ export default function TemplateScreen() {
     }
   };
 
+  const q = searchQuery.toLowerCase();
   const filteredTemplates = templatesList.filter(t => {
     const matchesCategory = activeCategory === 'All' ||
       (t.category?._id === activeCategory) ||
       (t.category === activeCategory);
-    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (t.name || '').toLowerCase().includes(q)
+      || (t.description || '').toLowerCase().includes(q)
+      || (t.category?.name || '').toLowerCase().includes(q);
     return matchesCategory && matchesSearch;
+  }).sort((a, b) => {
+    if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+    if (sortBy === 'budget') return (b.maxBudget || b.minBudget || 0) - (a.maxBudget || a.minBudget || 0);
+    if (sortBy === 'days') return (a.estimatedDays || 9999) - (b.estimatedDays || 9999);
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
   });
 
   const renderTemplateCard = ({ item }) => (
     <TouchableOpacity
       style={styles.templateCardWrapper}
       activeOpacity={0.8}
-      onPress={() => openTemplateActions(item)}
+      onPress={() => openTemplateView(item)}
     >
       <AdaptiveGlass intensity={15} tint="light" style={styles.glassCard}>
         {/* Left: Media & Area Section */}
@@ -404,6 +443,23 @@ export default function TemplateScreen() {
           </View>
         </View>
 
+        {pageTabs.length > 1 && (
+          <View style={styles.pageTabs}>
+            {pageTabs.map(([key, icon, label]) => (
+              <TouchableOpacity
+                key={key}
+                style={[styles.pageTab, pageTab === key && styles.pageTabActive]}
+                onPress={() => setSelectedPageTab(key)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name={icon} size={15} color={pageTab === key ? '#2563EB' : '#64748B'} />
+                <Text style={[styles.pageTabText, pageTab === key && styles.pageTabTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {pageTab === 'templates' && (
         <View style={styles.searchParent}>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <AdaptiveGlass intensity={10} tint="light" style={[styles.searchContainer, { flex: 1, marginBottom: 0 }]}>
@@ -440,7 +496,27 @@ export default function TemplateScreen() {
               ))}
             </ScrollView>
           )}
+          {showFilters && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterChips} contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}>
+              {[
+                ['newest', t('sortNewest', 'Sort: Newest First')],
+                ['name', t('sortName', 'Sort: Template Name')],
+                ['budget', t('sortBudget', 'Sort: Budget (High-Low)')],
+                ['days', t('sortDuration', 'Sort: Duration (Shortest)')],
+              ].map(([key, label]) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.filterChip, sortBy === key && styles.filterChipActive]}
+                  onPress={() => setSortBy(key)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.filterChipText, sortBy === key && styles.filterChipTextActive]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
         </View>
+        )}
 
         {/* Add Item Modal */}
         <Modal
@@ -638,20 +714,7 @@ export default function TemplateScreen() {
                   activeOpacity={0.7}
                   onPress={() => {
                     setIsActionSheetVisible(false);
-                    if (selectedTemplate) {
-                      router.push({
-                        pathname: '/view-template',
-                        params: {
-                          id: selectedTemplate._id,
-                          title: selectedTemplate.name,
-                          category: selectedTemplate.category?.name,
-                          description: selectedTemplate.description,
-                          minBudget: selectedTemplate.minBudget,
-                          maxBudget: selectedTemplate.maxBudget,
-                          area: selectedTemplate.area
-                        }
-                      });
-                    }
+                    openTemplateView(selectedTemplate);
                   }}
                 >
                   <View style={[styles.actionSheetIcon, { backgroundColor: '#EFF6FF' }]}>
@@ -835,7 +898,19 @@ export default function TemplateScreen() {
         </Modal>
 
 
-        {!hasAnyRolePermission(user, 'template:view') ? (
+        {pageTab === 'categories' ? (
+          <CategoryList
+            categories={categories.filter((c) => c._id !== 'All')}
+            templates={templatesList}
+            loading={isCategoriesLoading}
+            onChanged={(opts) => {
+              if (opts?.deletedId && activeCategory === opts.deletedId) setActiveCategory('All');
+              fetchCategories();
+              if (opts?.templatesToo) fetchTemplates();
+              DeviceEventEmitter.emit('categories_updated');
+            }}
+          />
+        ) : !hasAnyRolePermission(user, 'template:view') ? (
           <View style={styles.centralLoader}>
             <Ionicons name="lock-closed-outline" size={40} color="#CBD5E1" />
             <Text style={styles.loaderText}>You don't have permission to view templates. Ask your admin to enable Template Management → View.</Text>
@@ -998,6 +1073,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B82F6', borderColor: '#3B82F6',
   },
   filterChips: { maxHeight: 32, marginTop: 12 },
+  pageTabs: {
+    flexDirection: 'row', gap: 4, marginHorizontal: 20, marginBottom: 14, padding: 4,
+    borderRadius: 14, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0',
+  },
+  pageTab: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    height: 36, borderRadius: 10,
+  },
+  pageTabActive: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#CBD5E1' },
+  pageTabText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#64748B' },
+  pageTabTextActive: { color: '#2563EB' },
   filterChip: {
     paddingHorizontal: 16, paddingVertical: 6,
     borderRadius: 16, backgroundColor: '#FFFFFF',
