@@ -11,6 +11,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const CATEGORIES = ['all', 'progress', 'snag', 'delivery', 'other'];
 const CATEGORY_LABEL = { all: 'All', progress: 'Progress', snag: 'Snags', delivery: 'Deliveries', other: 'Other' };
@@ -143,9 +144,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         </ScrollView>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             {filteredPhotos.length === 0 ? (

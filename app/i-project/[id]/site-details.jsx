@@ -32,6 +32,7 @@ import CrmShareModal from '../../components/crm/CrmShareModal';
 import SendRequirementsEmailModal from '../../components/crm/SendRequirementsEmailModal';
 import LogRequirementsModal from '../../components/crm/LogRequirementsModal';
 import LogSiteVisitModal from '../../components/crm/LogSiteVisitModal';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const linkedId = (v) => (v && typeof v === 'object' ? String(v._id || '') : String(v || ''));
 
@@ -439,9 +440,7 @@ export default function InteriorSiteDetailsScreen() {
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList variant="rows" />
         ) : !customer ? (
           <View style={s.center}>
             <Ionicons name="clipboard-outline" size={44} color="#CBD5E1" />

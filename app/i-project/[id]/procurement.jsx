@@ -27,6 +27,7 @@ import interiorApiClient from '../../services/interiorApiClient';
 import * as Clipboard from 'expo-clipboard';
 import { WEB_APP_URL } from '../../config';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 // Public RFQ link state: the isLinkActive flag, or the older "||CLOSED||" marker on the material name
 const isRfqLinkActive = (po) =>
@@ -994,9 +995,7 @@ Thank you.`);
         </View>
 
         {loading && !refreshing && pos.length === 0 && inventory.length === 0 ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <>
             {activeTab === 'procurement' && (

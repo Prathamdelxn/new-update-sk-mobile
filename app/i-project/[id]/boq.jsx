@@ -14,6 +14,7 @@ import { fetchProjectReviewers } from '../../utils/interior/projectReviewers';
 import { parseMaxBudget, formatExactCurrency } from '../../utils/format';
 import SendForApprovalModal, { approvalStyles } from '../../components/interior/SendForApprovalModal';
 import ApprovalDecisionModal from '../../components/interior/ApprovalDecisionModal';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const STATUS_META = {
   approved: { color: '#16A34A', bg: '#F0FDF4' },
@@ -418,9 +419,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             <Text style={s.sectionLabel}>VERSIONS</Text>

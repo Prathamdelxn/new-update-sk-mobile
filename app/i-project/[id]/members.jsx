@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { PERMISSION_ACTIONS as CATALOG_ACTIONS, PERMISSION_MODULES, moduleActions } from '../../utils/interior/permissionCatalog';
 import { useProjectPermissions, invalidateProjectPermissions } from '../../utils/interior/useProjectPermissions';
 import { memberRoleLabel, isVirtualAdminMember } from '../../utils/interior/memberRoleLabel';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const ROLE_META = {
   project_manager: { label: 'Project Manager', color: '#2563EB', bg: '#EFF6FF' },
@@ -321,9 +322,7 @@ export default function InteriorMembersScreen() {
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList variant="rows" />
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             {filteredMembers.length === 0 ? (

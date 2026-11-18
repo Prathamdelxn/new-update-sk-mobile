@@ -20,6 +20,7 @@ import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissi
 import { formatCompactCurrency, formatSmartCurrency, getCurrencySymbol } from '../../utils/format';
 import QuotationBuilderModal from '../../components/crm/QuotationBuilderModal';
 import QuotationPreviewModal from '../../components/interior/QuotationPreviewModal';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const STATUS_STYLE = {
   Accepted: { bg: '#ECFDF5', border: '#A7F3D0', color: '#047857' },
@@ -153,9 +154,7 @@ export default function InteriorProjectQuotationScreen() {
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView
             contentContainerStyle={s.scroll}

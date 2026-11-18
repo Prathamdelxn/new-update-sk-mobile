@@ -55,6 +55,7 @@ import {
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 import { useAuth } from '../../context/AuthContext';
 import { CRM_MODULES, canMoveLead } from '../../utils/interior/crmStages';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const LEAD_SOURCES = ['Phone Call', 'Walk-in', 'Referral', 'Existing Customer', 'Builder Reference', 'Architect Reference', 'Society Reference', 'Social Media', 'Other'];
 const FOLLOWUP_TYPES = ['Phone Call', 'WhatsApp', 'Meeting', 'Office Visit', 'Site Visit'];
@@ -1522,9 +1523,18 @@ export default function Lead360Screen() {
 
   if (loading) {
     return (
-      <View style={s.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={s.loadingText}>Loading Lead Profile...</Text>
+      <View style={{ flex: 1, backgroundColor: '#F8FAFF' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingTop: insets.top + 10, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
+          </TouchableOpacity>
+          <View style={{ flex: 1, gap: 7 }}>
+            <View style={{ width: '55%', height: 15, borderRadius: 6, backgroundColor: '#E8EDF3' }} />
+            <View style={{ width: '35%', height: 11, borderRadius: 6, backgroundColor: '#E8EDF3' }} />
+          </View>
+        </View>
+        <SkeletonList />
       </View>
     );
   }
@@ -4603,7 +4613,6 @@ const s = StyleSheet.create({
   quoteFooterText: { fontSize: 13.5, fontFamily: 'Inter-Bold' },
   container: { flex: 1, backgroundColor: '#F8FAFF' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  loadingText: { marginTop: 10, fontSize: 14, color: '#64748B', fontWeight: '500' },
   errorText: { fontSize: 16, color: '#EF4444', fontWeight: '700' },
   header: {
     backgroundColor: '#DBEAFE',
@@ -4748,7 +4757,6 @@ const s = StyleSheet.create({
   infoValue: { fontSize: 14.5, lineHeight: 20, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
   ovKicker: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   ovBigValue: { fontSize: 26, fontFamily: 'Inter-Bold', color: '#059669', marginTop: 2 },
-  ovBigSub: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
   ovChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
   ovChip: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   ovChipText: { flexShrink: 1, fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#334155' },

@@ -9,6 +9,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const WORKFLOW_STEPS = [
   { key: 'draft', label: 'Draft' },
@@ -141,9 +142,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             {crs.length === 0 ? (

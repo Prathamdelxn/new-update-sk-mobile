@@ -10,6 +10,7 @@ import { useToast } from '../context/ToastContext';
 import interiorApiClient from '../services/interiorApiClient';
 import InteriorRolesManager from '../components/interior/InteriorRolesManager';
 import { useInteriorPermissions } from '../utils/interior/useInteriorPermissions';
+import SkeletonList from '../components/common/SkeletonList';
 
 const SYSTEM_ROLE_LABELS = {
   super_admin: { label: 'Super Admin', color: '#7C3AED', bg: '#F5F3FF' },
@@ -227,9 +228,7 @@ export default function InteriorUsersRolesScreen() {
             <Text style={{ fontSize: 14, color: '#64748B', fontFamily: 'Inter-Regular' }}>You don&apos;t have permission to view users or roles.</Text>
           </View>
         ) : activeTab === 'users' && loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList variant="rows" />
         ) : activeTab === 'users' ? (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             <View style={s.summaryRow}>

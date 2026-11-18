@@ -23,6 +23,7 @@ import { useToast } from '../context/ToastContext';
 import { useInteriorPermissions } from '../utils/interior/useInteriorPermissions';
 import interiorApiClient from '../services/interiorApiClient';
 import { useRouter } from 'expo-router';
+import SkeletonList from '../components/common/SkeletonList';
 
 // ── Action Themes (matching Web InteriorAuditManagementView) ─────────────────
 const ACTION_THEMES = {
@@ -423,10 +424,7 @@ export default function InteriorAuditScreen() {
             }
             ListEmptyComponent={
               loading ? (
-                <View style={s.loadingBox}>
-                  <ActivityIndicator size="large" color="#2563EB" />
-                  <Text style={s.loadingText}>Loading audit events...</Text>
-                </View>
+                <SkeletonList variant="rows" style={{ paddingHorizontal: 0 }} />
               ) : (
                 <View style={s.emptyBox}>
                   <Ionicons name="document-text-outline" size={44} color="#CBD5E1" />
@@ -780,8 +778,6 @@ const s = StyleSheet.create({
   pageInfoText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B' },
 
   // States
-  loadingBox: { paddingVertical: 40, alignItems: 'center', gap: 8 },
-  loadingText: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B' },
   emptyBox: { paddingVertical: 50, alignItems: 'center', gap: 8 },
   emptyTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#334155' },
   emptyDesc: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },

@@ -27,6 +27,7 @@ import SendForApprovalModal, { approvalStyles } from '../../components/interior/
 import ApprovalDecisionModal from '../../components/interior/ApprovalDecisionModal';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 import { fetchProjectReviewers } from '../../utils/interior/projectReviewers';
+import SkeletonList from '../../components/common/SkeletonList';
 
 // ---------------------------------------------------------------------------
 // File Type Detection & Badging (Mirrors Web detectDrawingFileType & getFileTypeBadge)
@@ -652,9 +653,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
         {/* --- DRAWINGS LIST --- */}
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView
             style={{ flex: 1 }}

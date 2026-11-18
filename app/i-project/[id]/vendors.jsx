@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 import SelectField from '../../components/common/SelectField';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const VENDOR_CATEGORIES = ['Raw Materials', 'Furniture', 'Electrical', 'Labour', 'Paint', 'Other'];
 
@@ -192,9 +193,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             {dbVendors.length > 0 && (

@@ -8,6 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 import ConfirmOrderView from '../../components/interior/ConfirmOrderView';
 import QuotationPreviewModal from '../../components/interior/QuotationPreviewModal';
+import SkeletonList from '../../components/common/SkeletonList';
 
 // Project "Confirm Order": the confirmed order of the CRM lead this project was
 // converted from, read and saved through the project endpoint (project
@@ -56,9 +57,7 @@ export default function InteriorProjectConfirmOrderScreen() {
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView
             contentContainerStyle={s.scroll}

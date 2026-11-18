@@ -24,6 +24,7 @@ import { useProjectPermissions } from '../../utils/interior/useProjectPermission
 import CategoryNav from './_components/CategoryNav';
 import { memberRoleLabel } from '../../utils/interior/memberRoleLabel';
 import SelectField from '../../components/common/SelectField';
+import SkeletonList from '../../components/common/SkeletonList';
 
 // =============================================================================
 // Constants & Configuration (Mirrors Web InteriorWbsView)
@@ -677,9 +678,7 @@ export default function InteriorWbsScreen() {
         <CategoryNav projectId={projectId} activeItem="WBS Hierarchy" />
 
         {loading && !refreshing ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView
             contentContainerStyle={s.scroll}

@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import interiorCrmService from '../services/interiorCrmService';
 import { queryKeys, invalidateCrmQueries, useRefreshOnFocus } from '../context/QueryProvider';
+import SkeletonList from '../components/common/SkeletonList';
 
 const STAGES = [
   {
@@ -124,9 +125,7 @@ export default function CrmPipelineScreen() {
         </ScrollView>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView
             contentContainerStyle={s.scroll}

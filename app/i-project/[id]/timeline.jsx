@@ -8,6 +8,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useToast } from '../../context/ToastContext';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const UNASSIGNED_WBS_ID = 'unassigned-wbs';
 const DAY_WIDTH = 28;
@@ -486,9 +487,7 @@ export default function InteriorTimelineScreen() {
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : timelineData.length === 0 ? (
           <View style={s.empty}>
             <Ionicons name="calendar-outline" size={44} color="#CBD5E1" />

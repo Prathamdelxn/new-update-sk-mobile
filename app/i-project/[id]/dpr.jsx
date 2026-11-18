@@ -23,6 +23,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const WEATHER_OPTIONS = [
   { value: 'Sunny', label: 'Sunny', icon: 'sunny-outline', color: '#D97706', bg: '#FEF3C7' },
@@ -780,10 +781,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-            <Text style={s.loadingText}>Loading Daily Progress Reports...</Text>
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView style={s.mainScroll} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             {dprs.length === 0 ? (

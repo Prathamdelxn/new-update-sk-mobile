@@ -21,6 +21,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 function formatBytes(bytes, decimals = 1) {
   if (!bytes || bytes === 0) return '0 B';
@@ -239,9 +240,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         </View>
 
         {loading && !refreshing ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList variant="rows" />
         ) : (
           <ScrollView
             contentContainerStyle={s.scroll}

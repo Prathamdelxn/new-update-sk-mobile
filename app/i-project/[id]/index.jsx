@@ -5,11 +5,12 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { queryKeys, useRefreshOnFocus } from '../../context/QueryProvider';
 import CategoryNav from './_components/CategoryNav';
+import SkeletonList from '../../components/common/SkeletonList';
 import { formatCompactCurrency } from '../../utils/common/format';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
@@ -38,8 +39,11 @@ export default function InteriorProjectOverviewScreen() {
 
   // Cached per project (see QueryProvider). Edits in the sub-screens (tasks,
   // DPR, ...) mark these stale, so returning here refetches only after a change.
+  const queryClient = useQueryClient();
   const projectQuery = useQuery({
     queryKey: queryKeys.interiorProject(id),
+    // The projects list already has this project's name / client / status: show it while the full record loads
+    placeholderData: () => (queryClient.getQueryData(queryKeys.interiorProjects) || []).find((x) => String(x._id) === String(id)),
     queryFn: async () => {
       const res = await interiorApiClient.get(`/projects/${id}`);
       return res?.success && res?.data ? res.data : null;
@@ -56,7 +60,8 @@ export default function InteriorProjectOverviewScreen() {
   });
   const project = projectQuery.data ?? null;
   const metrics = metricsQuery.data ?? null;
-  const loading = projectQuery.isPending || metricsQuery.isPending;
+  // Body waits for the real record + metrics; the header / category bar render straight away
+  const loading = projectQuery.isPending || projectQuery.isPlaceholderData || metricsQuery.isPending;
 
   useRefreshOnFocus([queryKeys.interiorProject(id), queryKeys.interiorProjectMetrics(id)]);
 
@@ -66,16 +71,6 @@ export default function InteriorProjectOverviewScreen() {
   const openSnags = () => router.push(`/i-project/${id}/snags`);
   const openRisks = () => router.push(`/i-project/${id}/risks`);
   const openRfis = () => router.push(`/i-project/${id}/rfis`);
-
-  if (loading) {
-    return (
-      <View style={s.outerContainer}>
-        <SafeAreaView style={s.center}>
-          <ActivityIndicator size="large" color="#2563EB" />
-        </SafeAreaView>
-      </View>
-    );
-  }
 
   const p = project || {};
   const health = HEALTH_META[p.health] || HEALTH_META['on-track'];
@@ -120,20 +115,32 @@ export default function InteriorProjectOverviewScreen() {
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.projectTitle} numberOfLines={1}>{p.name || 'Untitled Project'}</Text>
-            <Text style={s.projectClient} numberOfLines={1}>
-              {[p.code, p.client || 'No client', p.location?.city].filter(Boolean).join(' · ')}
-            </Text>
+            {p.name ? (
+              <>
+                <Text style={s.projectTitle} numberOfLines={1}>{p.name}</Text>
+                <Text style={s.projectClient} numberOfLines={1}>
+                  {[p.code, p.client || 'No client', p.location?.city].filter(Boolean).join(' · ')}
+                </Text>
+              </>
+            ) : (
+              <>
+                <View style={[s.headerBar, { width: '62%', height: 15 }]} />
+                <View style={[s.headerBar, { width: '42%', height: 11, marginTop: 7 }]} />
+              </>
+            )}
           </View>
-          <View style={[s.badge, { backgroundColor: p.status && p.status !== 'active' ? '#FFFBEB' : health.bg }]}>
-            <Text style={[s.badgeText, { color: p.status && p.status !== 'active' ? '#D97706' : health.color }]}>
-              {p.status && p.status !== 'active' ? 'On Hold' : health.label}
-            </Text>
-          </View>
+          {!!p.name && (
+            <View style={[s.badge, { backgroundColor: p.status && p.status !== 'active' ? '#FFFBEB' : health.bg }]}>
+              <Text style={[s.badgeText, { color: p.status && p.status !== 'active' ? '#D97706' : health.color }]}>
+                {p.status && p.status !== 'active' ? 'On Hold' : health.label}
+              </Text>
+            </View>
+          )}
         </View>
 
         <CategoryNav projectId={id} comingSoon={comingSoon} />
 
+        {loading ? <SkeletonList variant="home" /> : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
           {/* Progress card: one headline number (progress) + bar, then 3 secondary figures */}
           <View style={s.card}>
@@ -218,6 +225,7 @@ export default function InteriorProjectOverviewScreen() {
 
           <View style={{ height: 60 }} />
         </ScrollView>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -234,6 +242,7 @@ const s = StyleSheet.create({
   projectTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
   projectClient: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
   badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  headerBar: { borderRadius: 6, backgroundColor: '#E8EDF3' },
   badgeText: { fontSize: 12.5, fontFamily: 'Inter-Bold' },
 
   progressHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

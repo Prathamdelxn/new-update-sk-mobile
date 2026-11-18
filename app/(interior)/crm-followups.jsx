@@ -21,6 +21,7 @@ import interiorCrmService from '../services/interiorCrmService';
 import { queryKeys, invalidateCrmQueries, useRefreshOnFocus, useQuerySetter } from '../context/QueryProvider';
 import { useInteriorPermissions } from '../utils/interior/useInteriorPermissions';
 import { canMoveLead } from '../utils/interior/crmStages';
+import SkeletonList from '../components/common/SkeletonList';
 
 function displayUserName(u) {
   if (!u) return '';
@@ -256,10 +257,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-            <Text style={s.loadingText}>Loading follow-up touchpoints...</Text>
-          </View>
+          <SkeletonList variant="rows" />
         ) : (
           <ScrollView
             contentContainerStyle={s.scroll}

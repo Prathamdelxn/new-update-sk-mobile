@@ -12,6 +12,7 @@ import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 import SelectField from '../../components/common/SelectField';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const COLUMNS = [
   { id: 'todo', title: 'To Do', color: '#3B82F6' },
@@ -766,7 +767,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         )}
 
         {loading ? (
-          <View style={s.center}><ActivityIndicator size="large" color="#2563EB" /></View>
+          <SkeletonList />
         ) : viewMode === 'board' ? (
           <ScrollView style={s.mainScroll} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             {colTasks.length === 0 ? (

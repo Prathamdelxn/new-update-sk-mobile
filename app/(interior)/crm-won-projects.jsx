@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import interiorCrmService from '../services/interiorCrmService';
 import interiorApiClient from '../services/interiorApiClient';
 import { queryKeys, useRefreshOnFocus } from '../context/QueryProvider';
+import SkeletonList from '../components/common/SkeletonList';
 
 // Currency formatter using unicode rupee symbol
 function formatBudget(amount) {
@@ -75,9 +76,7 @@ export default function CrmWonProjectsScreen() {
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView
             contentContainerStyle={s.scroll}

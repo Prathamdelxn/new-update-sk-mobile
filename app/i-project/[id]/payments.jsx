@@ -13,6 +13,7 @@ import { formatExactCurrency, getCurrencySymbol } from '../../utils/format';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 import { WebView } from 'react-native-webview';
 import { generateInvoiceHtml, printInvoice, shareInvoicePdf } from '../../utils/interior/invoiceDocument';
+import SkeletonList from '../../components/common/SkeletonList';
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
 function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
@@ -480,9 +481,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.summaryRow}>

@@ -16,6 +16,7 @@ import interiorApiClient from '../../services/interiorApiClient';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 import { formatCompactCurrency } from '../../utils/common/format';
 import SelectField from '../../components/common/SelectField';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const HEALTH_META = {
   'on-track': { label: 'On Track', color: '#16A34A', bg: '#F0FDF4' },
@@ -277,9 +278,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <FlatList
             data={filteredProjects}

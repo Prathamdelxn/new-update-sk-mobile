@@ -14,6 +14,7 @@ import interiorApiClient from '../../services/interiorApiClient';
 import cloudinaryService from '../../services/cloudinaryService';
 import CategoryNav from './_components/CategoryNav';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 // Mirrors sky-lite-web InteriorHandoverView: the checklist is worked out from live project
 // data (WBS, tasks, drawings, snags, close-out documents) and isn't editable.
@@ -411,8 +412,15 @@ export default function InteriorHandoverScreen() {
 
   if (loading) {
     return (
-      <View style={s.outerContainer}>
-        <SafeAreaView style={s.center}><ActivityIndicator size="large" color="#2563EB" /></SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: '#F8FAFF' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingTop: insets.top + 10, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
+          </TouchableOpacity>
+          <Text style={{ flex: 1, fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' }}>Handover</Text>
+        </View>
+        <SkeletonList />
       </View>
     );
   }

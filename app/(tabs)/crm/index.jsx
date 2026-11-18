@@ -22,6 +22,7 @@ import { STATUS_STAGE_INDEX } from '../../utils/interior/crmStages';
 import SelectField from '../../components/common/SelectField';
 import { queryKeys, invalidateCrmQueries, useRefreshOnFocus } from '../../context/QueryProvider';
 import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../../utils/crmValidation';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const FOLLOWUP_TYPES = ['Phone Call', 'WhatsApp', 'Meeting', 'Office Visit', 'Site Visit'];
 
@@ -525,9 +526,7 @@ export default function CRMScreen() {
         />
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <FlatList
             data={filteredLeads}

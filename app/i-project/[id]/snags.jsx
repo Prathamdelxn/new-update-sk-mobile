@@ -12,6 +12,7 @@ import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 import SelectField from '../../components/common/SelectField';
+import SkeletonList from '../../components/common/SkeletonList';
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
 function DateField({ value, onChange, placeholder = 'Select date', inputStyle }) {
@@ -253,9 +254,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         </View>
 
         {loading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList />
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             {snags.length === 0 ? (
