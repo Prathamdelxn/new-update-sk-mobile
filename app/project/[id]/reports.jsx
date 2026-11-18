@@ -10,6 +10,7 @@ import { hasProjectPermission } from '../../utils/permissions';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const { width } = Dimensions.get('window');
@@ -441,10 +442,7 @@ export default function ProjectReportsTab() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' }}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={{ marginTop: 10, color: '#64748B', fontFamily: 'Inter-Medium' }}>Loading reports...</Text>
-      </View>
+      <SkeletonList />
     );
   }
 

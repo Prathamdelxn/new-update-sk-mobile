@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { hasProjectPermission, hasAnyProjectPermissionPrefix, isProjectLocked } from '../../utils/permissions';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ConfirmModal from '../../components/ConfirmModal';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const { width } = Dimensions.get('window');
@@ -888,10 +889,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
 
   if (isInitialLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Loading drawings...</Text>
-      </View>
+      <SkeletonList />
     );
   }
 

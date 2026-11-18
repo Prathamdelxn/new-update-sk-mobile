@@ -629,6 +629,7 @@ import * as Print from 'expo-print';
 import cloudinaryService from '../../services/cloudinaryService';
 import { useTranslation } from 'react-i18next';
 import { hasProjectPermission, isProjectLocked } from '../../utils/permissions';
+import SkeletonList from '../../components/common/SkeletonList';
 export default function ProjectTransactionsTab({ project, fetchProjectData }) {
   const { t } = useTranslation();
   const { token, user } = useAuth();
@@ -948,9 +949,7 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingBox}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
+      <SkeletonList />
     );
   }
 

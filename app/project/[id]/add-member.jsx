@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import AdaptiveGlass from '../../components/AdaptiveGlass';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -204,10 +205,7 @@ export default function AddMemberScreen() {
         </View>
 
         {isFetchingData ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3B82F6" />
-            <Text style={styles.loadingText}>Loading data...</Text>
-          </View>
+          <SkeletonList variant="rows" />
         ) : (
           <View style={styles.content}>
             {wizardStep === 1 && (

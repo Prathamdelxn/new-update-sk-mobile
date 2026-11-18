@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useTranslation } from 'react-i18next';
 import { hasProjectPermission } from '../../utils/permissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const { width } = Dimensions.get('window');
 
@@ -258,10 +259,7 @@ export default function UserManagementDashboard() {
           </View>
 
           {isLoading ? (
-            <View style={{ padding: 40, alignItems: 'center' }}>
-              <ActivityIndicator size="large" color="#3B82F6" />
-              <Text style={{ marginTop: 12, color: '#94A3B8', fontFamily: 'Inter-SemiBold' }}>{t('fetchingRoles')}</Text>
-            </View>
+            <SkeletonList variant="rows" />
           ) : (
             processedRoles.map((role) => (
               <TouchableOpacity

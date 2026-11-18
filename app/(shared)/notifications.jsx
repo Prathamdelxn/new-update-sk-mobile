@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
+import SkeletonList from '../components/common/SkeletonList';
 
 export default function NotificationsScreen() {
   const { t } = useTranslation();
@@ -80,9 +81,15 @@ export default function NotificationsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Feather name="arrow-left" size={24} color="#1E293B" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('notifications')}</Text>
+        </View>
+        <SkeletonList variant="rows" />
+      </SafeAreaView>
     );
   }
 

@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useTranslation } from 'react-i18next';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -208,7 +209,7 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
           </Text>
         </View>
       ) : isLoading ? (
-        <ActivityIndicator style={{ marginTop: 60 }} size="large" color="#3B82F6" />
+        <SkeletonList />
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 72 }]} showsVerticalScrollIndicator={false}>
           {rooms.length === 0 ? (

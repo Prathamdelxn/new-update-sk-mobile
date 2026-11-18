@@ -20,6 +20,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import { useTranslation } from 'react-i18next';
 import { getCurrentApprovedBudget } from '../../utils/format';
 import { hasProjectPermission, canViewAnyProject, canCreateProjects, isProjectLocked, permissionListIncludes } from '../../utils/permissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -758,10 +759,7 @@ export default function ProjectScreen() {
           </View>
 
           {isLoadingData ? (
-            <View style={{ padding: 40, alignItems: 'center' }}>
-              <ActivityIndicator size="large" color="#3B82F6" />
-              <Text style={{ marginTop: 12, color: '#94A3B8', fontFamily: 'Inter-SemiBold' }}>{t('synchronizingWorkspace')}</Text>
-            </View>
+            <SkeletonList variant="rows" />
           ) : filteredProjects.length > 0 ? (
             <FlatList
               data={filteredProjects}

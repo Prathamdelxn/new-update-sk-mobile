@@ -580,6 +580,7 @@ import { formatCompact, formatCurrency, getCurrentApprovedBudget } from '../../u
 import { useTranslation } from 'react-i18next';
 import { hasProjectPermission, isProjectLocked } from '../../utils/permissions';
 import { useRouter } from 'expo-router';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -805,9 +806,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
+      <SkeletonList />
     );
   }
 

@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useTranslation } from 'react-i18next';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -244,7 +245,7 @@ export default function ProjectFFETab({ projectId, project }) {
           </Text>
         </View>
       ) : isLoading ? (
-        <ActivityIndicator style={{ marginTop: 60 }} size="large" color="#3B82F6" />
+        <SkeletonList />
       ) : (
         <ScrollView
           style={styles.scroll}

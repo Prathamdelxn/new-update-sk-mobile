@@ -18,6 +18,7 @@ import cloudinaryService from '../../services/cloudinaryService';
 import AdaptiveGlass from '../../components/AdaptiveGlass';
 import ConfirmModal from '../../components/ConfirmModal';
 import { hasAnyProjectPermissionPrefix, hasProjectPermission, isProjectLocked } from '../../utils/permissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 export default function ProjectMaterialTab({ project, fetchProjectData }) {
   const { t } = useTranslation();
@@ -882,9 +883,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
 
   if (isLoading && materials.length === 0) {
     return (
-      <View style={styles.loadingBox}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
+      <SkeletonList />
     );
   }
 

@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Slider from '@react-native-community/slider';
 import { hasProjectPermission, hasAnyProjectPermissionPrefix, isProjectLocked } from '../../utils/permissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const { width } = Dimensions.get('window');
 
@@ -272,9 +273,7 @@ export default function ProjectRiskTab({ project }) {
 
   if (isLoading && risks.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
+      <SkeletonList />
     );
   }
   return (

@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import HeaderNotification from '../../components/HeaderNotification';
 import ConfirmModal from '../../components/ConfirmModal';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -206,9 +207,7 @@ export default function InteriorTemplatesScreen() {
         </View>
 
         {isLoading ? (
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
+          <SkeletonList variant="rows" />
         ) : (
           <ScrollView
             showsVerticalScrollIndicator={false}

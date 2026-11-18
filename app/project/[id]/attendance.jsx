@@ -9,6 +9,7 @@ import { File, Directory, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import LabourManagement from './LabourManagement';
 import { isProjectLocked } from '../../utils/permissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -171,9 +172,7 @@ export default function ProjectAttendanceTab({ project }) {
 
   if (loading && monthlyRecords.length === 0) {
     return (
-      <View style={s.center}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
+      <SkeletonList variant="rows" />
     );
   }
 

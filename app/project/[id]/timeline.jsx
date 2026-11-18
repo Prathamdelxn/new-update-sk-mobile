@@ -565,6 +565,7 @@ import { useToast } from '../../context/ToastContext';
 import { useSocket } from '../../context/SocketContext';
 import { milestoneService } from '../../services/projectService';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -977,9 +978,7 @@ export default function ProjectTimelineTab() {
 
   if (isLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
+      <SkeletonList />
     );
   }
 

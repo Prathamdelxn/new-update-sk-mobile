@@ -29,6 +29,7 @@ import ProjectFFETab from './ffe';
 // Attendance tab hidden for now — no other module depends on it
 // import ProjectAttendanceTab from './attendance';
 import ProjectReportsTab from './reports';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -251,7 +252,7 @@ export default function FullWorkspacePreview() {
         )}
 
         {isLoading ? (
-          <ActivityIndicator style={{ marginTop: 100 }} size="large" color="#3B82F6" />
+          <SkeletonList />
         ) : isRestrictedTab ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
             <Ionicons name="lock-closed-outline" size={64} color="#CBD5E1" />

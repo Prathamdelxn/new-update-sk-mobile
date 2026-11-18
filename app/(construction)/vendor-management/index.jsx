@@ -8,6 +8,7 @@ import AdaptiveGlass from '../../components/AdaptiveGlass';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useTranslation } from 'react-i18next';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const { width } = Dimensions.get('window');
 
@@ -260,10 +261,7 @@ export default function VendorManagementDashboard() {
           </View>
 
           {isLoading ? (
-            <View style={{ padding: 40, alignItems: 'center' }}>
-              <ActivityIndicator size="large" color="#3B82F6" />
-              <Text style={{ marginTop: 12, color: '#94A3B8', fontFamily: 'Inter-SemiBold' }}>Fetching vendors...</Text>
-            </View>
+            <SkeletonList variant="rows" />
           ) : processedVendors.length === 0 ? (
             <View style={{ padding: 40, alignItems: 'center' }}>
                 <Ionicons name="briefcase-outline" size={48} color="#CBD5E1" />

@@ -17,6 +17,7 @@ import { useToast } from '../../context/ToastContext';
 import cloudinaryService from '../../services/cloudinaryService';
 import AdaptiveGlass from '../../components/AdaptiveGlass';
 import { useTranslation } from 'react-i18next';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const MODULE_ICONS = {
   Dashboard: 'grid-outline',
@@ -437,9 +438,7 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
 
   if (isLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
+      <SkeletonList variant="rows" />
     );
   }
 

@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import SkeletonList from '../../components/common/SkeletonList';
 
 Dimensions.get('window');
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -271,10 +272,7 @@ export default function PlanBillingScreen() {
 
           {/* ── Loading ── */}
           {loading && (
-            <View style={styles.loadingWrap}>
-              <ActivityIndicator size="large" color="#2563EB" />
-              <Text style={styles.loadingText}>{t('loadingYourPlan')}</Text>
-            </View>
+            <SkeletonList variant="rows" />
           )}
 
           {/* ── Error ── */}

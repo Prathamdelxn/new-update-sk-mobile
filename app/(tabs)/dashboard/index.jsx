@@ -14,6 +14,7 @@ import interiorApiClient from '../../services/interiorApiClient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys, useRefreshOnFocus } from '../../context/QueryProvider';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -125,15 +126,25 @@ export default function DashboardScreen() {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  if (isInteriorUser ? canSeeInteriorDashboard && interiorQuery.isPending : loading) {
+  // Construction: the greeting header renders straight away, the body shows placeholders while loading
+  if (!isInteriorUser && loading) {
     return (
       <View style={s.outerContainer}>
         <StatusBar barStyle="dark-content" backgroundColor="#DBEAFE" translucent={false} />
         <View style={s.bgBase} />
-        <SafeAreaView style={s.container} edges={['top']}>
-          <View style={s.center}>
-            <ActivityIndicator size="large" color="#2563EB" />
+        <SafeAreaView style={s.container} edges={['bottom']}>
+          <View style={[s.header, { paddingTop: insets.top + 12 }]}>
+            <View>
+              <Text style={s.headerGreeting}>Good {getTimeOfDay()}, {user?.name?.split(' ')[0] || 'there'}</Text>
+              <Text style={s.pageTitle}>Dashboard</Text>
+            </View>
+            <View style={s.headerRight}>
+              <View style={s.bellScale}>
+                <HeaderNotification />
+              </View>
+            </View>
           </View>
+          <SkeletonList variant="dashboard" />
         </SafeAreaView>
       </View>
     );
@@ -262,6 +273,7 @@ export default function DashboardScreen() {
             <HeaderNotification />
           </View>
 
+          {interiorQuery.isPending ? <SkeletonList variant="dashboard" /> : (
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={s.scroll}
@@ -477,6 +489,7 @@ export default function DashboardScreen() {
 
             <View style={{ height: 100 }} />
           </ScrollView>
+          )}
         </SafeAreaView>
       </View>
     );

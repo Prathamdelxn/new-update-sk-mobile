@@ -17,6 +17,7 @@ import { useToast } from '../../context/ToastContext';
 import { milestoneService, workProgressService } from '../../services/projectService';
 import cloudinaryService from '../../services/cloudinaryService';
 import { useSocket } from '../../context/SocketContext';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -526,10 +527,7 @@ export default function ProjectProgressTab() {
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={C.blue} />
-        <Text style={styles.loadingText}>Loading progress...</Text>
-      </View>
+      <SkeletonList />
     );
   }
 

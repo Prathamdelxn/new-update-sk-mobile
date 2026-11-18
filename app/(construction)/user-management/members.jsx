@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { hasProjectPermission } from '../../utils/permissions';
 import ConfirmModal from '../../components/ConfirmModal';
 import PhoneInput from '../../components/PhoneInput';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const { width, height } = Dimensions.get('window');
 
@@ -416,10 +417,7 @@ export default function MemberManagementScreen() {
           </View>
 
           {isLoading ? (
-            <View style={{ padding: 40, alignItems: 'center' }}>
-              <ActivityIndicator size="large" color="#3B82F6" />
-              <Text style={{ marginTop: 12, color: '#94A3B8', fontFamily: 'Inter-SemiBold' }}>{t('fetchingTeam')}</Text>
-            </View>
+            <SkeletonList variant="rows" />
           ) : filteredMembers.length === 0 ? (
             <Text style={{ textAlign: 'center', marginTop: 40, color: '#94A3B8' }}>{t('noMembersFound')}</Text>
           ) : (

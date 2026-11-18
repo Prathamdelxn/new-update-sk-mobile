@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import SignatureScreen from "react-native-signature-canvas";
 import ImageViewer from 'react-native-image-zoom-viewer';
 import { hasProjectPermission, isProjectLocked } from '../../utils/permissions';
+import SkeletonList from '../../components/common/SkeletonList';
 const { width } = Dimensions.get('window');
 
 const CATEGORIES = ["Technical", "Resource", "Financial", "Site", "Client", "Third Party", "Other"];
@@ -398,7 +399,7 @@ export default function ProjectIssuesTab({ project }) {
   };
 
   if (isLoading && issues.length === 0) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#3B82F6" /></View>;
+    return <SkeletonList />;
   }
 
   return (

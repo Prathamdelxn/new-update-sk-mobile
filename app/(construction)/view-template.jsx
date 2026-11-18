@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTranslation } from 'react-i18next';
 import { getCachedTemplate, rememberTemplate } from '../utils/construction/templateCache';
+import SkeletonList from '../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -74,9 +75,15 @@ export default function ViewTemplateScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Loading details...</Text>
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: insets.top }}>
+        <StatusBar barStyle="dark-content" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 }}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="chevron-back" size={22} color="#0F172A" />
+          </TouchableOpacity>
+          <View style={{ width: '50%', height: 16, borderRadius: 6, backgroundColor: '#E8EDF3' }} />
+        </View>
+        <SkeletonList />
       </View>
     );
   }

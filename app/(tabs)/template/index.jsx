@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { hasAnyRolePermission } from '../../utils/permissions';
 import CategoryList from '../../components/templates/CategoryList';
 import { rememberTemplate } from '../../utils/construction/templateCache';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const { width, height } = Dimensions.get('window');
 
@@ -916,10 +917,7 @@ export default function TemplateScreen() {
             <Text style={styles.loaderText}>You don't have permission to view templates. Ask your admin to enable Template Management → View.</Text>
           </View>
         ) : isTemplatesLoading && templatesList.length === 0 ? (
-          <View style={styles.centralLoader}>
-            <ActivityIndicator size="large" color="#3B82F6" />
-            <Text style={styles.loaderText}>{t('synchronizingTemplates')}</Text>
-          </View>
+          <SkeletonList variant="rows" />
         ) : (
           <FlatList
             data={filteredTemplates}

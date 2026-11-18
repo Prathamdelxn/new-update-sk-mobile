@@ -12,6 +12,7 @@ import { useToast } from '../../context/ToastContext';
 import ConfirmModal from '../../components/ConfirmModal';
 import { useTranslation } from 'react-i18next';
 import { hasProjectPermission, isProjectLocked } from '../../utils/permissions';
+import SkeletonList from '../../components/common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -669,10 +670,7 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
           </AdaptiveGlass>
         </View>
       ) : isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>{t('loadingIssues')}</Text>
-        </View>
+        <SkeletonList />
       ) : (
         <>
           <View style={styles.listContent}>

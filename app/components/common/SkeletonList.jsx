@@ -96,11 +96,46 @@ function HomeSkeleton() {
   );
 }
 
+function DashboardSkeleton() {
+  return (
+    <>
+      <Bar w={80} h={13} style={{ marginTop: 4 }} />
+      <View style={s.statGrid}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <View key={i} style={s.statTile}>
+            <Bar w={34} h={34} r={10} />
+            <View style={{ flex: 1, gap: 7 }}>
+              <Bar w="70%" h={10} />
+              <Bar w="40%" h={16} />
+            </View>
+          </View>
+        ))}
+      </View>
+      <Bar w={120} h={13} style={{ marginTop: 8 }} />
+      <View style={s.card}>
+        <Bar w="45%" h={12} />
+        <Bar h={140} r={10} style={{ marginTop: 14 }} />
+      </View>
+      <Bar w={110} h={13} style={{ marginTop: 8 }} />
+      <View style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 18 }]}>
+        <Bar w={110} h={110} r={55} />
+        <View style={{ flex: 1, gap: 10 }}>
+          <Bar w="60%" h={12} />
+          <Bar w="80%" h={10} />
+          <Bar w="70%" h={10} />
+        </View>
+      </View>
+    </>
+  );
+}
+
 export default function SkeletonList({ variant = 'cards', count = 4, style }) {
   const opacity = usePulse();
   return (
     <Animated.View style={[s.wrap, { opacity }, style]} pointerEvents="none">
-      {variant === 'home' ? (
+      {variant === 'dashboard' ? (
+        <DashboardSkeleton />
+      ) : variant === 'home' ? (
         <HomeSkeleton />
       ) : variant === 'rows' ? (
         <RowsSkeleton count={Math.max(count, 5)} />
@@ -119,5 +154,7 @@ const s = StyleSheet.create({
   figCol: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 0, paddingVertical: 8 },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  statTile: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#EEF2F6', padding: 12 },
   gridCell: { width: '25%', alignItems: 'center', gap: 8, paddingVertical: 8 },
 });

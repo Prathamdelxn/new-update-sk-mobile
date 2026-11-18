@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { hasAnyRolePermission } from '../../utils/permissions';
+import SkeletonList from '../common/SkeletonList';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -249,7 +250,7 @@ export default function CategoryList({ categories, templates, loading, onChanged
       )}
 
       {loading && (categories || []).length === 0 ? (
-        <View style={s.center}><ActivityIndicator size="large" color="#3B82F6" /></View>
+        <SkeletonList variant="rows" />
       ) : (
         <FlatList
           data={filtered}

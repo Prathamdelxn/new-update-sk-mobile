@@ -13,6 +13,7 @@ import { useSocket } from '../../context/SocketContext';
 import { milestoneService, boqService } from '../../services/projectService';
 import { useTranslation } from 'react-i18next';
 import ProjectTimelineTab from './timeline';
+import SkeletonList from '../../components/common/SkeletonList';
 
 export default function ProjectMilestonesTab({ project }) {
   const { t } = useTranslation();
@@ -225,9 +226,7 @@ export default function ProjectMilestonesTab({ project }) {
 
   if (isLoading && milestones.length === 0) {
     return (
-      <View style={[styles.tabScrollContent, { justifyContent: 'center', alignItems: 'center', height: 300 }]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
+      <SkeletonList />
     );
   }
 
