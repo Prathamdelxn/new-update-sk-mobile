@@ -133,11 +133,10 @@ const { can: canDo } = useProjectPermissions(projectId);
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Change Request Management</Text>
-            <Text style={s.headerSub}>Evaluate & review project variations.</Text>
           </View>
         </View>
 
@@ -346,21 +345,21 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingTop: 16, gap: 12 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' },
 
   crCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', gap: 8 },
   crTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  crNumber: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  crNumber: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
   statusBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
-  statusBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold', textTransform: 'capitalize' },
-  crDesc: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', lineHeight: 18 },
+  statusBadgeText: { fontSize: 11, fontFamily: 'Inter-Bold', textTransform: 'capitalize' },
+  crDesc: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', lineHeight: 18 },
   crBottomRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 8 },
-  crMeta: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textTransform: 'capitalize' },
-  crDate: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  crMeta: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textTransform: 'capitalize' },
+  crDate: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   fab: {
     position: 'absolute', right: 20, bottom: 30,
@@ -375,42 +374,42 @@ const s = StyleSheet.create({
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
   priorityDot: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  priorityDotText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' },
+  priorityDotText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
 
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   chipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  chipText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize' },
+  chipText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize' },
   chipTextActive: { color: '#2563EB' },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },
   saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
-  sectionLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3, marginTop: 14, marginBottom: 8 },
+  sectionLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3, marginTop: 14, marginBottom: 8 },
 
   workflowRow: { flexDirection: 'row', backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#F1F5F9', padding: 10 },
   workflowStep: { flex: 1, alignItems: 'center', gap: 4 },
   workflowDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
   workflowDotActive: { borderWidth: 2, borderColor: '#2563EB' },
-  workflowDotText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#64748B' },
+  workflowDotText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#64748B' },
   workflowLabel: { fontSize: 7.5, fontFamily: 'Inter-SemiBold', color: '#94A3B8', textAlign: 'center' },
 
   scopeBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 12, padding: 12, marginBottom: 8 },
-  scopeLabel: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3, marginBottom: 4 },
-  scopeText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#0F172A', lineHeight: 18 },
+  scopeLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3, marginBottom: 4 },
+  scopeText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A', lineHeight: 18 },
 
-  bodyText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 18 },
+  bodyText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 18 },
 
   workflowActionBtn: { paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' },
-  workflowActionBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#334155' },
+  workflowActionBtnText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#334155' },
   approveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#059669', borderRadius: 12, paddingVertical: 12 },
-  approveBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  approveBtnText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   resolvedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12 },
-  resolvedText: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', flex: 1 },
+  resolvedText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', flex: 1 },
 });

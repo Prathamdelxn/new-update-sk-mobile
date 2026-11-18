@@ -391,7 +391,7 @@ export default function UploadDesignModal({
                       size={22}
                       color="#2563EB"
                     />
-                    <Text style={{ flex: 1, marginLeft: 8, fontSize: 13, color: '#0F172A', fontFamily: 'Inter-Medium' }} numberOfLines={1}>
+                    <Text style={{ flex: 1, marginLeft: 8, fontSize: 14, color: '#0F172A', fontFamily: 'Inter-Medium' }} numberOfLines={1}>
                       {selectedFile.name}
                     </Text>
                     {selectedFile.fileType === 'image' && (
@@ -400,7 +400,7 @@ export default function UploadDesignModal({
                         style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, marginRight: 6 }}
                       >
                         <Ionicons name="eye-outline" size={14} color="#2563EB" />
-                        <Text style={{ fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#2563EB', marginLeft: 4 }}>Preview</Text>
+                        <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#2563EB', marginLeft: 4 }}>Preview</Text>
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity onPress={() => setSelectedFile(null)}>
@@ -414,8 +414,8 @@ export default function UploadDesignModal({
                   onPress={pickDocument}
                 >
                   <Ionicons name="cloud-upload-outline" size={32} color="#94A3B8" />
-                  <Text style={{ marginTop: 8, color: '#64748B', fontFamily: 'Inter-Medium', fontSize: 13 }}>Tap to select file from device</Text>
-                  <Text style={{ marginTop: 4, color: '#94A3B8', fontFamily: 'Inter-Regular', fontSize: 11 }}>Images, PDFs, DWG, OBJ, FBX and more</Text>
+                  <Text style={{ marginTop: 8, color: '#64748B', fontFamily: 'Inter-Medium', fontSize: 14 }}>Tap to select file from device</Text>
+                  <Text style={{ marginTop: 4, color: '#94A3B8', fontFamily: 'Inter-Regular', fontSize: 12.5 }}>Images, PDFs, DWG, OBJ, FBX and more</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -453,38 +453,38 @@ const s = StyleSheet.create({
   modalContent: { backgroundColor: '#F8FAFC', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 16, backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   modalTitle: { fontSize: 18, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  modalSubtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2, maxWidth: 260 },
+  modalSubtitle: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2, maxWidth: 260 },
   closeBtn: { padding: 4 },
   modalBody: { flexShrink: 1 },
   inputContainer: { marginBottom: 16 },
-  label: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#475569', marginBottom: 8 },
-  charCount: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#94A3B8' },
+  label: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#475569', marginBottom: 8 },
+  charCount: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#94A3B8' },
   input: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: 'Inter-Medium', color: '#0F172A', backgroundColor: '#F8FAFC' },
   inputError: { borderColor: '#DC2626' },
-  errorText: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#DC2626', marginTop: 4 },
+  errorText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#DC2626', marginTop: 4 },
   chipOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   optionChip: { flex: 1, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' },
   optionChipActive: { backgroundColor: '#EEF2FF', borderColor: '#6366F1' },
-  optionChipText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  optionChipText: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   optionChipTextActive: { color: '#4F46E5', fontFamily: 'Inter-Bold' },
 
   dropdownBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#F8FAFC' },
   dropdownBtnText: { fontSize: 13.5, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1, marginRight: 8 },
   dropdownMenu: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, overflow: 'hidden' },
   dropdownItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  dropdownItemText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
+  dropdownItemText: { fontSize: 13.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
   dropdownItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   stageBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#BAE6FD', backgroundColor: '#F0F9FF', borderRadius: 10, paddingVertical: 10, marginBottom: 8 },
-  stageBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0284C7' },
+  stageBtnText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0284C7' },
 
   queueBox: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, padding: 10, marginBottom: 16, gap: 8 },
-  queueLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3 },
+  queueLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3 },
   queueRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F8FAFC', borderRadius: 8, padding: 8 },
-  queueRowTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  queueRowSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  queueRowTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  queueRowSub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
 
-  helpText: { fontSize: 11, color: '#94A3B8', marginTop: 6, fontStyle: 'italic' },
+  helpText: { fontSize: 12.5, color: '#94A3B8', marginTop: 6, fontStyle: 'italic' },
   footer: { flexDirection: 'row', padding: 16, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E2E8F0', gap: 12 },
   cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center' },
   cancelBtnText: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#475569' },

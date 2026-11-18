@@ -350,34 +350,34 @@ const s = StyleSheet.create({
   card: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '85%' },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   title: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  subtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2, maxWidth: 260 },
+  subtitle: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2, maxWidth: 260 },
 
   countBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0', borderRadius: 10, padding: 10, marginBottom: 16 },
   countBannerWarn: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
-  countBannerText: { flex: 1, fontSize: 11.5, fontFamily: 'Inter-Medium', lineHeight: 16 },
+  countBannerText: { flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', lineHeight: 16 },
 
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  rowLabel: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  rowSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  rowLabel: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  rowSub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
 
   linkBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 8, marginBottom: 10 },
-  linkText: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#2563EB' },
+  linkText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#2563EB' },
   linkBoxExpired: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
   linkTextExpired: { color: '#B45309', fontStyle: 'italic' },
   actionBtnDisabled: { opacity: 0.4 },
   renewBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#D97706', borderRadius: 10, paddingVertical: 10, marginBottom: 10 },
-  renewBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  renewBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingVertical: 9 },
-  actionBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155' },
+  actionBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155' },
 
   expiryChip: { minWidth: '30%', flexGrow: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   expiryChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  expiryChipText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  expiryChipText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   expiryChipTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   resetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 10, paddingVertical: 11 },
-  resetBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#DC2626' },
+  resetBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#DC2626' },
 
-  viewCountText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', marginTop: 12 },
+  viewCountText: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', marginTop: 12 },
 });

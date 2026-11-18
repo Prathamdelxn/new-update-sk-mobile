@@ -405,20 +405,14 @@ const { can: canDo } = useProjectPermissions(projectId);
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Bill of Quantities</Text>
-            <Text style={s.headerSub}>Materials, pricing, and revision audits.</Text>
           </View>
           {canDo('boq', 'create') && (
             <TouchableOpacity style={s.headerIconBtn} onPress={() => setIsImportOpen(true)}>
               <Ionicons name="cloud-upload-outline" size={17} color="#2563EB" />
-            </TouchableOpacity>
-          )}
-          {canDo('boq', 'create') && (
-            <TouchableOpacity style={[s.headerIconBtn, { backgroundColor: '#2563EB' }]} onPress={openCreateBoq}>
-              <Ionicons name="add" size={17} color="#FFFFFF" />
             </TouchableOpacity>
           )}
         </View>
@@ -452,7 +446,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </View>
                       <Text style={s.versionAmount}>{fmtMoney(boq.totalAmount)}</Text>
                       <View style={{ marginTop: 4 }}>
-                        <Text style={{ fontSize: 10, color: active ? '#1D4ED8' : '#64748B', fontWeight: '500' }} numberOfLines={1}>
+                        <Text style={{ fontSize: 11.5, color: active ? '#1D4ED8' : '#64748B', fontWeight: '500' }} numberOfLines={1}>
                           {createdDate ? `${createdDate} • ` : ''}by {creatorName}
                         </Text>
                       </View>
@@ -679,6 +673,13 @@ const { can: canDo } = useProjectPermissions(projectId);
             <View style={{ height: 100 }} />
           </ScrollView>
         )}
+
+        {/* Floating add button (same as the other module screens) */}
+        {canDo('boq', 'create') && !loading && (
+          <TouchableOpacity style={s.fab} onPress={openCreateBoq} activeOpacity={0.9}>
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* Excel import */}
@@ -717,7 +718,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={s.label}>Revision Notes</Text>
               <TextInput style={s.input} placeholder="e.g. Initial draft base price calculations" placeholderTextColor="#94A3B8" value={newBoqNotes} onChangeText={setNewBoqNotes} maxLength={2000} />
-              <Text style={{ fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8', alignSelf: 'flex-end', marginTop: 2 }}>{newBoqNotes.length}/2000</Text>
+              <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', alignSelf: 'flex-end', marginTop: 2 }}>{newBoqNotes.length}/2000</Text>
 
               <View style={s.sectionHeaderRow}>
                 <Text style={s.formSectionLabel}>BOQ LINE ITEMS ({newItems.length})</Text>
@@ -823,119 +824,125 @@ const s = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingHorizontal: 20, paddingTop: 14 },
 
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
   headerIconBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
+  fab: {
+    position: 'absolute', right: 20, bottom: 24,
+    width: 52, height: 52, borderRadius: 26, backgroundColor: '#2563EB',
+    justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#2563EB', shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+  },
 
   iconBtnRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   reviewerChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 10, maxWidth: '100%',
     backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 4,
   },
-  reviewerChipText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#B45309', flexShrink: 1 },
+  reviewerChipText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#B45309', flexShrink: 1 },
   rejectionBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 8,
     backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6,
   },
-  rejectionText: { flex: 1, fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#B91C1C' },
+  rejectionText: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#B91C1C' },
   budgetBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, borderWidth: 1, padding: 10 },
   budgetBannerOk: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
   budgetBannerOver: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
-  budgetBannerTitle: { fontSize: 12, fontFamily: 'Inter-Bold' },
-  budgetBannerText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#475569', marginTop: 2 },
+  budgetBannerTitle: { fontSize: 13, fontFamily: 'Inter-Bold' },
+  budgetBannerText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#475569', marginTop: 2 },
 
-  sectionLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3, marginBottom: 8 },
+  sectionLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3, marginBottom: 8 },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyTitle: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B', textAlign: 'center' },
+  emptyTitle: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#64748B', textAlign: 'center' },
 
   versionCard: { width: 150, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9' },
   versionCardActive: { borderColor: '#2563EB', backgroundColor: '#EFF6FF' },
-  versionLabel: { fontSize: 13, fontFamily: 'Inter-Black', color: '#0F172A' },
+  versionLabel: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
   versionStatusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  versionStatusText: { fontSize: 8, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
-  versionAmount: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B', marginTop: 6 },
+  versionStatusText: { fontSize: 10.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
+  versionAmount: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B', marginTop: 6 },
 
   summaryCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 14 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
-  summaryLabel: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  summaryValue: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  summaryLabel: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  summaryValue: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
   notesBox: { backgroundColor: '#F8FAFC', borderRadius: 8, padding: 8, marginTop: 8 },
-  notesText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#64748B' },
+  notesText: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B' },
 
   primaryBtn: { backgroundColor: '#2563EB', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  primaryBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  primaryBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   outlineBtn: { borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  outlineBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  outlineBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   tabRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   tabBtn: { flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center' },
   tabBtnActive: { backgroundColor: '#2563EB' },
-  tabBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#64748B' },
+  tabBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#64748B' },
   tabBtnTextActive: { color: '#FFFFFF' },
 
   itemCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 8, gap: 6 },
   itemTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  itemSerial: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
+  itemSerial: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
   itemCategoryTag: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  itemCategoryTagText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'capitalize' },
-  itemName: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1 },
+  itemCategoryTagText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'capitalize' },
+  itemName: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1 },
   sectionCard: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden', marginBottom: 10 },
   sectionHead: { flexDirection: 'row', gap: 10, padding: 12, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   sectionNumTag: { backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
-  sectionNumText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#1D4ED8', textTransform: 'uppercase' },
-  sectionCount: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#64748B' },
-  sectionTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 4 },
-  sectionScope: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
-  sectionSubLabel: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
-  sectionSubValue: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
+  sectionNumText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#1D4ED8', textTransform: 'uppercase' },
+  sectionCount: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' },
+  sectionTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 4 },
+  sectionScope: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  sectionSubLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
+  sectionSubValue: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
   secItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 4 },
-  itemSpec: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#475569', lineHeight: 16 },
-  itemRemarks: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  itemSpec: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#475569', lineHeight: 16 },
+  itemRemarks: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
   grandStrip: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#0F172A', borderRadius: 14, padding: 14, marginBottom: 10 },
-  grandStripLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
-  grandStripSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#CBD5E1', marginTop: 2 },
+  grandStripLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
+  grandStripSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#CBD5E1', marginTop: 2 },
   grandStripValue: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   itemBottomRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 6 },
-  itemMeta: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  itemAmount: { fontSize: 12, fontFamily: 'Inter-Black', color: '#0F172A' },
+  itemMeta: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  itemAmount: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
   actualKpiRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   actualKpiCard: { flex: 1, borderRadius: 12, borderWidth: 1, padding: 10 },
-  actualKpiLabel: { fontSize: 8.5, fontFamily: 'Inter-Bold' },
-  actualKpiValue: { fontSize: 13, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 4 },
+  actualKpiLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold' },
+  actualKpiValue: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 4 },
 
   avaGrid: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 6 },
-  avaLabel: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#94A3B8' },
-  avaValue: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
+  avaLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8' },
+  avaValue: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, maxHeight: '88%' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  hintText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginBottom: 10 },
+  hintText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginBottom: 10 },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
 
   uploadBox: { height: 90, borderRadius: 14, borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', gap: 6, paddingHorizontal: 16, marginBottom: 8 },
-  uploadBoxText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B', maxWidth: '100%' },
+  uploadBoxText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B', maxWidth: '100%' },
 
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 8 },
-  formSectionLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3 },
+  formSectionLabel: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3 },
   addRowBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' },
-  addRowBtnText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  addRowBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   itemRowBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 12, padding: 12, marginBottom: 10 },
   itemRowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  itemRowNum: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8' },
+  itemRowNum: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#94A3B8' },
 
   miniChip: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
   miniChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  miniChipText: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  miniChipText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   miniChipTextActive: { color: '#2563EB' },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },

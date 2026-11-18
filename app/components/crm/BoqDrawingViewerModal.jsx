@@ -224,7 +224,7 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   headerBadgeText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-SemiBold',
     color: '#60A5FA',
     textTransform: 'uppercase',
@@ -236,7 +236,7 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   catBadgeText: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontFamily: 'Inter-Bold',
     color: '#93C5FD',
   },
@@ -246,7 +246,7 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
   },
   metaSubtitle: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
     marginTop: 2,
@@ -272,7 +272,7 @@ const s = StyleSheet.create({
     gap: 8,
   },
   loaderText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#94A3B8',
   },
@@ -299,7 +299,7 @@ const s = StyleSheet.create({
     marginTop: 6,
   },
   pdfNoticeSub: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
     textAlign: 'center',
@@ -315,7 +315,7 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   pdfOpenBtnText: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
   },
@@ -337,7 +337,7 @@ const s = StyleSheet.create({
     borderRadius: 6,
   },
   zoomLevelText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#E2E8F0',
     minWidth: 38,
@@ -372,7 +372,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   footerActionText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-SemiBold',
     color: '#E2E8F0',
   },
@@ -387,7 +387,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   footerPrimaryText: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
   },

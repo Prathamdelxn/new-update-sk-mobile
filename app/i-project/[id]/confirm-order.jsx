@@ -48,11 +48,10 @@ export default function InteriorProjectConfirmOrderScreen() {
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Confirm Order</Text>
-            <Text style={s.headerSub}>Vendor dispatches and signed order documents.</Text>
           </View>
         </View>
 
@@ -117,12 +116,12 @@ const s = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
   emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', padding: 28, alignItems: 'center', gap: 8 },
   emptyTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#1E293B' },
-  emptySub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center' },
+  emptySub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center' },
   summary: { backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 14, paddingVertical: 10 },
-  summaryLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5 },
-  summaryValue: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A', marginTop: 2 },
+  summaryLabel: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5 },
+  summaryValue: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#0F172A', marginTop: 2 },
 });

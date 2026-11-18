@@ -80,7 +80,7 @@ function DateField({ value, onChange, placeholder = 'Select date', inputStyle })
 
 const dfStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  text: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
   placeholder: { color: '#94A3B8' },
 });
 
@@ -194,15 +194,8 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.headerTitle} numberOfLines={1}>Milestones & Key Targets</Text>
-            <Text style={s.headerSub} numberOfLines={1}>Track major targets, deliverables, and timeline milestones.</Text>
+            <Text style={s.headerTitle} numberOfLines={1}>Milestones</Text>
           </View>
-          {canDo('milestones', 'create') && (
-            <TouchableOpacity style={s.headerAddBtn} onPress={openCreate} activeOpacity={0.8}>
-              <Ionicons name="add" size={16} color="#FFFFFF" />
-              <Text style={s.headerAddText}>Add</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {loading ? (
@@ -530,18 +523,7 @@ const s = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
   },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
-  headerAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-  },
-  headerAddText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
   empty: { alignItems: 'center', paddingVertical: 50, paddingHorizontal: 20, gap: 10 },
   emptyIconCircle: {
@@ -554,7 +536,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   emptyTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  emptySub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', maxWidth: 260 },
+  emptySub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', maxWidth: 260 },
   emptyAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -565,18 +547,18 @@ const s = StyleSheet.create({
     borderRadius: 12,
     marginTop: 8,
   },
-  emptyAddBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  emptyAddBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   msCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', gap: 10 },
   msTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   msIconBox: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
   msName: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  msDate: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B' },
+  msDate: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B' },
   deleteBtn: { padding: 4, borderRadius: 8 },
 
   linkedTasksBox: { borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 10, gap: 6 },
-  linkedTasksLabel: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3 },
-  linkedTasksPct: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  linkedTasksLabel: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3 },
+  linkedTasksPct: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#2563EB' },
   progressTrack: { height: 5, borderRadius: 3, backgroundColor: '#F1F5F9', overflow: 'hidden', marginBottom: 4 },
   progressFill: { height: '100%', borderRadius: 3 },
   linkedTaskRow: {
@@ -592,11 +574,11 @@ const s = StyleSheet.create({
     borderColor: '#F1F5F9',
   },
   linkedTaskRowDone: { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' },
-  linkedTaskName: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1 },
+  linkedTaskName: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1 },
   linkedTaskNameDone: { color: '#94A3B8', textDecorationLine: 'line-through', fontFamily: 'Inter-Regular' },
 
   taskStatusTag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, borderWidth: 1, alignSelf: 'flex-start' },
-  taskStatusTagText: { fontSize: 9, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
+  taskStatusTagText: { fontSize: 10.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
   taskStatusCompleted: { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' },
   taskStatusCompletedText: { color: '#16A34A' },
   taskStatusProgress: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
@@ -605,25 +587,22 @@ const s = StyleSheet.create({
   taskStatusTodoText: { color: '#64748B' },
 
   delayBox: { backgroundColor: '#FEF2F2', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#FEE2E2' },
-  delayBoxTitle: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  delayReason: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
-  delayImpact: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  delayBoxTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  delayReason: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  delayImpact: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
 
   msBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 10 },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
-  statusBadgeText: { fontSize: 10.5, fontFamily: 'Inter-Bold' },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  actionBtnDanger: { borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
-  actionBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#334155' },
+  statusBadgeText: { fontSize: 12, fontFamily: 'Inter-Bold' },
 
   ganttCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9' },
   ganttHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  ganttTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  ganttTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
   ganttLine: { borderLeftWidth: 2, borderLeftColor: '#E2E8F0', marginLeft: 8, gap: 14, paddingLeft: 14 },
   ganttRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   ganttDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, marginLeft: -19, marginTop: 3 },
-  ganttName: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  ganttDate: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#64748B' },
+  ganttName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  ganttDate: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B' },
 
   fab: {
     position: 'absolute', right: 20, bottom: 24,
@@ -636,19 +615,19 @@ const s = StyleSheet.create({
   modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, maxHeight: '88%' },
   modalHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 12, marginBottom: 14 },
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  modalSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  modalSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
   closeBtn: { padding: 4, borderRadius: 8 },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 12 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 12 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
 
-  noTasksText: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', fontStyle: 'italic', padding: 12, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed', borderRadius: 10 },
+  noTasksText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', fontStyle: 'italic', padding: 12, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed', borderRadius: 10 },
   taskListBox: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, maxHeight: 180, backgroundColor: '#FFFFFF' },
   taskCheckRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  taskCheckName: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  taskCheckName: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
 
   modalBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 },
   cancelBtn: {
@@ -670,12 +649,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  saveBtnDanger: { backgroundColor: '#DC2626' },
   saveBtnText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
-  delayHighlight: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FEE2E2', borderRadius: 12, padding: 12, marginBottom: 4 },
-  delayHighlightLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#EF4444', letterSpacing: 0.3 },
-  delayHighlightName: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#B91C1C', marginTop: 2 },
-  delayHighlightDate: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#DC2626', marginTop: 2 },
 });
 

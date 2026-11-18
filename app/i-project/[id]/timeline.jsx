@@ -478,11 +478,10 @@ export default function InteriorTimelineScreen() {
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Project Timeline</Text>
-            <Text style={s.headerSub}>WBS packages, milestones & tasks on a Gantt chart.</Text>
           </View>
         </View>
 
@@ -574,44 +573,44 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#E2E8F0', padding: 12, gap: 10,
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8,
   },
-  infoTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  infoStatus: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize', marginTop: 2 },
+  infoTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  infoStatus: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize', marginTop: 2 },
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   infoCell: { flexBasis: '47%', flexGrow: 1, backgroundColor: '#F8FAFC', borderRadius: 10, padding: 8 },
-  infoLabel: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
-  infoValue: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
+  infoLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
+  infoValue: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
   stickyCol: { backgroundColor: '#FFFFFF', borderRightWidth: 1, borderRightColor: '#E2E8F0', zIndex: 2, elevation: 2 },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   empty: { alignItems: 'center', paddingVertical: 80, gap: 8, paddingHorizontal: 40 },
   emptyTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#475569' },
-  emptySub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
+  emptySub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
 
   monthRow: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   monthCell: { height: 24, justifyContent: 'center', borderRightWidth: 1, borderRightColor: '#E2E8F0', paddingLeft: 6 },
-  monthCellText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#2563EB', textTransform: 'uppercase' },
+  monthCellText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#2563EB', textTransform: 'uppercase' },
 
   dayRow: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   dayCell: { height: 24, justifyContent: 'center', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#F1F5F9' },
   dayCellToday: { backgroundColor: '#2563EB' },
   dayCellWeekend: { backgroundColor: '#F8FAFC' },
-  dayCellText: { fontSize: 9, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  dayCellText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
   dayCellTextToday: { color: '#FFFFFF', fontFamily: 'Inter-Bold' },
 
   wbsRow: { flexDirection: 'row', height: 34, backgroundColor: '#F5F3FF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   wbsLabelCell: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, gap: 2 },
-  wbsLabelText: { fontSize: 11, fontFamily: 'Inter-Black', color: '#0F172A', textTransform: 'uppercase', flexShrink: 1, marginLeft: 2 },
-  wbsTradeTag: { fontSize: 8, fontFamily: 'Inter-Bold', color: '#7C3AED', backgroundColor: '#EDE9FE', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, marginLeft: 6, textTransform: 'uppercase' },
+  wbsLabelText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A', textTransform: 'uppercase', flexShrink: 1, marginLeft: 2 },
+  wbsTradeTag: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#7C3AED', backgroundColor: '#EDE9FE', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, marginLeft: 6, textTransform: 'uppercase' },
 
   milestoneRow: { flexDirection: 'row', height: 30, backgroundColor: '#FFFBEB', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   msLabelCell: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingLeft: 20 },
-  msLabelText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#334155', flexShrink: 1, marginLeft: 2 },
+  msLabelText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#334155', flexShrink: 1, marginLeft: 2 },
   milestoneDiamond: { position: 'absolute', top: 10, width: 10, height: 10, borderRadius: 2, transform: [{ rotate: '45deg' }] },
 
   taskRow: { flexDirection: 'row', height: 40, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
@@ -619,12 +618,12 @@ const s = StyleSheet.create({
   taskLabelCell: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 8, paddingLeft: 22, borderRightWidth: 1, borderRightColor: '#F1F5F9' },
   taskLabelCellDone: { borderLeftWidth: 3, borderLeftColor: '#10B981', paddingLeft: 19 },
   checkBtn: { width: 20, alignItems: 'center' },
-  taskLabelText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#334155' },
+  taskLabelText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155' },
   taskLabelTextDone: { color: '#94A3B8', textDecorationLine: 'line-through' },
-  planText: { fontSize: 9.5, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2, flexShrink: 1 },
+  planText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2, flexShrink: 1 },
   doneLine: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
   donePill: { backgroundColor: '#D1FAE5', borderWidth: 1, borderColor: '#6EE7B7', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  donePillText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#065F46' },
+  donePillText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#065F46' },
   taskBar: { position: 'absolute', height: 14, borderRadius: 6, top: 13, overflow: 'hidden' },
   taskBarDone: { top: 16 },
   earlyNotch: { position: 'absolute', top: 0, bottom: 0, right: 0, backgroundColor: 'rgba(2, 44, 34, 0.28)', borderLeftWidth: 1.5, borderLeftColor: 'rgba(255,255,255,0.7)', borderStyle: 'dashed' },

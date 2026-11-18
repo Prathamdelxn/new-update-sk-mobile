@@ -520,7 +520,7 @@ const s = StyleSheet.create({
   outerContainer: { flex: 1, backgroundColor: '#F8FAFC' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  loadingText: { marginTop: 10, fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B' },
+  loadingText: { marginTop: 10, fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B' },
   scroll: { paddingHorizontal: 16, paddingTop: 12, gap: 12 },
 
   header: {
@@ -543,9 +543,9 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
-  headerGreeting: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#1D4ED8', textTransform: 'uppercase' },
-  headerTitle: { fontSize: 18, fontFamily: 'Inter-Black', color: '#0F172A', letterSpacing: -0.3 },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  headerGreeting: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#1D4ED8', textTransform: 'uppercase' },
+  headerTitle: { fontSize: 18, fontFamily: 'Inter-Bold', color: '#0F172A', letterSpacing: -0.3 },
+  headerSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
 
   tabBarContainer: {
     backgroundColor: '#FFFFFF',
@@ -587,7 +587,7 @@ const s = StyleSheet.create({
     backgroundColor: '#16A34A',
   },
   tabButtonText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
   },
@@ -621,7 +621,7 @@ const s = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#0F172A',
     padding: 0,
@@ -650,7 +650,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   emptyTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  emptySub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
+  emptySub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
 
   card: {
     backgroundColor: '#FFFFFF',
@@ -680,8 +680,8 @@ const s = StyleSheet.create({
   },
   avatarText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   leadName: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A', flexShrink: 1 },
-  leadNumber: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#64748B', flexShrink: 0 },
-  leadPhone: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  leadNumber: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B', flexShrink: 0 },
+  leadPhone: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
 
   statusBadge: {
     flexDirection: 'row',
@@ -701,7 +701,7 @@ const s = StyleSheet.create({
     borderColor: '#BBF7D0',
   },
   statusBadgeText: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontFamily: 'Inter-Bold',
     letterSpacing: 0.3,
   },
@@ -718,7 +718,7 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
   },
-  typeBadgeText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#2563EB' },
+  typeBadgeText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#2563EB' },
   dateBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -730,7 +730,7 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
   },
-  dateBadgeText: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#64748B' },
+  dateBadgeText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' },
   assignedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -742,7 +742,7 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
   },
-  assignedBadgeText: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#6D28D9' },
+  assignedBadgeText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#6D28D9' },
 
   remarksBox: {
     backgroundColor: '#F8FAFC',
@@ -752,7 +752,7 @@ const s = StyleSheet.create({
     borderLeftWidth: 2,
     borderLeftColor: '#CBD5E1',
   },
-  remarksText: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#475569', fontStyle: 'italic' },
+  remarksText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#475569', fontStyle: 'italic' },
 
   actionsRow: {
     flexDirection: 'row',
@@ -783,7 +783,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
-  doneBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  doneBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   passSiteBtn: {
     flexDirection: 'row',
@@ -794,7 +794,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
-  passSiteBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  passSiteBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   completedPill: {
     flexDirection: 'row',
@@ -807,5 +807,5 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DCFCE7',
   },
-  completedPillText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#16A34A' },
+  completedPillText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#16A34A' },
 });

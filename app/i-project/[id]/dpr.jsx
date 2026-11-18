@@ -772,32 +772,11 @@ const { can: canDo } = useProjectPermissions(projectId);
           <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={s.headerTitle}>Daily Progress Reports (DPR)</Text>
-              <View style={s.brandBadge}>
-                <Text style={s.brandBadgeText}>SkyStruct Lite</Text>
-              </View>
-            </View>
-            <Text style={s.headerSub} numberOfLines={1}>
-              Site log, manpower status, material receipt, tomorrow planning & PDF generation for{' '}
-              <Text style={{ color: '#0F172A', fontFamily: 'Inter-SemiBold' }}>{project?.name || 'Project'}</Text>
-            </Text>
-          </View>
-        </View>
-
-        {/* --- SUBHEADER ACTION TOOLBAR --- */}
-        <View style={s.toolbar}>
+          <Text style={[s.headerTitle, { flex: 1 }]} numberOfLines={1}>Daily Reports</Text>
           <TouchableOpacity style={s.templateBtn} onPress={handleDownloadBlankTemplate}>
-            <Ionicons name="download-outline" size={14} color="#475569" />
-            <Text style={s.templateBtnText}>Blank Template PDF</Text>
+            <Ionicons name="download-outline" size={15} color="#475569" />
+            <Text style={s.templateBtnText}>Blank form</Text>
           </TouchableOpacity>
-          {canDo('dpr', 'create') && (
-            <TouchableOpacity style={s.logNewBtn} onPress={openCreateForm}>
-              <Ionicons name="add" size={16} color="#FFFFFF" />
-              <Text style={s.logNewBtnText}>Log New DPR</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {loading ? (
@@ -813,9 +792,6 @@ const { can: canDo } = useProjectPermissions(projectId);
                   <Ionicons name="document-text-outline" size={32} color="#2563EB" />
                 </View>
                 <Text style={s.emptyTitle}>No DPRs Recorded Yet</Text>
-                <Text style={s.emptySub}>
-                  Log site manpower, ongoing work progress, materials received, and tomorrow&apos;s planning. Click below to generate your first official DPR report.
-                </Text>
                 {canDo('dpr', 'create') && (
                   <TouchableOpacity style={s.emptyActionBtn} onPress={openCreateForm}>
                     <Ionicons name="add" size={16} color="#FFFFFF" />
@@ -838,178 +814,64 @@ const { can: canDo } = useProjectPermissions(projectId);
                 const isDownloading = downloadingId === item._id;
                 const isDeleting = deletingId === item._id;
 
+                const mainWork = item.labourReports?.find((r) => r.currentWork)?.currentWork
+                  || item.activities?.[0]?.description
+                  || null;
+                const openReport = () => {
+                  setViewingDpr(item);
+                  setViewTab('labour');
+                };
+
+                // Summary card — the full 4-tab report opens on tap
                 return (
-                  <View key={item._id} style={s.dprCard}>
-                    {/* Top Row: Date, Weather badge on left, Delete action on right */}
+                  <TouchableOpacity key={item._id} style={s.dprCard} onPress={openReport} activeOpacity={0.85}>
                     <View style={s.cardTopRow}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                        <View style={s.dateTag}>
-                          <Ionicons name="calendar" size={13} color="#2563EB" />
-                          <Text style={s.dateTagText}>{dateFormatted}</Text>
-                        </View>
-                        <View style={[s.weatherPill, { backgroundColor: weatherMeta.bg }]}>
-                          <Ionicons name={weatherMeta.icon} size={11} color={weatherMeta.color} />
-                          <Text style={[s.weatherPillText, { color: weatherMeta.color }]}>{item.weather || 'Sunny'}</Text>
-                        </View>
+                      <Text style={s.dprDate} numberOfLines={1}>{dateFormatted}</Text>
+                      <View style={[s.weatherPill, { backgroundColor: weatherMeta.bg }]}>
+                        <Ionicons name={weatherMeta.icon} size={14} color={weatherMeta.color} />
+                        <Text style={[s.weatherPillText, { color: weatherMeta.color }]}>{item.weather || 'Sunny'}</Text>
                       </View>
-
-                      {canDo('dpr', 'delete') && (
-                        <TouchableOpacity
-                          style={[s.actionBtn, s.deleteBtn]}
-                          onPress={() => handleDeleteDpr(item._id, item.date)}
-                          disabled={isDeleting}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          {isDeleting ? (
-                            <ActivityIndicator size="small" color="#DC2626" />
-                          ) : (
-                            <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                          )}
-                        </TouchableOpacity>
-                      )}
                     </View>
 
-                    {/* PDF Action Buttons Row (Preview Sheet, Print, Download PDF) */}
-                    <View style={s.actionRow}>
-                      <TouchableOpacity
-                        style={[s.actionBtn, { flex: 1 }]}
-                        onPress={() => {
-                          setPreviewDpr(item);
-                          setIsPreviewOpen(true);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="eye-outline" size={13} color="#334155" />
-                        <Text style={s.actionBtnText}>Preview Sheet</Text>
+                    {!!mainWork && <Text style={s.dprMainWork} numberOfLines={2}>{mainWork}</Text>}
+
+                    <View style={s.figRow}>
+                      <View style={s.figCol}>
+                        <Text style={s.figLabel}>Workers</Text>
+                        <Text style={s.figValue}>{totalWorkers}</Text>
+                      </View>
+                      <View style={[s.figCol, { alignItems: 'center' }]}>
+                        <Text style={s.figLabel}>Activities</Text>
+                        <Text style={s.figValue}>{labourList.length}</Text>
+                      </View>
+                      <View style={[s.figCol, { alignItems: 'flex-end' }]}>
+                        <Text style={s.figLabel}>Deliveries</Text>
+                        <Text style={s.figValue}>{matReceiptCount}</Text>
+                      </View>
+                    </View>
+
+                    <View style={s.dprFooter}>
+                      <TouchableOpacity style={s.viewReportBtn} onPress={openReport}>
+                        <Ionicons name="document-text-outline" size={15} color="#1D4ED8" />
+                        <Text style={s.viewReportText}>View report</Text>
                       </TouchableOpacity>
-
                       {canDo('dpr', 'export') && (
-                        <TouchableOpacity
-                          style={[s.actionBtn, { paddingHorizontal: 12 }]}
-                          onPress={() => handlePrintDpr(item)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="print-outline" size={14} color="#334155" />
-                          <Text style={s.actionBtnText}>Print</Text>
+                        <TouchableOpacity style={s.dprIconBtn} onPress={() => handleDownloadPdf(item)} disabled={isDownloading} accessibilityLabel="Download PDF">
+                          {isDownloading ? <ActivityIndicator size="small" color="#2563EB" /> : <Ionicons name="download-outline" size={17} color="#334155" />}
                         </TouchableOpacity>
                       )}
-
                       {canDo('dpr', 'export') && (
-                        <TouchableOpacity
-                          style={[s.actionBtn, s.downloadBtn, { flex: 1.2 }]}
-                          onPress={() => handleDownloadPdf(item)}
-                          disabled={isDownloading}
-                          activeOpacity={0.8}
-                        >
-                          {isDownloading ? (
-                            <ActivityIndicator size="small" color="#FFFFFF" />
-                          ) : (
-                            <>
-                              <Ionicons name="download-outline" size={13} color="#FFFFFF" />
-                              <Text style={s.downloadBtnText}>Download PDF</Text>
-                            </>
-                          )}
+                        <TouchableOpacity style={s.dprIconBtn} onPress={() => handlePrintDpr(item)} accessibilityLabel="Print">
+                          <Ionicons name="print-outline" size={17} color="#334155" />
+                        </TouchableOpacity>
+                      )}
+                      {canDo('dpr', 'delete') && (
+                        <TouchableOpacity style={[s.dprIconBtn, s.deleteBtn]} onPress={() => handleDeleteDpr(item._id, item.date)} disabled={isDeleting} accessibilityLabel="Delete">
+                          {isDeleting ? <ActivityIndicator size="small" color="#DC2626" /> : <Ionicons name="trash-outline" size={17} color="#DC2626" />}
                         </TouchableOpacity>
                       )}
                     </View>
-
-                    {/* Summary Metric Chips (4-Grid like Web) */}
-                    <View style={s.metricsGrid}>
-                      <View style={s.metricBox}>
-                        <Text style={s.metricBoxLabel}>Total Manpower</Text>
-                        <View style={s.metricBoxValRow}>
-                          <Ionicons name="people" size={14} color="#2563EB" />
-                          <Text style={s.metricBoxVal}>{totalWorkers} <Text style={s.metricBoxUnit}>workers</Text></Text>
-                        </View>
-                      </View>
-
-                      <View style={s.metricBox}>
-                        <Text style={s.metricBoxLabel}>Ongoing Works</Text>
-                        <View style={s.metricBoxValRow}>
-                          <Ionicons name="clipboard" size={14} color="#10B981" />
-                          <Text style={s.metricBoxVal}>{labourList.length} <Text style={s.metricBoxUnit}>activities</Text></Text>
-                        </View>
-                      </View>
-
-                      <View style={s.metricBox}>
-                        <Text style={s.metricBoxLabel}>Materials Received</Text>
-                        <View style={s.metricBoxValRow}>
-                          <Ionicons name="cube" size={14} color="#8B5CF6" />
-                          <Text style={s.metricBoxVal}>{matReceiptCount} <Text style={s.metricBoxUnit}>items</Text></Text>
-                        </View>
-                      </View>
-
-                      <View style={s.metricBox}>
-                        <Text style={s.metricBoxLabel}>Tomorrow Planned</Text>
-                        <View style={s.metricBoxValRow}>
-                          <Ionicons name="calendar-outline" size={14} color="#F59E0B" />
-                          <Text style={s.metricBoxVal}>{tomorrowCount} <Text style={s.metricBoxUnit}>tasks</Text></Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* Labour Activities Preview (matches Web) */}
-                    <View style={s.labourSection}>
-                      <Text style={s.sectionHeaderTitle}>Labour Report & Ongoing Work Status</Text>
-                      <View style={{ gap: 6 }}>
-                        {item.labourReports && item.labourReports.length > 0 ? (
-                          item.labourReports.slice(0, 3).map((row, i) => (
-                            <View key={i} style={s.labourPreviewItem}>
-                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Text style={s.labourAgency} numberOfLines={1}>{row.agencyActivity || 'General Trade'}</Text>
-                                <View style={s.statusPill}>
-                                  <Text style={s.statusPillText}>{row.statusAsPerBarChart || 'In Progress'}</Text>
-                                </View>
-                              </View>
-                              {!!row.currentWork && (
-                                <Text style={s.labourWorkDesc} numberOfLines={2}>{row.currentWork}</Text>
-                              )}
-                              <View style={s.headcountMeta}>
-                                <Text style={s.headcountText}>Skilled: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{row.skilled || 0}</Text></Text>
-                                <Text style={s.headcountText}>Unskilled: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{row.unskilled || 0}</Text></Text>
-                              </View>
-                            </View>
-                          ))
-                        ) : (item.activities || []).map((act, i) => (
-                          <View key={i} style={s.labourPreviewItem}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Text style={s.labourAgency}>{act.category || 'Site Work'}</Text>
-                              <View style={s.statusPill}>
-                                <Text style={s.statusPillText}>{act.actualProgress}%</Text>
-                              </View>
-                            </View>
-                            <Text style={s.labourWorkDesc}>{act.description}</Text>
-                          </View>
-                        ))}
-                        {item.labourReports && item.labourReports.length > 3 && (
-                          <Text style={s.moreItemsHint}>+{item.labourReports.length - 3} more trades logged</Text>
-                        )}
-                      </View>
-                    </View>
-
-                    {/* Site Instructions / MOMs box if present */}
-                    {!!item.siteInstructions && (
-                      <View style={s.siteInstructionsBox}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-                          <Ionicons name="chatbubbles-outline" size={13} color="#2563EB" />
-                          <Text style={s.siteInstructionsTitle}>Site Instructions / MOMs:</Text>
-                        </View>
-                        <Text style={s.siteInstructionsBody} numberOfLines={3}>{item.siteInstructions}</Text>
-                      </View>
-                    )}
-
-                    {/* Footer: Full Inspection trigger */}
-                    <TouchableOpacity
-                      style={s.inspectTrigger}
-                      onPress={() => {
-                        setViewingDpr(item);
-                        setViewTab('labour');
-                      }}
-                    >
-                      <Text style={s.inspectTriggerText}>Inspect Full 4-Tab Breakdown</Text>
-                      <Ionicons name="chevron-forward" size={14} color="#2563EB" />
-                    </TouchableOpacity>
-                  </View>
+                  </TouchableOpacity>
                 );
               })
             )}
@@ -1517,7 +1379,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                           }}
                           placeholder="Insert from MOMs..."
                           style={{ height: 32, paddingVertical: 4, paddingHorizontal: 8, minWidth: 140 }}
-                          textStyle={{ fontSize: 10.5 }}
+                          textStyle={{ fontSize: 12 }}
                         />
                       )}
                     </View>
@@ -1719,7 +1581,7 @@ const s = StyleSheet.create({
   container: { flex: 1 },
   mainScroll: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
-  loadingText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B' },
+  loadingText: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B' },
   scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, gap: 14 },
 
   header: {
@@ -1728,29 +1590,14 @@ const s = StyleSheet.create({
     gap: 12,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     flexShrink: 0,
   },
   backBtn: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
-  brandBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE' },
-  brandBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    flexShrink: 0,
-    gap: 10,
-  },
   templateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1762,17 +1609,7 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
     backgroundColor: '#F8FAFC',
   },
-  templateBtnText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#475569' },
-  logNewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: '#2563EB',
-  },
-  logNewBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  templateBtnText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#475569' },
 
   emptyCard: {
     backgroundColor: '#FFFFFF',
@@ -1786,7 +1623,6 @@ const s = StyleSheet.create({
   },
   emptyIconCircle: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   emptyTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 6 },
-  emptySub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center', lineHeight: 18, marginBottom: 16 },
   emptyActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1796,15 +1632,15 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
   },
-  emptyActionBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  emptyActionBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   dprCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    gap: 12,
+    borderColor: '#E2E8F0',
+    gap: 8,
     shadowColor: '#0F172A',
     shadowOpacity: 0.04,
     shadowRadius: 6,
@@ -1815,70 +1651,25 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
-    paddingBottom: 10,
     gap: 8,
   },
-  dateTag: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  dateTagText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
-  weatherPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  weatherPillText: { fontSize: 11, fontFamily: 'Inter-SemiBold' },
+  dprDate: { flex: 1, fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  figRow: { flexDirection: 'row', paddingVertical: 10, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F1F5F9' },
+  figCol: { flex: 1, minWidth: 0 },
+  figLabel: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  figValue: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#0F172A', marginTop: 2 },
+  viewReportBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 36, borderRadius: 9, borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#EFF6FF' },
+  viewReportText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#1D4ED8' },
+  dprMainWork: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 18 },
+  dprFooter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dprIconBtn: { width: 36, height: 36, borderRadius: 9, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  weatherPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  weatherPillText: { fontSize: 12, fontFamily: 'Inter-SemiBold' },
 
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
-  },
-  actionBtnText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#334155' },
-  downloadBtn: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  downloadBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
-  deleteBtn: { borderColor: '#FEE2E2', backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 },
+  deleteBtn: { borderColor: '#FEE2E2', backgroundColor: '#FEF2F2' },
 
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  metricBox: {
-    flex: 1,
-    minWidth: '46%',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    padding: 9,
-  },
-  metricBoxLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.3 },
-  metricBoxValRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  metricBoxVal: { fontSize: 13, fontFamily: 'Inter-Black', color: '#0F172A' },
-  metricBoxUnit: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' },
-
-  labourSection: { gap: 6 },
-  sectionHeaderTitle: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.3 },
-  labourPreviewItem: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    padding: 10,
-    gap: 4,
-  },
-  labourAgency: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1, marginRight: 8 },
   statusPill: { backgroundColor: '#ECFDF5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  statusPillText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#059669' },
-  labourWorkDesc: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#475569' },
-  headcountMeta: { flexDirection: 'row', gap: 12, paddingTop: 2 },
-  headcountText: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#64748B' },
-  moreItemsHint: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#2563EB', textAlign: 'center', marginTop: 2 },
+  statusPillText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#059669' },
 
   siteInstructionsBox: {
     backgroundColor: '#EFF6FF',
@@ -1887,18 +1678,9 @@ const s = StyleSheet.create({
     borderColor: '#DBEAFE',
     padding: 10,
   },
-  siteInstructionsTitle: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#1E40AF' },
-  siteInstructionsBody: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#1E3A8A', lineHeight: 16 },
+  siteInstructionsTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#1E40AF' },
+  siteInstructionsBody: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#1E3A8A', lineHeight: 16 },
 
-  inspectTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
-    paddingTop: 10,
-  },
-  inspectTriggerText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   fab: {
     position: 'absolute',
@@ -1931,7 +1713,7 @@ const s = StyleSheet.create({
     borderBottomColor: '#E2E8F0',
   },
   previewModalTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  previewModalSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  previewModalSub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
   previewActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1943,7 +1725,7 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
     backgroundColor: '#F8FAFC',
   },
-  previewActionBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  previewActionBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#2563EB' },
   previewCloseBtn: { padding: 4, marginLeft: 2 },
   webViewContainer: { flex: 1, backgroundColor: '#F1F5F9' },
 
@@ -1953,7 +1735,7 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 12, marginBottom: 10 },
   modalHeaderIconBox: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
   modalTitle: { fontSize: 14.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  modalSubtitle: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  modalSubtitle: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
   modalCloseBtn: { padding: 4 },
   syncLiveBtn: {
     flexDirection: 'row',
@@ -1966,7 +1748,7 @@ const s = StyleSheet.create({
     borderColor: '#BFDBFE',
     backgroundColor: '#EFF6FF',
   },
-  syncLiveBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  syncLiveBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   formTabStrip: {
     borderBottomWidth: 1,
@@ -1978,7 +1760,7 @@ const s = StyleSheet.create({
   },
   formTabStripItem: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
   formTabStripItemActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
-  formTabStripItemText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  formTabStripItemText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   formTabStripItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   basicInfoBar: {
@@ -1991,8 +1773,8 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
     marginBottom: 12,
   },
-  inputLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 4 },
-  fieldLabel: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#475569', marginBottom: 4 },
+  inputLabel: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 4 },
+  fieldLabel: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#475569', marginBottom: 4 },
 
   dateFieldBtn: {
     flexDirection: 'row',
@@ -2005,7 +1787,7 @@ const s = StyleSheet.create({
     paddingVertical: 7,
     height: 38,
   },
-  dateFieldText: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  dateFieldText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
 
   dropdownBtn: {
     flexDirection: 'row',
@@ -2019,7 +1801,7 @@ const s = StyleSheet.create({
     paddingVertical: 7,
     height: 38,
   },
-  dropdownBtnText: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1, marginRight: 6 },
+  dropdownBtnText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1, marginRight: 6 },
   dropdownMenu: {
     position: 'absolute',
     top: 42,
@@ -2038,7 +1820,7 @@ const s = StyleSheet.create({
   },
   dropdownItem: { paddingHorizontal: 12, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
   dropdownItemActive: { backgroundColor: '#EFF6FF' },
-  dropdownItemText: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#334155' },
+  dropdownItemText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155' },
   dropdownItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   iosPickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
@@ -2048,21 +1830,21 @@ const s = StyleSheet.create({
 
   tabContentWrapper: { gap: 10, paddingBottom: 10 },
   subSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  subSectionTitle: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#0F172A', textTransform: 'uppercase', letterSpacing: 0.3 },
-  subSectionSub: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  subSectionTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', textTransform: 'uppercase', letterSpacing: 0.3 },
+  subSectionSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
   addRowBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE' },
-  addRowBtnText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  addRowBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   itemBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 10, gap: 8, marginBottom: 8 },
-  itemBoxNum: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#64748B' },
+  itemBoxNum: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#64748B' },
   tabEmptyBox: { padding: 20, borderWidth: 1, borderStyle: 'dashed', borderColor: '#CBD5E1', borderRadius: 12, alignItems: 'center' },
-  emptyHint: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
+  emptyHint: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
 
   reqItemRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  reqIndex: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', width: 16, textAlign: 'center' },
+  reqIndex: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#64748B', width: 16, textAlign: 'center' },
   momSectionWrapper: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E2E8F0', gap: 6 },
 
-  textInput: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, fontSize: 12, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  textInput: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A' },
 
   modalFooter: {
     flexDirection: 'row',
@@ -2075,9 +1857,9 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   navBtn: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  navBtnText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#475569' },
+  navBtnText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#475569' },
   cancelBtn: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  cancelBtnText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  cancelBtnText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   submitDprBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2087,12 +1869,10 @@ const s = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#2563EB',
   },
-  submitDprBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  submitDprBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   inspectItemCard: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 10, padding: 10, gap: 3, marginBottom: 6 },
-  inspectItemTitle: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  inspectPill: { backgroundColor: '#ECFDF5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  inspectPillText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#059669' },
-  inspectSubText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#64748B' },
-  inspectBodyText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#334155', marginTop: 2 },
+  inspectItemTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  inspectSubText: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B' },
+  inspectBodyText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#334155', marginTop: 2 },
 });

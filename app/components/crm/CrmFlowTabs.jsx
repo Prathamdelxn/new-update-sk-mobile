@@ -91,7 +91,7 @@ const s = StyleSheet.create({
     borderColor: '#BFDBFE',
   },
   tabLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
   },
@@ -110,7 +110,7 @@ const s = StyleSheet.create({
     backgroundColor: '#DBEAFE',
   },
   countText: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-Bold',
     color: '#475569',
   },

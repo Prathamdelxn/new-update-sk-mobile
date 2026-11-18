@@ -202,18 +202,18 @@ export default function DashboardScreen() {
           <View style={[s.card, { alignItems: 'center', paddingVertical: 36, margin: 16 }]}>
             <Ionicons name="grid-outline" size={34} color="#94A3B8" />
             <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 10 }}>Dashboard not included in your role</Text>
-            <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center', marginTop: 4, marginBottom: 14 }}>
+            <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center', marginTop: 4, marginBottom: 14 }}>
               Open the sections you work in:
             </Text>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               {interiorNav.projects && (
                 <TouchableOpacity style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, backgroundColor: '#2563EB' }} onPress={() => router.push('/i-project')}>
-                  <Text style={{ color: '#FFFFFF', fontFamily: 'Inter-Bold', fontSize: 13 }}>Projects</Text>
+                  <Text style={{ color: '#FFFFFF', fontFamily: 'Inter-Bold', fontSize: 14 }}>Projects</Text>
                 </TouchableOpacity>
               )}
               {interiorNav.crm && (
                 <TouchableOpacity style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE' }} onPress={() => router.push('/crm')}>
-                  <Text style={{ color: '#2563EB', fontFamily: 'Inter-Bold', fontSize: 13 }}>CRM</Text>
+                  <Text style={{ color: '#2563EB', fontFamily: 'Inter-Bold', fontSize: 14 }}>CRM</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -286,7 +286,7 @@ export default function DashboardScreen() {
                 <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 6 }}>
                   {interiorQuery.isError ? 'Could not load dashboard' : 'No Active Projects'}
                 </Text>
-                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' }}>
+                <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' }}>
                   {interiorQuery.isError
                     ? 'Pull down to try again.'
                     : 'There are currently no active projects found in your workspace.'}
@@ -336,8 +336,8 @@ export default function DashboardScreen() {
                         hideDataPoints
                         xAxisColor="#E2E8F0"
                         yAxisThickness={0}
-                        yAxisTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
-                        xAxisLabelTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        yAxisTextStyle={{ fontSize: 11.5, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        xAxisLabelTextStyle={{ fontSize: 11.5, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
                         noOfSections={3}
                         yAxisLabelSuffix="%"
                         isAnimated
@@ -383,8 +383,8 @@ export default function DashboardScreen() {
                         xAxisThickness={1}
                         xAxisColor="#E2E8F0"
                         yAxisThickness={0}
-                        yAxisTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
-                        xAxisLabelTextStyle={{ fontSize: 9, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        yAxisTextStyle={{ fontSize: 11.5, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        xAxisLabelTextStyle={{ fontSize: 10.5, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
                         noOfSections={4}
                         maxValue={barMax(pipelineBars)}
                         isAnimated
@@ -409,8 +409,8 @@ export default function DashboardScreen() {
                         xAxisThickness={1}
                         xAxisColor="#E2E8F0"
                         yAxisThickness={0}
-                        yAxisTextStyle={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
-                        xAxisLabelTextStyle={{ fontSize: 9, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        yAxisTextStyle={{ fontSize: 11.5, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
+                        xAxisLabelTextStyle={{ fontSize: 10.5, color: '#94A3B8', fontFamily: 'Inter-Regular' }}
                         noOfSections={4}
                         maxValue={barMax(procurementBars)}
                         isAnimated
@@ -446,7 +446,7 @@ export default function DashboardScreen() {
                   </View>
                 ) : (
                   <View style={s.card}>
-                    <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' }}>
+                    <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' }}>
                       No projects yet.
                     </Text>
                   </View>
@@ -935,16 +935,16 @@ const s = StyleSheet.create({
   topProjectBarRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   topProjectTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: '#EEF2F6', overflow: 'hidden' },
   topProjectFill: { height: '100%', borderRadius: 3 },
-  topProjectPct: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#475569', minWidth: 34, textAlign: 'right' },
+  topProjectPct: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#475569', minWidth: 34, textAlign: 'right' },
   interiorStatCard: {
     width: '47%', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
     borderWidth: 1, borderColor: '#DBEAFE',
   },
   interiorStatTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   interiorStatIconBox: { width: 28, height: 28, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
-  interiorStatLabel: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#94A3B8', flex: 1, marginRight: 6 },
+  interiorStatLabel: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#94A3B8', flex: 1, marginRight: 6 },
   interiorStatValue: { fontSize: 17, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 8 },
-  interiorStatSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  interiorStatSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   // Section label — matches settings screen exactly
   sectionLabel: {
@@ -978,8 +978,8 @@ const s = StyleSheet.create({
   },
   chartRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   chartHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  chartHeaderTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#475569' },
-  chartHeaderTag: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F8FAFC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  chartHeaderTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#475569' },
+  chartHeaderTag: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F8FAFC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
 
   // Progress
   progressTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
@@ -1002,7 +1002,7 @@ const s = StyleSheet.create({
   legendRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
   trendLegend: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   trendLegendLine: { width: 16, height: 3, borderRadius: 2 },
-  trendLegendText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#475569' },
+  trendLegendText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#475569' },
   legendDot:   { width: 8, height: 8, borderRadius: 4 },
   legendLabel: { flex: 1, fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#475569' },
   legendValue: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },

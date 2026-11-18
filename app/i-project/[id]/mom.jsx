@@ -61,7 +61,7 @@ function DateField({ value, onChange, placeholder = 'Select date', inputStyle })
 
 const dfStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  text: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
   placeholder: { color: '#94A3B8' },
 });
 
@@ -184,11 +184,10 @@ const { can: canDo } = useProjectPermissions(projectId);
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Minutes of Meeting</Text>
-            <Text style={s.headerSub}>Consultant discussions & site action items.</Text>
           </View>
         </View>
 
@@ -317,24 +316,24 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingTop: 16, gap: 12 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  emptyLine: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  emptyLine: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   momCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9' },
   momHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderBottomColor: '#F8FAFC', paddingBottom: 10, marginBottom: 8 },
-  momTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  momTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
   cardIconBtn: { width: 32, height: 32, borderRadius: 9, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
-  momDate: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
-  attendeesText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginBottom: 6 },
+  momDate: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  attendeesText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginBottom: 6 },
 
-  sectionTitle: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3, marginTop: 8, marginBottom: 3 },
-  bodyText: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#334155', lineHeight: 18 },
+  sectionTitle: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3, marginTop: 8, marginBottom: 3 },
+  bodyText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#334155', lineHeight: 18 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F8FAFC', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, marginTop: 4 },
-  actionText: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1 },
+  actionText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1 },
 
   fab: {
     position: 'absolute', right: 20, bottom: 30,
@@ -348,16 +347,16 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
 
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 8 },
-  formSectionLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3 },
+  formSectionLabel: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3 },
   addRowBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' },
-  addRowBtnText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  addRowBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
   removeBtn: { width: 40, height: 42, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },

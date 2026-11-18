@@ -61,7 +61,7 @@ function RemarksLabel({ label, length }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       <Text style={s.label}>{label}</Text>
-      <Text style={[s.label, { fontFamily: 'Inter-Regular', fontSize: 10, color: length >= REMARKS_MAX ? '#F43F5E' : '#94A3B8' }]}>
+      <Text style={[s.label, { fontFamily: 'Inter-Regular', fontSize: 11.5, color: length >= REMARKS_MAX ? '#F43F5E' : '#94A3B8' }]}>
         {length}/{REMARKS_MAX}
       </Text>
     </View>
@@ -249,7 +249,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
            style={s.input}
            onPress={() => setShowExecutiveDropdown(!showExecutiveDropdown)}
         >
-          <Text style={{ color: assignedExecutive ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+          <Text style={{ color: assignedExecutive ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
             {assignedExecutive ? userLabel(users.find(u => (u._id || u.id) === assignedExecutive) || {}) : "Select Executive *"}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
@@ -267,7 +267,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
                     style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
                     onPress={() => { setAssignedExecutive(id); setShowExecutiveDropdown(false); }}
                   >
-                    <Text style={{ fontSize: 13, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
+                    <Text style={{ fontSize: 14, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
                       {userLabel(u)}
                     </Text>
                   </TouchableOpacity>
@@ -289,7 +289,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
           style={[s.input, s.dateInputRow, isDateInPast && s.dateInputPast]}
           onPress={openDatePicker}
         >
-          <Text style={{ color: scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+          <Text style={{ color: scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
             {scheduledDate ? fmtScheduleDisplay(scheduledDate) : 'Select date'}
           </Text>
           <Ionicons name="calendar-outline" size={16} color={isDateInPast ? '#D97706' : '#7C3AED'} />
@@ -457,7 +457,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
            style={s.input}
            onPress={() => setShowDropdown(!showDropdown)}
         >
-          <Text style={{ color: assignedDesigner ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+          <Text style={{ color: assignedDesigner ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
             {assignedDesigner ? userLabel(users.find(u => (u._id || u.id) === assignedDesigner) || {}) : "Select Designer *"}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
@@ -475,7 +475,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
                     style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
                     onPress={() => { setAssignedDesigner(id); setShowDropdown(false); }}
                   >
-                    <Text style={{ fontSize: 13, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
+                    <Text style={{ fontSize: 14, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
                       {userLabel(u)}
                     </Text>
                   </TouchableOpacity>
@@ -497,7 +497,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
           style={[s.input, s.dateInputRow, isDateInPast && s.dateInputPast]}
           onPress={openDatePicker}
         >
-          <Text style={{ color: scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+          <Text style={{ color: scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
             {scheduledDate ? fmtScheduleDisplay(scheduledDate) : 'Select date'}
           </Text>
           <Ionicons name="calendar-outline" size={16} color={isDateInPast ? '#D97706' : '#4F46E5'} />
@@ -629,7 +629,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
            style={s.input}
            onPress={() => setShowDropdown(!showDropdown)}
         >
-          <Text style={{ color: assignedArchitect ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+          <Text style={{ color: assignedArchitect ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
             {assignedArchitect ? userLabel(users.find(u => (u._id || u.id) === assignedArchitect) || {}) : "Select Architect *"}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
@@ -647,7 +647,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
                     style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
                     onPress={() => { setAssignedArchitect(id); setShowDropdown(false); }}
                   >
-                    <Text style={{ fontSize: 13, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
+                    <Text style={{ fontSize: 14, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
                       {userLabel(u)}
                     </Text>
                   </TouchableOpacity>
@@ -752,7 +752,7 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
         {isBoqBlocked && (
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, padding: 10, marginBottom: 10 }}>
             <Ionicons name="alert-circle" size={16} color="#B45309" style={{ marginTop: 1 }} />
-            <Text style={{ flex: 1, fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#92400E' }}>
+            <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#92400E' }}>
               Cannot pass to BOQ — {pendingDrawings.length} drawing{pendingDrawings.length === 1 ? '' : 's'} pending approval. Approve all drawings first.
             </Text>
           </View>
@@ -764,7 +764,7 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
            onPress={() => !isBoqBlocked && setShowDropdown(!showDropdown)}
            disabled={isBoqBlocked}
         >
-          <Text style={{ color: assignedEstimator ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+          <Text style={{ color: assignedEstimator ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
             {assignedEstimator ? userLabel(users.find(u => (u._id || u.id) === assignedEstimator) || {}) : "Select Estimator *"}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
@@ -782,7 +782,7 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
                     style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
                     onPress={() => { setAssignedEstimator(id); setShowDropdown(false); }}
                   >
-                    <Text style={{ fontSize: 13, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
+                    <Text style={{ fontSize: 14, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
                       {userLabel(u)}
                     </Text>
                   </TouchableOpacity>
@@ -884,7 +884,7 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
           style={s.input}
           onPress={() => setShowDropdown(!showDropdown)}
         >
-          <Text style={{ color: assignedSalesExecutive ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+          <Text style={{ color: assignedSalesExecutive ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
             {assignedSalesExecutive ? userLabel(users.find((u) => (u._id || u.id) === assignedSalesExecutive) || {}) : "Select Sales Executive *"}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
@@ -902,7 +902,7 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
                     style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: active ? '#EFF6FF' : 'transparent' }}
                     onPress={() => { setAssignedSalesExecutive(id); setShowDropdown(false); }}
                   >
-                    <Text style={{ fontSize: 13, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
+                    <Text style={{ fontSize: 14, fontFamily: active ? 'Inter-Bold' : 'Inter-Medium', color: active ? '#2563EB' : '#475569' }}>
                       {userLabel(u)}
                     </Text>
                   </TouchableOpacity>
@@ -1056,7 +1056,7 @@ const s = StyleSheet.create({
     color: '#0F172A',
   },
   subtitle: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
     marginTop: 1,
@@ -1068,7 +1068,7 @@ const s = StyleSheet.create({
     gap: 8,
   },
   label: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#475569',
     marginBottom: 6,
@@ -1090,7 +1090,7 @@ const s = StyleSheet.create({
     paddingVertical: 2,
   },
   pastDateBadgeText: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontFamily: 'Inter-Bold',
     color: '#B45309',
   },
@@ -1101,7 +1101,7 @@ const s = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
-    fontSize: 13,
+    fontSize: 14,
     color: '#0F172A',
     fontFamily: 'Inter-Medium',
   },
@@ -1123,7 +1123,7 @@ const s = StyleSheet.create({
     borderColor: '#3B82F6',
   },
   userChipText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
   },
@@ -1140,7 +1140,7 @@ const s = StyleSheet.create({
   },
   actionBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
   },
   prevBox: {
@@ -1150,8 +1150,8 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   prevBoxLabel: {
-    fontSize: 9.5,
-    fontFamily: 'Inter-ExtraBold',
+    fontSize: 11,
+    fontFamily: 'Inter-Bold',
     letterSpacing: 0.3,
   },
   prevBoxPill: {
@@ -1163,22 +1163,22 @@ const s = StyleSheet.create({
     paddingVertical: 2,
   },
   prevBoxPillText: {
-    fontSize: 9,
+    fontSize: 10.5,
     fontFamily: 'Inter-Bold',
     color: '#64748B',
   },
   prevBoxText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
   prevBoxSub: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
   },
   prevBoxNote: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-MediumItalic',
     color: '#64748B',
     backgroundColor: 'rgba(255,255,255,0.6)',

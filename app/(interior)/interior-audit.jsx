@@ -625,7 +625,7 @@ const s = StyleSheet.create({
     borderBottomColor: '#BFDBFE',
   },
   headerBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
-  headerSubtitle: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#1D4ED8' },
+  headerSubtitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#1D4ED8' },
   liveSyncPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -638,8 +638,8 @@ const s = StyleSheet.create({
     borderColor: '#BFDBFE',
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
-  liveSyncText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#047857' },
-  pageTitle: { fontSize: 20, fontFamily: 'Inter-Black', color: '#0F172A', letterSpacing: -0.4 },
+  liveSyncText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#047857' },
+  pageTitle: { fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', letterSpacing: -0.4 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   refreshBtn: {
     width: 36,
@@ -668,7 +668,7 @@ const s = StyleSheet.create({
   },
   statIconBox: { width: 30, height: 30, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
   statVal: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  statLabel: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#64748B' },
+  statLabel: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#64748B' },
 
   // Search Bar
   searchBar: {
@@ -682,7 +682,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 12,
   },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A' },
 
   // Quick Segments
   segmentScroll: { flexDirection: 'row', gap: 8, paddingBottom: 6 },
@@ -695,7 +695,7 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   segmentPillActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  segmentPillText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  segmentPillText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   segmentPillTextActive: { color: '#FFFFFF', fontFamily: 'Inter-Bold' },
 
   // Log Cards
@@ -718,7 +718,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
   },
-  actionBadgeText: { fontSize: 10.5, fontFamily: 'Inter-Bold' },
+  actionBadgeText: { fontSize: 12, fontFamily: 'Inter-Bold' },
   entityBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -727,10 +727,10 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  entityBadgeText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#475569' },
-  logTimeText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  entityBadgeText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#475569' },
+  logTimeText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
-  logDescription: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#1E293B', lineHeight: 18 },
+  logDescription: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#1E293B', lineHeight: 18 },
 
   logCardFooter: {
     flexDirection: 'row',
@@ -751,9 +751,9 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  operatorAvatarText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#2563EB' },
-  operatorName: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#334155' },
-  operatorEmail: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  operatorAvatarText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  operatorName: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  operatorEmail: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   // Pagination
   paginationRow: {
@@ -775,16 +775,16 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   pageBtnDisabled: { opacity: 0.5 },
-  pageBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  pageBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#2563EB' },
   pageBtnTextDisabled: { color: '#94A3B8' },
-  pageInfoText: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B' },
+  pageInfoText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B' },
 
   // States
   loadingBox: { paddingVertical: 40, alignItems: 'center', gap: 8 },
-  loadingText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B' },
+  loadingText: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B' },
   emptyBox: { paddingVertical: 50, alignItems: 'center', gap: 8 },
   emptyTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#334155' },
-  emptyDesc: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
+  emptyDesc: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
 
   restrictedBox: {
     margin: 20,
@@ -798,7 +798,7 @@ const s = StyleSheet.create({
   },
   restrictedIconBox: { width: 64, height: 64, borderRadius: 20, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center' },
   restrictedTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#991B1B' },
-  restrictedDesc: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center', lineHeight: 18 },
+  restrictedDesc: { fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center', lineHeight: 18 },
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15, 23, 42, 0.45)' },
@@ -815,25 +815,25 @@ const s = StyleSheet.create({
   sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#CBD5E1', alignSelf: 'center', marginBottom: 14 },
   sheetHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
   sheetTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  sheetSubtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  sheetSubtitle: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
   modalTabBar: { flexDirection: 'row', gap: 8, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', marginBottom: 14 },
   modalTabBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   modalTabBtnActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  modalTabBtnText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  modalTabBtnText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   modalTabBtnTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   modalDetailSection: { gap: 12 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
-  detailLabel: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' },
-  detailValue: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', maxWidth: '60%', textAlign: 'right' },
+  detailLabel: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B' },
+  detailValue: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', maxWidth: '60%', textAlign: 'right' },
 
   descBox: { backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', padding: 12, marginTop: 4, gap: 4 },
-  descBoxLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#475569' },
-  descBoxText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#1E293B', lineHeight: 18 },
+  descBoxLabel: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#475569' },
+  descBoxText: { fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#1E293B', lineHeight: 18 },
 
   codeBlock: { backgroundColor: '#0F172A', borderRadius: 14, padding: 14, marginTop: 4 },
-  codeText: { fontFamily: 'Courier', fontSize: 11.5, color: '#E2E8F0', lineHeight: 17 },
+  codeText: { fontFamily: 'Courier', fontSize: 13, color: '#E2E8F0', lineHeight: 17 },
 
   copyBtn: {
     flexDirection: 'row',
@@ -847,8 +847,8 @@ const s = StyleSheet.create({
     borderColor: '#BFDBFE',
     alignSelf: 'flex-start',
   },
-  copyBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  copyBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   emptyChangesBox: { paddingVertical: 40, alignItems: 'center', gap: 8 },
-  emptyChangesText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
+  emptyChangesText: { fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
 });

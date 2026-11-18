@@ -133,7 +133,7 @@ export default function UploadRevisionModal({ isOpen, onClose, customerId, drawi
                 )}
                 <View style={{ flexDirection: 'row', alignItems: 'center', padding: 10 }}>
                   <Ionicons name="document-outline" size={20} color="#2563EB" />
-                  <Text style={{ flex: 1, marginLeft: 8, fontSize: 13, color: '#0F172A', fontFamily: 'Inter-Medium' }} numberOfLines={1}>{selectedFile.name}</Text>
+                  <Text style={{ flex: 1, marginLeft: 8, fontSize: 14, color: '#0F172A', fontFamily: 'Inter-Medium' }} numberOfLines={1}>{selectedFile.name}</Text>
                   <TouchableOpacity onPress={() => setSelectedFile(null)}>
                     <Ionicons name="close-circle" size={20} color="#EF4444" />
                   </TouchableOpacity>
@@ -196,26 +196,26 @@ const s = StyleSheet.create({
   card: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '90%' },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   title: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  subtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  subtitle: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
   noticeBox: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 12, padding: 12, marginBottom: 10 },
-  noticeLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#DC2626', letterSpacing: 0.3 },
-  noticeText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 4, lineHeight: 17 },
+  noticeLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#DC2626', letterSpacing: 0.3 },
+  noticeText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 4, lineHeight: 17 },
 
   infoBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F0F9FF', borderWidth: 1, borderColor: '#BAE6FD', borderRadius: 10, padding: 10, marginBottom: 14 },
-  infoBannerText: { flex: 1, fontSize: 11, fontFamily: 'Inter-Medium', color: '#0369A1', lineHeight: 15 },
+  infoBannerText: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#0369A1', lineHeight: 15 },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
-  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A' },
 
   uploadBox: { borderWidth: 1.5, borderColor: '#BAE6FD', borderStyle: 'dashed', borderRadius: 12, padding: 18, alignItems: 'center', backgroundColor: '#F0F9FF', gap: 4 },
-  uploadBoxText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#0284C7' },
+  uploadBoxText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0284C7' },
 
   dropdownBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11 },
-  dropdownBtnText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1, marginRight: 8 },
+  dropdownBtnText: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1, marginRight: 8 },
   dropdownMenu: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, overflow: 'hidden' },
   dropdownItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  dropdownItemText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
+  dropdownItemText: { fontSize: 13.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
   dropdownItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#0284C7', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 20 },

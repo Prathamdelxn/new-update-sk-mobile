@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { interiorCrmService } from '../../services/interiorCrmService';
-import { formatExactCurrency, formatSmartCurrency } from '../../utils/format';
+import { formatExactCurrency, formatSmartCurrency, getCurrencySymbol } from '../../utils/format';
+import { useAuth } from '../../context/AuthContext';
 
 
 // Full number below 1M, then M / B / T (web formatSmartCurrency)
-const smartMoney = (n) => formatSmartCurrency(Number(n) || 0, '₹').display;
+const smartMoney = (n, sym = '₹') => formatSmartCurrency(Number(n) || 0, sym).display;
 
 export default function QuotationBuilderModal({
   visible,
@@ -33,6 +34,9 @@ export default function QuotationBuilderModal({
   onSuccess,
 }) {
   const isModalOpen = Boolean(visible ?? isOpen);
+  const { user: authUser } = useAuth();
+  // Amounts in the workspace currency (QAR for a Qatar organisation, not ₹)
+  const cur = getCurrencySymbol(authUser?.organization?.settings?.currency || 'INR');
   const [submitting, setSubmitting] = useState(false);
   const [quotationTitle, setQuotationTitle] = useState('');
   const [scopeMode, setScopeMode] = useState('all'); // 'all' | 'categories' | 'items' | 'custom'
@@ -412,7 +416,7 @@ export default function QuotationBuilderModal({
                     <Ionicons name="layers-outline" size={14} color="#2563EB" />
                     <Text style={s.scopeHeaderTitle}>BOQ Scope Mode (v{activeBoq.version || 1})</Text>
                     {(activeBoq.createdByName || activeBoq.createdAt) && (
-                      <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '500' }}>
+                      <Text style={{ fontSize: 12.5, color: '#64748B', fontWeight: '500' }}>
                         {activeBoq.createdByName ? `• by ${activeBoq.createdByName}` : ''}
                         {activeBoq.createdAt ? ` (${new Date(activeBoq.createdAt).toLocaleDateString()})` : ''}
                       </Text>
@@ -598,7 +602,7 @@ export default function QuotationBuilderModal({
                       />
                     </View>
                     <View style={{ flex: 1.4 }}>
-                      <Text style={s.miniLabel}>Rate (₹)</Text>
+                      <Text style={s.miniLabel}>Rate ({cur})</Text>
                       <TextInput
                         style={s.miniInput}
                         value={String(item.unitPrice)}
@@ -611,7 +615,7 @@ export default function QuotationBuilderModal({
                     </View>
                     <View style={{ flex: 1.5, alignItems: 'flex-end', justifyContent: 'center' }}>
                       <Text style={s.miniLabel}>Total</Text>
-                      <Text style={s.itemTotalText} numberOfLines={1}>{smartMoney(item.total)}</Text>
+                      <Text style={s.itemTotalText} numberOfLines={1}>{smartMoney(item.total, cur)}</Text>
                     </View>
                   </View>
                 </View>
@@ -622,7 +626,7 @@ export default function QuotationBuilderModal({
             <View style={s.financialCard}>
               <View style={s.finRow}>
                 <Text style={s.finLabel}>Scope Subtotal</Text>
-                <Text style={s.finVal}>{smartMoney(subtotal)}</Text>
+                <Text style={s.finVal}>{smartMoney(subtotal, cur)}</Text>
               </View>
 
               <View style={s.finRow}>
@@ -637,12 +641,12 @@ export default function QuotationBuilderModal({
                     placeholderTextColor="#94A3B8"
                   />
                 </View>
-                <Text style={s.finVal}>+ {smartMoney(taxAmount)}</Text>
+                <Text style={s.finVal}>+ {smartMoney(taxAmount, cur)}</Text>
               </View>
 
               <View style={s.finRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={s.finLabel}>Discount (₹)</Text>
+                  <Text style={s.finLabel}>Discount ({cur})</Text>
                   <TextInput
                     style={s.discountInput}
                     value={discountAmt}
@@ -652,15 +656,15 @@ export default function QuotationBuilderModal({
                     placeholderTextColor="#94A3B8"
                   />
                 </View>
-                <Text style={[s.finVal, { color: '#059669' }]}>- {smartMoney(discountVal)}</Text>
+                <Text style={[s.finVal, { color: '#059669' }]}>- {smartMoney(discountVal, cur)}</Text>
               </View>
 
               <View style={s.grandTotalRow}>
                 <Text style={s.grandTotalLabel}>Grand Total Proposal</Text>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={s.grandTotalVal}>{smartMoney(grandTotal)}</Text>
-                  {formatSmartCurrency(grandTotal, '₹').isLarge && (
-                    <Text style={s.countText}>({formatSmartCurrency(grandTotal, '₹').exact})</Text>
+                  <Text style={s.grandTotalVal}>{smartMoney(grandTotal, cur)}</Text>
+                  {formatSmartCurrency(grandTotal, cur).isLarge && (
+                    <Text style={s.countText}>({formatSmartCurrency(grandTotal, cur).exact})</Text>
                   )}
                 </View>
               </View>
@@ -733,7 +737,7 @@ const s = StyleSheet.create({
     color: '#0F172A',
   },
   headerSub: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Regular',
     color: '#64748B',
     marginTop: 2,
@@ -745,7 +749,7 @@ const s = StyleSheet.create({
     padding: 16,
   },
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-SemiBold',
     color: '#475569',
     marginBottom: 5,
@@ -758,7 +762,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Medium',
     color: '#0F172A',
   },
@@ -779,7 +783,7 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   scopeHeaderTitle: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#1E40AF',
   },
@@ -804,7 +808,7 @@ const s = StyleSheet.create({
     borderColor: '#2563EB',
   },
   scopeTabText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-SemiBold',
     color: '#2563EB',
   },
@@ -834,7 +838,7 @@ const s = StyleSheet.create({
     backgroundColor: '#EFF6FF',
   },
   catPillText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
   },
@@ -862,7 +866,7 @@ const s = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   secPickTitle: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -877,13 +881,13 @@ const s = StyleSheet.create({
     paddingVertical: 4,
   },
   itemPickName: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Medium',
     color: '#334155',
     flex: 1,
   },
   itemPickRate: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -899,12 +903,12 @@ const s = StyleSheet.create({
     gap: 8,
   },
   markupTitle: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#1E40AF',
   },
   markupSub: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-Regular',
     color: '#3B82F6',
   },
@@ -925,7 +929,7 @@ const s = StyleSheet.create({
     borderColor: '#2563EB',
   },
   markupChipText: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Bold',
     color: '#2563EB',
   },
@@ -934,7 +938,7 @@ const s = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -944,7 +948,7 @@ const s = StyleSheet.create({
     gap: 4,
   },
   addCustomBtnText: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#2563EB',
   },
@@ -966,7 +970,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   miniLabel: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
     marginBottom: 2,
@@ -978,12 +982,12 @@ const s = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 4,
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#0F172A',
   },
   itemTotalText: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -1003,12 +1007,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   finLabel: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
   },
   finVal: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -1021,7 +1025,7 @@ const s = StyleSheet.create({
     paddingVertical: 2,
     width: 44,
     textAlign: 'center',
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
   },
   discountInput: {
@@ -1033,7 +1037,7 @@ const s = StyleSheet.create({
     paddingVertical: 2,
     width: 60,
     textAlign: 'center',
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
   },
   grandTotalRow: {
@@ -1046,23 +1050,23 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   grandTotalLabel: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
   grandTotalVal: {
     fontSize: 15,
-    fontFamily: 'Inter-Black',
+    fontFamily: 'Inter-Bold',
     color: '#16A34A',
   },
   labelCountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  countText: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  errorText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#E11D48', marginTop: 4 },
+  countText: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  errorText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#E11D48', marginTop: 4 },
   itemCatTag: {
     flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', maxWidth: 160, marginTop: 6,
     backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
   },
-  itemCatTagText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#475569', flexShrink: 1 },
+  itemCatTagText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#475569', flexShrink: 1 },
   notesInput: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
@@ -1070,7 +1074,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#0F172A',
     height: 60,
@@ -1095,7 +1099,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
   },
@@ -1110,7 +1114,7 @@ const s = StyleSheet.create({
     gap: 6,
   },
   saveBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
   },

@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity,
   TextInput, Modal, StatusBar, KeyboardAvoidingView, Platform,
   ActivityIndicator, RefreshControl, Linking,
 } from 'react-native';
@@ -16,6 +16,8 @@ import interiorCrmService from '../../services/interiorCrmService';
 import CrmFlowTabs, { useVisibleFlowStages } from '../../components/crm/CrmFlowTabs';
 import StageLeadPicker from '../../components/crm/StageLeadPicker';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
+import { useAuth } from '../../context/AuthContext';
+import { formatSmartCurrency, getCurrencySymbol } from '../../utils/common/format';
 import { STATUS_STAGE_INDEX } from '../../utils/interior/crmStages';
 import SelectField from '../../components/common/SelectField';
 import { queryKeys, invalidateCrmQueries, useRefreshOnFocus } from '../../context/QueryProvider';
@@ -86,6 +88,115 @@ function validateLeadField(field, value) {
 }
 const emptyFollowUpForm = { type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' };
 
+const NO_LEADS = [];
+const LeadGap = () => <View style={{ height: 12 }} />;
+
+// One lead card. Memoized: only re-renders when its lead, the tab or the currency changes.
+const LeadCard = memo(function LeadCard({ lead, activeFlowTab, currencySymbol, onOpen }) {
+  const meta = STAGE_META[lead.status] || STAGE_META['Lost'];
+  const isLost = lead.status === 'Lost';
+
+  const isQuotationsTab = activeFlowTab === 'quotations';
+  const latestQuote = isQuotationsTab && lead.quotations && lead.quotations.length > 0
+    ? lead.quotations[lead.quotations.length - 1]
+    : null;
+  const isAcceptedQuoteStatus = (status) => ['accepted', 'approved', 'converted', 'signed & accepted'].includes(String(status || '').toLowerCase());
+  const quoteBadge = isQuotationsTab
+    ? (lead.status === 'Won' || lead.status === 'Converted')
+      ? { label: 'Converted', color: '#16A34A', bg: '#F0FDF4' }
+      : (isAcceptedQuoteStatus(latestQuote?.status) || lead.status === 'Booking Pending')
+      ? { label: 'Approved', color: '#16A34A', bg: '#F0FDF4' }
+      : latestQuote?.status === 'Rejected'
+      ? { label: 'Rejected', color: '#E11D48', bg: '#FFF1F2' }
+      : { label: 'Pending', color: '#4F46E5', bg: '#EEF2FF' }
+    : null;
+
+  const ownerName = lead.assignedSalesExecutive
+    ? (typeof lead.assignedSalesExecutive === 'object'
+        ? (lead.assignedSalesExecutive.fullName || `${lead.assignedSalesExecutive.firstName || ''} ${lead.assignedSalesExecutive.lastName || ''}`.trim() || lead.assignedSalesExecutive.name || 'Assigned')
+        : 'Assigned')
+    : null;
+  const stage = isQuotationsTab ? quoteBadge : { label: lead.status, color: meta.color, bg: meta.bg };
+
+  // Headline: name + stage. Then one line of facts, the quote total where relevant, owner & quick contact.
+  return (
+    <TouchableOpacity
+      style={s.leadCard}
+      onPress={() => onOpen(lead._id)}
+      activeOpacity={0.7}
+    >
+      <View style={s.leadTopRow}>
+        <View style={[s.avatar, isLost && { backgroundColor: '#F1F5F9' }]}>
+          <Text style={[s.avatarText, isLost && { color: '#64748B' }]}>{lead.name?.charAt(0).toUpperCase()}</Text>
+        </View>
+        <Text style={s.leadName} numberOfLines={2}>{lead.name}</Text>
+        <View style={[s.stageBadge, { backgroundColor: stage.bg }]}>
+          <Text style={[s.stageBadgeText, { color: stage.color }]} numberOfLines={1}>{stage.label}</Text>
+        </View>
+      </View>
+
+      <Text style={s.leadSub} numberOfLines={1}>
+        {[lead.leadNumber, lead.propertyType, lead.leadSource].filter(Boolean).join('  ·  ')}
+      </Text>
+
+      {/* Quotation total (Quotations tab only) */}
+      {isQuotationsTab && (
+        <View style={s.quoteInfoRow}>
+          {latestQuote ? (
+            <>
+              <Text style={s.quoteInfoTotal} numberOfLines={1}>
+                {formatSmartCurrency(latestQuote.grandTotal || 0, currencySymbol).display}
+              </Text>
+              <Text style={s.quoteInfoVersion}>Quote v{latestQuote.version}</Text>
+            </>
+          ) : (
+            <Text style={s.quoteInfoEmpty}>No quotation generated</Text>
+          )}
+        </View>
+      )}
+
+      {/* Lost reason */}
+      {isLost && (
+        <View style={s.lostRow}>
+          <Ionicons name="alert-circle" size={16} color="#E11D48" />
+          <Text style={s.lostText} numberOfLines={2}>
+            <Text style={{ fontFamily: 'Inter-Bold' }}>Lost: </Text>{lead.lostReason || 'Reason not recorded'}
+          </Text>
+        </View>
+      )}
+
+      <View style={s.leadBottomRow}>
+        <Ionicons name="person-circle-outline" size={18} color={ownerName ? '#4F46E5' : '#94A3B8'} />
+        <Text style={[s.leadOwner, !ownerName && { color: '#94A3B8' }]} numberOfLines={1}>{ownerName || 'Unassigned'}</Text>
+        {!!lead.mobileNumber && (
+          <>
+            <TouchableOpacity
+              style={[s.quickContactBtn, { backgroundColor: '#EFF6FF' }]}
+              onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`).catch(() => {})}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityLabel="Call Lead"
+            >
+              <Ionicons name="call-outline" size={18} color="#2563EB" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.quickContactBtn, { backgroundColor: '#F0FDF4' }]}
+              onPress={() => {
+                const digits = String(lead.mobileNumber).replace(/\D/g, '');
+                const phone = digits.length === 10 ? `91${digits}` : digits;
+                Linking.openURL(`https://wa.me/${phone}`).catch(() => {});
+              }}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityLabel="Chat on WhatsApp"
+            >
+              <Ionicons name="logo-whatsapp" size={18} color="#16A34A" />
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export default function CRMScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -107,7 +218,7 @@ export default function CRMScreen() {
     },
     staleTime: 10 * 60 * 1000,
   });
-  const leads = leadsQuery.data ?? [];
+  const leads = leadsQuery.data ?? NO_LEADS;
   const users = usersQuery.data ?? [];
   const loading = leadsQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
@@ -121,6 +232,9 @@ export default function CRMScreen() {
   const [selectedFlowTab, setActiveFlowTab] = useState('leads');
   // Only tabs this user can view; start on the first one they can see
   const { hasPermission } = useInteriorPermissions();
+  const { user } = useAuth();
+  // Quote totals in the organization's currency (was hard-coded ₹)
+  const currencySymbol = getCurrencySymbol(user?.organization?.settings?.currency || 'INR');
   const visibleStages = useVisibleFlowStages();
   const activeFlowTab = visibleStages.some((st) => st.id === selectedFlowTab)
     ? selectedFlowTab
@@ -151,7 +265,7 @@ export default function CRMScreen() {
 
   useRefreshOnFocus([queryKeys.crmLeads, queryKeys.crmUsers]);
 
-  const flowCounts = {
+  const flowCounts = useMemo(() => ({
     leads: leads.filter((l) => l.status !== 'Lost').length,
     follow_ups: leads.filter((l) => l.status !== 'Lost' && ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status)).length,
     site_visits: leads.filter((l) => l.status !== 'Lost' && (['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0))).length,
@@ -161,7 +275,7 @@ export default function CRMScreen() {
     quotations: leads.filter((l) => l.status !== 'Lost' && (['Under Quotation', 'Quotation Sent', 'Booking Pending'].includes(l.status) || (l.quotations && l.quotations.length > 0))).length,
     won_projects: leads.filter((l) => l.status !== 'Lost' && (l.status === 'Won' || l.status === 'Converted' || !!l.linkedProject)).length,
     lost_leads: leads.filter((l) => l.status === 'Lost').length,
-  };
+  }), [leads]);
 
   // "Add to <stage>" per stage tab (opens the lead on that stage's send-to form)
   const STAGE_ADD = {
@@ -185,7 +299,8 @@ export default function CRMScreen() {
   const activeFiltersCount = [sourceFilter !== 'all', propertyFilter !== 'all', statusFilter !== 'all', sortBy !== 'newest'].filter(Boolean).length;
   const resetFilters = () => { setSourceFilter('all'); setPropertyFilter('all'); setStatusFilter('all'); setSortBy('newest'); };
 
-  const filteredLeads = leads.filter((l) => {
+  // Memoized so typing in the Add Lead / follow-up forms doesn't re-filter and re-render the list
+  const filteredLeads = useMemo(() => leads.filter((l) => {
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
@@ -224,7 +339,9 @@ export default function CRMScreen() {
     if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
     if (sortBy === 'name_desc') return (b.name || '').localeCompare(a.name || '');
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  }), [leads, searchQuery, sourceFilter, propertyFilter, statusFilter, sortBy, activeFlowTab]);
+
+  const openLead = useCallback((leadId) => router.push(`/crm-lead/${leadId}`), [router]);
 
   const handleLeadFieldChange = (field, value) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -412,11 +529,43 @@ export default function CRMScreen() {
             <ActivityIndicator size="large" color="#2563EB" />
           </View>
         ) : (
-          <ScrollView
+          <FlatList
+            data={filteredLeads}
+            keyExtractor={(lead) => lead._id}
+            renderItem={({ item }) => (
+              <LeadCard lead={item} activeFlowTab={activeFlowTab} currencySymbol={currencySymbol} onOpen={openLead} />
+            )}
+            ItemSeparatorComponent={LeadGap}
+            ListEmptyComponent={
+              <View style={s.empty}>
+                <Ionicons name={activeFlowTab === 'lost_leads' ? 'shield-checkmark-outline' : 'people-outline'} size={44} color="#94A3B8" />
+                <Text style={s.emptyTitle}>
+                  {activeFlowTab === 'lost_leads' ? 'No Lost Leads' : 'No leads found'}
+                </Text>
+                {activeFlowTab === 'lost_leads' && !activeFiltersCount && !searchQuery && (
+                  <Text style={s.emptySub}>All leads in your workspace are active or won.</Text>
+                )}
+                {(activeFiltersCount > 0 || !!searchQuery) && (
+                  <>
+                    <Text style={s.emptySub}>No leads matched your search or active filter criteria.</Text>
+                    <TouchableOpacity onPress={() => { resetFilters(); setSearchQuery(''); }}>
+                      <Text style={[s.resetFiltersText, { marginTop: 8 }]}>Clear All Filters</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            }
+            ListFooterComponent={<View style={{ height: 100 }} />}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            removeClippedSubviews={Platform.OS === 'android'}
+            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={s.scroll}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadLeads(true)} tintColor="#2563EB" colors={['#2563EB']} />}
-          >
+            ListHeaderComponent={
+            <>
             {/* Search + filters */}
             <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
               <View style={[s.searchRow, { flex: 1 }]}>
@@ -527,148 +676,10 @@ export default function CRMScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Lead list */}
-            <View style={{ gap: 12 }}>
-              {filteredLeads.length === 0 ? (
-                <View style={s.empty}>
-                  <Ionicons name={activeFlowTab === 'lost_leads' ? 'shield-checkmark-outline' : 'people-outline'} size={44} color="#94A3B8" />
-                  <Text style={s.emptyTitle}>
-                    {activeFlowTab === 'lost_leads' ? 'No Lost Leads' : 'No leads found'}
-                  </Text>
-                  {activeFlowTab === 'lost_leads' && !activeFiltersCount && !searchQuery && (
-                    <Text style={s.emptySub}>All leads in your workspace are active or won.</Text>
-                  )}
-                  {(activeFiltersCount > 0 || !!searchQuery) && (
-                    <>
-                      <Text style={s.emptySub}>No leads matched your search or active filter criteria.</Text>
-                      <TouchableOpacity onPress={() => { resetFilters(); setSearchQuery(''); }}>
-                        <Text style={[s.resetFiltersText, { marginTop: 8 }]}>Clear All Filters</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                </View>
-              ) : (
-                filteredLeads.map((lead) => {
-                  const meta = STAGE_META[lead.status] || STAGE_META['Lost'];
-                  const isLost = lead.status === 'Lost';
 
-                  const isQuotationsTab = activeFlowTab === 'quotations';
-                  const latestQuote = isQuotationsTab && lead.quotations && lead.quotations.length > 0
-                    ? lead.quotations[lead.quotations.length - 1]
-                    : null;
-                  const isAcceptedQuoteStatus = (status) => ['accepted', 'approved', 'converted', 'signed & accepted'].includes(String(status || '').toLowerCase());
-                  const quoteBadge = isQuotationsTab
-                    ? (lead.status === 'Won' || lead.status === 'Converted')
-                      ? { label: 'Converted', color: '#16A34A', bg: '#F0FDF4' }
-                      : (isAcceptedQuoteStatus(latestQuote?.status) || lead.status === 'Booking Pending')
-                      ? { label: 'Approved', color: '#16A34A', bg: '#F0FDF4' }
-                      : latestQuote?.status === 'Rejected'
-                      ? { label: 'Rejected', color: '#E11D48', bg: '#FFF1F2' }
-                      : { label: 'Pending', color: '#4F46E5', bg: '#EEF2FF' }
-                    : null;
-
-                  return (
-                    <TouchableOpacity 
-                      key={lead._id} 
-                      style={s.leadCard}
-                      onPress={() => router.push(`/crm-lead/${lead._id}`)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={s.leadTopRow}>
-                        <View style={[s.avatar, isLost && { backgroundColor: '#F1F5F9' }]}>
-                          <Text style={[s.avatarText, isLost && { color: '#64748B' }]}>{lead.name?.charAt(0).toUpperCase()}</Text>
-                        </View>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-                              <Text style={[s.leadName, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{lead.name}</Text>
-                              <Text style={[s.leadNumber, { flexShrink: 0 }]}>{lead.leadNumber || 'LD-XXXX'}</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={16} color="#94A3B8" style={{ flexShrink: 0 }} />
-                          </View>
-                          <Text style={s.leadSub} numberOfLines={1}>{lead.mobileNumber}{lead.propertyType ? ` · ${lead.propertyType}` : ''}</Text>
-                        </View>
-                      </View>
-
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 4 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}>
-                          <Ionicons name="person-circle-outline" size={15} color={lead.assignedSalesExecutive ? '#4F46E5' : '#94A3B8'} style={{ flexShrink: 0 }} />
-                          <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: lead.assignedSalesExecutive ? '#334155' : '#94A3B8', flexShrink: 1 }} numberOfLines={1}>
-                            {lead.assignedSalesExecutive
-                              ? (typeof lead.assignedSalesExecutive === 'object'
-                                  ? (lead.assignedSalesExecutive.fullName || `${lead.assignedSalesExecutive.firstName || ''} ${lead.assignedSalesExecutive.lastName || ''}`.trim() || lead.assignedSalesExecutive.name || 'Assigned')
-                                  : 'Assigned')
-                              : 'Unassigned'}
-                          </Text>
-                        </View>
-                        {!!lead.mobileNumber && (
-                          <View style={{ flexDirection: 'row', gap: 6 }}>
-                            <TouchableOpacity
-                              style={[s.quickContactBtn, { backgroundColor: '#EFF6FF' }]}
-                              onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`).catch(() => {})}
-                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                              accessibilityLabel="Call Lead"
-                            >
-                              <Ionicons name="call-outline" size={14} color="#2563EB" />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={[s.quickContactBtn, { backgroundColor: '#F0FDF4' }]}
-                              onPress={() => {
-                                const digits = String(lead.mobileNumber).replace(/\D/g, '');
-                                const phone = digits.length === 10 ? `91${digits}` : digits;
-                                Linking.openURL(`https://wa.me/${phone}`).catch(() => {});
-                              }}
-                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                              accessibilityLabel="Chat on WhatsApp"
-                            >
-                              <Ionicons name="logo-whatsapp" size={14} color="#16A34A" />
-                            </TouchableOpacity>
-                          </View>
-                        )}
-                      </View>
-
-                      {/* Quotation Info (Quotations tab only) */}
-                      {isQuotationsTab && (
-                        <View style={s.quoteInfoRow}>
-                          {latestQuote ? (
-                            <>
-                              <Text style={s.quoteInfoTotal} numberOfLines={1}>
-                                Grand Total: ₹{(latestQuote.grandTotal || 0).toLocaleString('en-IN')}
-                              </Text>
-                              <Text style={s.quoteInfoVersion}>v{latestQuote.version}</Text>
-                            </>
-                          ) : (
-                            <Text style={s.quoteInfoEmpty}>No quotation generated</Text>
-                          )}
-                        </View>
-                      )}
-
-                      {/* Lost Reason Pill */}
-                      {isLost && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF1F2', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginTop: 4, borderWidth: 1, borderColor: '#FECACA' }}>
-                          <Ionicons name="alert-circle" size={14} color="#E11D48" />
-                          <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#9F1239', flex: 1 }} numberOfLines={2}>
-                            <Text style={{ fontFamily: 'Inter-Bold' }}>Reason: </Text>{lead.lostReason || 'Reason not recorded'}
-                          </Text>
-                        </View>
-                      )}
-
-                      <View style={s.leadBottomRow}>
-                        <View style={[s.stageBadge, { backgroundColor: isQuotationsTab ? quoteBadge.bg : meta.bg }]}>
-                          <Text style={[s.stageBadgeText, { color: isQuotationsTab ? quoteBadge.color : meta.color }]}>
-                            {isQuotationsTab ? quoteBadge.label : lead.status}
-                          </Text>
-                        </View>
-                        <Text style={s.leadDate} numberOfLines={1}>{lead.leadSource || 'N/A'}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </View>
-
-            <View style={{ height: 100 }} />
-          </ScrollView>
+            </>
+            }
+          />
         )}
 
         {/* Add Lead FAB */}
@@ -1089,7 +1100,7 @@ const s = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  pageTitle: { fontSize: 22, fontFamily: 'Inter-Black', color: '#0F172A', letterSpacing: -0.5 },
+  pageTitle: { fontSize: 22, fontFamily: 'Inter-Bold', color: '#0F172A', letterSpacing: -0.5 },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: {
@@ -1097,21 +1108,21 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#DBEAFE',
   },
   statIconBox: { width: 30, height: 30, borderRadius: 9, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  statLabel: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
-  statValue: { fontSize: 17, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 2 },
-  statValueSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  statLabel: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
+  statValue: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
+  statValueSub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   filterBtn: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, borderColor: '#DBEAFE', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   filterBtnActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
   filterCount: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#E11D48', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  filterCountText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  filterCountText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   filterPanel: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, padding: 12, marginBottom: 14, gap: 10 },
   filterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   filterCell: { flexBasis: '47%', flexGrow: 1, gap: 4 },
-  filterLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
+  filterLabel: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
   resetFiltersBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-end' },
   resetFiltersText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#E11D48' },
-  quickContactBtn: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  quickContactBtn: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1139,44 +1150,45 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#BFDBFE',
   },
   chipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  chipText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  chipText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   chipTextActive: { color: '#FFFFFF' },
 
   leadCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
-    borderWidth: 1, borderColor: '#DBEAFE', gap: 10,
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#E2E8F0', gap: 10,
   },
-  leadTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  leadTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: {
-    width: 36, height: 36, borderRadius: 12, backgroundColor: '#2563EB',
+    width: 40, height: 40, borderRadius: 12, backgroundColor: '#2563EB',
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
-  leadName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  leadNumber: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  leadSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  avatarText: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  leadName: { flex: 1, fontSize: 16, lineHeight: 21, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  leadSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B' },
+  leadOwner: { flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155' },
+  lostRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFF1F2', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#FECACA' },
+  lostText: { flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#9F1239' },
 
   quoteInfoRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9',
     borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
   },
-  quoteInfoTotal: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#16A34A', flexShrink: 1 },
-  quoteInfoVersion: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#64748B', marginLeft: 8 },
-  quoteInfoEmpty: { fontSize: 11, fontFamily: 'Inter-MediumItalic', color: '#94A3B8' },
+  quoteInfoTotal: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A', flexShrink: 1 },
+  quoteInfoVersion: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B', marginLeft: 8 },
+  quoteInfoEmpty: { fontSize: 13, fontFamily: 'Inter-MediumItalic', color: '#94A3B8' },
 
   leadBottomRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 10,
+    borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12, marginTop: 2,
   },
-  stageBadge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
-  stageBadgeText: { fontSize: 10, fontFamily: 'Inter-Bold' },
-  leadDate: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', flex: 1 },
+  stageBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, maxWidth: 130 },
+  stageBadgeText: { fontSize: 12, fontFamily: 'Inter-Bold' },
   contactBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#EFF6FF', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8,
   },
-  contactBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  contactBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   empty: { alignItems: 'center', paddingVertical: 48, gap: 10 },
   emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' },
@@ -1198,16 +1210,16 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14,
   },
   modalTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  modalSubtitle: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  modalSubtitle: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 12 },
-  charCount: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#94A3B8' },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 12 },
+  charCount: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#94A3B8' },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
   inputError: { borderColor: '#DC2626' },
-  fieldErrorText: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#DC2626', marginTop: 4 },
+  fieldErrorText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#DC2626', marginTop: 4 },
   dateInput: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -1240,7 +1252,7 @@ const s = StyleSheet.create({
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0',
   },
   optionChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  optionChipText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  optionChipText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   optionChipTextActive: { color: '#2563EB' },
 
   saveBtn: {
@@ -1260,7 +1272,7 @@ const s = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   leadModalTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  leadModalSubtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  leadModalSubtitle: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
   leadModalCloseBtn: {
     width: 32, height: 32, borderRadius: 16, backgroundColor: '#F8FAFC',
     borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center',
@@ -1274,14 +1286,14 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 8,
   },
-  leadSectionTitle: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#64748B', letterSpacing: 0.5 },
+  leadSectionTitle: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#64748B', letterSpacing: 0.5 },
 
   leadFieldGroup: { gap: 5 },
   leadLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   leadLabel: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#334155' },
   requiredStar: { color: '#DC2626' },
-  leadOptionalTag: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#94A3B8' },
-  leadCharCount: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#94A3B8' },
+  leadOptionalTag: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#94A3B8' },
+  leadCharCount: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#94A3B8' },
 
   leadInputContainer: {
     flexDirection: 'row', alignItems: 'center',
@@ -1294,7 +1306,7 @@ const s = StyleSheet.create({
     flex: 1, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', paddingVertical: 0,
   },
   leadErrorRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  leadErrorText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#DC2626' },
+  leadErrorText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#DC2626' },
 
   propertyChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   propertyChip: {
@@ -1303,7 +1315,7 @@ const s = StyleSheet.create({
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0',
   },
   propertyChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  propertyChipText: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#64748B' },
+  propertyChipText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#64748B' },
   propertyChipTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   sourceSelectBtn: {
@@ -1337,7 +1349,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 12, marginBottom: 8,
   },
   pickerTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  pickerSubtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  pickerSubtitle: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
   pickerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 10, paddingHorizontal: 10, borderRadius: 10, marginVertical: 2,

@@ -126,7 +126,7 @@ export default function MarkLostModal({
             <View style={s.inputContainer}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={s.label}>Reason & Notes *</Text>
-                <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#E11D48' }}>Required</Text>
+                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#E11D48' }}>Required</Text>
               </View>
               <TextInput
                 style={[s.inputArea, error && { borderColor: '#E11D48' }]}
@@ -138,7 +138,7 @@ export default function MarkLostModal({
                 numberOfLines={3}
                 textAlignVertical="top"
               />
-              {!!error && <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#E11D48', marginTop: 4 }}>{error}</Text>}
+              {!!error && <Text style={{ fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#E11D48', marginTop: 4 }}>{error}</Text>}
             </View>
           </View>
 
@@ -162,13 +162,13 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFF1F2', alignItems: 'center', justifyContent: 'center' },
   modalTitle: { fontSize: 18, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  modalSubtitle: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
+  modalSubtitle: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
   closeBtn: { padding: 8, backgroundColor: '#F8FAFC', borderRadius: 12 },
   modalBody: { padding: 20 },
   warningBox: { flexDirection: 'row', backgroundColor: '#FFF1F2', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#FFE4E6', gap: 12, marginBottom: 16 },
-  warningText: { flex: 1, fontSize: 13, color: '#BE123C', fontFamily: 'Inter-Medium', lineHeight: 20 },
+  warningText: { flex: 1, fontSize: 14, color: '#BE123C', fontFamily: 'Inter-Medium', lineHeight: 20 },
   inputContainer: { marginBottom: 8 },
-  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 8 },
+  label: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 8 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   chip: {
     paddingHorizontal: 10,
@@ -183,7 +183,7 @@ const s = StyleSheet.create({
     borderColor: '#FECACA',
   },
   chipText: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#475569',
   },

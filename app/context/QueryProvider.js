@@ -44,6 +44,17 @@ export function invalidateCrmQueries(client = queryClient) {
   });
 }
 
+// Refetches one lead only and marks the other CRM queries stale without
+// refetching them (the list etc. reload when next opened). For polling and
+// lead-scoped actions, where refetching every mounted CRM screen is wasted work.
+export async function refreshCrmLead(id, client = queryClient) {
+  await client.refetchQueries({ queryKey: queryKeys.crmLead(id), exact: true });
+  client.invalidateQueries({
+    predicate: (q) => typeof q.queryKey[0] === 'string' && q.queryKey[0].startsWith('crm-') && q.queryKey[0] !== 'crm-lead',
+    refetchType: 'none',
+  });
+}
+
 export function invalidateProjectQueries(client = queryClient) {
   return client.invalidateQueries({
     predicate: (q) =>

@@ -95,12 +95,12 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', i
 
 const ctrlStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  text: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
   placeholder: { color: '#94A3B8' },
   menu: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, overflow: 'hidden' },
   menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   menuItemActive: { backgroundColor: '#EFF6FF' },
-  menuItemText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
+  menuItemText: { fontSize: 13.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
   menuItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 });
 
@@ -472,11 +472,10 @@ const { can: canDo } = useProjectPermissions(projectId);
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Payments & Financial Ledger</Text>
-            <Text style={s.headerSub}>Incoming receipts, vendor payouts & debit notes.</Text>
           </View>
         </View>
 
@@ -507,15 +506,10 @@ const { can: canDo } = useProjectPermissions(projectId);
 
             <View style={s.tabRow}>
               {CATEGORIES.map((c) => {
-                const count = c.key === 'incoming' ? allIncoming.length : c.key === 'outgoing' ? allOutgoing.length : allDebitNotes.length;
+                const active = activeCategory === c.key;
                 return (
-                  <TouchableOpacity
-                    key={c.key}
-                    style={[s.tabBtn, activeCategory === c.key && { backgroundColor: c.color }]}
-                    onPress={() => setActiveCategory(c.key)}
-                  >
-                    <Ionicons name={c.icon} size={14} color={activeCategory === c.key ? '#FFFFFF' : c.color} />
-                    <Text style={[s.tabBtnText, activeCategory === c.key && { color: '#FFFFFF' }]}>{c.label} ({count})</Text>
+                  <TouchableOpacity key={c.key} style={[s.tabBtn, active && s.tabBtnActive]} onPress={() => setActiveCategory(c.key)} activeOpacity={0.8}>
+                    <Text style={[s.tabBtnText, active && { color: c.color }]} numberOfLines={1}>{c.label}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -743,51 +737,52 @@ function Empty({ icon, text }) {
 const s = StyleSheet.create({
   invoiceActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   invoiceBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#EFF6FF' },
-  invoiceBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#1D4ED8' },
+  invoiceBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#1D4ED8' },
   invoiceHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   invoiceHeaderTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  invoiceHeaderSub: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
+  invoiceHeaderSub: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
   invoiceClose: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
   invoiceFooter: { flexDirection: 'row', gap: 8, padding: 12, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E2E8F0' },
   invoiceFooterBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' },
-  invoiceFooterText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155' },
+  invoiceFooterText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#334155' },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingHorizontal: 20, paddingTop: 14 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   summaryRow: { gap: 8, marginBottom: 14 },
   summaryCard: { width: 130, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9' },
-  summaryLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8' },
-  summaryValue: { fontSize: 14, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 4 },
+  summaryLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8' },
+  summaryValue: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 4 },
 
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12, height: 40, marginBottom: 12 },
-  searchInput: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  searchInput: { flex: 1, fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#0F172A' },
 
   cardFooterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
 
-  tabRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9' },
-  tabBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B' },
+  tabRow: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 11, padding: 3, marginBottom: 12 },
+  tabBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 36, borderRadius: 9 },
+  tabBtnActive: { backgroundColor: '#FFFFFF', shadowColor: '#0F172A', shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  tabBtnText: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
 
   card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 10 },
   cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1 },
-  cardAmount: { fontSize: 13, fontFamily: 'Inter-Black' },
-  cardSub: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 3 },
-  cardReason: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 4 },
+  cardTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1 },
+  cardAmount: { fontSize: 14, fontFamily: 'Inter-Bold' },
+  cardSub: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 3 },
+  cardReason: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 4 },
   cardBottomRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  cardMeta: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  cardMeta: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   statusPill: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
-  statusPillText: { fontSize: 10, fontFamily: 'Inter-Bold' },
+  statusPillText: { fontSize: 11.5, fontFamily: 'Inter-Bold' },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' },
 
   fab: {
     position: 'absolute', right: 20, bottom: 30,
@@ -801,16 +796,16 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
 
   pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   pill: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   pillActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  pillText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  pillText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   pillTextActive: { color: '#FFFFFF' },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },

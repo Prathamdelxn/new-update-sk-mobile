@@ -13,6 +13,7 @@ import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 
 const CATEGORIES = ['all', 'progress', 'snag', 'delivery', 'other'];
+const CATEGORY_LABEL = { all: 'All', progress: 'Progress', snag: 'Snags', delivery: 'Deliveries', other: 'Other' };
 const CATEGORY_OPTIONS = [
   { value: 'progress', label: 'Daily Site Progress' },
   { value: 'snag', label: 'Quality Snag Defect' },
@@ -125,11 +126,10 @@ const { can: canDo } = useProjectPermissions(projectId);
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Site Progress Photos</Text>
-            <Text style={s.headerSub}>Progress pictures, snags, and delivery logs.</Text>
+            <Text style={s.headerTitle}>Site Photos</Text>
           </View>
         </View>
 
@@ -137,7 +137,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catBar} contentContainerStyle={s.catRow}>
           {CATEGORIES.map((cat) => (
             <TouchableOpacity key={cat} style={[s.catChip, activeCategory === cat && s.catChipActive]} onPress={() => setActiveCategory(cat)}>
-              <Text style={[s.catChipText, activeCategory === cat && s.catChipTextActive]}>{cat}</Text>
+              <Text style={[s.catChipText, activeCategory === cat && s.catChipTextActive]}>{CATEGORY_LABEL[cat] || cat}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -241,18 +241,18 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 14 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   catBar: { flexGrow: 0, flexShrink: 0, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   catRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
-  catChip: { height: 32, paddingHorizontal: 14, borderRadius: 16, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
-  catChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  catChipText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.3 },
-  catChipTextActive: { color: '#FFFFFF' },
+  catChip: { height: 34, paddingHorizontal: 14, borderRadius: 10, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+  catChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
+  catChipText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  catChipTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 14 },
   photoCard: { width: '48.5%', gap: 4 },
@@ -260,9 +260,9 @@ const s = StyleSheet.create({
   photoImgWrap: { width: '100%', height: 130, borderRadius: 14, overflow: 'hidden', backgroundColor: '#F1F5F9' },
   photoImg: { width: '100%', height: '100%' },
   photoCatTag: { position: 'absolute', top: 6, left: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  photoCatTagText: { fontSize: 8.5, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' },
-  photoCaption: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', marginTop: 4 },
-  photoDate: { fontSize: 9.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  photoCatTagText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' },
+  photoCaption: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A', marginTop: 4 },
+  photoDate: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   fab: {
     position: 'absolute', right: 20, bottom: 30,
@@ -276,19 +276,19 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
 
   catOption: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0' },
   catOptionActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  catOptionText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  catOptionText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   catOptionTextActive: { color: '#2563EB' },
 
   uploadBox: { height: 140, borderRadius: 14, borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', gap: 6, overflow: 'hidden' },
-  uploadBoxText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  uploadBoxText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   previewImg: { width: '100%', height: '100%' },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },

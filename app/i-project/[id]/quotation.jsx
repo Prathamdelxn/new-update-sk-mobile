@@ -99,8 +99,6 @@ export default function InteriorProjectQuotationScreen() {
   const quotations = useMemo(() => lead?.quotations || [], [lead]);
   const hasQuotations = quotations.length > 0;
   const latestQuote = hasQuotations ? quotations[quotations.length - 1] : null;
-  const hasAccepted = quotations.some((q) => q.status === 'Accepted' || q.status === 'Approved');
-  const latestRejected = latestQuote?.status === 'Rejected';
   const currency = lead?.currency || project?.budget?.currency || 'INR';
   const smart = (n) => formatSmartCurrency(Number(n) || 0, getCurrencySymbol(currency));
 
@@ -137,9 +135,6 @@ export default function InteriorProjectQuotationScreen() {
     ]);
   };
 
-  const badge = hasQuotations
-    ? latestRejected ? statusStyle('Rejected') : hasAccepted ? statusStyle('Accepted') : statusStyle('Sent')
-    : statusStyle('Draft');
   const targetBudget = project?.budget?.amount
     ? formatCompactCurrency(project.budget.amount, currency)
     : lead?.budgetRange || 'Not specified';
@@ -150,11 +145,10 @@ export default function InteriorProjectQuotationScreen() {
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Commercial Quotations & Proposals</Text>
-            <Text style={s.headerSub} numberOfLines={2}>Generate commercial proposals, apply taxes, discounts and manage client approvals.</Text>
           </View>
         </View>
 
@@ -170,21 +164,6 @@ export default function InteriorProjectQuotationScreen() {
           >
             {/* Summary card */}
             <View style={s.summaryCard}>
-              <View style={s.summaryTop}>
-                <View style={[s.statusPill, { backgroundColor: badge.bg, borderColor: badge.border }]}>
-                  <View style={[s.dot, { backgroundColor: badge.color }]} />
-                  <Text style={[s.statusPillText, { color: badge.color }]}>
-                    {hasQuotations ? `${quotations.length} ${quotations.length === 1 ? 'Proposal' : 'Proposals'} Generated` : 'Pending Creation'}
-                  </Text>
-                </View>
-                {canCreate && (
-                  <TouchableOpacity style={s.createBtn} onPress={openCreate} activeOpacity={0.85}>
-                    <Ionicons name="add" size={16} color="#FFFFFF" />
-                    <Text style={s.createBtnText}>Create Quotation</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
               <View style={s.kpiGrid}>
                 <Kpi
                   label="Grand Total"
@@ -204,7 +183,6 @@ export default function InteriorProjectQuotationScreen() {
                   <Ionicons name="document-text-outline" size={26} color="#2563EB" />
                 </View>
                 <Text style={s.emptyTitle}>No Quotations Created Yet</Text>
-                <Text style={s.emptySub}>Generate itemized pricing proposals directly from project BOQ estimation, apply custom discounts and taxes.</Text>
                 {canCreate && (
                   <TouchableOpacity style={[s.createBtn, { marginTop: 6 }]} onPress={openCreate} activeOpacity={0.85}>
                     <Ionicons name="add" size={16} color="#FFFFFF" />
@@ -217,8 +195,14 @@ export default function InteriorProjectQuotationScreen() {
                 <View style={s.listHeader}>
                   <Text style={s.listTitle}>Quotation Versions & Options</Text>
                   <View style={s.countPill}><Text style={s.countPillText}>{quotations.length}</Text></View>
+                  <View style={{ flex: 1 }} />
+                  {canCreate && (
+                    <TouchableOpacity style={s.createBtn} onPress={openCreate} activeOpacity={0.85}>
+                      <Ionicons name="add" size={15} color="#FFFFFF" />
+                      <Text style={s.createBtnText}>Create</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                <Text style={s.listHint}>Tap “View” to see the document, print, download the PDF or send it.</Text>
 
                 {quotations.map((q, idx) => {
                   const st = q.status || 'Generated';
@@ -227,56 +211,57 @@ export default function InteriorProjectQuotationScreen() {
                   const discount = Number(q.discountAmount || q.discount || 0);
                   return (
                     <TouchableOpacity key={q._id || idx} style={s.quoteCard} activeOpacity={0.85} onPress={() => setPreviewIndex(idx)}>
+                      {/* Name + status */}
                       <View style={s.quoteTop}>
-                        <View style={s.indexBox}><Text style={s.indexText}>{idx + 1}</Text></View>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={s.quoteTitle} numberOfLines={1}>{q.title || `Quotation ${idx + 1}`}</Text>
-                          <Text style={s.quoteMeta} numberOfLines={1}>
-                            Version {q.version || idx + 1}
-                            {q.sourceBoqVersion ? ` • BOQ v${q.sourceBoqVersion}` : ''}
-                            {Array.isArray(q.vendorQuotes) && q.vendorQuotes.length > 0
-                              ? ` • ${q.vendorQuotes.length} Vendor ${q.vendorQuotes.length === 1 ? 'Quote' : 'Quotes'}`
-                              : ''}
-                          </Text>
-                        </View>
-                        <View style={[s.statusTag, { backgroundColor: sty.bg, borderColor: sty.border }]}>
+                        <Text style={s.quoteTitle} numberOfLines={2}>{q.title || `Quotation ${idx + 1}`}</Text>
+                        <View style={[s.statusTag, { backgroundColor: sty.bg }]}>
                           <Text style={[s.statusTagText, { color: sty.color }]}>{st}</Text>
                         </View>
                       </View>
+                      <Text style={s.quoteMeta} numberOfLines={1}>
+                        {[
+                          `v${q.version || idx + 1}`,
+                          q.sourceBoqVersion ? `BOQ v${q.sourceBoqVersion}` : null,
+                          `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`,
+                          Array.isArray(q.vendorQuotes) && q.vendorQuotes.length > 0
+                            ? `${q.vendorQuotes.length} vendor ${q.vendorQuotes.length === 1 ? 'quote' : 'quotes'}`
+                            : null,
+                        ].filter(Boolean).join(' · ')}
+                      </Text>
 
-                      <View style={s.figures}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.figLabel}>Scope</Text>
-                          <Text style={s.figValue}>{itemCount} {itemCount === 1 ? 'item' : 'items'}</Text>
-                        </View>
-                        <View style={{ flex: 1.4 }}>
-                          <Text style={s.figLabel}>Subtotal & Tax</Text>
+                      {/* Three equal figures */}
+                      <View style={s.figRow}>
+                        <View style={s.figCol}>
+                          <Text style={s.figLabel}>Subtotal</Text>
                           <Text style={s.figValue} numberOfLines={1}>{smart(q.subtotal || q.subTotal).display}</Text>
-                          <Text style={s.figSub}>
-                            Tax: {q.taxPercentage || 0}%
-                            {discount > 0 ? <Text style={{ color: '#059669' }}> • Disc: {smart(discount).display}</Text> : null}
+                        </View>
+                        <View style={[s.figCol, { alignItems: 'center' }]}>
+                          <Text style={s.figLabel}>{discount > 0 ? 'Discount' : 'Tax'}</Text>
+                          <Text style={[s.figValue, discount > 0 && { color: '#059669' }]} numberOfLines={1}>
+                            {discount > 0 ? `- ${smart(discount).display}` : `${q.taxPercentage || 0}%`}
                           </Text>
                         </View>
-                        <View style={{ flex: 1.2, alignItems: 'flex-end' }}>
-                          <Text style={s.figLabel}>Grand Total</Text>
-                          <Text style={s.grandValue} numberOfLines={1}>{smart(q.grandTotal).display}</Text>
+                        <View style={[s.figCol, { alignItems: 'flex-end' }]}>
+                          <Text style={s.figLabel}>Grand total</Text>
+                          <Text style={[s.figValue, { color: '#2563EB', fontFamily: 'Inter-Bold' }]} numberOfLines={1}>{smart(q.grandTotal).display}</Text>
                         </View>
                       </View>
 
+                      {/* Actions: two equal buttons + delete */}
                       <View style={s.actionsRow}>
-                        <TouchableOpacity style={s.viewBtn} onPress={() => setPreviewIndex(idx)}>
-                          <Ionicons name="eye-outline" size={14} color="#1D4ED8" />
+                        <TouchableOpacity style={[s.actBtn, s.viewBtn]} onPress={() => setPreviewIndex(idx)}>
+                          <Ionicons name="eye-outline" size={15} color="#1D4ED8" />
                           <Text style={s.viewBtnText}>View</Text>
                         </TouchableOpacity>
                         {canUpdate && (
-                          <TouchableOpacity style={s.editBtn} onPress={() => openEdit(idx)}>
-                            <Ionicons name="create-outline" size={14} color="#334155" />
+                          <TouchableOpacity style={[s.actBtn, s.editBtn]} onPress={() => openEdit(idx)}>
+                            <Ionicons name="create-outline" size={15} color="#334155" />
                             <Text style={s.editBtnText}>Edit</Text>
                           </TouchableOpacity>
                         )}
                         {canDelete && (
                           <TouchableOpacity style={s.deleteBtn} onPress={() => confirmDelete(idx)}>
-                            <Ionicons name="trash-outline" size={14} color="#E11D48" />
+                            <Ionicons name="trash-outline" size={15} color="#E11D48" />
                           </TouchableOpacity>
                         )}
                       </View>
@@ -326,7 +311,7 @@ function Kpi({ label, value, sub, accent }) {
     <View style={s.kpi}>
       <Text style={s.kpiLabel}>{label}</Text>
       <Text style={[s.kpiValue, accent && { color: '#2563EB' }]} numberOfLines={1}>{value}</Text>
-      {!!sub && <Text style={{ fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' }} numberOfLines={1}>{sub}</Text>}
+      {!!sub && <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8' }} numberOfLines={1}>{sub}</Text>}
     </View>
   );
 }
@@ -338,52 +323,43 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 14, gap: 12 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 15.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
   summaryCard: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', padding: 14, gap: 12 },
-  summaryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
-  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  statusPillText: { fontSize: 11, fontFamily: 'Inter-Bold' },
-  createBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#2563EB', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
-  createBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  createBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#2563EB', paddingHorizontal: 12, height: 32, borderRadius: 9 },
+  createBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   kpi: { flexBasis: '48%', flexGrow: 1, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 12, padding: 10 },
-  kpiLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.4 },
-  kpiValue: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 4 },
+  kpiLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.4 },
+  kpiValue: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 4 },
 
   emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', padding: 24, alignItems: 'center', gap: 8 },
   emptyIcon: { width: 52, height: 52, borderRadius: 16, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { fontSize: 14.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  emptySub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center', lineHeight: 18 },
 
   listHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   listTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
   countPill: { backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 },
-  countPillText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
-  listHint: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: -6 },
+  countPillText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
-  quoteCard: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', padding: 14, gap: 12 },
-  quoteTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  indexBox: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  indexText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#475569' },
-  quoteTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  quoteMeta: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
-  statusTag: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  statusTagText: { fontSize: 9.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase', letterSpacing: 0.4 },
+  quoteCard: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', padding: 14 },
+  quoteTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  quoteTitle: { flex: 1, fontSize: 13.5, lineHeight: 18, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  quoteMeta: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 3 },
+  statusTag: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  statusTagText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold' },
 
-  figures: { flexDirection: 'row', gap: 8, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 10 },
-  figLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.4 },
-  figValue: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', marginTop: 3 },
-  figSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
-  grandValue: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#2563EB', marginTop: 3 },
+  figRow: { flexDirection: 'row', marginTop: 12, paddingVertical: 10, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F1F5F9' },
+  figCol: { flex: 1, minWidth: 0 },
+  figLabel: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  figValue: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', marginTop: 2 },
 
-  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  viewBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#3B82F6', backgroundColor: '#FFFFFF' },
-  viewBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#1D4ED8' },
-  editBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  editBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#334155' },
-  deleteBtn: { width: 40, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#FECDD3', backgroundColor: '#FFF1F2' },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+  actBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 36, borderRadius: 9, borderWidth: 1 },
+  viewBtn: { borderColor: '#BFDBFE', backgroundColor: '#EFF6FF' },
+  viewBtnText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#1D4ED8' },
+  editBtn: { borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
+  editBtnText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  deleteBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 9, borderWidth: 1, borderColor: '#FECDD3', backgroundColor: '#FFF1F2' },
 });

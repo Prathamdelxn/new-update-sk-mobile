@@ -992,7 +992,7 @@ const s = StyleSheet.create({
     borderBottomColor: '#BFDBFE',
   },
   headerBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
-  headerSubtitle: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#1D4ED8' },
+  headerSubtitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#1D4ED8' },
   liveSyncPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1005,8 +1005,8 @@ const s = StyleSheet.create({
     borderColor: '#BFDBFE',
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
-  liveSyncText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#047857' },
-  pageTitle: { fontSize: 20, fontFamily: 'Inter-Black', color: '#0F172A', letterSpacing: -0.4 },
+  liveSyncText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#047857' },
+  pageTitle: { fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', letterSpacing: -0.4 },
 
   heroCard: {
     borderRadius: 24,
@@ -1025,7 +1025,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: { color: '#FFFFFF', fontSize: 20, fontFamily: 'Inter-Black' },
+  avatarText: { color: '#FFFFFF', fontSize: 20, fontFamily: 'Inter-Bold' },
   heroInfo: { flex: 1, gap: 4 },
   nameBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   heroName: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A', flexShrink: 1 },
@@ -1037,9 +1037,9 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
-  roleBadgeLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#2563EB', letterSpacing: 0.4 },
+  roleBadgeLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB', letterSpacing: 0.4 },
   emailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  heroEmail: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', flexShrink: 1 },
+  heroEmail: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', flexShrink: 1 },
   verifiedChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1049,7 +1049,7 @@ const s = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#ECFDF5',
   },
-  verifiedText: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#059669' },
+  verifiedText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#059669' },
 
   heroFooter: {
     flexDirection: 'row',
@@ -1062,8 +1062,8 @@ const s = StyleSheet.create({
   },
   heroFooterItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   heroFooterDivider: { width: 1, height: 14, backgroundColor: '#E2E8F0' },
-  heroFooterText: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#475569' },
-  currencyMiniBadge: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  heroFooterText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#475569' },
+  currencyMiniBadge: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   tabBarContainer: { marginBottom: 18 },
   tabBarContent: { flexDirection: 'row', gap: 8 },
@@ -1078,7 +1078,7 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   tabPillActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  tabPillText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  tabPillText: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   tabPillTextActive: { color: '#FFFFFF', fontFamily: 'Inter-Bold' },
 
   tabCard: {
@@ -1099,12 +1099,12 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  cardSubtitle: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  cardSubtitle: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
 
   formGroup: { gap: 14 },
   inputRow: { flexDirection: 'row', gap: 12 },
   inputCol: { gap: 5 },
-  inputLabel: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  inputLabel: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#334155' },
   textInput: {
     height: 46,
     borderRadius: 12,
@@ -1122,7 +1122,7 @@ const s = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     borderColor: '#E2E8F0',
   },
-  disabledInputText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B' },
+  disabledInputText: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B' },
   iconInputContainer: { position: 'relative', justifyContent: 'center' },
   leadingIcon: { position: 'absolute', left: 14, zIndex: 1 },
 
@@ -1147,7 +1147,7 @@ const s = StyleSheet.create({
   strengthMeterContainer: { marginTop: 4, gap: 4 },
   strengthBarTrack: { height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', overflow: 'hidden' },
   strengthBarFill: { height: '100%', borderRadius: 2 },
-  strengthLabel: { fontSize: 11, fontFamily: 'Inter-Bold', textAlign: 'right' },
+  strengthLabel: { fontSize: 12.5, fontFamily: 'Inter-Bold', textAlign: 'right' },
 
   actionButton: {
     height: 48,
@@ -1159,7 +1159,7 @@ const s = StyleSheet.create({
     gap: 8,
     marginTop: 6,
   },
-  readOnlyNote: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#D97706', marginBottom: 8 },
+  readOnlyNote: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#D97706', marginBottom: 8 },
   actionButtonDisabled: { opacity: 0.6 },
   actionButtonText: { color: '#FFFFFF', fontSize: 13.5, fontFamily: 'Inter-Bold' },
 
@@ -1183,15 +1183,15 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
-  planBadgeText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  planBadgeText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
   activeStatusPill: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 999,
     backgroundColor: '#ECFDF5',
   },
-  activeStatusText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#059669' },
-  planDesc: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 17 },
+  activeStatusText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#059669' },
+  planDesc: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 17 },
 
   currencyPreviewCard: {
     flexDirection: 'row',
@@ -1212,11 +1212,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
   },
-  currencyLargeSymbol: { fontSize: 20, fontFamily: 'Inter-Black', color: '#FFFFFF' },
-  currencyPreviewLabel: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' },
+  currencyLargeSymbol: { fontSize: 20, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  currencyPreviewLabel: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#64748B' },
   currencyPreviewVal: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 1 },
-  currencySampleLabel: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#64748B' },
-  currencySampleVal: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#1D4ED8', marginTop: 1 },
+  currencySampleLabel: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' },
+  currencySampleVal: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#1D4ED8', marginTop: 1 },
 
   countryPickerButton: {
     height: 48,
@@ -1241,12 +1241,12 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   formatChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  formatChipText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  formatChipText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   formatChipTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   managementSection: { marginTop: 4, marginBottom: 18 },
   managementSectionTitle: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#64748B',
     letterSpacing: 0.8,
@@ -1274,7 +1274,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   mgmtItemTitle: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
-  mgmtItemSubtitle: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  mgmtItemSubtitle: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
 
   logoutButton: {
     flexDirection: 'row',
@@ -1316,7 +1316,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 12,
   },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A' },
   countryItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1329,7 +1329,7 @@ const s = StyleSheet.create({
   countryItemActive: { backgroundColor: '#EFF6FF' },
   countryNameText: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
   countryNameTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
-  countryMetaText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  countryMetaText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   centerModalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: 'rgba(15, 23, 42, 0.45)' },
   infoCard: {
@@ -1352,9 +1352,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  infoTitle: { fontSize: 17, fontFamily: 'Inter-Black', color: '#0F172A' },
-  infoVersion: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B', marginTop: 3, marginBottom: 12 },
-  infoDesc: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#475569', textAlign: 'center', lineHeight: 18, marginBottom: 20 },
+  infoTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  infoVersion: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B', marginTop: 3, marginBottom: 12 },
+  infoDesc: { fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#475569', textAlign: 'center', lineHeight: 18, marginBottom: 20 },
   infoCloseBtn: {
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -1363,5 +1363,5 @@ const s = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
   },
-  infoCloseBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  infoCloseBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 });

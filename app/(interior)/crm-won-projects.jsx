@@ -180,13 +180,13 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
   totalBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A',
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
   },
-  totalBadgeText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#D97706' },
+  totalBadgeText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#D97706' },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 10, paddingHorizontal: 30 },
   emptyIconBox: {
@@ -194,7 +194,7 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFBEB', justifyContent: 'center', alignItems: 'center', marginBottom: 4,
   },
   emptyTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  emptySub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
+  emptySub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
 
   card: {
     backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16,
@@ -212,9 +212,9 @@ const s = StyleSheet.create({
     backgroundColor: '#F8FAFC', alignSelf: 'flex-start',
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginTop: 5,
   },
-  clientChipText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  clientChipText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   statusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, flexShrink: 0 },
-  statusPillText: { fontSize: 9.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
+  statusPillText: { fontSize: 11, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
 
   statsBox: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9',
@@ -222,15 +222,15 @@ const s = StyleSheet.create({
   },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   statsLabel: {
-    fontSize: 10, fontFamily: 'Inter-Bold', color: '#94A3B8',
+    fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#94A3B8',
     textTransform: 'uppercase', letterSpacing: 0.3,
   },
-  statsValue: { fontSize: 13, fontFamily: 'Inter-Black', color: '#0F172A' },
-  statsValueSm: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  statsValue: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  statsValueSm: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
 
   openBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, backgroundColor: '#FFFBEB', paddingVertical: 11, borderRadius: 12,
   },
-  openBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#B45309' },
+  openBtnText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#B45309' },
 });

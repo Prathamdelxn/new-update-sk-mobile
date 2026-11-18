@@ -287,11 +287,10 @@ export default function InteriorMembersScreen() {
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Team & Access Control</Text>
-            <Text style={s.headerSub}>Manage users, roles, and granular permissions.</Text>
           </View>
         </View>
 
@@ -615,29 +614,29 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingTop: 14, gap: 12 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A' },
-  countText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  countText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
 
   memberCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', gap: 10 },
   memberTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' },
-  avatarText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
-  memberName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  memberEmail: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
-  memberDesignation: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  avatarText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  memberName: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  memberEmail: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  memberDesignation: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
 
   memberBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 10 },
   roleBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  roleBadgeText: { fontSize: 10.5, fontFamily: 'Inter-Bold' },
+  roleBadgeText: { fontSize: 12, fontFamily: 'Inter-Bold' },
   permCountBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F8FAFC', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-  permCountText: { fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  permCountText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
 
   memberActionsRow: {
     flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 12,
@@ -648,13 +647,13 @@ const s = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12,
     backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
   },
-  addMemberBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  addMemberBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
   createMemberBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: '#2563EB',
   },
-  createMemberBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
-  memberBtnHint: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 1 },
+  createMemberBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  memberBtnHint: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 1 },
 
   searchRow2: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
@@ -671,12 +670,12 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
-  hintText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginBottom: 4 },
+  hintText: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginBottom: 4 },
 
   chip: {
     paddingHorizontal: 14,
@@ -692,26 +691,26 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   chipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  chipText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B', includeFontPadding: false },
+  chipText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B', includeFontPadding: false },
   chipTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
   roleScroll: { flexGrow: 0, flexShrink: 0, marginVertical: 4 },
   roleScrollContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, paddingRight: 10 },
 
-  roleChangedTag: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#D97706', backgroundColor: '#FFFBEB', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginTop: 6 },
+  roleChangedTag: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#D97706', backgroundColor: '#FFFBEB', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginTop: 6 },
 
   moduleRow: { borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
   moduleHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11 },
-  moduleLabel: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  moduleLabel: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
   moduleCountBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 },
-  moduleCountText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  moduleCountText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
   actionChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingBottom: 12 },
   actionChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
   actionChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  actionChipText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize' },
+  actionChipText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize' },
   actionChipTextActive: { color: '#FFFFFF' },
 
   permFooter: { borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 10 },
-  permFooterText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  permFooterText: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },
   saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },

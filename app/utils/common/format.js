@@ -142,23 +142,40 @@ export function parseMaxBudget(budget) {
     return null;
   }
 
-  const hasCroreOverall = /cr(?:ore)?s?/i.test(str);
-  const hasLakhOverall = /l(?:ac|akh)?s?/i.test(str);
-  const hasKOverall = /\b(?:k|thousand)\b/i.test(str);
+  // Unit words must stand on their own ("4.8M", "15 Lakhs") — the old patterns matched any
+  // letter "l" or "cr", so "QAR 4.2M – 4.8M" was read as 4.8 and "million" as lakh.
+  const unit = (word) => new RegExp(`(?:^|[^a-z])(?:${word})s?(?![a-z])`, 'i');
+  const CRORE = unit('cr|crore');
+  const LAKH = unit('l|lac|lakh');
+  const MILLION = unit('m|mn|mil|million');
+  const BILLION = unit('b|bn|billion');
+  const THOUSAND = unit('k|thousand');
+  const hasCroreOverall = CRORE.test(str);
+  const hasLakhOverall = LAKH.test(str);
+  const hasMillionOverall = MILLION.test(str);
+  const hasBillionOverall = BILLION.test(str);
+  const hasKOverall = THOUSAND.test(str);
 
   const parts = str.split(/[-–—]|(?:\bto\b)/i).map((p) => p.trim()).filter(Boolean);
   const parsedValues = [];
 
   for (const part of parts) {
-    const isCrore = /cr(?:ore)?s?/i.test(part) || (hasCroreOverall && !/l(?:ac|akh)?s?/i.test(part));
-    const isLakh = /l(?:ac|akh)?s?/i.test(part) || (hasLakhOverall && !/cr(?:ore)?s?/i.test(part));
-    const isK = /\b(?:k|thousand)\b/i.test(part) || (hasKOverall && !isCrore && !isLakh);
+    const ownUnit = CRORE.test(part) || LAKH.test(part) || MILLION.test(part) || BILLION.test(part) || THOUSAND.test(part);
+    const isCrore = CRORE.test(part) || (!ownUnit && hasCroreOverall);
+    const isLakh = LAKH.test(part) || (!ownUnit && hasLakhOverall);
+    const isBillion = BILLION.test(part) || (!ownUnit && hasBillionOverall);
+    const isMillion = MILLION.test(part) || (!ownUnit && hasMillionOverall);
+    const isK = THOUSAND.test(part) || (!ownUnit && hasKOverall);
 
     const numMatch = part.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
     if (numMatch) {
       const num = parseFloat(numMatch[1]);
       if (!isNaN(num) && num > 0) {
-        if (isCrore) {
+        if (isBillion) {
+          parsedValues.push(num * 1_000_000_000);
+        } else if (isMillion) {
+          parsedValues.push(num * 1_000_000);
+        } else if (isCrore) {
           parsedValues.push(num * 10_000_000);
         } else if (isLakh) {
           parsedValues.push(num * 100_000);

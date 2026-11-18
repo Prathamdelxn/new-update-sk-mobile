@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { interiorCrmService } from '../../services/interiorCrmService';
+import { useAuth } from '../../context/AuthContext';
+import { getCurrencySymbol } from '../../utils/format';
 
 const INTERIOR_TYPES = ['Residential', 'Commercial', 'Office', 'Restaurant', 'Retail', 'Other'];
 
@@ -42,6 +44,9 @@ export default function LogRequirementsModal({
   // Lead's status: only early-stage leads move to "Under Requirement" (same rule as the web)
   currentStatus,
 }) {
+  // Budget label in the workspace currency (QAR for a Qatar organisation, not ₹)
+  const { user: authUser } = useAuth();
+  const cur = getCurrencySymbol(authUser?.organization?.settings?.currency || 'INR');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [budgetRange, setBudgetRange] = useState('');
@@ -254,7 +259,7 @@ export default function LogRequirementsModal({
               </View>
             )}
             <View style={s.overallBox}>
-              <Text style={s.label}>Overall Budget Range (₹)</Text>
+              <Text style={s.label}>Overall Budget Range ({cur})</Text>
               <TextInput
                 style={s.input}
                 value={budgetRange}
@@ -527,37 +532,37 @@ export default function LogRequirementsModal({
 
 const s = StyleSheet.create({
   prefillBox: { backgroundColor: '#FAF5FF', borderWidth: 1, borderColor: '#DDD6FE', borderRadius: 14, padding: 12, marginBottom: 14, gap: 6 },
-  prefillTitle: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  prefillSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B' },
+  prefillTitle: { flex: 1, fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  prefillSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B' },
   prefillBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: '#7C3AED', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, marginTop: 2 },
-  prefillBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  prefillBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#F8FAFC', borderTopLeftRadius: 20, borderTopRightRadius: 20, height: '90%' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   modalTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  modalSubtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  modalSubtitle: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
   closeBtn: { padding: 4 },
   modalBody: { flex: 1 },
   overallBox: { backgroundColor: '#FFFFFF', padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0' },
-  label: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#475569', marginBottom: 6 },
-  helpText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A', backgroundColor: '#F8FAFC', marginBottom: 12 },
+  label: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#475569', marginBottom: 6 },
+  helpText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginBottom: 8 },
+  input: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: 'Inter-Medium', color: '#0F172A', backgroundColor: '#F8FAFC', marginBottom: 12 },
   roomCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0' },
   roomHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 10 },
   roomTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#1E293B' },
   roomActions: { flexDirection: 'row', alignItems: 'center' },
   typeChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
   typeChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  typeChipText: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' },
+  typeChipText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#64748B' },
   typeChipTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
   subTabs: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 8, padding: 3, marginBottom: 14 },
   subTab: { flex: 1, flexDirection: 'row', paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 6 },
   subTabActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 },
-  subTabText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' },
+  subTabText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B' },
   subTabTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
   tabContent: { paddingTop: 2 },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 14, backgroundColor: '#EEF2FF', borderRadius: 12, borderWidth: 1, borderColor: '#6366F1', borderStyle: 'dashed', gap: 8 },
-  addBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#4F46E5' },
+  addBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#4F46E5' },
   footer: { flexDirection: 'row', padding: 16, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E2E8F0', gap: 12 },
   cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center' },
   cancelBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#475569' },

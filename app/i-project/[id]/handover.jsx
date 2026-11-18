@@ -46,8 +46,8 @@ function HandoverReadyRing({ percentage = 0 }) {
         />
       </Svg>
       <View style={{ position: 'absolute', alignItems: 'center' }}>
-        <Text style={{ fontSize: 26, fontFamily: 'Inter-Black', color: '#0F172A' }}>{clamped}%</Text>
-        <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.5, marginTop: 2 }}>HANDOVER READY</Text>
+        <Text style={{ fontSize: 26, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{clamped}%</Text>
+        <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.5, marginTop: 2 }}>HANDOVER READY</Text>
       </View>
     </View>
   );
@@ -423,11 +423,10 @@ export default function InteriorHandoverScreen() {
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Handover & Closeout Management</Text>
-            <Text style={s.headerSub}>Track warranties, operation manuals, project completion checklist, and client signoffs.</Text>
           </View>
         </View>
 
@@ -673,46 +672,46 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 16 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   actionRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginBottom: 14 },
   outlineBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  outlineBtnText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  outlineBtnText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
   primaryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 12, borderRadius: 10, backgroundColor: '#2563EB' },
-  primaryBtnText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#FFFFFF' },
+  primaryBtnText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#FFFFFF' },
 
   readyCard: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', paddingVertical: 22, alignItems: 'center', marginBottom: 16 },
-  readyMet: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B', marginTop: 12 },
+  readyMet: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B', marginTop: 12 },
 
   card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#E2E8F0' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  cardTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  cardHeaderMeta: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  emptyLine: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingVertical: 22, paddingHorizontal: 8 },
+  cardTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  cardHeaderMeta: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  emptyLine: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingVertical: 22, paddingHorizontal: 8 },
 
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
   checkRowPassed: { borderColor: '#A7F3D0', backgroundColor: '#F7FDFA' },
   checkBox: { width: 16, height: 16, borderRadius: 4, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center' },
   checkBoxPassed: { backgroundColor: '#10B981', borderColor: '#10B981' },
-  checkTitle: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
-  checkSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  checkTitle: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  checkSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
   tag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F1F5F9' },
   tagPassed: { borderColor: '#A7F3D0', backgroundColor: '#ECFDF5' },
-  tagText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#475569' },
+  tagText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#475569' },
   tagTextPassed: { color: '#047857' },
 
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  searchInput: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#0F172A', paddingVertical: 0 },
+  searchInput: { flex: 1, fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#0F172A', paddingVertical: 0 },
   filterChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
   filterChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  filterChipText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  filterChipText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   filterChipTextActive: { color: '#2563EB' },
 
   docRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 11, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0' },
   docIconBox: { width: 32, height: 32, borderRadius: 6, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
-  docName: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
-  docType: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 1 },
+  docName: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  docType: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 1 },
   docBtn: { width: 30, height: 30, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'flex-end' },
@@ -721,39 +720,39 @@ const s = StyleSheet.create({
   modalTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
   modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 18, marginBottom: 8 },
 
-  label: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#334155', marginBottom: 6, marginTop: 12 },
+  label: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#334155', marginBottom: 6, marginTop: 12 },
   input: {
     backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
   catOption: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0' },
   catOptionActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  catOptionText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  catOptionText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   catOptionTextActive: { color: '#2563EB' },
   uploadBox: { height: 90, borderRadius: 10, borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed', backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', gap: 6, paddingHorizontal: 16 },
-  uploadBoxText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#334155', maxWidth: '100%' },
+  uploadBoxText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', maxWidth: '100%' },
   cancelBtn: { height: 38, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center' },
-  cancelBtnText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  cancelBtnText: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#334155' },
   saveBtn: { height: 38, paddingHorizontal: 16, borderRadius: 10, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', gap: 6 },
-  saveBtnText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#FFFFFF' },
+  saveBtnText: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#FFFFFF' },
 
   certOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'center', padding: 16 },
   certCard: { backgroundColor: '#FFFFFF', borderRadius: 14, overflow: 'hidden', maxHeight: '90%' },
   certHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#F8FAFC' },
-  certHeaderTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1, marginRight: 8 },
+  certHeaderTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1, marginRight: 8 },
   outlineBtnSm: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 30, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  outlineBtnSmText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  outlineBtnSmText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#334155' },
   certTitleBlock: { alignItems: 'center', gap: 4, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  certTitle: { fontSize: 15, fontFamily: 'Inter-Black', color: '#0F172A', textAlign: 'center' },
-  certSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center' },
+  certTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' },
+  certSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center' },
   certMeta: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 8, padding: 12, borderRadius: 8, backgroundColor: '#F8FAFC' },
-  certMetaItem: { width: '50%', fontSize: 11.5, fontFamily: 'Inter-Regular' },
-  certSection: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155' },
+  certMetaItem: { width: '50%', fontSize: 13, fontFamily: 'Inter-Regular' },
+  certSection: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155' },
   certTable: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8 },
   certRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 10 },
-  certRowText: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#0F172A', flexShrink: 1 },
-  certRowSub: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#475569', textAlign: 'right', maxWidth: '45%' },
+  certRowText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flexShrink: 1 },
+  certRowSub: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#475569', textAlign: 'right', maxWidth: '45%' },
   certSign: { flexDirection: 'row', gap: 24, paddingTop: 22, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
   certSignLine: { alignSelf: 'stretch', height: 32, borderBottomWidth: 1, borderBottomColor: '#94A3B8', borderStyle: 'dashed' },
-  certSignText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  certSignText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
 });

@@ -559,7 +559,6 @@ const { can: canDo } = useProjectPermissions(projectId);
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle} numberOfLines={1}>Drawings & Blueprints</Text>
-            <Text style={s.headerSub}>Manage 2D Working Plans and 3D Models.</Text>
           </View>
         </View>
 
@@ -688,91 +687,47 @@ const { can: canDo } = useProjectPermissions(projectId);
                 const isExpanded = expandedDwgId === dwg._id;
                 const isImage = detectDrawingFileType(dwg.title, currentRev.url) === 'image';
 
+                const facts = [
+                  dwg.drawingNumber,
+                  dwg.discipline,
+                  currentRev.revision || 'R0',
+                  currentRev.createdAt ? new Date(currentRev.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null,
+                  isImage ? null : fileBadge.label,
+                ].filter(Boolean).join('  ·  ');
+
+                // Title + status first, one line of facts, then only the action this stage needs
                 return (
                   <View key={dwg._id} style={s.dwgCard}>
-                    {/* Image thumbnail (same as the web card) */}
                     {isImage && !!currentRev.url && (
                       <TouchableOpacity activeOpacity={0.85} onPress={() => handleOpenOrPreview(currentRev.url, dwg.title)}>
                         <RemoteThumb uri={currentRev.url} style={s.dwgThumb} height={150} />
                       </TouchableOpacity>
                     )}
-                    {/* Top Row: DWG Number, File Type Badge, Status */}
+
                     <View style={s.dwgTopRow}>
-                      <View style={s.dwgNumBadge}>
-                        <Text style={s.dwgNumber}>{dwg.drawingNumber || 'DWG-XXXX'}</Text>
-                      </View>
-
-                      {/* File format badge */}
-                      <View style={[s.fileTypeBadge, { backgroundColor: fileBadge.bg }]}>
-                        <Ionicons name={fileBadge.icon} size={11} color={fileBadge.color} />
-                        <Text style={[s.fileTypeBadgeText, { color: fileBadge.color }]}>{fileBadge.label}</Text>
-                      </View>
-
-                      {/* Discipline */}
-                      <View style={s.disciplineTag}>
-                        <Text style={s.disciplineTagText}>{dwg.discipline || 'General'}</Text>
-                      </View>
-
-                      {/* Status */}
+                      <Text style={s.dwgTitle} numberOfLines={2}>{dwg.title}</Text>
                       <View style={[s.statusBadge, { backgroundColor: meta.bg }]}>
                         <Text style={[s.statusBadgeText, { color: meta.color }]}>{meta.label}</Text>
                       </View>
                     </View>
+                    <Text style={s.dwgFacts} numberOfLines={2}>{facts}</Text>
 
-                    {/* Title */}
-                    <Text style={s.dwgTitle}>{dwg.title}</Text>
-
-                    {!!dwg.assignedReviewerName && (
-                      <View style={s.reviewerChip}>
-                        <Ionicons name="person-circle-outline" size={12} color="#B45309" />
-                        <Text style={s.reviewerChipText} numberOfLines={1}>Reviewer: {dwg.assignedReviewerName}</Text>
-                      </View>
+                    {awaitingDecision && !!dwg.assignedReviewerName && (
+                      <Text style={s.reviewerLine} numberOfLines={1}>Waiting for {dwg.assignedReviewerName}</Text>
                     )}
                     {dwg.status === 'rejected' && !!dwg.rejectionReason && (
                       <View style={s.rejectionBox}>
-                        <Text style={s.rejectionText} numberOfLines={2}>Changes: {dwg.rejectionReason}</Text>
+                        <Text style={s.rejectionText} numberOfLines={3}>Changes: {dwg.rejectionReason}</Text>
                       </View>
                     )}
 
-                    {/* Latest Revision Details */}
-                    <View style={s.latestRevRow}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="git-branch-outline" size={13} color="#2563EB" />
-                        <Text style={s.latestRevText}>
-                          Current: <Text style={{ fontFamily: 'Inter-Bold' }}>{currentRev.revision || 'R0'}</Text>
-                        </Text>
-                      </View>
-                      {currentRev.createdAt && (
-                        <Text style={s.revDate}>
-                          {new Date(currentRev.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </Text>
-                      )}
-                    </View>
-
-                    {!!currentRev.changes && (
-                      <View style={s.changesBox}>
-                        <Text style={s.changesLabel}>Notes:</Text>
-                        <Text style={s.dwgChanges} numberOfLines={2}>{currentRev.changes}</Text>
-                      </View>
-                    )}
-
-                    {/* Expandable Revisions Accordion */}
+                    {/* Version history (notes per revision live here) */}
                     {revisions.length > 1 && (
-                      <TouchableOpacity
-                        style={s.historyToggleBtn}
-                        onPress={() => setExpandedDwgId(isExpanded ? null : dwg._id)}
-                      >
-                        <Ionicons
-                          name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                          size={14}
-                          color="#2563EB"
-                        />
-                        <Text style={s.historyToggleText}>
-                          {isExpanded ? 'Hide' : 'View'} Version History ({revisions.length} revisions)
-                        </Text>
+                      <TouchableOpacity style={s.historyToggleBtn} onPress={() => setExpandedDwgId(isExpanded ? null : dwg._id)}>
+                        <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color="#2563EB" />
+                        <Text style={s.historyToggleText}>{isExpanded ? 'Hide' : 'Show'} {revisions.length} revisions</Text>
                       </TouchableOpacity>
                     )}
-
                     {isExpanded && (
                       <View style={s.historyContainer}>
                         {revisions.slice().reverse().map((rev, idx) => (
@@ -789,11 +744,8 @@ const { can: canDo } = useProjectPermissions(projectId);
                               </View>
                               {!!rev.changes && <Text style={s.historyChanges}>{rev.changes}</Text>}
                               {rev.url && (
-                                <TouchableOpacity
-                                  style={s.historyDownloadLink}
-                                  onPress={() => handleOpenOrPreview(rev.url, dwg.title)}
-                                >
-                                  <Ionicons name="open-outline" size={11} color="#2563EB" />
+                                <TouchableOpacity style={s.historyDownloadLink} onPress={() => handleOpenOrPreview(rev.url, dwg.title)}>
+                                  <Ionicons name="open-outline" size={13} color="#2563EB" />
                                   <Text style={s.historyDownloadText}>Open File</Text>
                                 </TouchableOpacity>
                               )}
@@ -803,58 +755,43 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </View>
                     )}
 
-                    {/* Approval flow */}
-                    {canSend && (
-                      <TouchableOpacity style={s.sendApprovalBtn} onPress={() => setSendTarget(dwg)}>
-                        <Ionicons name="paper-plane-outline" size={13} color="#FFFFFF" />
-                        <Text style={s.sendApprovalText}>Send for Approval</Text>
-                      </TouchableOpacity>
-                    )}
-                    {awaitingDecision && canDo('drawings', 'approve') && (
-                      <View style={s.decisionRow}>
-                        <TouchableOpacity style={[s.decisionBtn, s.approveBtn]} onPress={() => openDecision(dwg, 'approve')}>
-                          <Ionicons name="checkmark-circle-outline" size={14} color="#FFFFFF" />
-                          <Text style={[s.decisionText, { color: '#FFFFFF' }]}>Approve</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[s.decisionBtn, s.rejectBtn]} onPress={() => openDecision(dwg, 'reject')}>
-                          <Ionicons name="close-circle-outline" size={14} color="#B91C1C" />
-                          <Text style={[s.decisionText, { color: '#B91C1C' }]}>Reject</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                    {dwg.status === 'rejected' && canDo('drawings', 'update') && (
-                      <TouchableOpacity style={[s.sendApprovalBtn, { backgroundColor: '#0F172A' }]} onPress={() => openRevModal(dwg)}>
-                        <Ionicons name="cloud-upload-outline" size={13} color="#FFFFFF" />
-                        <Text style={s.sendApprovalText}>Upload Revision</Text>
-                      </TouchableOpacity>
-                    )}
-
-                    {/* Actions Row */}
                     <View style={s.actionsRow}>
-                      <TouchableOpacity
-                        style={[s.actionBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
-                        onPress={() => handleOpenOrPreview(currentRev.url, dwg.title)}
-                      >
-                        <Ionicons name={isImage ? 'eye-outline' : 'open-outline'} size={13} color="#2563EB" />
-                        <Text style={[s.actionBtnText, { color: '#2563EB' }]}>{isImage ? 'Preview' : 'Open'}</Text>
-                      </TouchableOpacity>
-
-                      {dwg.status !== 'rejected' && canDo('drawings', 'update') && (
-                        <TouchableOpacity
-                          style={s.actionBtn}
-                          onPress={() => openRevModal(dwg)}
-                        >
-                          <Ionicons name="cloud-upload-outline" size={13} color="#475569" />
-                          <Text style={s.actionBtnText}>+ Revision</Text>
+                      {canSend && (
+                        <TouchableOpacity style={[s.primaryActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setSendTarget(dwg)}>
+                          <Ionicons name="paper-plane-outline" size={16} color="#FFFFFF" />
+                          <Text style={s.primaryActionText}>Send for Approval</Text>
                         </TouchableOpacity>
                       )}
-
+                      {awaitingDecision && canDo('drawings', 'approve') && (
+                        <>
+                          <TouchableOpacity style={[s.primaryActionBtn, s.approveBtn]} onPress={() => openDecision(dwg, 'approve')}>
+                            <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
+                            <Text style={s.primaryActionText}>Approve</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={[s.primaryActionBtn, s.rejectBtn]} onPress={() => openDecision(dwg, 'reject')}>
+                            <Ionicons name="close-circle-outline" size={16} color="#B91C1C" />
+                            <Text style={[s.primaryActionText, { color: '#B91C1C' }]}>Reject</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                      {dwg.status === 'rejected' && canDo('drawings', 'update') && (
+                        <TouchableOpacity style={[s.primaryActionBtn, { backgroundColor: '#0F172A' }]} onPress={() => openRevModal(dwg)}>
+                          <Ionicons name="cloud-upload-outline" size={16} color="#FFFFFF" />
+                          <Text style={s.primaryActionText}>Upload Revision</Text>
+                        </TouchableOpacity>
+                      )}
+                      <View style={{ flex: 1 }} />
+                      <TouchableOpacity style={s.iconActionBtn} onPress={() => handleOpenOrPreview(currentRev.url, dwg.title)} accessibilityLabel={isImage ? 'Preview' : 'Open'}>
+                        <Ionicons name={isImage ? 'eye-outline' : 'open-outline'} size={18} color="#2563EB" />
+                      </TouchableOpacity>
+                      {dwg.status !== 'rejected' && canDo('drawings', 'update') && (
+                        <TouchableOpacity style={s.iconActionBtn} onPress={() => openRevModal(dwg)} accessibilityLabel="Upload revision">
+                          <Ionicons name="cloud-upload-outline" size={18} color="#475569" />
+                        </TouchableOpacity>
+                      )}
                       {canDo('drawings', 'delete') && (
-                        <TouchableOpacity
-                          style={[s.actionBtn, { borderColor: '#F1F5F9' }]}
-                          onPress={() => handleDeleteDrawing(dwg)}
-                        >
-                          <Ionicons name="trash-outline" size={14} color="#94A3B8" />
+                        <TouchableOpacity style={s.iconActionBtn} onPress={() => handleDeleteDrawing(dwg)} accessibilityLabel="Delete">
+                          <Ionicons name="trash-outline" size={18} color="#DC2626" />
                         </TouchableOpacity>
                       )}
                     </View>
@@ -1195,8 +1132,8 @@ const s = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#F8FAFC',
   },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   categorySegmentRow: {
     flexShrink: 0,
@@ -1228,7 +1165,7 @@ const s = StyleSheet.create({
     borderColor: '#2563EB',
   },
   categoryTabText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
     flexShrink: 1,
@@ -1254,7 +1191,7 @@ const s = StyleSheet.create({
     borderColor: '#2563EB',
   },
   categoryTabCountText: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Bold',
     color: '#64748B',
   },
@@ -1280,7 +1217,7 @@ const s = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Regular',
     color: '#0F172A',
   },
@@ -1312,7 +1249,7 @@ const s = StyleSheet.create({
     borderColor: '#2563EB',
   },
   filterChipText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
   },
@@ -1323,122 +1260,67 @@ const s = StyleSheet.create({
 
   empty: { alignItems: 'center', paddingVertical: 50, gap: 8 },
   emptyTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#475569' },
-  emptySub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingHorizontal: 30 },
+  emptySub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingHorizontal: 30 },
 
   dwgCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    gap: 8,
-  },
-  dwgTopRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  dwgNumBadge: {
-    backgroundColor: '#F8FAFC',
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
+    gap: 8,
   },
-  dwgNumber: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#475569' },
+  dwgTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  dwgFacts: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B' },
+  reviewerLine: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#B45309' },
+  primaryActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, paddingHorizontal: 14, borderRadius: 10 },
+  primaryActionText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  iconActionBtn: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
 
-  fileTypeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  fileTypeBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
   dwgThumb: { width: '100%', height: 150, borderRadius: 10, backgroundColor: '#E2E8F0', marginBottom: 10 },
   approvalThumb: { width: 52, height: 52, borderRadius: 10, backgroundColor: '#E2E8F0', overflow: 'hidden' },
 
-  disciplineTag: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  disciplineTagText: { fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#475569' },
 
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
-    marginLeft: 'auto',
   },
-  statusBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
+  statusBadgeText: { fontSize: 12.5, fontFamily: 'Inter-Bold' },
 
-  dwgTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
+  dwgTitle: { flex: 1, fontSize: 16, lineHeight: 21, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
-  reviewerChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', maxWidth: '100%',
-    backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3,
-  },
-  reviewerChipText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#B45309', flexShrink: 1 },
   rejectionBox: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FEE2E2', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
-  rejectionText: { fontSize: 10.5, fontFamily: 'Inter-Medium', fontStyle: 'italic', color: '#DC2626' },
+  rejectionText: { fontSize: 12, fontFamily: 'Inter-Medium', fontStyle: 'italic', color: '#DC2626' },
 
-  sendApprovalBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    height: 36, borderRadius: 10, backgroundColor: '#2563EB', marginTop: 2,
-  },
-  sendApprovalText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
-  decisionRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
-  decisionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 36, borderRadius: 10 },
   approveBtn: { backgroundColor: '#059669' },
   rejectBtn: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
-  decisionText: { fontSize: 12, fontFamily: 'Inter-Bold' },
 
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 6 },
-  charCount: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#94A3B8' },
-  optionalText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  fieldError: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#F43F5E', marginTop: 4 },
+  charCount: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#94A3B8' },
+  optionalText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  fieldError: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#F43F5E', marginTop: 4 },
   fileCountBadge: {
-    fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#2563EB', backgroundColor: '#EFF6FF',
+    fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#2563EB', backgroundColor: '#EFF6FF',
     borderWidth: 1, borderColor: '#DBEAFE', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, overflow: 'hidden',
   },
   createTypeCard: { justifyContent: 'flex-start', paddingHorizontal: 10, alignItems: 'flex-start' },
-  createTypeHint: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  createTypeHint: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
   uploadItemThumb: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
-  uploadItemTitle: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  uploadItemTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
   addMoreBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end',
     backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
-  addMoreText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#1D4ED8' },
+  addMoreText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#1D4ED8' },
   uploadItem: {
     flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10,
     borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC',
   },
   uploadItemIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  uploadItemInput: {
-    fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', backgroundColor: '#FFFFFF',
-    borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
-  },
-  uploadItemName: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 3 },
-  uploadItemError: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#DC2626', marginTop: 3 },
+  uploadItemName: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 3 },
 
-  latestRevRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  latestRevText: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#475569' },
-  revDate: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
-  changesBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    padding: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#CBD5E1',
-  },
-  changesLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase' },
-  dwgChanges: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#475569', marginTop: 2 },
 
   historyToggleBtn: {
     flexDirection: 'row',
@@ -1446,7 +1328,7 @@ const s = StyleSheet.create({
     gap: 5,
     paddingVertical: 4,
   },
-  historyToggleText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#2563EB' },
+  historyToggleText: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#2563EB' },
 
   historyContainer: {
     backgroundColor: '#F8FAFC',
@@ -1470,34 +1352,22 @@ const s = StyleSheet.create({
     backgroundColor: '#2563EB',
     marginTop: 5,
   },
-  historyRevName: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  historyDate: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  historyChanges: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  historyRevName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  historyDate: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  historyChanges: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
   historyDownloadLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  historyDownloadText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  historyDownloadText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   actionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
     marginTop: 4,
     borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
-    paddingTop: 10,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 12,
     alignItems: 'center',
   },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
-  },
-  actionBtnText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#334155' },
 
   fab: {
     position: 'absolute',
@@ -1530,9 +1400,9 @@ const s = StyleSheet.create({
   },
   modalCloseBtn: { padding: 4 },
   modalTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  modalSubtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  modalSubtitle: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
@@ -1540,7 +1410,7 @@ const s = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Regular',
     color: '#0F172A',
   },
@@ -1570,20 +1440,9 @@ const s = StyleSheet.create({
     backgroundColor: '#F5F3FF',
     borderColor: '#7C3AED',
   },
-  createTypeOptionText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  createTypeOptionText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   createTypeOptionTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
-  disciplineChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-  },
-  disciplineChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  disciplineChipText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  disciplineChipTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   uploadBox: {
     height: 95,
@@ -1597,8 +1456,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: '#F8FAFC',
   },
-  uploadBoxText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#2563EB', maxWidth: '100%' },
-  uploadBoxSub: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  uploadBoxText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#2563EB', maxWidth: '100%' },
+  uploadBoxSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   saveBtn: {
     height: 48,
@@ -1635,5 +1494,5 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
   },
-  lightboxOpenExternalText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  lightboxOpenExternalText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 });

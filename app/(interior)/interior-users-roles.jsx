@@ -224,7 +224,7 @@ export default function InteriorUsersRolesScreen() {
 
         {activeTab === null ? (
           <View style={s.center}>
-            <Text style={{ fontSize: 13, color: '#64748B', fontFamily: 'Inter-Regular' }}>You don&apos;t have permission to view users or roles.</Text>
+            <Text style={{ fontSize: 14, color: '#64748B', fontFamily: 'Inter-Regular' }}>You don&apos;t have permission to view users or roles.</Text>
           </View>
         ) : activeTab === 'users' && loading ? (
           <View style={s.center}>
@@ -423,7 +423,7 @@ export default function InteriorUsersRolesScreen() {
 
 const s = StyleSheet.create({
   userActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#FFFFFF' },
-  userActionText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#2563EB' },
+  userActionText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#2563EB' },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -431,77 +431,77 @@ const s = StyleSheet.create({
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
   addBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' },
 
   tabRow: { flexDirection: 'row', gap: 8, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 8, borderRadius: 10, backgroundColor: '#F8FAFC' },
   tabBtnActive: { backgroundColor: '#2563EB' },
-  tabBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#64748B' },
+  tabBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#64748B' },
   tabBtnTextActive: { color: '#FFFFFF' },
 
   summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   summaryCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9', alignItems: 'center' },
-  summaryValue: { fontSize: 18, fontFamily: 'Inter-Black', color: '#0F172A' },
-  summaryLabel: { fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#94A3B8', marginTop: 3, textAlign: 'center' },
+  summaryValue: { fontSize: 18, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  summaryLabel: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#94A3B8', marginTop: 3, textAlign: 'center' },
 
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 12, paddingVertical: 9 },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A' },
 
   filterChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   filterChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  filterChipText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  filterChipText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   filterChipTextActive: { color: '#FFFFFF' },
 
   empty: { alignItems: 'center', paddingVertical: 50, gap: 8 },
-  emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' },
 
   userCard: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden' },
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   userAvatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#7C3AED', justifyContent: 'center', alignItems: 'center' },
-  userAvatarText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
-  userName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  userEmail: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  userAvatarText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  userName: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  userEmail: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
   roleBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999 },
-  roleBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
+  roleBadgeText: { fontSize: 11, fontFamily: 'Inter-Bold' },
   projCountBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#F8FAFC', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 8 },
-  projCountText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#64748B' },
+  projCountText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#64748B' },
 
   assignmentsBox: { borderTopWidth: 1, borderTopColor: '#F8FAFC', padding: 12, gap: 8 },
-  noAssignments: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', paddingVertical: 8 },
+  noAssignments: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', paddingVertical: 8 },
   assignmentRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F8FAFC', borderRadius: 10, padding: 10 },
-  assignmentProject: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  assignmentRole: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  assignmentProject: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  assignmentRole: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
   assignmentStatusBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 },
-  assignmentStatusText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#2563EB', textTransform: 'capitalize' },
+  assignmentStatusText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB', textTransform: 'capitalize' },
 
   infoBanner: { flexDirection: 'row', gap: 10, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 14, padding: 12, marginBottom: 14 },
-  infoBannerText: { flex: 1, fontSize: 11, fontFamily: 'Inter-Regular', color: '#334155', lineHeight: 16 },
+  infoBannerText: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#334155', lineHeight: 16 },
 
   roleCard: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden', marginBottom: 10 },
   roleCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   roleIconBox: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
-  roleCardTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  roleCardDesc: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
-  roleModuleCount: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginRight: 2 },
+  roleCardTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  roleCardDesc: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  roleModuleCount: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginRight: 2 },
 
   matrixBox: { borderTopWidth: 1, borderTopColor: '#F8FAFC', padding: 12, gap: 10 },
   matrixRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  matrixModuleText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#334155', flexShrink: 1 },
+  matrixModuleText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#334155', flexShrink: 1 },
   actionPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
-  actionPillText: { fontSize: 9, fontFamily: 'Inter-Bold' },
-  noAccessText: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#CBD5E1', fontStyle: 'italic' },
+  actionPillText: { fontSize: 10.5, fontFamily: 'Inter-Bold' },
+  noAccessText: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#CBD5E1', fontStyle: 'italic' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, maxHeight: '88%' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
-  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A' },
   pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   pill: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   pillActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  pillText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  pillText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   pillTextActive: { color: '#FFFFFF' },
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },
   saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },

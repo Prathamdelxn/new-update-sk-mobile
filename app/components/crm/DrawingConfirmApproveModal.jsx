@@ -128,7 +128,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   subText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#64748B',
     textAlign: 'center',
@@ -146,12 +146,12 @@ const s = StyleSheet.create({
     gap: 10,
   },
   infoTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
   infoMeta: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
     marginTop: 2,
@@ -165,7 +165,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   noticeText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Regular',
     color: '#065F46',
     flex: 1,
@@ -187,7 +187,7 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   cancelBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
   },
@@ -202,7 +202,7 @@ const s = StyleSheet.create({
     gap: 6,
   },
   confirmBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
   },

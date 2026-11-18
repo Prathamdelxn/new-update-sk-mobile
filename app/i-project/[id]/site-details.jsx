@@ -27,6 +27,7 @@ import cloudinaryService from '../../services/cloudinaryService';
 import { interiorCrmService } from '../../services/interiorCrmService';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 import { WEB_APP_URL } from '../../config';
+import { formatCompactCurrency } from '../../utils/common/format';
 import CrmShareModal from '../../components/crm/CrmShareModal';
 import SendRequirementsEmailModal from '../../components/crm/SendRequirementsEmailModal';
 import LogRequirementsModal from '../../components/crm/LogRequirementsModal';
@@ -373,34 +374,31 @@ export default function InteriorSiteDetailsScreen() {
   const showPhotos = activeTab === 'all' || activeTab === 'photos';
 
   const TABS = [
-    { id: 'requirements', label: 'Design Requirements', icon: 'clipboard-outline', color: '#059669', badge: `${requirements.length} Spaces` },
-    {
-      id: 'measurements', label: 'Site Visit & Measurements', icon: 'resize-outline', color: '#7C3AED',
-      badge: hasMeasurements ? (siteMeasurements?.carpetArea ? `${siteMeasurements.carpetArea} sqft` : 'Active') : null,
-    },
-    { id: 'photos', label: 'Site Photos', icon: 'camera-outline', color: '#2563EB', badge: String(sitePhotos.length) },
-    { id: 'all', label: 'View All', icon: 'layers-outline', color: '#0F172A', badge: null },
+    { id: 'requirements', label: 'Requirements', icon: 'clipboard-outline', color: '#059669', badge: requirements.length ? String(requirements.length) : null },
+    { id: 'measurements', label: 'Measurements', icon: 'resize-outline', color: '#7C3AED', badge: null },
+    { id: 'photos', label: 'Photos', icon: 'camera-outline', color: '#2563EB', badge: sitePhotos.length ? String(sitePhotos.length) : null },
+    { id: 'all', label: 'All', icon: 'layers-outline', color: '#0F172A', badge: null },
   ];
 
   const intakeStatus = customer?.clientRequirementsSubmittedAt
-    ? { label: 'Client Wishlist Received', color: '#047857', bg: '#ECFDF5', border: '#A7F3D0', icon: 'checkmark-circle' }
+    ? { label: 'Received', color: '#047857', bg: '#ECFDF5', border: '#A7F3D0', icon: 'checkmark-circle' }
     : isLinkActive
-      ? { label: 'Awaiting Client Input', color: '#B45309', bg: '#FFFBEB', border: '#FDE68A', dot: true }
+      ? { label: 'Waiting for client', color: '#B45309', bg: '#FFFBEB', border: '#FDE68A', dot: true }
       : isLinkStopped
-        ? { label: 'Link Stopped', color: '#BE123C', bg: '#FFF1F2', border: '#FECDD3', icon: 'power' }
+        ? { label: 'Stopped', color: '#BE123C', bg: '#FFF1F2', border: '#FECDD3', icon: 'power' }
         : isLinkExpired
-          ? { label: 'Link Expired', color: '#B45309', bg: '#FFFBEB', border: '#FDE68A', icon: 'time-outline' }
-          : { label: 'Not Active', color: '#475569', bg: '#F1F5F9', border: '#E2E8F0' };
+          ? { label: 'Expired', color: '#B45309', bg: '#FFFBEB', border: '#FDE68A', icon: 'time-outline' }
+          : { label: 'Not shared', color: '#475569', bg: '#F1F5F9', border: '#E2E8F0' };
 
   const intakeDescription = customer?.clientRequirementsSubmittedAt
-    ? `Client submitted wishlist on ${new Date(customer.clientRequirementsSubmittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+    ? `Client sent their wishlist on ${new Date(customer.clientRequirementsSubmittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
     : isLinkStopped
-      ? 'This questionnaire link has been stopped. Reactivate it to allow the client to access and fill the form.'
+      ? 'The link is stopped. Reactivate it so the client can fill the form.'
       : isLinkExpired
-        ? 'This questionnaire link has expired. Reactivate it to set a new expiry window.'
+        ? 'The link has expired. Reactivate it to share again.'
         : isLinkActive
-          ? 'Clients can open this link on mobile or desktop to choose styles, upload inspiration images, and specify room requirements.'
-          : 'Generate an interactive intake form so the client can submit their preferences online.';
+          ? 'The client can pick styles, add inspiration images and list room needs.'
+          : 'Send the client a form to fill in their preferences.';
 
   return (
     <View style={s.outerContainer}>
@@ -419,7 +417,6 @@ export default function InteriorSiteDetailsScreen() {
                 </View>
               )}
             </View>
-            <Text style={s.headerSub}>Requirements, site measurements & photo records</Text>
           </View>
         </View>
 
@@ -457,105 +454,86 @@ export default function InteriorSiteDetailsScreen() {
           </View>
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-            {/* ── TAB 1: CLIENT DESIGN REQUIREMENTS ── */}
+            {/* ── REQUIREMENTS ── */}
             {showRequirements && (
-              <View style={s.card}>
-                <View style={s.cardHeaderCol}>
-                  <View style={s.rowCenter}>
-                    <Ionicons name="clipboard-outline" size={16} color="#059669" />
-                    <Text style={s.cardTitle}>Client Design Requirements & Specifications</Text>
-                  </View>
-                  <Text style={s.cardSub}>Functional and aesthetic specifications captured for room execution.</Text>
-                  <View style={s.actionWrap}>
-                    <Text style={[s.pill, s.pillGreen]}>{requirements.length} Spaces to Execute</Text>
-                    {isLinkActive ? (
-                      <TouchableOpacity style={[s.pillBtn, s.pillIndigo]} onPress={handleCopyLink} disabled={isGeneratingLink}>
-                        <Ionicons name={copiedLink ? 'checkmark' : 'share-social-outline'} size={11} color={copiedLink ? '#10B981' : '#4F46E5'} />
-                        <Text style={[s.pillBtnText, { color: '#4F46E5' }]}>{copiedLink ? 'Copied' : 'Share Intake Link'}</Text>
-                      </TouchableOpacity>
-                    ) : (isLinkStopped || isLinkExpired) ? (
-                      <TouchableOpacity style={[s.pillBtn, s.pillAmber]} onPress={() => handleReactivateLink(168)} disabled={isUpdatingExpiry}>
-                        <Ionicons name="refresh" size={11} color="#B45309" />
-                        <Text style={[s.pillBtnText, { color: '#B45309' }]}>Reactivate Link</Text>
-                      </TouchableOpacity>
-                    ) : null}
+              <>
+                <View style={s.card}>
+                  <View style={s.sectionHead}>
+                    <Text style={s.cardTitle}>Requirements</Text>
                     {canEditReq && (
                       <TouchableOpacity style={[s.pillBtn, s.pillGreenBtn]} onPress={() => setShowReqModal(true)}>
-                        <Ionicons name="pencil" size={11} color="#059669" />
-                        <Text style={[s.pillBtnText, { color: '#059669' }]}>{hasRequirements ? 'Edit Requirements' : '+ Add Requirements'}</Text>
+                        <Ionicons name={hasRequirements ? 'pencil' : 'add'} size={13} color="#059669" />
+                        <Text style={[s.pillBtnText, { color: '#059669' }]}>{hasRequirements ? 'Edit' : 'Add'}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
+                  <Rows
+                    groups={[{ rows: [
+                      ['Spaces', hasRequirements ? `${requirements.length} ${requirements.length === 1 ? 'space' : 'spaces'}` : ''],
+                      ['Budget', customer?.budgetRange || (projectInfo?.budget?.amount ? formatCompactCurrency(Number(projectInfo.budget.amount), projectInfo.budget.currency || 'INR') : '')],
+                      ['Interior type', requirements[0]?.interiorType || customer?.propertyType || projectInfo?.type],
+                      ['Style', requirements.find((r) => r.designStyle)?.designStyle || requirements[0]?.theme],
+                    ] }]}
+                  />
                 </View>
 
-                {/* Shareable link & client intake status card */}
-                <View style={s.intakeCard}>
-                  <View style={s.rowTop}>
-                    <View style={s.intakeIcon}>
-                      <Ionicons name="share-social-outline" size={16} color="#4F46E5" />
-                    </View>
-                    <View style={{ flex: 1, gap: 5 }}>
-                      <Text style={s.intakeTitle}>Shareable Client Intake & Questionnaire Link</Text>
-                      <View style={s.actionWrap}>
-                        <View style={[s.statusPill, { backgroundColor: intakeStatus.bg, borderColor: intakeStatus.border }]}>
-                          {intakeStatus.dot ? <View style={s.statusDot} /> : intakeStatus.icon ? <Ionicons name={intakeStatus.icon} size={10} color={intakeStatus.color} /> : null}
-                          <Text style={[s.statusPillText, { color: intakeStatus.color }]}>{intakeStatus.label}</Text>
-                        </View>
-                        {isLinkActive && (
-                          <View style={[s.statusPill, currentExpiry.isWarning ? { backgroundColor: '#FFF1F2', borderColor: '#FECDD3' } : { backgroundColor: '#F0FDFA', borderColor: '#99F6E4' }]}>
-                            <Ionicons name="time-outline" size={10} color={currentExpiry.isWarning ? '#BE123C' : '#0F766E'} />
-                            <Text style={[s.statusPillText, { color: currentExpiry.isWarning ? '#BE123C' : '#0F766E' }]}>{currentExpiry.label}</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={s.intakeDesc}>{intakeDescription}</Text>
+                {/* Client intake link */}
+                <View style={s.card}>
+                  <View style={s.sectionHead}>
+                    <Text style={s.cardTitle}>Client intake link</Text>
+                    <View style={[s.statusPill, { backgroundColor: intakeStatus.bg, borderColor: intakeStatus.border }]}>
+                      {intakeStatus.dot ? <View style={s.statusDot} /> : intakeStatus.icon ? <Ionicons name={intakeStatus.icon} size={12} color={intakeStatus.color} /> : null}
+                      <Text style={[s.statusPillText, { color: intakeStatus.color }]}>{intakeStatus.label}</Text>
                     </View>
                   </View>
+                  <Text style={s.intakeDesc}>
+                    {intakeDescription}
+                    {isLinkActive ? `  ·  ${currentExpiry.label}` : ''}
+                  </Text>
 
                   <View style={s.actionWrap}>
                     {isLinkActive ? (
                       <>
                         <TouchableOpacity style={[s.linkBtn, s.linkBtnMuted]} onPress={handleCopyLink} disabled={isGeneratingLink}>
-                          <Ionicons name={copiedLink ? 'checkmark' : 'copy-outline'} size={12} color={copiedLink ? '#10B981' : '#0F172A'} />
-                          <Text style={s.linkBtnTextDark}>{copiedLink ? 'Copied' : 'Copy Link'}</Text>
+                          <Ionicons name={copiedLink ? 'checkmark' : 'copy-outline'} size={14} color={copiedLink ? '#10B981' : '#0F172A'} />
+                          <Text style={s.linkBtnTextDark}>{copiedLink ? 'Copied' : 'Copy'}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={[s.linkBtn, { backgroundColor: '#059669' }]} onPress={handleShareWhatsApp} disabled={isGeneratingLink}>
-                          <Ionicons name="logo-whatsapp" size={12} color="#FFFFFF" />
+                          <Ionicons name="logo-whatsapp" size={14} color="#FFFFFF" />
                           <Text style={s.linkBtnText}>WhatsApp</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={[s.linkBtn, { backgroundColor: '#2563EB' }]} onPress={() => setShowEmailModal(true)}>
-                          <Ionicons name="mail-outline" size={12} color="#FFFFFF" />
+                          <Ionicons name="mail-outline" size={14} color="#FFFFFF" />
                           <Text style={s.linkBtnText}>Email</Text>
                         </TouchableOpacity>
                         {!!clientFormUrl && (
-                          <TouchableOpacity style={[s.linkBtn, s.linkBtnMuted]} onPress={() => Linking.openURL(clientFormUrl)}>
-                            <Ionicons name="open-outline" size={12} color="#64748B" />
+                          <TouchableOpacity style={[s.iconBtn, s.linkBtnMuted]} onPress={() => Linking.openURL(clientFormUrl)}>
+                            <Ionicons name="open-outline" size={16} color="#64748B" />
                           </TouchableOpacity>
                         )}
-                        <TouchableOpacity style={[s.linkBtn, s.linkBtnRose]} onPress={handleStopLink} disabled={isStoppingLink}>
-                          <Ionicons name="power" size={11} color="#E11D48" />
-                          <Text style={[s.linkBtnText, { color: '#E11D48' }]}>Stop</Text>
+                        <TouchableOpacity style={[s.iconBtn, s.linkBtnRose]} onPress={handleStopLink} disabled={isStoppingLink}>
+                          <Ionicons name="power" size={16} color="#E11D48" />
                         </TouchableOpacity>
                       </>
                     ) : (isLinkStopped || isLinkExpired) ? (
                       <TouchableOpacity style={[s.linkBtn, s.linkBtnGreen]} onPress={() => handleReactivateLink(168)} disabled={isUpdatingExpiry}>
-                        <Ionicons name="refresh" size={12} color="#059669" />
-                        <Text style={[s.linkBtnText, { color: '#059669' }]}>Reactivate Link</Text>
+                        <Ionicons name="refresh" size={14} color="#059669" />
+                        <Text style={[s.linkBtnText, { color: '#059669' }]}>Reactivate link</Text>
                       </TouchableOpacity>
                     ) : (
                       <TouchableOpacity style={[s.linkBtn, { backgroundColor: '#4F46E5' }]} onPress={handleCopyLink} disabled={isGeneratingLink}>
-                        {isGeneratingLink ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="share-social-outline" size={12} color="#FFFFFF" />}
-                        <Text style={s.linkBtnText}>Generate Link</Text>
+                        {isGeneratingLink ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="share-social-outline" size={14} color="#FFFFFF" />}
+                        <Text style={s.linkBtnText}>Generate link</Text>
                       </TouchableOpacity>
                     )}
-                    <TouchableOpacity style={[s.linkBtn, s.linkBtnMuted]} onPress={() => setShowShareModal(true)}>
-                      <Ionicons name="settings-outline" size={13} color="#64748B" />
+                    <TouchableOpacity style={[s.iconBtn, s.linkBtnMuted]} onPress={() => setShowShareModal(true)}>
+                      <Ionicons name="settings-outline" size={16} color="#64748B" />
                     </TouchableOpacity>
                   </View>
 
                   {isLinkActive && (
                     <View style={s.expiryRow}>
-                      <Ionicons name="time-outline" size={12} color="#F59E0B" />
+                      <Text style={s.expiryLabel}>Expires in</Text>
                       {EXPIRY_CHOICES.map((c) => {
                         const active = currentExpiryChoice === c.hours;
                         return (
@@ -575,182 +553,104 @@ export default function InteriorSiteDetailsScreen() {
 
                   {!!customer?.clientRequirementsNotes && (
                     <Text style={s.clientNote}>
-                      <Text style={{ fontFamily: 'Inter-SemiBold', fontStyle: 'normal', color: '#059669' }}>Client Note: </Text>
+                      <Text style={{ fontFamily: 'Inter-SemiBold', fontStyle: 'normal', color: '#059669' }}>Client note: </Text>
                       "{customer.clientRequirementsNotes}"
                     </Text>
                   )}
                 </View>
 
-                {/* Budget & overview highlights */}
-                <View style={{ gap: 8 }}>
-                  {[
-                    { label: 'Estimated Budget', icon: 'cash-outline', color: '#D97706', bg: '#FEF3C7',
-                      value: customer?.budgetRange || (projectInfo?.budget?.amount ? `₹${Number(projectInfo.budget.amount).toLocaleString()}` : 'Not recorded') },
-                    { label: 'Interior Type', icon: 'layers-outline', color: '#2563EB', bg: '#DBEAFE',
-                      value: requirements[0]?.interiorType || customer?.propertyType || projectInfo?.type || 'Residential' },
-                    { label: 'Primary Theme', icon: 'color-palette-outline', color: '#7C3AED', bg: '#F5F3FF',
-                      value: requirements.find((r) => r.designStyle)?.designStyle || requirements[0]?.theme || 'Custom Spec' },
-                  ].map((h) => (
-                    <View key={h.label} style={s.highlightTile}>
-                      <View style={[s.highlightIcon, { backgroundColor: h.bg }]}>
-                        <Ionicons name={h.icon} size={16} color={h.color} />
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={s.highlightLabel}>{h.label}</Text>
-                        <Text style={s.highlightValue} numberOfLines={1}>{h.value}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-
+                {/* One card per room */}
                 {hasRequirements ? (
-                  <View style={{ gap: 12 }}>
-                    {requirements.map((req, idx) => {
-                      const functional = FUNCTIONAL_ROWS.filter(([, k]) => !!req[k]);
-                      const aesthetic = [
-                        ...((req.designStyle || req.theme) ? [['Style', null, null, null, req.designStyle || req.theme]] : []),
-                        ...AESTHETIC_ROWS.filter(([, k]) => !!req[k]),
-                      ];
-                      return (
-                        <View key={idx} style={s.reqCard}>
-                          <View style={s.reqHead}>
-                            <View style={s.rowCenter}>
-                              <Text style={s.reqIndex}>{idx + 1}</Text>
-                              <Text style={s.reqRoom} numberOfLines={1}>{req.roomName || 'General Space'}</Text>
-                            </View>
-                            <View style={s.actionWrap}>
-                              {(req.source === 'client' || isClientSubmittedOnly) && (
-                                <Text style={[s.tag, s.tagGreen]}>✦ Client Wishlist</Text>
-                              )}
-                              {!!req.interiorType && <Text style={[s.tag, s.tagMuted]}>{req.interiorType}</Text>}
-                              {!!(req.designStyle || req.theme) && <Text style={[s.tag, s.tagGreen]}>{req.designStyle || req.theme}</Text>}
-                            </View>
-                          </View>
-
-                          <View style={s.specBox}>
-                            <Text style={[s.specTitle, { color: '#059669' }]}>Functional Requirements</Text>
-                            {functional.length ? functional.map(([label, key, icon, color]) => (
-                              <View key={key} style={s.specRow}>
-                                <Text style={[s.specLabel, color && { color }]}>
-                                  {icon ? <Ionicons name={icon} size={10} color={color} /> : null}{icon ? ' ' : ''}{label}
-                                </Text>
-                                <Text style={s.specValue}>{req[key]}</Text>
-                              </View>
-                            )) : <Text style={s.specEmpty}>No functional requirements recorded.</Text>}
-                          </View>
-
-                          <View style={s.specBox}>
-                            <Text style={[s.specTitle, { color: '#7C3AED' }]}>Aesthetic Requirements</Text>
-                            {aesthetic.length ? aesthetic.map(([label, key, , , direct]) => (
-                              <View key={label} style={s.specRow}>
-                                <Text style={s.specLabel}>{label}</Text>
-                                <Text style={s.specValue}>{direct || req[key]}</Text>
-                              </View>
-                            )) : <Text style={s.specEmpty}>No aesthetic requirements recorded.</Text>}
-                          </View>
-
-                          {!!req.description && (
-                            <View style={s.specBox}>
-                              <Text style={[s.specTitle, { color: '#059669' }]}>✦ Specific Notes</Text>
-                              <Text style={s.specValue}>{req.description}</Text>
-                            </View>
-                          )}
+                  requirements.map((req, idx) => (
+                    <View key={idx} style={s.card}>
+                      <View style={s.sectionHead}>
+                        <View style={[s.rowCenter, { flex: 1 }]}>
+                          <Text style={s.reqIndex}>{idx + 1}</Text>
+                          <Text style={s.cardTitle} numberOfLines={1}>{req.roomName || 'General space'}</Text>
                         </View>
-                      );
-                    })}
-                  </View>
-                ) : (
-                  <View style={s.emptyBox}>
-                    <View style={[s.emptyIcon, { backgroundColor: '#ECFDF5' }]}>
-                      <Ionicons name="clipboard-outline" size={22} color="#059669" />
+                        {(req.source === 'client' || isClientSubmittedOnly) && <Text style={[s.tag, s.tagGreen]}>Client wishlist</Text>}
+                      </View>
+                      <Rows
+                        groups={[
+                          { rows: [['Type', req.interiorType], ['Style', req.designStyle || req.theme]] },
+                          { title: 'Functional', rows: FUNCTIONAL_ROWS.map(([label, key]) => [label, req[key]]) },
+                          { title: 'Finishes', rows: AESTHETIC_ROWS.map(([label, key]) => [label, req[key]]) },
+                          { title: 'Notes', rows: [['', req.description]] },
+                        ]}
+                        empty="No details recorded for this space."
+                      />
                     </View>
-                    <Text style={s.emptyTitle}>No Requirements Logged</Text>
-                    <Text style={s.emptySub}>Configure room-by-room functional and aesthetic specifications for this project.</Text>
+                  ))
+                ) : (
+                  <View style={[s.card, s.emptyBox]}>
+                    <Ionicons name="clipboard-outline" size={28} color="#059669" />
+                    <Text style={s.emptyTitle}>No requirements yet</Text>
+                    <Text style={s.emptySub}>Add room-by-room requirements, or share the intake link with the client.</Text>
                     {canEditReq && (
                       <TouchableOpacity style={[s.solidBtn, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
-                        <Ionicons name="add" size={13} color="#FFFFFF" />
-                        <Text style={s.solidBtnText}>Add Room Requirements</Text>
+                        <Ionicons name="add" size={15} color="#FFFFFF" />
+                        <Text style={s.solidBtnText}>Add requirements</Text>
                       </TouchableOpacity>
                     )}
                   </View>
                 )}
-              </View>
+              </>
             )}
 
-            {/* ── TAB 2: SITE VISIT & MEASUREMENTS ── */}
+            {/* ── MEASUREMENTS ── */}
             {showMeasurements && (
-              <View style={{ gap: 12 }}>
+              <View style={s.card}>
                 <View style={s.sectionHead}>
-                  <View style={[s.rowCenter, { flex: 1 }]}>
-                    <Ionicons name="resize-outline" size={16} color="#7C3AED" />
-                    <Text style={s.cardTitle}>Site Visit & Spatial Measurements</Text>
-                  </View>
+                  <Text style={s.cardTitle}>Site measurements</Text>
                   {canEditSiteVisit && (
                     <TouchableOpacity style={[s.pillBtn, s.pillPurple]} onPress={() => setShowSiteVisitModal(true)}>
-                      <Ionicons name="pencil" size={11} color="#7C3AED" />
-                      <Text style={[s.pillBtnText, { color: '#7C3AED' }]}>{hasMeasurements ? 'Edit Measurements' : '+ Log Measurements'}</Text>
+                      <Ionicons name={hasMeasurements ? 'pencil' : 'add'} size={13} color="#7C3AED" />
+                      <Text style={[s.pillBtnText, { color: '#7C3AED' }]}>{hasMeasurements ? 'Edit' : 'Log'}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
-
-                {!!(customer?.remarks || siteMeasurements?.notes || customer?.siteVisitScheduledDate) && (
-                  <View style={s.briefingBox}>
-                    <View style={[s.rowCenter, { justifyContent: 'space-between', flexWrap: 'wrap' }]}>
-                      <View style={s.rowCenter}>
-                        <Ionicons name="document-text-outline" size={13} color="#7C3AED" />
-                        <Text style={s.briefingLabel}>Site Visit Briefing & Notes</Text>
-                      </View>
-                      {!!customer?.siteVisitScheduledDate && (
-                        <Text style={s.briefingDate}>
-                          Scheduled: {new Date(customer.siteVisitScheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </Text>
-                      )}
-                    </View>
-                    {!!(customer?.remarks || siteMeasurements?.notes) && (
-                      <Text style={s.briefingText}>{customer?.remarks || siteMeasurements?.notes}</Text>
-                    )}
-                  </View>
+                {!!customer?.siteVisitScheduledDate && (
+                  <Text style={s.intakeDesc}>
+                    Site visit {new Date(customer.siteVisitScheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
                 )}
-
-                {hasMeasurements ? (
-                  <>
-                    <MeasureCard title="Room & Spatial Dimensions" icon="expand-outline" color="#7C3AED" tag="Spatial">
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <Tile label="Carpet Area" value={siteMeasurements.carpetArea || '—'} unit="Sq.Ft" big />
-                        <Tile label="Ceiling Height" value={siteMeasurements.ceilingHeight || '—'} unit="Ft" big />
-                      </View>
-                      <Tile label="Room Dimensions (L × W)" value={siteMeasurements.roomDimensions || 'Not recorded'} />
-                      <Tile label="Floor-to-Ceiling Height" value={siteMeasurements.floorToCeilingHeight || 'Not recorded'} />
-                      <Tile label="Rooms to Design" value={siteMeasurements.rooms || 'Not specified'} />
-                    </MeasureCard>
-                    <MeasureCard title="Openings & Structural Specs" icon="scan-outline" color="#2563EB" tag="Structure">
-                      <Tile label="Door Dimensions" value={siteMeasurements.doorDimensions || 'Not recorded'} />
-                      <Tile label="Window Dimensions" value={siteMeasurements.windowDimensions || 'Not recorded'} />
-                      <Tile label="Wall Thickness" value={siteMeasurements.wallThickness || 'Not recorded'} />
-                      <Tile label="Column / Beam Dimensions" value={siteMeasurements.columnBeamDimensions || 'Not recorded'} />
-                    </MeasureCard>
-                    <MeasureCard title="MEP & Utility Services" icon="flash-outline" color="#F59E0B" tag="MEP">
-                      <Tile label="Existing Electrical Points" labelColor="#F59E0B" value={siteMeasurements.electricalPoints || 'No electrical notes recorded'} />
-                      <Tile label="Plumbing Points" labelColor="#0891B2" value={siteMeasurements.plumbingPoints || 'No plumbing points recorded'} />
-                      <Tile label="AC Locations & Piping" labelColor="#059669" value={siteMeasurements.acLocations || 'No AC locations recorded'} />
-                    </MeasureCard>
-                    <MeasureCard title="Furniture & Site Constraints" icon="bed-outline" color="#059669" tag="Conditions">
-                      <Tile label="Existing Furniture Dimensions" labelColor="#059669" value={siteMeasurements.furnitureDimensions || 'No furniture dimensions recorded'} />
-                      <Tile label="Site Constraints & Limitations" labelColor="#F43F5E" bg="#FFF1F2" value={siteMeasurements.siteConstraints || 'None reported'} />
-                      <Tile label="Additional Site Notes" labelColor="#7C3AED" bg="#FAF5FF" value={siteMeasurements.notes || 'No notes added'} />
-                    </MeasureCard>
-                  </>
+                {hasMeasurements || customer?.remarks ? (
+                  <Rows
+                    groups={[
+                      { title: 'Space', rows: [
+                        ['Carpet area', siteMeasurements?.carpetArea ? `${siteMeasurements.carpetArea} sq ft` : ''],
+                        ['Ceiling height', siteMeasurements?.ceilingHeight ? `${siteMeasurements.ceilingHeight} ft` : ''],
+                        ['Floor to ceiling', siteMeasurements?.floorToCeilingHeight],
+                        ['Room size (L × W)', siteMeasurements?.roomDimensions],
+                        ['Rooms to design', siteMeasurements?.rooms],
+                      ] },
+                      { title: 'Openings & structure', rows: [
+                        ['Doors', siteMeasurements?.doorDimensions],
+                        ['Windows', siteMeasurements?.windowDimensions],
+                        ['Wall thickness', siteMeasurements?.wallThickness],
+                        ['Columns / beams', siteMeasurements?.columnBeamDimensions],
+                      ] },
+                      { title: 'Services', rows: [
+                        ['Electrical', siteMeasurements?.electricalPoints],
+                        ['Plumbing', siteMeasurements?.plumbingPoints],
+                        ['AC', siteMeasurements?.acLocations],
+                      ] },
+                      { title: 'Furniture & site', rows: [
+                        ['Existing furniture', siteMeasurements?.furnitureDimensions],
+                        ['Constraints', siteMeasurements?.siteConstraints, true],
+                        ['Notes', siteMeasurements?.notes || customer?.remarks],
+                      ] },
+                    ]}
+                  />
                 ) : (
-                  <View style={[s.emptyBox, s.card]}>
-                    <View style={[s.emptyIcon, { backgroundColor: '#F5F3FF' }]}>
-                      <Ionicons name="resize-outline" size={22} color="#7C3AED" />
-                    </View>
-                    <Text style={s.emptyTitle}>No Spatial Measurements Recorded</Text>
-                    <Text style={s.emptySub}>Log carpet area, ceiling heights, door/window openings, and MEP utilities.</Text>
+                  <View style={s.emptyBox}>
+                    <Ionicons name="resize-outline" size={28} color="#7C3AED" />
+                    <Text style={s.emptyTitle}>No measurements yet</Text>
+                    <Text style={s.emptySub}>Log carpet area, ceiling height, openings and services.</Text>
                     {canEditSiteVisit && (
                       <TouchableOpacity style={[s.solidBtn, { backgroundColor: '#7C3AED' }]} onPress={() => setShowSiteVisitModal(true)}>
-                        <Ionicons name="add" size={13} color="#FFFFFF" />
-                        <Text style={s.solidBtnText}>Log Measurements Now</Text>
+                        <Ionicons name="add" size={15} color="#FFFFFF" />
+                        <Text style={s.solidBtnText}>Log measurements</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -758,31 +658,18 @@ export default function InteriorSiteDetailsScreen() {
               </View>
             )}
 
-            {/* ── TAB 3: SITE PHOTOS ── */}
+            {/* ── PHOTOS ── */}
             {showPhotos && (
               <View style={s.card}>
-                <View style={[s.sectionHead, { paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }]}>
-                  <View style={[s.rowCenter, { flex: 1, flexWrap: 'wrap' }]}>
-                    <Ionicons name="image-outline" size={16} color="#3B82F6" />
-                    <Text style={s.photosTitle}>Site Photos & Visual Records</Text>
-                    <Text style={[s.pill, s.pillBlueText]}>{sitePhotos.length} Photos</Text>
-                  </View>
-                </View>
-                <View style={s.actionWrap}>
+                <View style={s.sectionHead}>
+                  <Text style={s.cardTitle}>Site photos ({sitePhotos.length})</Text>
                   {canEditPhotos && (
                     <TouchableOpacity style={[s.pillBtn, s.pillBlue]} onPress={handleDirectPhotoUpload} disabled={uploadingPhotos}>
-                      {uploadingPhotos ? <ActivityIndicator size="small" color="#2563EB" /> : <Ionicons name="cloud-upload-outline" size={12} color="#2563EB" />}
-                      <Text style={[s.pillBtnText, { color: '#2563EB' }]}>{uploadingPhotos ? 'Uploading...' : 'Upload Photos'}</Text>
-                    </TouchableOpacity>
-                  )}
-                  {canEditSiteVisit && (
-                    <TouchableOpacity style={[s.pillBtn, s.pillMuted]} onPress={() => setShowSiteVisitModal(true)}>
-                      <Ionicons name="pencil" size={11} color="#64748B" />
-                      <Text style={[s.pillBtnText, { color: '#64748B' }]}>Manage in Visit</Text>
+                      {uploadingPhotos ? <ActivityIndicator size="small" color="#2563EB" /> : <Ionicons name="cloud-upload-outline" size={14} color="#2563EB" />}
+                      <Text style={[s.pillBtnText, { color: '#2563EB' }]}>{uploadingPhotos ? 'Uploading…' : 'Upload'}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
-
                 {hasPhotos ? (
                   <View style={s.photoGrid}>
                     {sitePhotos.map((url, idx) => (
@@ -793,15 +680,9 @@ export default function InteriorSiteDetailsScreen() {
                   </View>
                 ) : (
                   <View style={s.emptyBox}>
-                    <Ionicons name="image-outline" size={32} color="#94A3B8" />
-                    <Text style={s.emptyTitle}>No Site Photos Uploaded</Text>
-                    <Text style={s.emptySub}>Upload site inspection photos & progress views.</Text>
-                    {canEditPhotos && (
-                      <TouchableOpacity style={[s.solidBtn, { backgroundColor: '#2563EB' }]} onPress={handleDirectPhotoUpload} disabled={uploadingPhotos}>
-                        {uploadingPhotos ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="add" size={12} color="#FFFFFF" />}
-                        <Text style={s.solidBtnText}>{uploadingPhotos ? 'Uploading...' : 'Upload Site Photos'}</Text>
-                      </TouchableOpacity>
-                    )}
+                    <Ionicons name="image-outline" size={28} color="#94A3B8" />
+                    <Text style={s.emptyTitle}>No site photos yet</Text>
+                    <Text style={s.emptySub}>Upload site inspection and progress photos.</Text>
                   </View>
                 )}
               </View>
@@ -855,29 +736,25 @@ export default function InteriorSiteDetailsScreen() {
   );
 }
 
-function MeasureCard({ title, icon, color, tag, children }) {
+// Label → value rows grouped under small headings; empty values are skipped (no "Not recorded" filler)
+function Rows({ groups, empty = 'Nothing recorded yet.' }) {
+  const shown = groups
+    .map((g) => ({ ...g, rows: g.rows.filter(([, v]) => v != null && String(v).trim() !== '') }))
+    .filter((g) => g.rows.length > 0);
+  if (shown.length === 0) return <Text style={s.emptyInline}>{empty}</Text>;
   return (
-    <View style={s.card}>
-      <View style={[s.sectionHead, { paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }]}>
-        <View style={[s.rowCenter, { flex: 1 }]}>
-          <Ionicons name={icon} size={15} color={color} />
-          <Text style={s.measureTitle}>{title}</Text>
+    <View style={{ gap: 14 }}>
+      {shown.map((g, gi) => (
+        <View key={g.title || gi}>
+          {!!g.title && <Text style={s.groupTitle}>{g.title}</Text>}
+          {g.rows.map(([label, value, warn], ri) => (
+            <View key={label || ri} style={[s.kvRow, ri === g.rows.length - 1 && { borderBottomWidth: 0 }]}>
+              {!!label && <Text style={s.kvLabel}>{label}</Text>}
+              <Text style={[s.kvValue, !label && { textAlign: 'left' }, warn && { color: '#B91C1C' }]}>{String(value)}</Text>
+            </View>
+          ))}
         </View>
-        <Text style={[s.tag, { color, backgroundColor: `${color}1A`, borderColor: `${color}33` }]}>{tag}</Text>
-      </View>
-      <View style={{ gap: 8 }}>{children}</View>
-    </View>
-  );
-}
-
-function Tile({ label, value, unit, big, labelColor, bg }) {
-  return (
-    <View style={[s.tile, big && { flex: 1 }, bg && { backgroundColor: bg }]}>
-      <Text style={[s.tileLabel, labelColor && { color: labelColor }]}>{label}</Text>
-      <Text style={big ? s.tileValueBig : s.tileValue}>
-        {value}
-        {unit ? <Text style={s.tileUnit}> {unit}</Text> : null}
-      </Text>
+      ))}
     </View>
   );
 }
@@ -888,100 +765,69 @@ const s = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30, gap: 6 },
   scroll: { paddingHorizontal: 16, paddingTop: 12, gap: 14 },
   rowCenter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rowTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
 
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   backBtn: { padding: 6, borderRadius: 8, backgroundColor: '#F8FAFC' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
   leadBadge: { backgroundColor: '#F5F3FF', borderWidth: 1, borderColor: '#DDD6FE', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  leadBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#7C3AED' },
+  leadBadgeText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#7C3AED' },
 
   tabBarWrap: { backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   tabBar: { flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingVertical: 8 },
   tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: '#F8FAFC' },
-  tabText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  tabBadge: { fontSize: 10, fontFamily: 'Inter-SemiBold', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, overflow: 'hidden' },
+  tabText: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  tabBadge: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, overflow: 'hidden' },
   tabBadgeActive: { color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.2)' },
 
   card: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, padding: 14, gap: 12 },
-  cardHeaderCol: { gap: 6, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  cardTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A', flexShrink: 1 },
-  cardSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B' },
+  cardTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', flexShrink: 1 },
+  groupTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#7C3AED', marginBottom: 2 },
+  kvRow: { flexDirection: 'row', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  kvLabel: { width: '38%', fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#64748B' },
+  kvValue: { flex: 1, fontSize: 14, lineHeight: 20, fontFamily: 'Inter-SemiBold', color: '#0F172A', textAlign: 'right' },
+  emptyInline: { fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  iconBtn: { width: 36, height: 36, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  expiryLabel: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginRight: 2 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   actionWrap: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
 
-  pill: { fontSize: 11, fontFamily: 'Inter-SemiBold', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 6, borderWidth: 1, overflow: 'hidden' },
-  pillGreen: { color: '#059669', backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
-  pillBlueText: { color: '#2563EB', backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' },
-  pillBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
-  pillBtnText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold' },
-  pillIndigo: { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' },
-  pillAmber: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
+  pillBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, height: 34, borderRadius: 9, borderWidth: 1 },
+  pillBtnText: { fontSize: 13.5, fontFamily: 'Inter-SemiBold' },
   pillGreenBtn: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
   pillPurple: { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' },
   pillBlue: { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' },
-  pillMuted: { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' },
 
-  intakeCard: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, gap: 10, backgroundColor: '#FFFFFF' },
-  intakeIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE', alignItems: 'center', justifyContent: 'center' },
-  intakeTitle: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  intakeDesc: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 15 },
-  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, borderWidth: 1 },
-  statusPillText: { fontSize: 10, fontFamily: 'Inter-Bold' },
+  intakeDesc: { fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 19 },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
+  statusPillText: { fontSize: 12.5, fontFamily: 'Inter-Bold' },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#F59E0B' },
-  linkBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8 },
-  linkBtnText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#FFFFFF' },
-  linkBtnTextDark: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  linkBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 36, borderRadius: 9 },
+  linkBtnText: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#FFFFFF' },
+  linkBtnTextDark: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
   linkBtnMuted: { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
   linkBtnRose: { backgroundColor: '#FFF1F2', borderWidth: 1, borderColor: '#FECDD3' },
   linkBtnGreen: { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' },
-  expiryRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 6 },
+  expiryRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   expiryChip: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 6, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
   expiryChipActive: { backgroundColor: '#0F172A', borderColor: '#0F172A' },
-  expiryChipText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  expiryChipText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#334155' },
   expiryChipTextActive: { color: '#FFFFFF' },
-  clientNote: { fontSize: 12, fontFamily: 'Inter-Regular', fontStyle: 'italic', color: '#0F172A', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
+  clientNote: { fontSize: 13, fontFamily: 'Inter-Regular', fontStyle: 'italic', color: '#0F172A', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
 
-  highlightTile: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 10 },
-  highlightIcon: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  highlightLabel: { fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.4 },
-  highlightValue: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
 
-  reqCard: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, gap: 10 },
-  reqHead: { gap: 6, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  reqIndex: { width: 22, height: 22, borderRadius: 6, backgroundColor: '#059669', color: '#FFFFFF', fontSize: 11, fontFamily: 'Inter-Bold', textAlign: 'center', lineHeight: 22, overflow: 'hidden' },
-  reqRoom: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', flexShrink: 1 },
-  tag: { fontSize: 9.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase', letterSpacing: 0.4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, borderWidth: 1, overflow: 'hidden' },
+  reqIndex: { width: 22, height: 22, borderRadius: 6, backgroundColor: '#059669', color: '#FFFFFF', fontSize: 12.5, fontFamily: 'Inter-Bold', textAlign: 'center', lineHeight: 22, overflow: 'hidden' },
+  tag: { fontSize: 12, fontFamily: 'Inter-Bold', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, overflow: 'hidden' },
   tagGreen: { color: '#059669', backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
-  tagMuted: { color: '#64748B', backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' },
-  specBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, padding: 10, gap: 6 },
-  specTitle: { fontSize: 10, fontFamily: 'Inter-Bold', textTransform: 'uppercase', letterSpacing: 0.4, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  specRow: { gap: 2 },
-  specLabel: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.3 },
-  specValue: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#0F172A', lineHeight: 17 },
-  specEmpty: { fontSize: 11, fontFamily: 'Inter-Regular', fontStyle: 'italic', color: '#94A3B8', paddingVertical: 4 },
 
-  emptyBox: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16, gap: 6, borderWidth: 1, borderStyle: 'dashed', borderColor: '#E2E8F0', borderRadius: 12, backgroundColor: '#FBFCFE' },
-  emptyIcon: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  emptyTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' },
-  emptySub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center' },
+  emptyBox: { alignItems: 'center', paddingVertical: 20, paddingHorizontal: 16, gap: 6 },
+  emptyTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' },
+  emptySub: { fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center' },
   solidBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 9, marginTop: 6 },
-  solidBtnText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#FFFFFF' },
+  solidBtnText: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#FFFFFF' },
 
-  briefingBox: { backgroundColor: '#FAF5FF', borderWidth: 1, borderColor: '#EDE9FE', borderRadius: 12, padding: 12, gap: 8 },
-  briefingLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#6D28D9', textTransform: 'uppercase', letterSpacing: 0.4 },
-  briefingDate: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#6D28D9', backgroundColor: '#F5F3FF', borderWidth: 1, borderColor: '#DDD6FE', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, overflow: 'hidden' },
-  briefingText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#0F172A', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EDE9FE', borderRadius: 8, padding: 10, lineHeight: 17 },
 
-  measureTitle: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#0F172A', textTransform: 'uppercase', letterSpacing: 0.4, flexShrink: 1 },
-  tile: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, padding: 10 },
-  tileLabel: { fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 3 },
-  tileValue: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#0F172A', lineHeight: 17 },
-  tileValueBig: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  tileUnit: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#64748B' },
 
-  photosTitle: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#0F172A', textTransform: 'uppercase', letterSpacing: 0.4 },
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   photoThumb: { width: '31.5%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F1F5F9' },
   photoImg: { width: '100%', height: '100%' },

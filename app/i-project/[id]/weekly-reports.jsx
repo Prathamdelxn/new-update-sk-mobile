@@ -67,7 +67,7 @@ function ReportStats({ report }) {
       </View>
       <View style={[s.statTile, { backgroundColor: '#EFF6FF' }]}>
         <Text style={[s.statNum, { color: '#2563EB' }]}>{report.nextWeekPlan?.length || 0}</Text>
-        <Text style={s.statLbl}>Next Wk</Text>
+        <Text style={s.statLbl}>Next week</Text>
       </View>
     </View>
   );
@@ -306,11 +306,10 @@ const { can: canDo } = useProjectPermissions(projectId);
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Weekly Progress Reports</Text>
-            <Text style={s.headerSub}>Auto-compiled summaries, delays, risks & plans.</Text>
           </View>
         </View>
 
@@ -502,52 +501,52 @@ const { can: canDo } = useProjectPermissions(projectId);
 }
 
 const s = StyleSheet.create({
-  viewFullText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB', textAlign: 'right' },
+  viewFullText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#2563EB', textAlign: 'right' },
   detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   detailTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  detailSub: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
+  detailSub: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
   detailClose: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
   detailFooter: { flexDirection: 'row', gap: 8, alignItems: 'center', padding: 12, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E2E8F0' },
   scopeBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, padding: 12, gap: 8, marginBottom: 14 },
-  scopeTitle: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#0F172A', letterSpacing: 0.5 },
-  scopeSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 17 },
+  scopeTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A', letterSpacing: 0.5 },
+  scopeSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 17 },
   scopeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   scopeCard: { flexBasis: '47%', flexGrow: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 8, alignItems: 'center' },
-  scopeCardLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', letterSpacing: 0.4 },
-  scopeCardValue: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
+  scopeCardLabel: { fontSize: 11, fontFamily: 'Inter-Bold', letterSpacing: 0.4 },
+  scopeCardValue: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingHorizontal: 20, paddingTop: 16, gap: 12 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8, paddingHorizontal: 30 },
-  emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  emptySub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  emptySub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
 
   reportCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9' },
   reportHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 10, marginBottom: 10 },
-  reportHeaderText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  reportHeaderText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
   reportActionsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' },
   actionBtnPrimary: { backgroundColor: '#2563EB', borderColor: '#2563EB', flex: 1, justifyContent: 'center' },
-  actionBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#334155' },
+  actionBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#334155' },
   actionBtnDanger: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, borderWidth: 1, borderColor: '#FECACA', justifyContent: 'center', alignItems: 'center' },
 
-  statRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  statTile: { flex: 1, borderRadius: 10, paddingVertical: 8, alignItems: 'center' },
-  statNum: { fontSize: 15, fontFamily: 'Inter-Black' },
-  statLbl: { fontSize: 8.5, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase', marginTop: 1 },
+  statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  statTile: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
+  statNum: { fontSize: 16, fontFamily: 'Inter-Bold' },
+  statLbl: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#475569' },
 
-  sectionTitle: { fontSize: 9.5, fontFamily: 'Inter-Bold', letterSpacing: 0.3 },
-  emptyLine: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  sectionTitle: { fontSize: 11, fontFamily: 'Inter-Bold', letterSpacing: 0.3 },
+  emptyLine: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
   bulletRow: { flexDirection: 'row', gap: 5, marginBottom: 2 },
-  bulletDot: { fontSize: 12, color: '#94A3B8' },
-  bulletText: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#334155', flex: 1 },
+  bulletDot: { fontSize: 13, color: '#94A3B8' },
+  bulletText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#334155', flex: 1 },
 
   fab: {
     position: 'absolute', right: 20, bottom: 30,
@@ -563,20 +562,20 @@ const s = StyleSheet.create({
 
   presetRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   presetChip: { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', alignItems: 'center' },
-  presetChipText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  presetChipText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
 
   rescanBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 12, marginBottom: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#BFDBFE' },
-  rescanBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  rescanBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   addItemBtn: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   editableRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 6 },
-  editableRowText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', flex: 1 },
+  editableRowText: { fontSize: 13, fontFamily: 'Inter-SemiBold', flex: 1 },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },
   saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },

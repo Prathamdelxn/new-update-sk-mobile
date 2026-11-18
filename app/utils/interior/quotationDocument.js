@@ -99,7 +99,7 @@ export const buildQuotationHtml = (targetLead, quote) => {
   .badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
   .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; padding: 2px 10px; border-radius: 999px; background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; font-family: ui-monospace, Menlo, monospace; }
   .qtn { font-size: 11px; font-family: ui-monospace, Menlo, monospace; font-weight: 700; color: #94a3b8; }
-  h1 { font-size: 24px; font-weight: 900; color: #0f172a; letter-spacing: -.02em; line-height: 1.3; overflow-wrap: anywhere; word-break: break-all; }
+  h1 { font-size: 24px; font-weight: 900; color: #0f172a; letter-spacing: -.02em; line-height: 1.3; overflow-wrap: anywhere; word-break: normal; }
   .option { font-size: 12px; font-weight: 600; color: #64748b; margin-top: 4px; }
   .company { text-align: right; flex-shrink: 0; }
   .brand { display: flex; align-items: center; gap: 10px; justify-content: flex-end; margin-bottom: 6px; }
@@ -111,9 +111,9 @@ export const buildQuotationHtml = (targetLead, quote) => {
   .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; min-width: 0; }
   .card-label { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
-  .client { font-size: 16px; font-weight: 800; color: #0f172a; line-height: 1.25; overflow-wrap: anywhere; word-break: break-all; }
+  .client { font-size: 16px; font-weight: 800; color: #0f172a; line-height: 1.25; overflow-wrap: anywhere; word-break: normal; }
   .contact { margin-top: 10px; font-size: 12px; color: #475569; }
-  .contact p { display: flex; align-items: center; gap: 8px; margin-top: 4px; overflow-wrap: anywhere; word-break: break-all; }
+  .contact p { display: flex; align-items: center; gap: 8px; margin-top: 4px; overflow-wrap: anywhere; word-break: normal; }
   .details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px; }
   .details small { display: block; font-size: 11px; color: #94a3b8; font-weight: 500; }
   .details b { font-weight: 700; color: #1e293b; }
@@ -133,8 +133,8 @@ export const buildQuotationHtml = (targetLead, quote) => {
   td { padding: 14px 12px; font-size: 14px; vertical-align: top; overflow: hidden; }
   .c { text-align: center; } .r { text-align: right; }
   .num { color: #94a3b8; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
-  .item-title { font-weight: 600; color: #1e293b; line-height: 1.35; overflow-wrap: anywhere; word-break: break-all; }
-  .item-notes { font-size: 11px; color: #64748b; margin-top: 4px; white-space: pre-wrap; line-height: 1.6; overflow-wrap: anywhere; word-break: break-all; }
+  .item-title { font-weight: 600; color: #1e293b; line-height: 1.35; overflow-wrap: anywhere; word-break: normal; }
+  .item-notes { font-size: 11px; color: #64748b; margin-top: 4px; white-space: pre-wrap; line-height: 1.6; overflow-wrap: anywhere; word-break: normal; }
   .cat { margin-top: 6px; }
   .cat span { display: inline-block; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
   .qty { font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
@@ -157,7 +157,7 @@ export const buildQuotationHtml = (targetLead, quote) => {
 
   .notes { background: rgba(245,158,11,.04); border: 1px solid rgba(245,158,11,.2); border-radius: 16px; padding: 20px; }
   .notes .title { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #451a03; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
-  .notes .text { font-size: 12px; color: #334155; white-space: pre-wrap; line-height: 1.6; overflow-wrap: anywhere; word-break: break-all; }
+  .notes .text { font-size: 12px; color: #334155; white-space: pre-wrap; line-height: 1.6; overflow-wrap: anywhere; word-break: normal; }
 
   /* Phone width — same as the web below its "sm" breakpoint (640px) */
   @media (max-width: 639px) {
@@ -172,8 +172,12 @@ export const buildQuotationHtml = (targetLead, quote) => {
     .brand h2 { font-size: 16px; }
     .cards { grid-template-columns: 1fr; }
     .card { padding: 16px; }
-    col.c1 { width: 8%; } col.c2 { width: 46%; }
-    td { font-size: 12px; }
+    /* Keep the columns readable and let the table scroll sideways (was squeezed to the screen width,
+       which cut off the rate / total figures) */
+    .table-wrap { -webkit-overflow-scrolling: touch; }
+    table { min-width: 620px; }
+    col.c1 { width: 6%; } col.c2 { width: 44%; } col.c3 { width: 14%; } col.c4 { width: 18%; } col.c5 { width: 18%; }
+    td { font-size: 13px; }
     .totals { width: 100%; padding: 16px; }
     .grand { padding: 12px; }
     .grand strong { font-size: 16px; }
@@ -185,7 +189,8 @@ export const buildQuotationHtml = (targetLead, quote) => {
     body { background: #fff; padding: 0; }
     .sheet { border: none; border-radius: 0; box-shadow: none; min-height: 0; max-width: none; margin: 0; }
     .body { min-height: 0; }
-    .table-wrap { flex: none; }
+    .table-wrap { flex: none; overflow: visible; }
+    table { min-width: 0; }
     tr, .summary, .notes { break-inside: avoid; }
   }
 </style>

@@ -351,7 +351,7 @@ const s = StyleSheet.create({
     color: '#0F172A',
   },
   headerSub: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Regular',
     color: '#64748B',
     marginTop: 2,
@@ -363,7 +363,7 @@ const s = StyleSheet.create({
     padding: 16,
   },
   label: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-SemiBold',
     color: '#475569',
     marginBottom: 5,
@@ -391,7 +391,7 @@ const s = StyleSheet.create({
     borderColor: '#2563EB',
   },
   targetTabText: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
   },
@@ -406,7 +406,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 9,
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Medium',
     color: '#0F172A',
   },
@@ -433,7 +433,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   summaryTitle: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -443,12 +443,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   summaryLabel: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
   },
   summaryVal: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-SemiBold',
     color: '#0F172A',
   },
@@ -462,13 +462,13 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   summaryTotalLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
   summaryTotalVal: {
     fontSize: 14,
-    fontFamily: 'Inter-Black',
+    fontFamily: 'Inter-Bold',
     color: '#16A34A',
   },
   footer: {
@@ -489,7 +489,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
   },
@@ -504,7 +504,7 @@ const s = StyleSheet.create({
     gap: 6,
   },
   sendBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
   },

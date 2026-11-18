@@ -76,7 +76,7 @@ function DateField({ value, onChange, placeholder = 'Select date', inputStyle })
 
 const dfStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  text: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
   placeholder: { color: '#94A3B8' },
 });
 
@@ -975,62 +975,22 @@ Thank you.`);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Procurement & Inventory</Text>
-            <Text style={s.headerSub}>Purchase orders, RFQs, GRN inward & stock</Text>
+            <Text style={s.headerTitle}>Procurement</Text>
           </View>
         </View>
 
-        {/* --- TABS SWITCHER (Segmented control) --- */}
-        <View style={s.tabSwitchContainer}>
-          <TouchableOpacity
-            style={[s.tabSwitchBtn, activeTab === 'procurement' && s.tabSwitchBtnActive]}
-            onPress={() => setActiveTab('procurement')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="cart-outline"
-              size={14}
-              color={activeTab === 'procurement' ? '#2563EB' : '#64748B'}
-            />
-            <Text
-              style={[s.tabSwitchText, activeTab === 'procurement' && s.tabSwitchTextActive]}
-              numberOfLines={1}
-            >
-              Purchase Orders
-            </Text>
-            {(!loading || pos.length > 0) && (
-              <View style={[s.tabBadge, activeTab === 'procurement' && s.tabBadgeActive]}>
-                <Text style={[s.tabBadgeText, activeTab === 'procurement' && s.tabBadgeTextActive]}>
-                  {pos.length}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[s.tabSwitchBtn, activeTab === 'inventory' && s.tabSwitchBtnActive]}
-            onPress={() => setActiveTab('inventory')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="cube-outline"
-              size={14}
-              color={activeTab === 'inventory' ? '#2563EB' : '#64748B'}
-            />
-            <Text
-              style={[s.tabSwitchText, activeTab === 'inventory' && s.tabSwitchTextActive]}
-              numberOfLines={1}
-            >
-              Material Mgt
-            </Text>
-            {(!loading || inventory.length > 0) && (
-              <View style={[s.tabBadge, activeTab === 'inventory' && s.tabBadgeActive]}>
-                <Text style={[s.tabBadgeText, activeTab === 'inventory' && s.tabBadgeTextActive]}>
-                  {inventory.length}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+        {/* --- Purchase orders | Inventory --- */}
+        <View style={s.segWrap}>
+          <View style={s.segTrack}>
+            {[
+              { key: 'procurement', label: 'Purchase orders' },
+              { key: 'inventory', label: 'Inventory' },
+            ].map((t) => (
+              <TouchableOpacity key={t.key} style={[s.segBtn, activeTab === t.key && s.segBtnActive]} onPress={() => setActiveTab(t.key)} activeOpacity={0.8}>
+                <Text style={[s.segText, activeTab === t.key && s.segTextActive]}>{t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {loading && !refreshing && pos.length === 0 && inventory.length === 0 ? (
@@ -1039,41 +999,6 @@ Thank you.`);
           </View>
         ) : (
           <>
-            {/* --- TOP OVERVIEW / KPI STATS (mirrors web) --- */}
-            {activeTab === 'procurement' && (
-              <View style={s.kpiOverviewRow}>
-                <View style={[s.kpiCard, { borderLeftColor: '#2563EB' }]}>
-                  <View style={{ flex: 1, marginRight: 2 }}>
-                    <Text style={s.kpiLabel} numberOfLines={1}>Budget</Text>
-                    <Text style={s.kpiValue} numberOfLines={1}>{formatCost(totalProcurementBudget)}</Text>
-                  </View>
-                  <View style={[s.kpiIconWrap, { backgroundColor: '#EFF6FF' }]}>
-                    <Ionicons name="cart-outline" size={13} color="#2563EB" />
-                  </View>
-                </View>
-
-                <View style={[s.kpiCard, { borderLeftColor: '#F59E0B' }]}>
-                  <View style={{ flex: 1, marginRight: 2 }}>
-                    <Text style={s.kpiLabel} numberOfLines={1}>Active</Text>
-                    <Text style={s.kpiValue} numberOfLines={1}>{activePoCount} POs</Text>
-                  </View>
-                  <View style={[s.kpiIconWrap, { backgroundColor: '#FFFBEB' }]}>
-                    <Ionicons name="car-outline" size={13} color="#D97706" />
-                  </View>
-                </View>
-
-                <View style={[s.kpiCard, { borderLeftColor: '#10B981' }]}>
-                  <View style={{ flex: 1, marginRight: 2 }}>
-                    <Text style={s.kpiLabel} numberOfLines={1}>Delivered</Text>
-                    <Text style={s.kpiValue} numberOfLines={1}>{deliveredPoCount} POs</Text>
-                  </View>
-                  <View style={[s.kpiIconWrap, { backgroundColor: '#ECFDF5' }]}>
-                    <Ionicons name="checkmark-circle-outline" size={13} color="#059669" />
-                  </View>
-                </View>
-              </View>
-            )}
-
             {activeTab === 'procurement' && (
               <ScrollView
                 horizontal
@@ -1094,7 +1019,8 @@ Thank you.`);
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
-                        {p.label} ({count})
+                        {p.label}
+                        {count > 0 ? <Text style={[s.pipelineCount, selectedPipeline === p.key && { color: '#2563EB' }]}>  {count}</Text> : null}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -1114,12 +1040,29 @@ Thank you.`);
                 />
               }
             >
+              {/* --- Summary: three equal figures --- */}
+            {activeTab === 'procurement' && (
+              <View style={s.sumCard}>
+                <View style={s.figCol}>
+                  <Text style={s.figLabel}>Budget</Text>
+                  <Text style={s.figValue} numberOfLines={1}>{formatCost(totalProcurementBudget)}</Text>
+                </View>
+                <View style={[s.figCol, { alignItems: 'center' }]}>
+                  <Text style={s.figLabel}>Active POs</Text>
+                  <Text style={s.figValue}>{activePoCount}</Text>
+                </View>
+                <View style={[s.figCol, { alignItems: 'flex-end' }]}>
+                  <Text style={s.figLabel}>Delivered</Text>
+                  <Text style={[s.figValue, { color: '#059669' }]}>{deliveredPoCount}</Text>
+                </View>
+              </View>
+            )}
+
               {activeTab === 'procurement' ? (
                 filteredPos.length === 0 ? (
                   <View style={s.empty}>
                     <Ionicons name="cart-outline" size={44} color="#CBD5E1" />
                     <Text style={s.emptyTitle}>No Purchase Orders Found</Text>
-                    <Text style={s.emptySub}>Tap + to raise a requisition or purchase order for this project.</Text>
                   </View>
                 ) : (
                   filteredPos.map((po) => {
@@ -1131,148 +1074,72 @@ Thank you.`);
                     const canGrn = GRN_ELIGIBLE_STATUSES.includes(po.status);
                     const canPay = PAY_ELIGIBLE_STATUSES.includes(po.status) && payStatus.label !== 'Paid';
 
+                    const itemCount = (po.items || []).length;
+                    const quoteCount = (po.quotes || []).length;
+                    const title = po.materialName || (po.items?.[0]?.name ? `${po.items[0].name}${itemCount > 1 ? ` +${itemCount - 1} items` : ''}` : 'Material Request');
+                    const facts = [
+                      po.vendorName && po.vendorName !== 'Unassigned' ? po.vendorName : null,
+                      `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`,
+                      po.poNumber || `PO #${po._id?.slice(-5)?.toUpperCase()}`,
+                    ].filter(Boolean).join('  ·  ');
+                    // Only the actions that apply at this stage (RFQ/approve and receive/pay never overlap)
+                    const actions = [
+                      canApprove && canDo('procurement', 'update') && { key: 'rfq', label: 'Send RFQ', icon: 'mail-outline', color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', onPress: () => openRfqModal(po) },
+                      canApprove && canDo('procurement', 'update') && { key: 'approve', label: 'Approve Vendor', icon: 'checkmark-circle-outline', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE', onPress: () => openApproveModal(po) },
+                      canGrn && canDo('procurement', 'update') && { key: 'grn', label: 'Receive Material', icon: 'checkmark-done-circle-outline', color: '#059669', bg: '#ECFDF5', border: '#BBF7D0', onPress: () => openGrnModal(po) },
+                      canPay && canDo('financials', 'create') && { key: 'pay', label: 'Pay Vendor', icon: 'card-outline', color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', onPress: () => openPayModal(po) },
+                    ].filter(Boolean);
+
                     return (
-                      <View key={po._id} style={s.card}>
-                        <View style={s.cardTopRow}>
-                          <View style={s.poNumBadge}>
-                            <Text style={s.poNumText}>{po.poNumber || `PO #${po._id?.slice(-5)?.toUpperCase()}`}</Text>
-                          </View>
-                          <View style={{ flexDirection: 'row', gap: 6 }}>
-                            <View style={[s.statusBadge, { backgroundColor: payStatus.bg }]}>
-                              <Text style={[s.statusBadgeText, { color: payStatus.color }]}>{payStatus.label}</Text>
-                            </View>
-                            <View style={[s.statusBadge, { backgroundColor: `${pipe.color}15` }]}>
-                              <Ionicons name={pipe.icon} size={11} color={pipe.color} />
-                              <Text style={[s.statusBadgeText, { color: pipe.color }]}>{pipe.label}</Text>
-                            </View>
+                      <TouchableOpacity key={po._id} style={s.card} onPress={() => openPoDetails(po)} activeOpacity={0.85}>
+                        <View style={s.poTitleRow}>
+                          <Text style={s.vendorTitle} numberOfLines={2}>{title}</Text>
+                          <View style={[s.statusBadge, { backgroundColor: `${pipe.color}15` }]}>
+                            <Text style={[s.statusBadgeText, { color: pipe.color }]}>{pipe.label}</Text>
                           </View>
                         </View>
+                        <Text style={s.poSub} numberOfLines={1}>{facts}</Text>
 
-                        {/* Primary Title: Material Name (matches web) */}
-                        <Text style={s.vendorTitle} numberOfLines={1}>
-                          {po.materialName || (po.items?.[0]?.name ? `${po.items[0].name}${po.items.length > 1 ? ` +${po.items.length - 1} items` : ''}` : 'Material Request')}
-                        </Text>
-                        {/* Vendor name only when assigned and not in requested stage */}
-                        {po.vendorName && po.vendorName !== 'Unassigned' && (
-                          <Text style={s.vendorSubtitle} numberOfLines={1}>
-                            Vendor: {po.vendorName}
-                          </Text>
-                        )}
-                        {po.status !== 'requested' && po.status !== 'rfq' ? (
-                          <Text style={s.poSub}>
-                            {(po.items || []).length} items · Total: <Text style={s.boldCost}>{formatCost(totalAmt)}</Text>
-                          </Text>
-                        ) : po.status === 'rfq' ? (
-                          <Text style={s.poSub}>
-                            {(po.items || []).length} items · RFQ Stage ({(po.quotes || []).length} quotes received)
+                        {po.status === 'requested' || po.status === 'rfq' ? (
+                          <Text style={s.poMuted}>
+                            {po.status === 'rfq' ? `RFQ sent · ${quoteCount} ${quoteCount === 1 ? 'quote' : 'quotes'} received` : 'Material request · awaiting quotes'}
                           </Text>
                         ) : (
-                          <Text style={s.poSub}>
-                            {(po.items || []).length} items · Material Request
-                          </Text>
-                        )}
-
-                        {po.deliveryDate && (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                            <Ionicons name="time-outline" size={12} color="#2563EB" />
-                            <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' }}>
-                              Target Delivery: {new Date(po.deliveryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                            </Text>
+                          <View style={s.figRow}>
+                            <View style={s.figCol}>
+                              <Text style={s.figLabel}>Amount</Text>
+                              <Text style={[s.figValue, { color: '#2563EB' }]} numberOfLines={1}>{formatCost(totalAmt)}</Text>
+                            </View>
+                            <View style={[s.figCol, { alignItems: 'center' }]}>
+                              <Text style={s.figLabel}>Payment</Text>
+                              <Text style={[s.figValue, { color: payStatus.color }]} numberOfLines={1}>{payStatus.label}</Text>
+                            </View>
+                            <View style={[s.figCol, { alignItems: 'flex-end' }]}>
+                              <Text style={s.figLabel}>{grnsCount > 0 ? 'Received' : 'Delivery'}</Text>
+                              <Text style={s.figValue} numberOfLines={1}>
+                                {grnsCount > 0
+                                  ? `${grnsCount} GRN`
+                                  : po.deliveryDate ? new Date(po.deliveryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}
+                              </Text>
+                            </View>
                           </View>
                         )}
 
-                        {/* Items Preview */}
-                        <View style={s.itemsPreviewBox}>
-                          {(po.items || []).slice(0, 2).map((item, i) => (
-                            <Text key={i} style={s.itemPreviewText} numberOfLines={1}>
-                              • {item.name} ({item.quantity} {item.unit})
-                            </Text>
-                          ))}
-                          {(po.items || []).length > 2 && (
-                            <Text style={s.moreItemsText}>+{(po.items || []).length - 2} more items</Text>
-                          )}
-                        </View>
-
-                        {/* Action buttons */}
-                        <View style={s.poActionsRow}>
-                          <TouchableOpacity
-                            style={s.poActionBtn}
-                            onPress={() => openPoDetails(po)}
-                          >
-                            <Ionicons name="eye-outline" size={13} color="#2563EB" />
-                            <Text style={[s.poActionBtnText, { color: '#2563EB' }]}>Details</Text>
-                          </TouchableOpacity>
-
-                          {/* Quotes badge button if received */}
-                          {(po.quotes || []).length > 0 && (
-                            <TouchableOpacity
-                              style={[s.poActionBtn, { backgroundColor: '#ECFDF5', borderColor: '#BBF7D0' }]}
-                              onPress={() => openPoDetails(po)}
-                            >
-                              <Ionicons name="pricetags-outline" size={13} color="#059669" />
-                              <Text style={[s.poActionBtnText, { color: '#059669' }]}>Quotes ({po.quotes.length})</Text>
-                            </TouchableOpacity>
-                          )}
-
-                          {/* Send RFQ button */}
-                          {canApprove && (
-                            canDo('procurement', 'update') && (
+                        {actions.length > 0 && (
+                          <View style={s.cardActions}>
+                            {actions.map((a) => (
                               <TouchableOpacity
-                                style={[s.poActionBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
-                                onPress={() => openRfqModal(po)}
+                                key={a.key}
+                                style={[s.cardActionBtn, { backgroundColor: a.bg, borderColor: a.border }]}
+                                onPress={a.onPress}
                               >
-                                <Ionicons name="mail-outline" size={13} color="#2563EB" />
-                                <Text style={[s.poActionBtnText, { color: '#2563EB' }]}>Send RFQ</Text>
+                                <Ionicons name={a.icon} size={15} color={a.color} />
+                                <Text style={[s.cardActionText, { color: a.color }]} numberOfLines={1}>{a.label}</Text>
                               </TouchableOpacity>
-                            )
-                          )}
-
-                          {/* Approve & Select Vendor (rate locking) */}
-                          {canApprove && (
-                            canDo('procurement', 'update') && (
-                              <TouchableOpacity
-                                style={[s.poActionBtn, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}
-                                onPress={() => openApproveModal(po)}
-                              >
-                                <Ionicons name="checkmark-circle-outline" size={13} color="#7C3AED" />
-                                <Text style={[s.poActionBtnText, { color: '#7C3AED' }]}>Approve Vendor</Text>
-                              </TouchableOpacity>
-                            )
-                          )}
-
-                          {/* GRN Inward Button */}
-                          {canGrn && (
-                            canDo('procurement', 'update') && (
-                              <TouchableOpacity
-                                style={[s.poActionBtn, { backgroundColor: '#ECFDF5', borderColor: '#BBF7D0' }]}
-                                onPress={() => openGrnModal(po)}
-                              >
-                                <Ionicons name="checkmark-done-circle-outline" size={14} color="#059669" />
-                                <Text style={[s.poActionBtnText, { color: '#059669' }]}>Receive Material</Text>
-                              </TouchableOpacity>
-                            )
-                          )}
-
-                          {/* Pay Vendor */}
-                          {canPay && (
-                            canDo('financials', 'create') && (
-                              <TouchableOpacity
-                                style={[s.poActionBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
-                                onPress={() => openPayModal(po)}
-                              >
-                                <Ionicons name="card-outline" size={13} color="#D97706" />
-                                <Text style={[s.poActionBtnText, { color: '#D97706' }]}>Pay Vendor</Text>
-                              </TouchableOpacity>
-                            )
-                          )}
-
-                          {grnsCount > 0 && (
-                            <View style={s.grnBadge}>
-                              <Text style={s.grnBadgeText}>{grnsCount} GRN inwarded</Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
+                            ))}
+                          </View>
+                        )}
+                      </TouchableOpacity>
                     );
                   })
                 )
@@ -1282,8 +1149,7 @@ Thank you.`);
                   <View style={s.empty}>
                     <Ionicons name="cube-outline" size={44} color="#CBD5E1" />
                     <Text style={s.emptyTitle}>Site Inventory Empty</Text>
-                    <Text style={s.emptySub}>Materials inwarded from approved POs or added manually will appear here.</Text>
-                  </View>
+                                      </View>
                 ) : (
                   inventory.map((item) => {
                     const totalRec = item.totalReceived !== undefined ? item.totalReceived : (item.quantity || 0);
@@ -1295,119 +1161,82 @@ Thank you.`);
 
                     return (
                       <View key={item._id} style={s.card}>
-                        <View style={s.cardTopRow}>
-                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
-                            <Ionicons name="cube-outline" size={16} color="#2563EB" />
-                            <Text style={s.materialTitle} numberOfLines={1}>{item.productName || item.name}</Text>
+                        <View style={s.poTitleRow}>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={s.vendorTitle} numberOfLines={2}>{item.productName || item.name}</Text>
+                            <Text style={s.poSub}>{item.unit || 'nos'}{historyList.length ? `  ·  used ${historyList.length} ${historyList.length === 1 ? 'time' : 'times'}` : ''}</Text>
                           </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <View style={s.unitTag}>
-                              <Text style={s.unitTagText}>{item.unit || 'nos'}</Text>
-                            </View>
-                            {canDo('inventory', 'update') && (
-                              <TouchableOpacity
-                                onPress={() => openEditMaterial(item)}
-                                style={s.matIconBtn}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                              >
-                                <Ionicons name="pencil-outline" size={14} color="#475569" />
-                              </TouchableOpacity>
-                            )}
-                            {canDo('inventory', 'delete') && (
-                              <TouchableOpacity
-                                onPress={() => handleDeleteMaterial(item)}
-                                style={s.matIconBtn}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                              >
-                                <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                        </View>
-
-                        {/* 3-Column Metrics: Delivered, Used, Available */}
-                        <View style={s.stockStatsRow}>
-                          <View style={s.stockTile}>
-                            <Text style={s.stockVal}>{totalRec}</Text>
-                            <Text style={s.stockLbl}>Delivered</Text>
-                          </View>
-                          <View style={s.stockTile}>
-                            <Text style={[s.stockVal, { color: '#059669' }]}>{instQty}</Text>
-                            <Text style={[s.stockLbl, { color: '#059669' }]}>Used</Text>
-                          </View>
-                          <View style={[s.stockTile, { backgroundColor: '#EFF6FF' }]}>
-                            <Text style={[s.stockVal, { color: '#2563EB' }]}>{inStock}</Text>
-                            <Text style={[s.stockLbl, { color: '#2563EB' }]}>Available</Text>
-                          </View>
-                        </View>
-
-                        {/* Progress Bar */}
-                        <View style={s.progressSection}>
-                          <View style={s.progressLabelRow}>
-                            <Text style={s.progressLabel}>Usage Progress</Text>
-                            <Text style={s.progressValue}>{percentInstalled}%</Text>
-                          </View>
-                          <View style={s.progressTrack}>
-                            <View style={[s.progressBar, { width: `${Math.min(100, percentInstalled)}%` }]} />
-                          </View>
-                        </View>
-
-                        {/* Usage History */}
-                        {historyList.length > 0 && (
-                          <View style={s.historySection}>
+                          {(canDo('inventory', 'update') || canDo('inventory', 'delete')) && (
                             <TouchableOpacity
-                              style={s.historyToggleRow}
-                              onPress={() => toggleHistory(item._id)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              onPress={() => {
+                                const opts = [];
+                                if (canDo('inventory', 'update')) opts.push({ text: 'Edit material', onPress: () => openEditMaterial(item) });
+                                if (canDo('inventory', 'delete')) opts.push({ text: 'Delete material', style: 'destructive', onPress: () => handleDeleteMaterial(item) });
+                                Alert.alert(item.productName || item.name, undefined, [...opts, { text: 'Cancel', style: 'cancel' }]);
+                              }}
                             >
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                <Ionicons name="time-outline" size={12} color="#64748B" />
-                                <Text style={s.historyToggleText}>Usage History ({historyList.length})</Text>
-                              </View>
-                              <Ionicons
-                                name={isHistoryExpanded ? 'chevron-up' : 'chevron-down'}
-                                size={14}
-                                color="#64748B"
-                              />
+                              <Ionicons name="ellipsis-vertical" size={17} color="#64748B" />
                             </TouchableOpacity>
+                          )}
+                        </View>
 
-                            {isHistoryExpanded && (
-                              <View style={s.historyListBox}>
-                                {historyList.map((log, hIdx) => (
-                                  <View key={log._id || hIdx} style={s.historyItemRow}>
-                                    <View style={{ flex: 1 }}>
-                                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <Text style={s.historyQtyText}>+{log.quantity} {item.unit || 'nos'}</Text>
-                                        <Text style={s.historyDateText}>
-                                          {log.date ? new Date(log.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : ''}
-                                        </Text>
-                                      </View>
-                                      {log.notes ? (
-                                        <Text style={s.historyNotesText} numberOfLines={2}>{log.notes}</Text>
-                                      ) : null}
-                                    </View>
-                                  </View>
-                                ))}
-                              </View>
-                            )}
+                        <View style={s.figRow}>
+                          <View style={s.figCol}>
+                            <Text style={s.figLabel}>Delivered</Text>
+                            <Text style={s.figValue}>{totalRec}</Text>
                           </View>
-                        )}
+                          <View style={[s.figCol, { alignItems: 'center' }]}>
+                            <Text style={s.figLabel}>Used</Text>
+                            <Text style={s.figValue}>{instQty}</Text>
+                          </View>
+                          <View style={[s.figCol, { alignItems: 'flex-end' }]}>
+                            <Text style={s.figLabel}>Available</Text>
+                            <Text style={[s.figValue, { color: inStock > 0 ? '#2563EB' : '#DC2626' }]}>{inStock}</Text>
+                          </View>
+                        </View>
+                        <View style={s.usageRow}>
+                          <View style={s.usageTrack}>
+                            <View style={[s.usageFill, { width: `${Math.min(100, percentInstalled)}%` }]} />
+                          </View>
+                          <Text style={s.usagePct}>{percentInstalled}% used</Text>
+                        </View>
 
-                        {/* Action Button: Log Material Used */}
-                        {canDo('inventory', 'create') && (
-                          <TouchableOpacity
-                            style={[s.installBtn, inStock <= 0 && { opacity: 0.5 }]}
-                            disabled={inStock <= 0}
-                            onPress={() => {
-                              setSelectedStock(item);
-                              setInstallQty('');
-                              setInstallNotes('');
-                            }}
-                          >
-                            <Ionicons name="hammer-outline" size={13} color={inStock <= 0 ? '#94A3B8' : '#2563EB'} />
-                            <Text style={[s.installBtnText, inStock <= 0 && { color: '#94A3B8' }]}>
-                              {inStock <= 0 ? 'Out of Stock' : 'Log Material Used'}
-                            </Text>
-                          </TouchableOpacity>
+                        <View style={s.cardActions}>
+                          {canDo('inventory', 'create') && (
+                            <TouchableOpacity
+                              style={[s.cardActionBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }, inStock <= 0 && { opacity: 0.5 }]}
+                              disabled={inStock <= 0}
+                              onPress={() => { setSelectedStock(item); setInstallQty(''); setInstallNotes(''); }}
+                            >
+                              <Ionicons name="hammer-outline" size={15} color="#1D4ED8" />
+                              <Text style={[s.cardActionText, { color: '#1D4ED8' }]}>{inStock <= 0 ? 'Out of stock' : 'Log usage'}</Text>
+                            </TouchableOpacity>
+                          )}
+                          {historyList.length > 0 && (
+                            <TouchableOpacity style={[s.cardActionBtn, { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]} onPress={() => toggleHistory(item._id)}>
+                              <Ionicons name={isHistoryExpanded ? 'chevron-up' : 'time-outline'} size={15} color="#334155" />
+                              <Text style={[s.cardActionText, { color: '#334155' }]}>History</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+
+                        {isHistoryExpanded && historyList.length > 0 && (
+                          <View style={s.historyListBox}>
+                            {historyList.map((log, hIdx) => (
+                              <View key={log._id || hIdx} style={s.historyItemRow}>
+                                <View style={{ flex: 1 }}>
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <Text style={s.historyQtyText}>{log.quantity} {item.unit || 'nos'} used</Text>
+                                    <Text style={s.historyDateText}>
+                                      {log.date ? new Date(log.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : ''}
+                                    </Text>
+                                  </View>
+                                  {log.notes ? <Text style={s.historyNotesText} numberOfLines={2}>{log.notes}</Text> : null}
+                                </View>
+                              </View>
+                            ))}
+                          </View>
                         )}
                       </View>
                     );
@@ -2119,7 +1948,7 @@ Thank you.`);
                 editable={!editingMaterialId}
               />
               {!!editingMaterialId && (
-                <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: -4, marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: -4, marginBottom: 8 }}>
                   Stock is updated by deliveries (GRN) and installations, not by editing the material.
                 </Text>
               )}
@@ -2391,7 +2220,7 @@ Thank you.`);
                           {canEditRates ? (
                             <View style={{ alignItems: 'flex-end', gap: 4 }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B' }}>₹</Text>
+                                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#64748B' }}>₹</Text>
                                 <TextInput
                                   style={s.rateInput}
                                   keyboardType="numeric"
@@ -2400,7 +2229,7 @@ Thank you.`);
                                   placeholder="0"
                                   placeholderTextColor="#94A3B8"
                                 />
-                                <Text style={{ fontSize: 10, fontFamily: 'Inter-Medium', color: '#94A3B8' }}>/{it.unit || 'nos'}</Text>
+                                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#94A3B8' }}>/{it.unit || 'nos'}</Text>
                               </View>
                               <Text style={s.itemSubtotalText}>= {formatCost(subtotal)}</Text>
                             </View>
@@ -2522,10 +2351,30 @@ Thank you.`);
 }
 
 const s = StyleSheet.create({
+  pipelineCount: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#94A3B8' },
+  segTextActive: { color: '#0F172A' },
+  segText: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  segBtnActive: { backgroundColor: '#FFFFFF', shadowColor: '#0F172A', shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  segBtn: { flex: 1, height: 36, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  segTrack: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 11, padding: 3 },
+  segWrap: { backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  usagePct: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#64748B' },
+  usageFill: { height: '100%', borderRadius: 3, backgroundColor: '#10B981' },
+  usageTrack: { flex: 1, height: 5, borderRadius: 3, backgroundColor: '#F1F5F9', overflow: 'hidden' },
+  usageRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  cardActionText: { fontSize: 13, fontFamily: 'Inter-SemiBold' },
+  cardActionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 36, borderRadius: 9, borderWidth: 1, paddingHorizontal: 8 },
+  cardActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  poMuted: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 10 },
+  figValue: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', marginTop: 2 },
+  figLabel: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  figCol: { flex: 1, minWidth: 0 },
+  figRow: { flexDirection: 'row', marginTop: 12, paddingVertical: 10, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F1F5F9' },
+  sumCard: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 14, paddingVertical: 12 },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { paddingHorizontal: 16, paddingTop: 10, gap: 10 },
+  scroll: { paddingHorizontal: 16, paddingTop: 12, gap: 12 },
 
   header: {
     flexDirection: 'row',
@@ -2533,280 +2382,39 @@ const s = StyleSheet.create({
     gap: 12,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   backBtn: { padding: 6, borderRadius: 8, backgroundColor: '#F8FAFC' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
-  tabSwitchContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    gap: 8,
-  },
-  tabSwitchRow: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    gap: 8,
-  },
-  tabSwitchBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  tabSwitchBtnActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  tabSwitchText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  tabSwitchTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
-  tabBadge: {
-    backgroundColor: '#E2E8F0',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 999,
-  },
-  tabBadgeActive: {
-    backgroundColor: '#2563EB',
-  },
-  tabBadgeText: {
-    fontSize: 10,
-    fontFamily: 'Inter-Bold',
-    color: '#64748B',
-  },
-  tabBadgeTextActive: {
-    color: '#FFFFFF',
-  },
 
   // KPI Overview Cards (mirrors web)
-  kpiOverviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  kpiCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 9,
-    paddingVertical: 8,
-    height: 54,
-    borderLeftWidth: 3.5,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  kpiLabel: {
-    fontSize: 9,
-    fontFamily: 'Inter-Bold',
-    color: '#64748B',
-    textTransform: 'uppercase',
-  },
-  kpiValue: {
-    fontSize: 12,
-    fontFamily: 'Inter-Black',
-    color: '#0F172A',
-    marginTop: 1,
-  },
-  kpiIconWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vendorSubtitle: {
-    fontSize: 11.5,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-    marginTop: 2,
-    marginBottom: 2,
-  },
 
-  pipelineScroll: {
-    flexGrow: 0,
-    marginTop: 4,
-    marginBottom: 6,
-  },
-  pipelineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    gap: 6,
-  },
-  pipelineChip: {
-    flexShrink: 0,
-    flexGrow: 0,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 32,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  pipelineChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  pipelineChipText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  pipelineChipTextActive: { color: '#FFFFFF', fontFamily: 'Inter-Bold' },
+  pipelineScroll: { flexGrow: 0, flexShrink: 0, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  pipelineRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+  pipelineChip: { height: 34, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+  pipelineChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
+  pipelineChipText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  pipelineChipTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
   emptyTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#475569' },
-  emptySub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingHorizontal: 30 },
 
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    padding: 14,
-    gap: 8,
-  },
-  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  poNumBadge: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  poNumText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#475569' },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 999,
-  },
-  statusBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', padding: 14 },
+  poTitleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  statusBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
+  statusBadgeText: { fontSize: 12, fontFamily: 'Inter-SemiBold' },
 
-  vendorTitle: { fontSize: 14.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  poSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B' },
-  boldCost: { fontFamily: 'Inter-Bold', color: '#0F172A' },
+  vendorTitle: { flex: 1, fontSize: 14.5, lineHeight: 20, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  poSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 4 },
 
-  itemsPreviewBox: { backgroundColor: '#F8FAFC', borderRadius: 8, padding: 8, gap: 3 },
-  itemPreviewText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#475569' },
-  moreItemsText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#2563EB', marginTop: 2 },
 
-  poActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
-    paddingTop: 8,
-    marginTop: 2,
-  },
-  poActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
-  },
-  poActionBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#334155' },
-  grnBadge: { backgroundColor: '#ECFDF5', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 6, marginLeft: 'auto' },
-  grnBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#059669' },
 
-  materialTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1 },
-  unitTag: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  unitTagText: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#475569', textTransform: 'uppercase' },
-  matIconBtn: {
-    padding: 6,
-    borderRadius: 7,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
 
-  stockStatsRow: { flexDirection: 'row', gap: 10 },
-  stockTile: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 10, padding: 10, alignItems: 'center' },
-  stockVal: { fontSize: 16, fontFamily: 'Inter-Black', color: '#0F172A' },
-  stockLbl: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#94A3B8', textTransform: 'uppercase', marginTop: 2 },
 
-  progressSection: {
-    marginTop: 4,
-    gap: 4,
-  },
-  progressLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  progressLabel: {
-    fontSize: 10,
-    fontFamily: 'Inter-SemiBold',
-    color: '#64748B',
-  },
-  progressValue: {
-    fontSize: 10.5,
-    fontFamily: 'Inter-Bold',
-    color: '#0F172A',
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#F1F5F9',
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    borderRadius: 3,
-    backgroundColor: '#2563EB',
-  },
 
-  historySection: {
-    marginTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
-    paddingTop: 6,
-  },
-  historyToggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 2,
-  },
-  historyToggleText: {
-    fontSize: 10.5,
-    fontFamily: 'Inter-SemiBold',
-    color: '#64748B',
-  },
   historyListBox: {
     marginTop: 6,
     gap: 6,
@@ -2823,35 +2431,22 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   historyQtyText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#059669',
   },
   historyDateText: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
   },
   historyNotesText: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Regular',
     color: '#475569',
     marginTop: 1,
   },
 
-  installBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: '#EFF6FF',
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    marginTop: 2,
-  },
-  installBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   fab: {
     position: 'absolute',
@@ -2884,9 +2479,9 @@ const s = StyleSheet.create({
   },
   modalCloseBtn: { padding: 4 },
   modalTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  modalSubtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  modalSubtitle: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 8 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 8 },
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
@@ -2894,7 +2489,7 @@ const s = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Regular',
     color: '#0F172A',
   },
@@ -2905,7 +2500,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 6,
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#0F172A',
   },
@@ -2921,8 +2516,8 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  addedItemTitle: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  addedItemSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  addedItemTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  addedItemSub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   newItemBox: { backgroundColor: '#F8FAFC', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#E2E8F0', gap: 6 },
   addItemBtn: {
@@ -2934,24 +2529,13 @@ const s = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 8,
   },
-  addItemBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' },
-  miniFieldLabel: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#64748B', marginBottom: 2 },
+  addItemBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  miniFieldLabel: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B', marginBottom: 2 },
 
-  customModeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
   customModeLabel: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-SemiBold',
     color: '#475569',
-  },
-  switchModeText: {
-    fontSize: 11,
-    fontFamily: 'Inter-SemiBold',
-    color: '#2563EB',
   },
   dropdownTrigger: {
     flexDirection: 'row',
@@ -2969,17 +2553,17 @@ const s = StyleSheet.create({
     borderColor: '#2563EB',
   },
   dropdownSelectedText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-SemiBold',
     color: '#0F172A',
   },
   dropdownPlaceholderText: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
   },
   dropdownStockHint: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Medium',
     color: '#059669',
     marginTop: 2,
@@ -3004,7 +2588,7 @@ const s = StyleSheet.create({
   },
   dropdownSearchInput: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#0F172A',
     padding: 0,
@@ -3018,23 +2602,9 @@ const s = StyleSheet.create({
     gap: 8,
   },
   dropdownEmptyText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
-  },
-  dropdownCustomBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#EFF6FF',
-  },
-  dropdownCustomBtnText: {
-    fontSize: 11.5,
-    fontFamily: 'Inter-SemiBold',
-    color: '#2563EB',
   },
   dropdownItem: {
     flexDirection: 'row',
@@ -3049,7 +2619,7 @@ const s = StyleSheet.create({
     backgroundColor: '#EFF6FF',
   },
   dropdownItemTitle: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Medium',
     color: '#0F172A',
   },
@@ -3064,7 +2634,7 @@ const s = StyleSheet.create({
     marginTop: 3,
   },
   dropdownItemSub: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Regular',
     color: '#64748B',
   },
@@ -3080,7 +2650,7 @@ const s = StyleSheet.create({
     backgroundColor: '#FEF2F2',
   },
   stockPillText: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontFamily: 'Inter-SemiBold',
   },
   stockPillTextInStock: {
@@ -3088,21 +2658,6 @@ const s = StyleSheet.create({
   },
   stockPillTextOut: {
     color: '#DC2626',
-  },
-  dropdownManualRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    backgroundColor: '#F8FAFC',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-  },
-  dropdownManualText: {
-    fontSize: 11.5,
-    fontFamily: 'Inter-SemiBold',
-    color: '#2563EB',
   },
 
   saveBtn: {
@@ -3114,7 +2669,7 @@ const s = StyleSheet.create({
     marginTop: 14,
     marginBottom: 8,
   },
-  saveBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   vendorChip: {
     flexDirection: 'row',
@@ -3128,7 +2683,7 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   vendorChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  vendorChipText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#475569' },
+  vendorChipText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#475569' },
   vendorChipTextActive: { color: '#FFFFFF', fontFamily: 'Inter-Bold' },
 
   grnItemRow: {
@@ -3142,23 +2697,10 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  grnItemTitle: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  grnItemSub: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
-  miniLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#475569', marginBottom: 2 },
+  grnItemTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  grnItemSub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  miniLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#475569', marginBottom: 2 },
 
-  photoPickerBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderStyle: 'dashed',
-    borderRadius: 10,
-    padding: 14,
-    backgroundColor: '#F8FAFC',
-  },
-  photoPickerBoxText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#2563EB' },
 
   grnProofBox: {
     height: 120,
@@ -3186,7 +2728,7 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
     backgroundColor: '#F8FAFC',
   },
-  stageChipText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  stageChipText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
 
   poMetaBox: {
     flexDirection: 'row',
@@ -3201,7 +2743,7 @@ const s = StyleSheet.create({
     borderColor: '#DBEAFE',
   },
   poMetaText: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#1E40AF',
   },
@@ -3217,7 +2759,7 @@ const s = StyleSheet.create({
     borderRadius: 6,
   },
   saveRatesBtnText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#2563EB',
   },
@@ -3231,7 +2773,7 @@ const s = StyleSheet.create({
     borderRadius: 6,
   },
   ratesLockedText: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
   },
@@ -3242,14 +2784,14 @@ const s = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 3,
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
     width: 65,
     textAlign: 'right',
   },
   itemSubtotalText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -3265,8 +2807,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  poDetailItemTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  poDetailItemSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  poDetailItemTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  poDetailItemSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   poTotalRow: {
     flexDirection: 'row',
@@ -3277,8 +2819,8 @@ const s = StyleSheet.create({
     paddingTop: 10,
     marginTop: 6,
   },
-  poTotalLabel: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  poTotalVal: { fontSize: 15, fontFamily: 'Inter-Black', color: '#16A34A' },
+  poTotalLabel: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  poTotalVal: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#16A34A' },
 
   deletePoBtn: {
     flexDirection: 'row',
@@ -3294,7 +2836,7 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   deletePoBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#DC2626',
   },
@@ -3304,19 +2846,19 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#E2E8F0', borderStyle: 'dashed', borderRadius: 10,
     paddingVertical: 16, backgroundColor: '#F8FAFC',
   },
-  photoPickerBoxSmText: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: '#2563EB', textAlign: 'center' },
+  photoPickerBoxSmText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#2563EB', textAlign: 'center' },
 
   paySummaryBox: {
     flexDirection: 'row', backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#F1F5F9',
     padding: 12, marginBottom: 4,
   },
-  paySummaryVal: { fontSize: 13, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 2 },
-  smartHint: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 8, lineHeight: 15 },
+  paySummaryVal: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
+  smartHint: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 8, lineHeight: 15 },
 
   pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   pill: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   pillActive: { backgroundColor: '#D97706', borderColor: '#D97706' },
-  pillText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  pillText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   pillTextActive: { color: '#FFFFFF' },
 
   grnHistoryRow: {
@@ -3331,9 +2873,9 @@ const s = StyleSheet.create({
   lightboxCloseBtn: { padding: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.2)' },
   lightboxSplitBody: { flex: 1, flexDirection: 'row', gap: 1 },
   lightboxSplitPane: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 8 },
-  lightboxPaneLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 8 },
+  lightboxPaneLabel: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 8 },
   lightboxSplitImage: { width: '100%', height: '90%' },
-  lightboxPaneEmpty: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B' },
+  lightboxPaneEmpty: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B' },
 
   // Quotes comparison styles
   quotesSection: {
@@ -3351,12 +2893,12 @@ const s = StyleSheet.create({
     gap: 6,
   },
   quotesHeaderTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
   quotesSubtext: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Regular',
     color: '#64748B',
     marginTop: 2,
@@ -3388,13 +2930,13 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   quoteSupplierBadge: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
     textTransform: 'uppercase',
   },
   quoteVendorName: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
     marginTop: 1,
@@ -3409,7 +2951,7 @@ const s = StyleSheet.create({
     borderRadius: 999,
   },
   lowestBadgeText: {
-    fontSize: 9,
+    fontSize: 10.5,
     fontFamily: 'Inter-Bold',
     color: '#059669',
   },
@@ -3423,14 +2965,14 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   quoteItemName: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Medium',
     color: '#475569',
     flex: 1,
     marginRight: 6,
   },
   quoteItemRate: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -3444,13 +2986,13 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   quoteTotalLabel: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
   },
   quoteTotalVal: {
-    fontSize: 13,
-    fontFamily: 'Inter-Black',
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
   awardBtn: {
@@ -3469,7 +3011,7 @@ const s = StyleSheet.create({
     borderColor: '#059669',
   },
   awardBtnText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#2563EB',
   },
@@ -3479,21 +3021,21 @@ const s = StyleSheet.create({
   rfqLinkBox: {
     backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#E0E7FF', borderRadius: 12, padding: 12, gap: 8, marginBottom: 12,
   },
-  rfqLinkTitle: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#4F46E5', textTransform: 'uppercase', letterSpacing: 0.4 },
+  rfqLinkTitle: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#4F46E5', textTransform: 'uppercase', letterSpacing: 0.4 },
   rfqLinkBadge: {
-    fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F1F5F9',
+    fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F1F5F9',
     borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden',
   },
   rfqLinkUrl: {
-    flex: 1, fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', backgroundColor: '#FFFFFF',
+    flex: 1, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', backgroundColor: '#FFFFFF',
     borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7,
   },
   rfqLinkBtn: {
     borderWidth: 1, borderColor: '#C7D2FE', backgroundColor: '#FFFFFF', borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', justifyContent: 'center', minWidth: 56,
   },
-  rfqLinkBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#4F46E5' },
-  rfqLinkHint: { flex: 1, fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#6366F1' },
+  rfqLinkBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#4F46E5' },
+  rfqLinkHint: { flex: 1, fontSize: 12, fontFamily: 'Inter-Regular', color: '#6366F1' },
   awaitingQuotesBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -3507,12 +3049,12 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   awaitingQuotesTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#4338CA',
   },
   awaitingQuotesSub: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Regular',
     color: '#6366F1',
     marginTop: 2,

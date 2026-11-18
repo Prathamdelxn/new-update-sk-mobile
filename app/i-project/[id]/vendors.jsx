@@ -11,10 +11,6 @@ import interiorApiClient from '../../services/interiorApiClient';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 import SelectField from '../../components/common/SelectField';
 
-const RATINGS = [4.8, 4.2, 4.6, 3.9];
-const COMPLIANCE = [95, 88, 92, 75];
-const ON_TIME = [98, 80, 94, 70];
-const FALLBACK_TRADES = ['Acoustic & Glazing', 'MEP Pipes', 'Interior Slabs', 'Finishes & Drywalls'];
 const VENDOR_CATEGORIES = ['Raw Materials', 'Furniture', 'Electrical', 'Labour', 'Paint', 'Other'];
 
 function formatCost(amount) {
@@ -169,13 +165,10 @@ const { hasPermission: canDo } = useInteriorPermissions();
       raw: vendor,
       _id: vendor._id,
       name: vendor.name,
-      trade: vendor.vendorCategory || FALLBACK_TRADES[index % 4],
+      trade: vendor.vendorCategory || vendor.category || 'Other',
       gstNumber: vendor.gstNumber,
       contractsCount: stats.count,
       totalValue: stats.totalValue,
-      rating: RATINGS[index % 4],
-      compliance: COMPLIANCE[index % 4],
-      onTime: ON_TIME[index % 4],
     };
   });
 
@@ -185,11 +178,10 @@ const { hasPermission: canDo } = useInteriorPermissions();
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>{isOrgView ? 'Vendor Management' : 'Vendors & Subcontractors'}</Text>
-            <Text style={s.headerSub}>{isOrgView ? 'All vendors and suppliers of your organization.' : 'Ratings, compliance, and contract values.'}</Text>
           </View>
           {canDo('vendors', 'create') && (
             <TouchableOpacity style={s.addVendorBtn} onPress={openAddModal}>
@@ -267,7 +259,6 @@ const { hasPermission: canDo } = useInteriorPermissions();
               <View style={s.empty}>
                 <Ionicons name="car-outline" size={40} color="#CBD5E1" />
                 <Text style={s.emptyTitle}>No vendors registered yet</Text>
-                <Text style={s.emptySub}>Tap "Add Vendor" to register a new vendor.</Text>
               </View>
             ) : vendors.length === 0 ? (
               <View style={s.empty}>
@@ -349,34 +340,6 @@ const { hasPermission: canDo } = useInteriorPermissions();
                       <Text style={[s.statValue, { color: '#2563EB' }]}>{formatCost(vendor.totalValue)}</Text>
                     </View>
                   </View>
-
-                  <Text style={s.perfTitle}>PERFORMANCE INDICATORS</Text>
-                  <View style={{ gap: 10 }}>
-                    <View>
-                      <View style={s.perfRow}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Ionicons name="shield-checkmark-outline" size={13} color="#16A34A" />
-                          <Text style={s.perfLabel}>Quality Compliance</Text>
-                        </View>
-                        <Text style={s.perfValue}>{vendor.compliance}%</Text>
-                      </View>
-                      <View style={s.progressTrack}>
-                        <View style={[s.progressFill, { width: `${vendor.compliance}%`, backgroundColor: '#10B981' }]} />
-                      </View>
-                    </View>
-                    <View>
-                      <View style={s.perfRow}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Ionicons name="time-outline" size={13} color="#2563EB" />
-                          <Text style={s.perfLabel}>On-Time Delivery Rate</Text>
-                        </View>
-                        <Text style={s.perfValue}>{vendor.onTime}%</Text>
-                      </View>
-                      <View style={s.progressTrack}>
-                        <View style={[s.progressFill, { width: `${vendor.onTime}%`, backgroundColor: '#3B82F6' }]} />
-                      </View>
-                    </View>
-                  </View>
                   </>
                   )}
                 </View>
@@ -437,67 +400,67 @@ const { hasPermission: canDo } = useInteriorPermissions();
 
 const s = StyleSheet.create({
   contactRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  contactText: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#475569', flexShrink: 1 },
+  contactText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#475569', flexShrink: 1 },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingHorizontal: 20, paddingTop: 16, gap: 12 },
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 42, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: 'Inter-Medium', color: '#0F172A' },
   filterBtn: { width: 42, height: 42, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   filterBtnActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
   filterCount: { position: 'absolute', top: -4, right: -4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#E11D48', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  filterCountText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  filterCountText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   filterPanel: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, padding: 12, paddingTop: 2 },
   filterCell: {},
-  resetText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#E11D48', marginTop: 10 },
+  resetText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#E11D48', marginTop: 10 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   addVendorBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#7C3AED', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
-  addVendorBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  addVendorBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, maxHeight: '88%' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
   pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   pill: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   pillActive: { backgroundColor: '#7C3AED', borderColor: '#7C3AED' },
-  pillText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  pillText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   pillTextActive: { color: '#FFFFFF' },
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#7C3AED', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },
   saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  emptySub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  emptySub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' },
 
   vendorCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', gap: 12 },
   vendorTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   vendorIconBox: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
   vendorName: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  vendorTrade: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  vendorTrade: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
   gstBadge: { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
-  gstBadgeText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#334155', textTransform: 'uppercase' },
+  gstBadgeText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#334155', textTransform: 'uppercase' },
   ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FFFBEB', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-  ratingBadgeText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#D97706' },
+  ratingBadgeText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#D97706' },
 
   statsRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F8FAFC', paddingVertical: 10 },
-  statLabel: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  statValue: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
+  statLabel: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  statValue: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
 
-  perfTitle: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3 },
+  perfTitle: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.3 },
   perfRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  perfLabel: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B' },
-  perfValue: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  perfLabel: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B' },
+  perfValue: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
   progressTrack: { height: 6, borderRadius: 3, backgroundColor: '#F1F5F9', overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3 },
 });

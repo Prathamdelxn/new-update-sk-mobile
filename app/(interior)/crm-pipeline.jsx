@@ -201,12 +201,12 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
   headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
   totalBadge: {
     backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE',
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
   },
-  totalBadgeText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  totalBadgeText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   tabRow: {
     gap: 8, paddingHorizontal: 16, paddingVertical: 12,
@@ -216,12 +216,12 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: '#F8FAFC',
   },
-  tabBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B' },
+  tabBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#64748B' },
   tabCount: {
     backgroundColor: '#E2E8F0', paddingHorizontal: 6, paddingVertical: 2,
     borderRadius: 8, minWidth: 18, alignItems: 'center',
   },
-  tabCountText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#475569' },
+  tabCountText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#475569' },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 10, paddingHorizontal: 30 },
   emptyIconBox: {
@@ -229,7 +229,7 @@ const s = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginBottom: 4,
   },
   emptyTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  emptySub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
+  emptySub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
 
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -238,10 +238,10 @@ const s = StyleSheet.create({
   },
   avatar: { width: 40, height: 40, borderRadius: 13, justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
-  leadName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', flexShrink: 1 },
-  leadNumber: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8', flexShrink: 0 },
-  leadLocation: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', flexShrink: 1 },
-  leadAssigned: { fontSize: 10, fontFamily: 'Inter-Medium', color: '#7C3AED', flexShrink: 1 },
+  leadName: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', flexShrink: 1 },
+  leadNumber: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', flexShrink: 0 },
+  leadLocation: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', flexShrink: 1 },
+  leadAssigned: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#7C3AED', flexShrink: 1 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  statusBadgeText: { fontSize: 9, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
+  statusBadgeText: { fontSize: 10.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
 });

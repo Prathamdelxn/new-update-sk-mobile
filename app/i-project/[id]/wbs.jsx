@@ -65,6 +65,17 @@ const formatDateRange = (s, e) => {
   return null;
 };
 
+const shortRange = (s, e) => {
+  const d = (v) => { if (!v) return null; const x = new Date(v); return isNaN(x.getTime()) ? null : x; };
+  const a = d(s); const b = d(e);
+  const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmt = (x, withYear) => `${x.getDate()} ${M[x.getMonth()]}${withYear ? ` ${x.getFullYear()}` : ''}`;
+  if (a && b) return `${fmt(a, a.getFullYear() !== b.getFullYear())} – ${fmt(b, true)}`;
+  if (a) return `From ${fmt(a, true)}`;
+  if (b) return `Due ${fmt(b, true)}`;
+  return null;
+};
+
 function DatePickerField({ value, onChange, placeholder = 'Select date', minDate, maxDate, disabled }) {
   const [showIosPicker, setShowIosPicker] = useState(false);
 
@@ -181,6 +192,7 @@ export default function InteriorWbsScreen() {
 
   // Modal 2: Create / Edit Activity Modal
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [detailTask, setDetailTask] = useState(null); // { task, node } shown in the details sheet
   const [activityModalMode, setActivityModalMode] = useState('create'); // 'create' | 'edit'
   const [editingTaskId, setEditingTaskId] = useState('');
   const [selectedNodeForActivity, setSelectedNodeForActivity] = useState(null);
@@ -642,31 +654,21 @@ export default function InteriorWbsScreen() {
     <View style={s.outerContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
       <SafeAreaView style={s.container} edges={['bottom']}>
-        {/* Top Header */}
+        {/* Top Header (same look as the other module screens) */}
         <View style={[s.header, { paddingTop: insets.top + 10 }]}>
           <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <Text style={s.headerTitle} numberOfLines={1}>
-                Work Breakdown Structure
-              </Text>
-              <View style={s.statBadge}>
-                <Text style={s.statBadgeText}>
-                  {wbsData.length} WBS Elements • {tasks.length} Activities
-                </Text>
-              </View>
-            </View>
+            <Text style={s.headerTitle} numberOfLines={1}>Work Breakdown</Text>
             <Text style={s.headerSub} numberOfLines={1}>
-              Planning dates, scope of work, and actionable activities.
+              {wbsData.length} {wbsData.length === 1 ? 'element' : 'elements'} · {tasks.length} {tasks.length === 1 ? 'activity' : 'activities'}
             </Text>
           </View>
-
           {canDo('wbs', 'create') && (
             <TouchableOpacity style={s.headerAddBtn} onPress={handleOpenCreateWbs} activeOpacity={0.8}>
               <Ionicons name="add" size={16} color="#FFFFFF" />
-              <Text style={s.headerAddText}>Create WBS</Text>
+              <Text style={s.headerAddText}>New</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -684,50 +686,36 @@ export default function InteriorWbsScreen() {
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />}
           >
-            {/* Project Overview Strip */}
+            {/* Overall progress: one slim line */}
             {wbsData.length > 0 && (
               <View style={s.overviewStrip}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.overviewLabel}>Overall Project Activities Progress</Text>
+                  <View style={s.rowBetween}>
+                    <Text style={s.overviewLabel}>Overall progress</Text>
+                    <Text style={s.overviewCountText}>
+                      <Text style={s.overviewPctText}>{overallProgressPct}%</Text>  ·  {totalCompletedActivities}/{tasks.length} done
+                    </Text>
+                  </View>
                   <View style={s.progressBarTrack}>
                     <View style={[s.progressBarFill, { width: `${overallProgressPct}%` }]} />
                   </View>
                 </View>
-                <View style={{ alignItems: 'flex-end', marginLeft: 12 }}>
-                  <Text style={s.overviewPctText}>{overallProgressPct}%</Text>
-                  <Text style={s.overviewCountText}>
-                    {totalCompletedActivities}/{tasks.length} Completed
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={s.toggleAllBtn}
-                  onPress={toggleAllNodes}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                >
-                  <Ionicons
-                    name={expandedNodes.length === wbsData.length ? 'contract-outline' : 'expand-outline'}
-                    size={16}
-                    color="#475569"
-                  />
-                </TouchableOpacity>
+                {wbsData.length > 1 && (
+                  <TouchableOpacity style={s.toggleAllBtn} onPress={toggleAllNodes} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                    <Ionicons name={expandedNodes.length === wbsData.length ? 'contract-outline' : 'expand-outline'} size={16} color="#475569" />
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
-            {/* Empty State */}
             {wbsData.length === 0 ? (
               <View style={s.empty}>
-                <View style={s.emptyIconWrap}>
-                  <Ionicons name="folder-open-outline" size={38} color="#94A3B8" />
-                </View>
-                <Text style={s.emptyTitle}>No WBS elements defined yet</Text>
-                <Text style={s.emptySub}>
-                  Click "Create WBS" to initialize your project work breakdown elements and actionable tasks.
-                </Text>
+                <Ionicons name="folder-open-outline" size={36} color="#94A3B8" />
+                <Text style={s.emptyTitle}>No WBS elements yet</Text>
                 {canDo('wbs', 'create') && (
                   <TouchableOpacity style={s.emptyBtn} onPress={handleOpenCreateWbs} activeOpacity={0.8}>
                     <Ionicons name="add" size={16} color="#FFFFFF" />
-                    <Text style={s.emptyBtnText}>Create First WBS Element</Text>
+                    <Text style={s.emptyBtnText}>Create WBS element</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -736,272 +724,97 @@ export default function InteriorWbsScreen() {
                 {wbsData.map((node) => {
                   const directTasks = tasksByPackage.get(node.id) || [];
                   const isExpanded = expandedNodes.includes(node.id);
-                  const dateRange = formatDateRange(node.startDate, node.endDate);
+                  const dateRange = shortRange(node.startDate, node.endDate);
                   const completedCount = directTasks.filter((t) => t.status === 'completed').length;
-                  const nodeProgressPct =
-                    directTasks.length > 0 ? Math.round((completedCount / directTasks.length) * 100) : 0;
-                  const isAllDone = directTasks.length > 0 && completedCount === directTasks.length;
+                  const nodeProgressPct = directTasks.length > 0 ? Math.round((completedCount / directTasks.length) * 100) : 0;
+                  const inactive = node.status === 'inactive';
+                  const nodeMenu = () => {
+                    const opts = [];
+                    if (canDo('wbs', 'update')) opts.push({ text: 'Edit element', onPress: () => handleOpenEditWbs(node) });
+                    if (canDo('wbs', 'delete')) opts.push({ text: 'Delete element', style: 'destructive', onPress: () => confirmDeleteWbs(node) });
+                    if (opts.length) Alert.alert(node.name, undefined, [...opts, { text: 'Cancel', style: 'cancel' }]);
+                  };
 
                   return (
                     <View key={node.id} style={s.wbsCard}>
-                      {/* WBS Card Header Row */}
-                      <TouchableOpacity
-                        style={s.wbsCardHeader}
-                        onPress={() => toggleNode(node.id)}
-                        activeOpacity={0.8}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'flex-start', flex: 1, gap: 10 }}>
-                          <TouchableOpacity
-                            onPress={() => toggleNode(node.id)}
-                            style={s.chevronWrap}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          >
-                            <Ionicons
-                              name={isExpanded ? 'chevron-down' : 'chevron-forward'}
-                              size={16}
-                              color="#64748B"
-                            />
+                      {/* Element header: name, one facts line, thin progress bar */}
+                      <TouchableOpacity style={s.wbsCardHeader} onPress={() => toggleNode(node.id)} activeOpacity={0.8}>
+                        <Ionicons name={isExpanded ? 'chevron-down' : 'chevron-forward'} size={18} color="#64748B" style={{ marginTop: 1 }} />
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={s.wbsNodeName} numberOfLines={2}>{node.name}</Text>
+                          <Text style={s.wbsNodeMeta} numberOfLines={1}>
+                            {[
+                              inactive ? 'Inactive' : null,
+                              `${completedCount}/${directTasks.length} done`,
+                              dateRange,
+                            ].filter(Boolean).join('  ·  ')}
+                          </Text>
+                        </View>
+                        <Text style={s.wbsPct}>{nodeProgressPct}%</Text>
+                        {(canDo('wbs', 'update') || canDo('wbs', 'delete')) && (
+                          <TouchableOpacity onPress={nodeMenu} style={s.moreBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Ionicons name="ellipsis-vertical" size={16} color="#64748B" />
                           </TouchableOpacity>
+                        )}
+                      </TouchableOpacity>
+                      <View style={s.nodeTrack}>
+                        <View style={[s.nodeFill, { width: `${nodeProgressPct}%` }]} />
+                      </View>
 
-                          <View style={s.wbsIconBox}>
-                            <Ionicons name="folder-open" size={16} color="#2563EB" />
-                          </View>
-
-                          <View style={{ flex: 1, minWidth: 0 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                              <Text style={s.wbsNodeName} numberOfLines={1}>
-                                {node.name}
-                              </Text>
-
-                              {/* Status Badge */}
-                              <View
-                                style={[
-                                  s.statusPill,
-                                  node.status === 'inactive' ? s.statusPillInactive : s.statusPillActive,
-                                ]}
+                      {/* Activities: plain rows */}
+                      {isExpanded && (
+                        <View style={s.activitiesContainer}>
+                          {directTasks.length === 0 && (
+                            <Text style={s.emptyActivitiesText}>No activities yet.</Text>
+                          )}
+                          {directTasks.map((task, ti) => {
+                            const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
+                            const statusMeta = STATUS_CONFIG[task.status] || STATUS_CONFIG.todo;
+                            const isDone = task.status === 'completed';
+                            const range = shortRange(task.startDate, task.endDate);
+                            const assigneeName = getAssigneeName(task);
+                            const taskMenu = () => {
+                              const opts = [];
+                              if (canDo('tasks', 'update')) opts.push({ text: 'Edit activity', onPress: () => handleOpenEditActivity(task, node) });
+                              if (canDo('tasks', 'delete')) opts.push({ text: 'Delete activity', style: 'destructive', onPress: () => confirmDeleteActivity(task) });
+                              if (opts.length) Alert.alert(task.name, undefined, [...opts, { text: 'Cancel', style: 'cancel' }]);
+                            };
+                            return (
+                              <TouchableOpacity
+                                key={task._id || task.id}
+                                style={[s.activityRow, ti === directTasks.length - 1 && { borderBottomWidth: 0 }]}
+                                onPress={() => setDetailTask({ task, node })}
+                                onLongPress={taskMenu}
+                                activeOpacity={0.7}
                               >
-                                <Text
-                                  style={[
-                                    s.statusPillText,
-                                    node.status === 'inactive'
-                                      ? s.statusPillTextInactive
-                                      : s.statusPillTextActive,
-                                  ]}
-                                >
-                                  {node.status === 'inactive' ? 'Inactive' : 'Active'}
-                                </Text>
-                              </View>
-
-                              {/* Activities Count Badge */}
-                              {directTasks.length > 0 && (
-                                <View style={s.activityCountPill}>
-                                  <Text style={s.activityCountText}>
-                                    {completedCount}/{directTasks.length} Activities
+                                <TouchableOpacity onPress={() => handleToggleTaskStatus(task)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginTop: 1 }}>
+                                  <Ionicons name={isDone ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={isDone ? '#10B981' : '#CBD5E1'} />
+                                </TouchableOpacity>
+                                <View style={{ flex: 1, minWidth: 0 }}>
+                                  <Text style={[s.activityTitle, isDone && s.activityTitleDone]} numberOfLines={2}>
+                                    {task.isMilestone ? '⚑ ' : ''}{task.name}
                                   </Text>
-                                  <View
-                                    style={[
-                                      s.activityPctBadge,
-                                      isAllDone ? s.activityPctBadgeDone : s.activityPctBadgePending,
-                                    ]}
-                                  >
-                                    <Text
-                                      style={[
-                                        s.activityPctText,
-                                        isAllDone ? s.activityPctTextDone : s.activityPctTextPending,
-                                      ]}
-                                    >
-                                      {nodeProgressPct}%
+                                  <View style={s.activityMetaRow}>
+                                    <View style={[s.priorityDot, { backgroundColor: priority.color }]} />
+                                    <Text style={s.activityMeta} numberOfLines={1}>
+                                      {[priority.label, assigneeName || 'Unassigned', range].filter(Boolean).join('  ·  ')}
                                     </Text>
                                   </View>
                                 </View>
-                              )}
-                            </View>
-
-                            {/* Secondary Line: Scope Description & Date Range */}
-                            <View style={{ marginTop: 4, gap: 4 }}>
-                              {!!node.description && (
-                                <Text style={s.wbsNodeDesc} numberOfLines={2}>
-                                  {node.description}
-                                </Text>
-                              )}
-                              {!!dateRange && (
-                                <View style={s.dateRangeChip}>
-                                  <Ionicons name="calendar-outline" size={11} color="#2563EB" />
-                                  <Text style={s.dateRangeChipText}>{dateRange}</Text>
-                                </View>
-                              )}
-                            </View>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-
-                      {/* Card Action Buttons Toolbar */}
-                      <View style={s.wbsActionsToolbar}>
-                        {canDo('tasks', 'create') && (
-                          <TouchableOpacity
-                            style={s.addActivityBtn}
-                            onPress={() => handleOpenAddActivity(node)}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons name="add" size={13} color="#FFFFFF" />
-                            <Text style={s.addActivityBtnText}>Activity</Text>
-                          </TouchableOpacity>
-                        )}
-
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          {canDo('wbs', 'update') && (
-                            <TouchableOpacity
-                              style={s.iconActionBtn}
-                              onPress={() => handleOpenEditWbs(node)}
-                              activeOpacity={0.7}
-                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                            >
-                              <Ionicons name="pencil-outline" size={14} color="#475569" />
+                                {!isDone && <Text style={[s.activityStatus, { color: statusMeta.color }]}>{statusMeta.label}</Text>}
+                                {(canDo('tasks', 'update') || canDo('tasks', 'delete')) && (
+                                  <TouchableOpacity onPress={taskMenu} style={s.moreBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                    <Ionicons name="ellipsis-vertical" size={15} color="#94A3B8" />
+                                  </TouchableOpacity>
+                                )}
+                              </TouchableOpacity>
+                            );
+                          })}
+                          {canDo('tasks', 'create') && (
+                            <TouchableOpacity style={s.addActivityLink} onPress={() => handleOpenAddActivity(node)} activeOpacity={0.7}>
+                              <Ionicons name="add-circle-outline" size={18} color="#2563EB" />
+                              <Text style={s.addActivityLinkText}>Add activity</Text>
                             </TouchableOpacity>
-                          )}
-
-                          {canDo('wbs', 'delete') && (
-                            <TouchableOpacity
-                              style={[s.iconActionBtn, { borderColor: '#FECDD3' }]}
-                              onPress={() => confirmDeleteWbs(node)}
-                              activeOpacity={0.7}
-                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                            >
-                              <Ionicons name="trash-outline" size={14} color="#E11D48" />
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      </View>
-
-                      {/* Expanded Activities List */}
-                      {isExpanded && (
-                        <View style={s.activitiesContainer}>
-                          {directTasks.length === 0 ? (
-                            <View style={s.emptyActivitiesBox}>
-                              <Text style={s.emptyActivitiesText}>
-                                No activities created under this WBS element yet.
-                              </Text>
-                              {canDo('tasks', 'create') && (
-                                <TouchableOpacity
-                                  style={s.addFirstActivityLink}
-                                  onPress={() => handleOpenAddActivity(node)}
-                                >
-                                  <Ionicons name="add" size={13} color="#2563EB" />
-                                  <Text style={s.addFirstActivityLinkText}>Add First Activity</Text>
-                                </TouchableOpacity>
-                              )}
-                            </View>
-                          ) : (
-                            <View style={{ gap: 8 }}>
-                              {directTasks.map((task) => {
-                                const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
-                                const statusMeta = STATUS_CONFIG[task.status] || STATUS_CONFIG.todo;
-                                const isDone = task.status === 'completed';
-                                const taskDateRange = formatDateRange(task.startDate, task.endDate);
-                                const assigneeName = getAssigneeName(task);
-
-                                return (
-                                  <View
-                                    key={task._id || task.id}
-                                    style={[s.activityCard, isDone && s.activityCardDone]}
-                                  >
-                                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', flex: 1, gap: 8 }}>
-                                      {/* Quick status toggle button */}
-                                      <TouchableOpacity
-                                        onPress={() => handleToggleTaskStatus(task)}
-                                        style={s.statusToggleBtn}
-                                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                                      >
-                                        <Ionicons
-                                          name={isDone ? 'checkmark-circle' : 'ellipse-outline'}
-                                          size={18}
-                                          color={isDone ? '#10B981' : '#94A3B8'}
-                                        />
-                                      </TouchableOpacity>
-
-                                      <View style={{ flex: 1, minWidth: 0 }}>
-                                        {/* Activity Title & Badges */}
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                          <Text
-                                            style={[s.activityTitle, isDone && s.activityTitleDone]}
-                                            numberOfLines={2}
-                                          >
-                                            {task.name}
-                                          </Text>
-
-                                          <View style={[s.badgePill, { backgroundColor: priority.bg, borderColor: priority.border }]}>
-                                            <Text style={[s.badgeText, { color: priority.color }]}>
-                                              {priority.label}
-                                            </Text>
-                                          </View>
-
-                                          <View style={[s.badgePill, { backgroundColor: statusMeta.bg, borderColor: statusMeta.border }]}>
-                                            <Text style={[s.badgeText, { color: statusMeta.color }]}>
-                                              {statusMeta.label}
-                                            </Text>
-                                          </View>
-
-                                          {task.isMilestone && (
-                                            <View style={s.milestoneBadge}>
-                                              <Ionicons name="flag" size={9} color="#7C3AED" />
-                                              <Text style={s.milestoneBadgeText}>Milestone</Text>
-                                            </View>
-                                          )}
-                                        </View>
-
-                                        {/* Description */}
-                                        {!!task.description && (
-                                          <Text style={s.activityDesc} numberOfLines={2}>
-                                            {task.description}
-                                          </Text>
-                                        )}
-
-                                        {/* Metadata Row: Assignee & Date */}
-                                        <View style={s.activityMetaRow}>
-                                          <View style={s.assigneeChip}>
-                                            <Ionicons name="person-outline" size={10} color="#475569" />
-                                            <Text style={s.assigneeChipText} numberOfLines={1}>
-                                              {assigneeName || 'Unassigned'}
-                                            </Text>
-                                          </View>
-
-                                          {!!taskDateRange && (
-                                            <View style={s.activityDateChip}>
-                                              <Ionicons name="calendar-outline" size={10} color="#64748B" />
-                                              <Text style={s.activityDateText} numberOfLines={1}>
-                                                {taskDateRange}
-                                              </Text>
-                                            </View>
-                                          )}
-                                        </View>
-                                      </View>
-                                    </View>
-
-                                    {/* Activity Edit & Delete Actions */}
-                                    <View style={s.activityActions}>
-                                      {canDo('tasks', 'update') && (
-                                        <TouchableOpacity
-                                          onPress={() => handleOpenEditActivity(task, node)}
-                                          style={s.activityIconBtn}
-                                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                                        >
-                                          <Ionicons name="pencil-outline" size={13} color="#475569" />
-                                        </TouchableOpacity>
-                                      )}
-                                      {canDo('tasks', 'delete') && (
-                                        <TouchableOpacity
-                                          onPress={() => confirmDeleteActivity(task)}
-                                          style={[s.activityIconBtn, { borderColor: '#FECDD3' }]}
-                                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                                        >
-                                          <Ionicons name="trash-outline" size={13} color="#E11D48" />
-                                        </TouchableOpacity>
-                                      )}
-                                    </View>
-                                  </View>
-                                );
-                              })}
-                            </View>
                           )}
                         </View>
                       )}
@@ -1015,6 +828,109 @@ export default function InteriorWbsScreen() {
           </ScrollView>
         )}
       </SafeAreaView>
+
+      {/* =========================================================================
+          Activity details (tap a row): read view with the actions at the bottom
+          ========================================================================= */}
+      <Modal visible={!!detailTask} animationType="slide" transparent onRequestClose={() => setDetailTask(null)}>
+        <View style={s.modalOverlay}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setDetailTask(null)} />
+          {detailTask && (() => {
+            const { task, node } = detailTask;
+            const statusMeta = STATUS_CONFIG[task.status] || STATUS_CONFIG.todo;
+            const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
+            const isDone = task.status === 'completed';
+            const fmt = (v) => {
+              if (!v) return null;
+              const d = new Date(v);
+              return isNaN(d.getTime()) ? null : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            };
+            const days = task.startDate && task.endDate
+              ? Math.max(1, Math.round((new Date(task.endDate) - new Date(task.startDate)) / 86400000) + 1)
+              : null;
+            const overdue = !isDone && task.endDate && new Date(task.endDate).getTime() < Date.now();
+            const desc = String(task.description || '').trim();
+            const showDesc = desc && !desc.toLowerCase().startsWith(String(task.name || '').toLowerCase());
+            const rows = [
+              ['Assigned to', getAssigneeName(task) || 'Unassigned'],
+              ['Start', fmt(task.startDate)],
+              ['End', fmt(task.endDate), overdue],
+              ['Duration', days ? `${days} ${days === 1 ? 'day' : 'days'}` : null],
+              ['WBS element', node?.name],
+            ].filter(([, v]) => v);
+            return (
+              <View style={[s.detailSheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+                <View style={s.sheetHandle} />
+                <View style={s.detailTop}>
+                  <Text style={s.detailTitle}>{task.name}</Text>
+                  <TouchableOpacity onPress={() => setDetailTask(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="close" size={22} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+                <View style={s.detailTags}>
+                  <View style={[s.detailPill, { backgroundColor: statusMeta.bg }]}>
+                    <Text style={[s.detailPillText, { color: statusMeta.color }]}>{statusMeta.label}</Text>
+                  </View>
+                  <View style={s.detailTagItem}>
+                    <View style={[s.priorityDot, { backgroundColor: priority.color }]} />
+                    <Text style={s.detailTagText}>{priority.label} priority</Text>
+                  </View>
+                  {task.isMilestone && (
+                    <View style={s.detailTagItem}>
+                      <Ionicons name="flag" size={13} color="#7C3AED" />
+                      <Text style={[s.detailTagText, { color: '#7C3AED' }]}>Milestone</Text>
+                    </View>
+                  )}
+                  {overdue && <Text style={[s.detailTagText, { color: '#DC2626' }]}>Overdue</Text>}
+                </View>
+
+                <View style={s.detailRows}>
+                  {rows.map(([label, value, warn], i) => (
+                    <View key={label} style={[s.detailRow, i === rows.length - 1 && { borderBottomWidth: 0 }]}>
+                      <Text style={s.detailLabel}>{label}</Text>
+                      <Text style={[s.detailValue, warn && { color: '#DC2626' }]} numberOfLines={2}>{value}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {showDesc && (
+                  <View style={{ marginTop: 4 }}>
+                    <Text style={s.detailLabel}>Scope</Text>
+                    <Text style={s.detailDesc}>{desc}</Text>
+                  </View>
+                )}
+
+                {canDo('tasks', 'update') && (
+                  <TouchableOpacity
+                    style={[s.detailPrimary, isDone && { backgroundColor: '#F1F5F9' }]}
+                    onPress={() => { setDetailTask(null); handleToggleTaskStatus(task); }}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name={isDone ? 'refresh' : 'checkmark-circle'} size={18} color={isDone ? '#334155' : '#FFFFFF'} />
+                    <Text style={[s.detailPrimaryText, isDone && { color: '#334155' }]}>{isDone ? 'Reopen activity' : 'Mark as done'}</Text>
+                  </TouchableOpacity>
+                )}
+                {(canDo('tasks', 'update') || canDo('tasks', 'delete')) && (
+                  <View style={s.detailActions}>
+                    {canDo('tasks', 'update') && (
+                      <TouchableOpacity style={s.detailSecondary} onPress={() => { setDetailTask(null); handleOpenEditActivity(task, node); }}>
+                        <Ionicons name="create-outline" size={16} color="#334155" />
+                        <Text style={s.detailSecondaryText}>Edit</Text>
+                      </TouchableOpacity>
+                    )}
+                    {canDo('tasks', 'delete') && (
+                      <TouchableOpacity style={[s.detailSecondary, { borderColor: '#FECDD3' }]} onPress={() => { setDetailTask(null); confirmDeleteActivity(task); }}>
+                        <Ionicons name="trash-outline" size={16} color="#E11D48" />
+                        <Text style={[s.detailSecondaryText, { color: '#E11D48' }]}>Delete</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })()}
+        </View>
+      </Modal>
 
       {/* =========================================================================
           MODAL 1: Create / Edit WBS Node
@@ -1272,10 +1188,10 @@ export default function InteriorWbsScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.modalTitle}>
-                    {activityModalMode === 'create' ? 'Add Activity / Task' : 'Edit Activity / Task'}
+                    {activityModalMode === 'create' ? 'New activity' : 'Edit activity'}
                   </Text>
                   <Text style={s.modalSub} numberOfLines={1}>
-                    WBS Element: <Text style={{ color: '#2563EB', fontWeight: '700' }}>{selectedNodeForActivity?.name}</Text>
+                    {selectedNodeForActivity?.name}
                   </Text>
                 </View>
               </View>
@@ -1290,10 +1206,7 @@ export default function InteriorWbsScreen() {
                 <View style={s.completedLockBanner}>
                   <Ionicons name="checkmark-circle" size={16} color="#059669" />
                   <View style={{ flex: 1 }}>
-                    <Text style={s.completedLockTitle}>Completed Activity (Locked)</Text>
-                    <Text style={s.completedLockSub}>
-                      This activity is marked as completed. Re-open to edit planning specs.
-                    </Text>
+                    <Text style={s.completedLockTitle}>Completed — reopen it to make changes</Text>
                   </View>
                 </View>
               )}
@@ -1437,14 +1350,8 @@ export default function InteriorWbsScreen() {
                 />
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={s.milestoneCardTitle}>Mark as Milestone Activity</Text>
-                    <View style={s.milestoneBadge}>
-                      <Text style={s.milestoneBadgeText}>Milestones Tab</Text>
-                    </View>
+                    <Text style={s.milestoneCardTitle}>Milestone</Text>
                   </View>
-                  <Text style={s.milestoneCardSub}>
-                    Automatically links and displays this activity in the project's Milestones tracking section.
-                  </Text>
                 </View>
               </TouchableOpacity>
 
@@ -1476,22 +1383,25 @@ export default function InteriorWbsScreen() {
 // =============================================================================
 
 const s = StyleSheet.create({
+  addActivityLinkText: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#2563EB' },
+  addActivityLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12 },
+  activityStatus: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', marginTop: 2 },
+  activityMeta: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B' },
+  priorityDot: { width: 7, height: 7, borderRadius: 4 },
+  activityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  nodeFill: { height: '100%', backgroundColor: '#10B981', borderRadius: 2 },
+  nodeTrack: { height: 4, backgroundColor: '#F1F5F9', marginHorizontal: 14, borderRadius: 2, overflow: 'hidden', marginBottom: 4 },
+  moreBtn: { paddingHorizontal: 2, paddingVertical: 2 },
+  wbsPct: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 1 },
+  wbsNodeMeta: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 3 },
+  rowBetween: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFC' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingHorizontal: 16, paddingTop: 12 },
 
   // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   backBtn: {
     width: 34,
     height: 34,
@@ -1502,254 +1412,42 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
-  headerTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
-  headerSub: { fontSize: 11, color: '#64748B', marginTop: 1 },
-  statBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-  },
-  statBadgeText: { fontSize: 10, fontWeight: '700', color: '#1D4ED8' },
-  headerAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-  },
-  headerAddText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  headerAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#2563EB', paddingHorizontal: 12, height: 34, borderRadius: 9 },
+  headerAddText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   // Overview Strip
-  overviewStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  overviewLabel: { fontSize: 11, fontWeight: '600', color: '#475569', marginBottom: 5 },
-  progressBarTrack: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 999, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: '#2563EB', borderRadius: 999 },
-  overviewPctText: { fontSize: 13, fontWeight: '800', color: '#0F172A' },
-  overviewCountText: { fontSize: 10, color: '#64748B' },
-  toggleAllBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    marginLeft: 10,
-  },
+  overviewStrip: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 },
+  overviewLabel: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  progressBarTrack: { height: 5, borderRadius: 3, backgroundColor: '#F1F5F9', overflow: 'hidden', marginTop: 8 },
+  progressBarFill: { height: '100%', borderRadius: 3, backgroundColor: '#2563EB' },
+  overviewPctText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  overviewCountText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B' },
+  toggleAllBtn: { width: 34, height: 34, borderRadius: 9, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
 
   // Empty State
-  empty: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 16,
-    marginTop: 10,
-  },
-  emptyIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  emptyTitle: { fontSize: 14, fontWeight: '700', color: '#334155', textAlign: 'center' },
-  emptySub: { fontSize: 12, color: '#64748B', textAlign: 'center', marginTop: 4, maxWidth: 300 },
-  emptyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-    marginTop: 16,
-  },
-  emptyBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
+  empty: { alignItems: 'center', paddingVertical: 50, gap: 10 },
+  emptyTitle: { fontSize: 15, fontFamily: 'Inter-SemiBold', color: '#475569' },
+  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#2563EB', paddingHorizontal: 16, height: 40, borderRadius: 10, marginTop: 4 },
+  emptyBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   // WBS Card
-  wbsCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  wbsCardHeader: {
-    padding: 12,
-    backgroundColor: '#FFFFFF',
-  },
-  chevronWrap: {
-    paddingTop: 2,
-  },
-  wbsIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  wbsNodeName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  statusPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  statusPillActive: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
-  statusPillInactive: { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' },
-  statusPillText: { fontSize: 9.5, fontWeight: '700' },
-  statusPillTextActive: { color: '#047857' },
-  statusPillTextInactive: { color: '#64748B' },
+  wbsCard: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden' },
+  wbsCardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 },
+  wbsNodeName: { fontSize: 15, lineHeight: 20, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
-  activityCountPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  activityCountText: { fontSize: 9.5, fontWeight: '600', color: '#475569' },
-  activityPctBadge: {
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  activityPctBadgeDone: { backgroundColor: '#D1FAE5' },
-  activityPctBadgePending: { backgroundColor: '#E2E8F0' },
-  activityPctText: { fontSize: 9, fontWeight: '700' },
-  activityPctTextDone: { color: '#065F46' },
-  activityPctTextPending: { color: '#334155' },
 
-  wbsNodeDesc: { fontSize: 11, color: '#64748B', lineHeight: 15 },
-  dateRangeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  dateRangeChipText: { fontSize: 10, fontWeight: '600', color: '#334155' },
 
   // WBS Actions Toolbar
-  wbsActionsToolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
-    backgroundColor: '#FAFCFF',
-  },
-  addActivityBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 7,
-  },
-  addActivityBtnText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
-  iconActionBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
   // Activities Container
-  activitiesContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    backgroundColor: '#F8FAFC',
-    padding: 10,
-    paddingLeft: 22,
-  },
-  emptyActivitiesBox: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  emptyActivitiesText: { fontSize: 11, color: '#64748B' },
-  addFirstActivityLink: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  addFirstActivityLinkText: { fontSize: 11, fontWeight: '700', color: '#2563EB' },
+  activitiesContainer: { paddingHorizontal: 14, paddingBottom: 6, marginTop: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  emptyActivitiesText: { fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#94A3B8', paddingVertical: 12 },
 
   // Activity Card
-  activityCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    padding: 9,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  activityCardDone: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
-  },
-  statusToggleBtn: {
-    paddingTop: 1,
-  },
-  activityTitle: { fontSize: 12, fontWeight: '600', color: '#0F172A', flexShrink: 1 },
-  activityTitleDone: { textDecorationLine: 'line-through', color: '#94A3B8' },
-  badgePill: {
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-    borderWidth: 1,
-  },
-  badgeText: { fontSize: 8.5, fontWeight: '700', textTransform: 'uppercase' },
+  activityTitle: { fontSize: 14, lineHeight: 19, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  activityTitleDone: { color: '#94A3B8', textDecorationLine: 'line-through' },
   milestoneBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1761,46 +1459,30 @@ const s = StyleSheet.create({
     paddingVertical: 1.5,
     borderRadius: 4,
   },
-  milestoneBadgeText: { fontSize: 8.5, fontWeight: '700', color: '#7C3AED' },
-  activityDesc: { fontSize: 10.5, color: '#64748B', marginTop: 3, lineHeight: 14 },
-  activityMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' },
-  assigneeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  assigneeChipText: { fontSize: 9.5, color: '#475569', fontWeight: '500' },
-  activityDateChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  activityDateText: { fontSize: 9.5, color: '#64748B' },
-  activityActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginLeft: 6,
-  },
-  activityIconBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  milestoneBadgeText: { fontSize: 10.5, fontWeight: '700', color: '#7C3AED' },
+  activityMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
+  detailSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 8 },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', marginBottom: 14 },
+  detailTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  detailTitle: { flex: 1, fontSize: 17, lineHeight: 23, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  detailTags: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginTop: 10 },
+  detailPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  detailPillText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold' },
+  detailTagItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  detailTagText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#475569' },
+  detailRows: { marginTop: 14, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  detailLabel: { width: 110, fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#64748B' },
+  detailValue: { flex: 1, fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#0F172A', textAlign: 'right' },
+  detailDesc: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter-Regular', color: '#334155', marginTop: 4 },
+  detailPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 46, borderRadius: 12, backgroundColor: '#10B981', marginTop: 18 },
+  detailPrimaryText: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  detailActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  detailSecondary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 42, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
+  detailSecondaryText: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#334155' },
   modalCard: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
@@ -1827,7 +1509,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   modalTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
-  modalSub: { fontSize: 11, color: '#64748B', marginTop: 1 },
+  modalSub: { fontSize: 12.5, color: '#64748B', marginTop: 1 },
   closeModalBtn: {
     width: 30,
     height: 30,
@@ -1838,9 +1520,9 @@ const s = StyleSheet.create({
   },
 
   // Form Fields
-  formLabel: { fontSize: 11.5, fontWeight: '700', color: '#334155', marginBottom: 5, marginTop: 10 },
-  formSubLabel: { fontSize: 10.5, fontWeight: '600', color: '#64748B', marginBottom: 4 },
-  formSectionTitle: { fontSize: 11.5, fontWeight: '700', color: '#0F172A', marginTop: 12, marginBottom: 6 },
+  formLabel: { fontSize: 13, fontWeight: '700', color: '#334155', marginBottom: 5, marginTop: 10 },
+  formSubLabel: { fontSize: 12, fontWeight: '600', color: '#64748B', marginBottom: 4 },
+  formSectionTitle: { fontSize: 13, fontWeight: '700', color: '#0F172A', marginTop: 12, marginBottom: 6 },
   formInput: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -1848,7 +1530,7 @@ const s = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
-    fontSize: 12.5,
+    fontSize: 13.5,
     color: '#0F172A',
   },
   formTextArea: {
@@ -1870,7 +1552,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 9,
   },
-  dateBtnText: { fontSize: 11.5, color: '#0F172A', fontWeight: '500', flex: 1, marginLeft: 6 },
+  dateBtnText: { fontSize: 13, color: '#0F172A', fontWeight: '500', flex: 1, marginLeft: 6 },
   placeholderText: { color: '#94A3B8' },
 
   statusSegmentRow: { flexDirection: 'row', gap: 10 },
@@ -1888,7 +1570,7 @@ const s = StyleSheet.create({
   },
   statusSegmentBtnActive: { backgroundColor: '#ECFDF5', borderColor: '#10B981' },
   statusSegmentBtnInactive: { backgroundColor: '#FEF2F2', borderColor: '#EF4444' },
-  statusSegmentText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
+  statusSegmentText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
   statusSegmentTextActive: { color: '#047857', fontWeight: '700' },
   statusSegmentTextInactive: { color: '#B91C1C', fontWeight: '700' },
 
@@ -1902,10 +1584,10 @@ const s = StyleSheet.create({
     padding: 12,
   },
   initialActivitiesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  initialActivitiesTitle: { fontSize: 12, fontWeight: '700', color: '#0F172A' },
+  initialActivitiesTitle: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
   optionalTag: { backgroundColor: '#E2E8F0', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
-  optionalTagText: { fontSize: 9, fontWeight: '600', color: '#475569' },
-  toggleActivitiesLink: { fontSize: 11.5, fontWeight: '700', color: '#2563EB' },
+  optionalTagText: { fontSize: 10.5, fontWeight: '600', color: '#475569' },
+  toggleActivitiesLink: { fontSize: 13, fontWeight: '700', color: '#2563EB' },
   chipBtn: {
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -1914,11 +1596,9 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CBD5E1',
   },
-  chipBtnActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  chipBtnText: { fontSize: 11, fontWeight: '600', color: '#475569' },
-  chipBtnTextActive: { color: '#1D4ED8', fontWeight: '700' },
+  chipBtnText: { fontSize: 12.5, fontWeight: '600', color: '#475569' },
   milestoneCheckRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  milestoneCheckText: { fontSize: 11.5, fontWeight: '600', color: '#581C87' },
+  milestoneCheckText: { fontSize: 13, fontWeight: '600', color: '#581C87' },
   addInitialActBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1928,7 +1608,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
-  addInitialActBtnText: { fontSize: 11.5, fontWeight: '700', color: '#FFFFFF' },
+  addInitialActBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
 
   pendingActRow: {
     flexDirection: 'row',
@@ -1940,14 +1620,14 @@ const s = StyleSheet.create({
     borderRadius: 8,
     padding: 7,
   },
-  pendingActName: { fontSize: 11, fontWeight: '600', color: '#0F172A', flexShrink: 1 },
+  pendingActName: { fontSize: 12.5, fontWeight: '600', color: '#0F172A', flexShrink: 1 },
   pendingActTag: {
     backgroundColor: '#F1F5F9',
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 3,
   },
-  pendingActTagText: { fontSize: 8.5, fontWeight: '700', color: '#475569', textTransform: 'uppercase' },
+  pendingActTagText: { fontSize: 10.5, fontWeight: '700', color: '#475569', textTransform: 'uppercase' },
   pendingActMemberTag: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1957,7 +1637,7 @@ const s = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: 3,
   },
-  pendingActMemberText: { fontSize: 8.5, fontWeight: '600', color: '#1D4ED8' },
+  pendingActMemberText: { fontSize: 10.5, fontWeight: '600', color: '#1D4ED8' },
 
   // Completed lock banner
   completedLockBanner: {
@@ -1971,8 +1651,7 @@ const s = StyleSheet.create({
     padding: 10,
     marginBottom: 8,
   },
-  completedLockTitle: { fontSize: 11.5, fontWeight: '700', color: '#065F46' },
-  completedLockSub: { fontSize: 10.5, color: '#047857', marginTop: 2, lineHeight: 14 },
+  completedLockTitle: { fontSize: 13, fontWeight: '700', color: '#065F46' },
 
   wbsScopePill: {
     backgroundColor: '#EFF6FF',
@@ -1982,7 +1661,7 @@ const s = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 999,
   },
-  wbsScopePillText: { fontSize: 9.5, fontWeight: '600', color: '#1D4ED8' },
+  wbsScopePillText: { fontSize: 11, fontWeight: '600', color: '#1D4ED8' },
 
   milestoneCardBox: {
     flexDirection: 'row',
@@ -1995,8 +1674,7 @@ const s = StyleSheet.create({
     padding: 10,
     marginTop: 10,
   },
-  milestoneCardTitle: { fontSize: 11.5, fontWeight: '700', color: '#4C1D95' },
-  milestoneCardSub: { fontSize: 10, color: '#6B7280', marginTop: 2, lineHeight: 13 },
+  milestoneCardTitle: { fontSize: 13, fontWeight: '700', color: '#4C1D95' },
 
   modalSubmitBtn: {
     backgroundColor: '#2563EB',
@@ -2006,5 +1684,5 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 16,
   },
-  modalSubmitBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  modalSubmitBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 });

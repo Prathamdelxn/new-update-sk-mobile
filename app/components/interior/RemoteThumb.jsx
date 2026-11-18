@@ -54,5 +54,5 @@ export default function RemoteThumb({ uri, height = 160, style, contentFit = 'co
 const s = StyleSheet.create({
   box: { width: '100%', backgroundColor: '#E2E8F0' },
   fallback: { alignItems: 'center', justifyContent: 'center', gap: 4 },
-  fallbackText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
+  fallbackText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
 });

@@ -189,7 +189,6 @@ const { can: canDo } = useProjectPermissions(projectId);
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>File Management</Text>
-            <Text style={s.headerSub}>Project cloud drive, drawings & contract documents</Text>
           </View>
         </View>
 
@@ -262,7 +261,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               <View style={s.empty}>
                 <Ionicons name="folder-open-outline" size={44} color="#CBD5E1" />
                 <Text style={s.emptyTitle}>This Folder is Empty</Text>
-                <Text style={s.emptySub}>Create subfolders or upload project documents using the actions below.</Text>
+                <Text style={s.emptySub}>No files yet.</Text>
               </View>
             ) : (
               <>
@@ -383,7 +382,6 @@ const { can: canDo } = useProjectPermissions(projectId);
             <View style={s.modalHeader}>
               <View>
                 <Text style={s.modalTitle}>Create New Folder</Text>
-                <Text style={s.modalSubtitle}>Organize contracts, vendor submittals & drawings</Text>
               </View>
               <TouchableOpacity onPress={() => setIsFolderModalOpen(false)} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -430,13 +428,13 @@ const s = StyleSheet.create({
     gap: 12,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   backBtn: { padding: 6, borderRadius: 8, backgroundColor: '#F8FAFC' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   breadcrumbBar: {
     backgroundColor: '#FFFFFF',
@@ -454,7 +452,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  crumbText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  crumbText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   crumbTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 
   searchRow: { paddingHorizontal: 16, marginTop: 10 },
@@ -469,13 +467,13 @@ const s = StyleSheet.create({
     height: 38,
     gap: 8,
   },
-  searchInput: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  searchInput: { flex: 1, fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#0F172A' },
 
-  sectionHeader: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase' },
+  sectionHeader: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase' },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
   emptyTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#475569' },
-  emptySub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingHorizontal: 30 },
+  emptySub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingHorizontal: 30 },
 
   foldersGrid: { gap: 8 },
   folderCard: {
@@ -489,7 +487,7 @@ const s = StyleSheet.create({
     padding: 12,
   },
   folderTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  folderSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  folderSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
 
   fileCard: {
     flexDirection: 'row',
@@ -508,8 +506,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  fileTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  fileSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  fileTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  fileSub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
   fileActionBtn: {
     padding: 8,
     borderRadius: 8,
@@ -542,7 +540,7 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
     paddingVertical: 12,
   },
-  createFolderBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#334155' },
+  createFolderBtnText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#334155' },
 
   uploadFileBtn: {
     flex: 1.2,
@@ -554,7 +552,7 @@ const s = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
   },
-  uploadFileBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  uploadFileBtnText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
@@ -570,9 +568,9 @@ const s = StyleSheet.create({
   },
   modalCloseBtn: { padding: 4 },
   modalTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  modalSubtitle: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
+  modalSubtitle: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 2 },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 4 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 4 },
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
@@ -580,7 +578,7 @@ const s = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 11,
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Regular',
     color: '#0F172A',
   },

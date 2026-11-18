@@ -49,12 +49,12 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', i
 
 const ddStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  text: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
   placeholder: { color: '#94A3B8' },
   menu: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, overflow: 'hidden' },
   menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   menuItemActive: { backgroundColor: '#EFF6FF' },
-  menuItemText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
+  menuItemText: { fontSize: 13.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
   menuItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 });
 
@@ -187,11 +187,10 @@ const { can: canDo } = useProjectPermissions(projectId);
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Risk Register</Text>
-            <Text style={s.headerSub}>Probability-impact heatmap & mitigation plans.</Text>
           </View>
         </View>
 
@@ -350,32 +349,32 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingTop: 16, gap: 10 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
-  sectionTitle: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 6 },
+  sectionTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 6 },
 
   heatmapCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9' },
   heatRow: { flexDirection: 'row', gap: 4, marginBottom: 4 },
   heatHeadCell: { flex: 1, height: 32, justifyContent: 'center', alignItems: 'center' },
-  heatHeadText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase' },
+  heatHeadText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase' },
   heatCell: { flex: 1, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  heatCellText: { fontSize: 13, fontFamily: 'Inter-Black' },
-  heatmapCaption: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', marginTop: 8 },
+  heatCellText: { fontSize: 14, fontFamily: 'Inter-Bold' },
+  heatmapCaption: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', marginTop: 8 },
 
   empty: { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
 
   riskCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', gap: 8, marginBottom: 4 },
   riskTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 },
   categoryTag: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  categoryTagText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'capitalize' },
+  categoryTagText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', textTransform: 'capitalize' },
   scoreBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
-  scoreBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold', textTransform: 'capitalize' },
-  riskDesc: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  scoreBadgeText: { fontSize: 11, fontFamily: 'Inter-Bold', textTransform: 'capitalize' },
+  riskDesc: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
   mitigationBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 10, padding: 10 },
-  mitigationLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  mitigationText: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
+  mitigationLabel: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  mitigationText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   fab: {
     position: 'absolute', right: 20, bottom: 30,
@@ -389,10 +388,10 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },

@@ -11,11 +11,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import interiorCrmService from '../../services/interiorCrmService';
-import { queryKeys, invalidateCrmQueries, invalidateProjectQueries, useQuerySetter } from '../../context/QueryProvider';
+import { queryKeys, invalidateCrmQueries, invalidateProjectQueries, refreshCrmLead, useQuerySetter } from '../../context/QueryProvider';
 import { parseMaxBudget, formatExactCurrency, formatMillionBillion, formatSmartCurrency, getCurrencySymbol } from '../../utils/format';
 
 // Quote / BOQ amounts: full number below 1M, then M / B / T (web formatSmartCurrency)
-const smartMoney = (n) => formatSmartCurrency(Number(n) || 0, '₹', { threshold: 1_000_000 }).display;
+const smartMoney = (n, sym = '₹') => formatSmartCurrency(Number(n) || 0, sym, { threshold: 1_000_000 }).display;
 import { validateName, validateMobileNumber, validateEmail, validateProjectLocation, validateLeadSource, validatePropertyType, validateFutureDate } from '../../utils/crmValidation';
 import * as ImagePicker from 'expo-image-picker';
 import RemoteThumb from '../../components/interior/RemoteThumb';
@@ -53,6 +53,7 @@ import {
   ConvertToProjectModal,
 } from '../../components/crm/StageTransitionModals';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
+import { useAuth } from '../../context/AuthContext';
 import { CRM_MODULES, canMoveLead } from '../../utils/interior/crmStages';
 
 const LEAD_SOURCES = ['Phone Call', 'Walk-in', 'Referral', 'Existing Customer', 'Builder Reference', 'Architect Reference', 'Society Reference', 'Social Media', 'Other'];
@@ -165,6 +166,108 @@ const TABS = [
   { id: 'confirm_order', label: 'Confirm Order', icon: 'checkmark-done-outline' },
 ];
 
+// What the team does next at each stage (same order as the web flow) and the tab where it happens
+function nextStepFor(status) {
+  switch (status) {
+    case 'New Lead':
+    case 'Contacted':
+    case 'Meeting Scheduled':
+      return { text: 'Complete the follow-up and send to Requirements', tab: 'follow_ups' };
+    case 'Under Requirement':
+    case 'Requirement Completed':
+      return { text: 'Log requirements and pass to Site Visit', tab: 'requirements' };
+    case 'Under Site Visit':
+    case 'Measurement Done':
+      return { text: 'Log measurements and pass to 2D/3D Drawing', tab: 'site' };
+    case 'Under Drawing':
+      return { text: 'Get drawings approved and send to BOQ', tab: 'designs' };
+    case 'Design Approved':
+    case 'Under BOQ Creation':
+      return { text: 'Build and approve the BOQ', tab: 'boq' };
+    case 'Under Quotation':
+    case 'Quotation Pending':
+    case 'Quotation Sent':
+    case 'Negotiation':
+      return { text: 'Get the quotation accepted by the client', tab: 'quotations' };
+    case 'Booking Pending':
+      return { text: 'Confirm the order to start the project', tab: 'confirm_order' };
+    case 'Won':
+    case 'Converted':
+      return { text: 'Converted to a project', tab: 'confirm_order', done: true };
+    default:
+      return null;
+  }
+}
+
+// Compact stage card used by the Requirements / Site visit / Drawings tabs: title + status,
+// one meta line (when · who), the hand-over note folded away, then the stage's actions.
+function StageBrief({ icon, color, title, status, statusColor, meta = [], note, noteLabel = 'Hand-over note', right, danger, children }) {
+  const [showNote, setShowNote] = useState(false);
+  const items = meta.filter((m) => m && m.text);
+  return (
+    <View style={[s.card, danger && { borderColor: '#FCA5A5' }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={[s.briefIcon, { backgroundColor: color + '1A' }]}>
+          <Ionicons name={icon} size={18} color={color} />
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={s.briefTitle} numberOfLines={1}>{title}</Text>
+          {!!status && (
+            <View style={[s.briefPill, { backgroundColor: statusColor + '18' }]}>
+              <Text style={[s.briefPillText, { color: statusColor }]} numberOfLines={1}>{status}</Text>
+            </View>
+          )}
+        </View>
+        {right}
+      </View>
+      {items.length > 0 && (
+        <View style={s.briefMetaRow}>
+          {items.map((m) => (
+            <View key={m.icon + m.text} style={s.briefMetaItem}>
+              <Ionicons name={m.icon} size={15} color={m.danger ? '#DC2626' : '#64748B'} />
+              <Text style={[s.briefMetaText, m.danger && { color: '#DC2626' }]} numberOfLines={1}>{m.text}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+      {!!note && (
+        <View style={s.briefNoteWrap}>
+          <TouchableOpacity style={s.briefNoteToggle} onPress={() => setShowNote((v) => !v)} activeOpacity={0.7}>
+            <Ionicons name="chatbubble-ellipses-outline" size={15} color="#475569" />
+            <Text style={s.briefNoteToggleText}>{noteLabel}</Text>
+            <Ionicons name={showNote ? 'chevron-up' : 'chevron-down'} size={16} color="#94A3B8" />
+          </TouchableOpacity>
+          {showNote && <BriefNoteBody raw={note} textStyle={s.briefNoteText} metaTextStyle={s.actMetaLine} />}
+        </View>
+      )}
+      {children}
+    </View>
+  );
+}
+
+// Label / value list that skips empty values (no "Not recorded" filler)
+function InfoRows({ groups }) {
+  const shown = groups
+    .map((g) => ({ ...g, rows: g.rows.filter(([, v]) => v != null && String(v).trim() !== '') }))
+    .filter((g) => g.rows.length > 0);
+  if (shown.length === 0) return <Text style={s.emptySubText}>Nothing recorded yet.</Text>;
+  return (
+    <View style={{ gap: 14 }}>
+      {shown.map((g) => (
+        <View key={g.title || 'rows'} style={{ gap: 8 }}>
+          {!!g.title && <Text style={s.infoGroupTitle}>{g.title}</Text>}
+          {g.rows.map(([label, value, warn]) => (
+            <View key={label} style={s.infoRow}>
+              <Text style={s.infoLabel}>{label}</Text>
+              <Text style={[s.infoValue, warn && { color: '#B91C1C' }]}>{String(value)}</Text>
+            </View>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function Lead360Screen() {
   const { id, tab, action } = useLocalSearchParams();
   // Each CRM stage has its own permission (same rules as the web lead page and the backend)
@@ -215,6 +318,11 @@ export default function Lead360Screen() {
     staleTime: 10 * 60 * 1000,
   });
   const lead = leadQuery.data ?? null;
+  // Amounts use the lead's currency, else the organisation's (a Qatar workspace shows QAR, not ₹)
+  const { user: authUser } = useAuth();
+  const currencyCode = lead?.currency || authUser?.organization?.settings?.currency || 'INR';
+  const cur = getCurrencySymbol(currencyCode);
+  const numLocale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
   const activities = activitiesQuery.data ?? [];
   const users = usersQuery.data ?? [];
   const setLead = useQuerySetter(queryKeys.crmLead(id));
@@ -337,7 +445,7 @@ export default function Lead360Screen() {
   // Est. budget shown on the overview (web rule: latest quotation total, else the lead's budget range)
   const latestQuoteTotal = lead?.quotations?.[lead.quotations.length - 1]?.grandTotal;
   const leadBudgetText = latestQuoteTotal
-    ? formatExactCurrency(latestQuoteTotal, lead?.currency || 'INR')
+    ? smartMoney(latestQuoteTotal, cur)
     : lead?.budgetRange || 'Pending';
   // A follow-up left "Pending" must stop being flagged Overdue once the lead
   // has actually moved past the initial contact phase — otherwise it stays
@@ -430,6 +538,19 @@ export default function Lead360Screen() {
       setRefreshing(false);
     }
   }, [queryClient]);
+  // Lead-only refresh for the client-requirements 5s poll and share-link actions
+  const refreshLeadOnly = useCallback(() => refreshCrmLead(id, queryClient), [id, queryClient]);
+  // When the poll picks up the client's submission, refresh everything once (timeline, list counts)
+  const clientSubmittedStamp = lead?.clientRequirementsSubmittedAt || lead?.clientRequirements?.submittedAt || lead?.clientWishlist?.submittedAt || null;
+  const lastSubmittedStamp = useRef(undefined); // undefined = lead not loaded yet
+  const leadLoaded = !!lead;
+  useEffect(() => {
+    if (!leadLoaded) return;
+    if (lastSubmittedStamp.current !== undefined && clientSubmittedStamp && clientSubmittedStamp !== lastSubmittedStamp.current) {
+      invalidateCrmQueries(queryClient);
+    }
+    lastSubmittedStamp.current = clientSubmittedStamp;
+  }, [leadLoaded, clientSubmittedStamp, queryClient]);
 
   const loadError = leadQuery.error || activitiesQuery.error;
 
@@ -837,10 +958,10 @@ export default function Lead360Screen() {
       const reviewer = users.find((u) => (u._id || u.id) === boqReviewer);
       const reviewerName = reviewer ? userLabel(reviewer).split(' (')[0] : 'Manager';
       updated = { ...target, status: 'pending_approval', assignedReviewer: boqReviewer, assignedReviewerName: reviewerName, submittedAt: new Date(), submissionNotes: boqApprovalNote.trim() || undefined };
-      remarks = `BOQ Version ${version} (₹${total.toLocaleString('en-IN')}) submitted for internal review to ${reviewerName}.${boqApprovalNote.trim() ? ` Notes: "${boqApprovalNote.trim()}"` : ''}`;
+      remarks = `BOQ Version ${version} (${cur} ${total.toLocaleString(numLocale)}) submitted for internal review to ${reviewerName}.${boqApprovalNote.trim() ? ` Notes: "${boqApprovalNote.trim()}"` : ''}`;
     } else if (mode === 'approve') {
       updated = { ...target, status: 'approved', approvedAt: new Date(), approvedBy: currentUser?._id || currentUser?.id, approvedByName: me || undefined, rejectionReason: undefined, rejectedAt: undefined };
-      remarks = `BOQ Version ${version} (₹${total.toLocaleString('en-IN')}) was approved internally.`;
+      remarks = `BOQ Version ${version} (${cur} ${total.toLocaleString(numLocale)}) was approved internally.`;
     } else {
       updated = { ...target, status: 'rejected', rejectionReason: boqApprovalNote.trim(), rejectedAt: new Date() };
       remarks = `BOQ Version ${version} rejected with reason: "${boqApprovalNote.trim()}". Revisions requested.`;
@@ -947,7 +1068,7 @@ export default function Lead360Screen() {
         customer: id,
         type: 'Status Change',
         status: 'Completed',
-        remarks: `Quotation v${newQuote.version} created (₹${grandTotal.toLocaleString('en-IN')}).`,
+        remarks: `Quotation v${newQuote.version} created (${cur} ${grandTotal.toLocaleString(numLocale)}).`,
       });
 
       showToast('Quotation generated successfully!', 'success');
@@ -1009,7 +1130,7 @@ export default function Lead360Screen() {
     const displayTitle = rawTitle.length > 50 ? `${rawTitle.slice(0, 50)}...` : rawTitle;
     Alert.alert(
       'Delete Quotation',
-      `Are you sure you want to delete "${displayTitle}" (₹ ${formatMillionBillion(Number(quote?.grandTotal) || 0)})? This action cannot be undone.`,
+      `Are you sure you want to delete "${displayTitle}" (${cur} ${formatMillionBillion(Number(quote?.grandTotal) || 0)})? This action cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -1069,7 +1190,7 @@ export default function Lead360Screen() {
     if (!currentQuote) return;
     setDownloadingQuotePdf(true);
     try {
-      const html = buildQuotationHtml(lead, currentQuote);
+      const html = buildQuotationHtml({ ...lead, currency: currencyCode }, currentQuote);
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `Quotation v${currentQuote.version}` });
@@ -1431,31 +1552,57 @@ export default function Lead360Screen() {
     <View style={s.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#DBEAFE" translucent={false} />
 
-      {/* --- HERO HEADER (Compact & Centered) --- */}
+      {/* --- HEADER: who the lead is, where it stands --- */}
       <View style={[s.header, { paddingTop: Math.max(insets.top, 12) + 6 }]}>
-        <View style={s.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={18} color="#1E293B" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={20} color="#1E293B" />
+        </TouchableOpacity>
 
-        <View style={s.headerLeadInfoCenter}>
-          <Text style={s.headerGreeting} numberOfLines={1}>CRM Workspace / Lead</Text>
+        <View style={s.headerLeadInfo}>
           <View style={s.headerTitleRow}>
             <Text style={s.headerTitle} numberOfLines={1} ellipsizeMode="tail">
               {lead.name}
             </Text>
-            <View style={s.leadIdBadge}>
-              <Text style={s.leadIdText}>{lead.leadNumber || 'LD-XXXX'}</Text>
-            </View>
+            {!!lead.leadNumber && (
+              <View style={s.leadIdBadge}>
+                <Text style={s.leadIdText}>{lead.leadNumber}</Text>
+              </View>
+            )}
           </View>
           <View style={s.headerPhoneRow}>
-            <Ionicons name="call" size={11} color="#1D4ED8" />
-            <Text style={s.headerSub} numberOfLines={1}>{lead.mobileNumber || 'No Phone'}</Text>
+            <View style={[s.headerStagePill, { backgroundColor: meta.bg }]}>
+              <Text style={[s.headerStageText, { color: meta.color }]} numberOfLines={1}>{lead.status}</Text>
+            </View>
+            {!!lead.mobileNumber && (
+              <>
+                <Ionicons name="call" size={13} color="#1D4ED8" />
+                <Text style={s.headerSub} numberOfLines={1}>{lead.mobileNumber}</Text>
+              </>
+            )}
           </View>
         </View>
-
       </View>
+
+      {/* Next step for this stage — opens the tab where it happens */}
+      {(() => {
+        const next = nextStepFor(lead.status);
+        if (!next || lead.status === 'Lost') return null;
+        const tabAllowed = !next.tab || canViewLeadTab(next.tab);
+        return (
+          <TouchableOpacity
+            style={s.nextStepBar}
+            activeOpacity={next.tab && tabAllowed ? 0.7 : 1}
+            onPress={() => next.tab && tabAllowed && setActiveTab(next.tab)}
+          >
+            <Ionicons name={next.done ? 'checkmark-circle' : 'arrow-forward-circle'} size={20} color={next.done ? '#16A34A' : '#2563EB'} />
+            <Text style={s.nextStepText} numberOfLines={2}>
+              {!next.done && <Text style={s.nextStepLabel}>Next: </Text>}
+              {next.text}
+            </Text>
+            {next.tab && tabAllowed && <Ionicons name="chevron-forward" size={18} color="#94A3B8" />}
+          </TouchableOpacity>
+        );
+      })()}
 
 
       {/* Lost Lead Alert Banner */}
@@ -1530,7 +1677,7 @@ export default function Lead360Screen() {
                   </Text>
                   {isFollowUpTab && activePendingFollowUp && (
                     <View style={{ backgroundColor: hasOverdueFollowUp ? '#DC2626' : '#2563EB', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, marginLeft: 4 }}>
-                      <Text style={{ color: '#FFFFFF', fontSize: 9.5, fontFamily: 'Inter-Bold' }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 11, fontFamily: 'Inter-Bold' }}>
                         {hasOverdueFollowUp ? 'Overdue' : '1'}
                       </Text>
                     </View>
@@ -1548,9 +1695,7 @@ export default function Lead360Screen() {
             <View style={{ gap: 14 }}>
               {/* Overview Section Header with Edit Button & Mark Lost */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', letterSpacing: 0.3 }}>
-                  LEAD DETAILS
-                </Text>
+                <Text style={{ fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' }}>Lead details</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   {!isReadOnly && (
                     canAnyCrmUpdate && (
@@ -1593,130 +1738,85 @@ export default function Lead360Screen() {
                 </View>
               </View>
 
-              <View style={{ gap: 10 }}>
-                {/* Row 1: Client Source & Property Scope (same cards as the web) */}
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <TouchableOpacity
-                    style={[s.metricCard, { flex: 1 }]}
-                    activeOpacity={0.7}
-                    onPress={() => showFieldDetail('Client Source', lead.leadSource)}
-                  >
-                    <View style={s.metricHeader}>
-                      <Text style={s.metricLabel}>CLIENT SOURCE</Text>
-                      <Ionicons name="pricetag-outline" size={13} color="#64748B" />
-                    </View>
-                    <Text style={s.metricVal} numberOfLines={1}>{lead.leadSource || 'Manual Entry'}</Text>
+              {/* Deal summary: the value first, then source / property as full-width chips (no truncated tiles) */}
+              <View style={s.card}>
+                <Text style={s.ovKicker}>{latestQuoteTotal ? 'Latest quotation' : 'Client budget'}</Text>
+                <Text style={s.ovBigValue} numberOfLines={1} adjustsFontSizeToFit>
+                  {latestQuoteTotal ? smartMoney(latestQuoteTotal, cur) : (lead.budgetRange || 'Not specified')}
+                </Text>
+                <View style={s.ovChipRow}>
+                  <TouchableOpacity style={s.ovChip} activeOpacity={0.7} onPress={() => showFieldDetail('Client Source', lead.leadSource)}>
+                    <Ionicons name="pricetag-outline" size={14} color="#64748B" />
+                    <Text style={s.ovChipText}>{lead.leadSource || 'Manual entry'}</Text>
                   </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[s.metricCard, { flex: 1 }]}
-                    activeOpacity={0.7}
-                    onPress={() => showFieldDetail('Property Scope', lead.propertyType)}
-                  >
-                    <View style={s.metricHeader}>
-                      <Text style={s.metricLabel}>PROPERTY SCOPE</Text>
-                      <Ionicons name="business-outline" size={13} color="#64748B" />
-                    </View>
-                    <Text style={s.metricVal} numberOfLines={1}>{lead.propertyType || 'Not specified'}</Text>
+                  <TouchableOpacity style={s.ovChip} activeOpacity={0.7} onPress={() => showFieldDetail('Property Scope', lead.propertyType)}>
+                    <Ionicons name="business-outline" size={14} color="#64748B" />
+                    <Text style={s.ovChipText}>{lead.propertyType || 'Property not set'}</Text>
                   </TouchableOpacity>
                 </View>
-
-                {/* Row 2: Est. Budget & Location */}
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <TouchableOpacity
-                    style={[s.metricCard, { flex: 1 }]}
-                    activeOpacity={0.7}
-                    onPress={() => showFieldDetail('Est. Budget', leadBudgetText)}
-                  >
-                    <View style={s.metricHeader}>
-                      <Text style={s.metricLabel}>EST. BUDGET</Text>
-                      <Ionicons name="cash-outline" size={13} color="#64748B" />
-                    </View>
-                    <Text style={[s.metricVal, { color: '#059669' }]} numberOfLines={1}>{leadBudgetText}</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[s.metricCard, { flex: 1 }]}
-                    activeOpacity={0.7}
-                    onPress={() => showFieldDetail('Project Location', lead.projectLocation || lead.city)}
-                  >
-                    <View style={s.metricHeader}>
-                      <Text style={s.metricLabel}>LOCATION</Text>
-                      <Ionicons name="location-outline" size={13} color="#64748B" />
-                    </View>
-                    <Text style={s.metricVal} numberOfLines={1}>{lead.projectLocation || lead.city || 'Not specified'}</Text>
-                  </TouchableOpacity>
-                </View>
-
               </View>
 
-              {/* Site & Project Location (same as web) */}
+              {/* Contact: name, then tappable phone / email */}
               <View style={s.card}>
                 <View style={s.cardHeaderRow}>
-                  <Ionicons name="location" size={17} color="#D97706" />
-                  <Text style={s.cardTitle}>Site & Project Location</Text>
+                  <Ionicons name="person-outline" size={17} color="#2563EB" />
+                  <Text style={s.cardTitle}>Contact</Text>
+                </View>
+                <Text style={s.ovContactName}>{lead.name}</Text>
+                {!!lead.mobileNumber && (
+                  <View style={s.ovContactLine}>
+                    <Ionicons name="call-outline" size={16} color="#10B981" />
+                    <Text style={s.ovContactText} numberOfLines={1}>{lead.mobileNumber}</Text>
+                    <TouchableOpacity style={s.ovRoundBtn} onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`)}>
+                      <Ionicons name="call" size={16} color="#2563EB" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[s.ovRoundBtn, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]} onPress={() => Linking.openURL(`https://wa.me/${lead.mobileNumber.replace(/\D/g, '')}`)}>
+                      <Ionicons name="logo-whatsapp" size={16} color="#059669" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {!!lead.email && (
+                  <TouchableOpacity style={s.ovContactLine} activeOpacity={0.7} onPress={() => Linking.openURL(`mailto:${lead.email}`)}>
+                    <Ionicons name="mail-outline" size={16} color="#8B5CF6" />
+                    <Text style={[s.ovContactText, { color: '#2563EB' }]} numberOfLines={1}>{lead.email}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Site address with copy / maps */}
+              <View style={s.card}>
+                <View style={s.cardHeaderRow}>
+                  <Ionicons name="location-outline" size={17} color="#D97706" />
+                  <Text style={s.cardTitle}>Site address</Text>
                   {!isReadOnly && canDo('crm_leads', 'update') && (
                     <TouchableOpacity style={s.ovEditBtn} onPress={openEditModal}>
-                      <Ionicons name="pencil" size={11} color="#2563EB" />
+                      <Ionicons name="pencil" size={12} color="#2563EB" />
                       <Text style={s.ovEditBtnText}>Edit</Text>
                     </TouchableOpacity>
                   )}
                 </View>
-                <View style={s.ovAddressBox}>
-                  <Text style={s.ovFieldLabel}>FULL SITE ADDRESS</Text>
-                  <Text style={s.ovAddressText}>{lead.projectLocation || lead.city || 'No specific site address provided yet.'}</Text>
-                  {!!(lead.projectLocation || lead.city) && (
-                    <View style={s.ovAddressActions}>
-                      <TouchableOpacity
-                        style={s.ovPillBtn}
-                        onPress={async () => {
-                          await Clipboard.setStringAsync(lead.projectLocation || lead.city);
-                          showToast('Address copied', 'success');
-                        }}
-                      >
-                        <Ionicons name="copy-outline" size={12} color="#334155" />
-                        <Text style={s.ovPillText}>Copy Address</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[s.ovPillBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
-                        onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.projectLocation || lead.city)}`)}
-                      >
-                        <Ionicons name="open-outline" size={12} color="#2563EB" />
-                        <Text style={[s.ovPillText, { color: '#2563EB' }]}>Open in Maps</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              {/* Lead & Contact Info (same as web) */}
-              <View style={s.card}>
-                <View style={s.cardHeaderRow}>
-                  <Ionicons name="person" size={16} color="#2563EB" />
-                  <Text style={s.cardTitle}>Lead & Contact Info</Text>
-                </View>
-                <View style={{ gap: 8 }}>
-                  {[
-                    { icon: 'person-outline', color: '#3B82F6', label: 'Full Name', value: lead.name },
-                    { icon: 'call-outline', color: '#10B981', label: 'Mobile', value: lead.mobileNumber, onPress: lead.mobileNumber ? () => showFieldDetail('Mobile Number', lead.mobileNumber, 'phone') : null },
-                    lead.email ? { icon: 'mail-outline', color: '#8B5CF6', label: 'Email', value: lead.email, onPress: () => showFieldDetail('Email Address', lead.email, 'email') } : null,
-                    { icon: 'business-outline', color: '#6366F1', label: 'Property Type', value: lead.propertyType || 'Standard' },
-                    { icon: 'cash-outline', color: '#F59E0B', label: 'Budget / Quote', value: leadBudgetText, valueColor: '#059669' },
-                  ].filter(Boolean).map((row) => (
-                    <TouchableOpacity key={row.label} style={s.ovInfoRow} disabled={!row.onPress} onPress={row.onPress || undefined} activeOpacity={0.7}>
-                      <View style={s.ovInfoLabelWrap}>
-                        <Ionicons name={row.icon} size={13} color={row.color} />
-                        <Text style={s.ovInfoLabel}>{row.label}</Text>
-                      </View>
-                      <Text
-                        style={[s.ovInfoValue, row.onPress && { color: '#2563EB' }, row.valueColor && { color: row.valueColor }]}
-                        numberOfLines={2}
-                      >
-                        {row.value || 'Not specified'}
-                      </Text>
+                <Text style={s.ovAddressText}>{lead.projectLocation || lead.city || 'No site address yet.'}</Text>
+                {!!(lead.projectLocation || lead.city) && (
+                  <View style={s.ovAddressActions}>
+                    <TouchableOpacity
+                      style={s.ovPillBtn}
+                      onPress={async () => {
+                        await Clipboard.setStringAsync(lead.projectLocation || lead.city);
+                        showToast('Address copied', 'success');
+                      }}
+                    >
+                      <Ionicons name="copy-outline" size={15} color="#334155" />
+                      <Text style={s.ovPillText}>Copy</Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
+                    <TouchableOpacity
+                      style={[s.ovPillBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+                      onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.projectLocation || lead.city)}`)}
+                    >
+                      <Ionicons name="map-outline" size={15} color="#2563EB" />
+                      <Text style={[s.ovPillText, { color: '#2563EB' }]}>Open in Maps</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
 
               {/* Activity Timeline */}
@@ -1749,7 +1849,7 @@ export default function Lead360Screen() {
                               <Text style={s.actType}>{act.type} {isPending && (isOverdue ? '• Overdue' : '• Scheduled')}</Text>
                               {isOverdue && (
                                 <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4, borderWidth: 1, borderColor: '#FCA5A5' }}>
-                                  <Text style={{ fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#DC2626' }}>Overdue</Text>
+                                  <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#DC2626' }}>Overdue</Text>
                                 </View>
                               )}
                             </View>
@@ -1926,7 +2026,7 @@ export default function Lead360Screen() {
                                 style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, marginTop: 4 }}
                                 onPress={() => setShowFollowUpModal(true)}
                               >
-                                <Text style={{ color: '#2563EB', fontSize: 12, fontFamily: 'Inter-Bold' }}>+ Schedule Initial Follow-up</Text>
+                                <Text style={{ color: '#2563EB', fontSize: 13, fontFamily: 'Inter-Bold' }}>+ Schedule Initial Follow-up</Text>
                               </TouchableOpacity>
                             )}
                           </View>
@@ -1956,24 +2056,44 @@ export default function Lead360Screen() {
                                 <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{current.type || 'Follow-up'} Touchpoint</Text>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                   <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: statusColor + '18', borderWidth: 1, borderColor: statusColor + '40' }}>
-                                    <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: statusColor }}>{statusText}</Text>
+                                    <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: statusColor }}>{statusText}</Text>
                                   </View>
                                   {followUpActs.length > 1 && (
                                     <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: '#F1F5F9' }}>
-                                      <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B' }}>{followUpActs.length} Total Logs</Text>
+                                      <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B' }}>{followUpActs.length} Total Logs</Text>
                                     </View>
                                   )}
                                 </View>
                               </View>
                             </View>
-                            <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: currentOverdue ? '#B91C1C' : '#64748B', marginTop: 10 }}>
+                            <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: currentOverdue ? '#B91C1C' : '#64748B', marginTop: 10 }}>
                               {currentPending ? 'Scheduled for: ' : 'Logged on: '}
                               <Text style={{ fontFamily: 'Inter-Bold', color: currentOverdue ? '#B91C1C' : '#0F172A' }}>{fmtWhen(current.scheduledDate || current.createdAt)}</Text>
                             </Text>
+                            {currentPending && (
+                              <View style={s.touchNoteWrap}>
+                                {!!current.remarks && <Text style={s.touchNote} numberOfLines={4}>{current.remarks}</Text>}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                  <Text style={s.touchMeta} numberOfLines={1}>
+                                    {current.type || 'Phone Call'} · {lead.assignedSalesExecutive || current.user ? userNameOf(lead.assignedSalesExecutive || current.user) : 'Unassigned'}
+                                  </Text>
+                                  {!!lead.mobileNumber && (
+                                    <>
+                                      <TouchableOpacity style={s.ovRoundBtn} onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`)}>
+                                        <Ionicons name="call" size={16} color="#2563EB" />
+                                      </TouchableOpacity>
+                                      <TouchableOpacity style={[s.ovRoundBtn, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]} onPress={() => Linking.openURL(`https://wa.me/${lead.mobileNumber.replace(/\D/g, '')}`)}>
+                                        <Ionicons name="logo-whatsapp" size={16} color="#059669" />
+                                      </TouchableOpacity>
+                                    </>
+                                  )}
+                                </View>
+                              </View>
+                            )}
                             {currentOverdue && (
                               <View style={{ flexDirection: 'row', gap: 6, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#FECACA' }}>
                                 <Ionicons name="warning-outline" size={14} color="#DC2626" />
-                                <Text style={{ flex: 1, fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#991B1B' }}>
+                                <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#991B1B' }}>
                                   Scheduled window has expired. Contact the client and reschedule, or move to the next stage.
                                 </Text>
                               </View>
@@ -1990,60 +2110,12 @@ export default function Lead360Screen() {
                             )}
                           </View>
 
-                          {/* Touchpoint Objective & Goal */}
-                          <View style={s.card}>
-                            <View style={s.cardHeaderRow}>
-                              <Ionicons name="document-text-outline" size={16} color="#2563EB" />
-                              <Text style={s.cardTitle}>Touchpoint Objective & Goal</Text>
-                              <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>Active Note</Text>
-                            </View>
-                            <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A', lineHeight: 19, backgroundColor: currentOverdue ? '#FFF5F5' : '#F8FAFC', borderWidth: 1, borderColor: currentOverdue ? '#FECACA' : '#F1F5F9', borderRadius: 10, padding: 12 }}>
-                              {current.remarks || 'No notes or objectives recorded for this touchpoint.'}
-                            </Text>
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                              <View style={s.specBox}>
-                                <Text style={s.specLabel}>CHANNEL</Text>
-                                <Text style={s.specVal} numberOfLines={1}>{current.type || 'Phone Call'}</Text>
-                              </View>
-                              <View style={s.specBox}>
-                                <Text style={s.specLabel}>ASSIGNED TO</Text>
-                                <Text style={s.specVal} numberOfLines={1}>{lead.assignedSalesExecutive || current.user ? userNameOf(lead.assignedSalesExecutive || current.user) : 'Unassigned'}</Text>
-                              </View>
-                              <TouchableOpacity style={s.specBox} disabled={!lead.mobileNumber} onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`)}>
-                                <Text style={s.specLabel}>CLIENT MOBILE</Text>
-                                <Text style={[s.specVal, { color: '#2563EB' }]} numberOfLines={1}>{lead.mobileNumber || '—'}</Text>
-                              </TouchableOpacity>
-                              <View style={s.specBox}>
-                                <Text style={s.specLabel}>PROJECT CITY</Text>
-                                <Text style={s.specVal} numberOfLines={1}>{lead.city || lead.projectLocation || 'Standard'}</Text>
-                              </View>
-                            </View>
-                            {!!lead.mobileNumber && (
-                              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
-                                <TouchableOpacity
-                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
-                                  onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`)}
-                                >
-                                  <Ionicons name="call" size={12} color="#2563EB" />
-                                  <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' }}>Call</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
-                                  onPress={() => Linking.openURL(`https://wa.me/${lead.mobileNumber.replace(/\D/g, '')}`)}
-                                >
-                                  <Ionicons name="logo-whatsapp" size={12} color="#16A34A" />
-                                  <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#16A34A' }}>WhatsApp</Text>
-                                </TouchableOpacity>
-                              </View>
-                            )}
-                          </View>
-
                           {/* History: every follow-up (pending, completed and missed) */}
                           <View style={s.card}>
                             <View style={s.cardHeaderRow}>
                               <Ionicons name="time-outline" size={17} color="#2563EB" />
-                              <Text style={s.cardTitle}>Follow-up History & Past Touchpoints</Text>
-                              <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                              <Text style={s.cardTitle}>Follow-up history</Text>
+                              <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
                                 {sorted.length} {sorted.length === 1 ? 'Record' : 'Records'}
                               </Text>
                             </View>
@@ -2062,24 +2134,24 @@ export default function Lead360Screen() {
                                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' }}>
                                         <Ionicons name={typeIcon(item.type)} size={13} color={color} />
-                                        <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{item.type || 'Follow-up'}</Text>
+                                        <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{item.type || 'Follow-up'}</Text>
                                         <View style={{ paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: color + '18' }}>
-                                          <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color, textTransform: 'uppercase' }}>{badge}</Text>
+                                          <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color, textTransform: 'uppercase' }}>{badge}</Text>
                                         </View>
                                       </View>
-                                      <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#64748B' }}>
+                                      <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' }}>
                                         {new Date(item.scheduledDate || item.createdAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                                       </Text>
                                     </View>
-                                    <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#334155', marginTop: 6, lineHeight: 17 }}>
+                                    <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#334155', marginTop: 6, lineHeight: 17 }}>
                                       {item.remarks || 'No notes logged.'}
                                     </Text>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
-                                      <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#64748B', flex: 1 }} numberOfLines={1}>
+                                      <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', flex: 1 }} numberOfLines={1}>
                                         Handled by: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{userNameOf(item.user)}</Text>
                                       </Text>
                                       {!!item.createdAt && (
-                                        <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' }}>Logged: {new Date(item.createdAt).toLocaleDateString('en-IN')}</Text>
+                                        <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' }}>Logged: {new Date(item.createdAt).toLocaleDateString('en-IN')}</Text>
                                       )}
                                     </View>
                                   </View>
@@ -2127,53 +2199,32 @@ export default function Lead360Screen() {
                 const surveyStatus = lead?.siteMeasurements ? 'Survey Completed' : isSiteVisitOverdue ? 'Survey Overdue' : 'Survey Pending';
                 const surveyColor = lead?.siteMeasurements ? '#059669' : isSiteVisitOverdue ? '#DC2626' : '#7C3AED';
                 const briefingCard = (
-                  <View style={[s.card, isSiteVisitOverdue && { borderColor: '#FCA5A5' }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                      <View style={[s.actionIconBox, { backgroundColor: isSiteVisitOverdue ? '#FEE2E2' : '#F3E8FF', width: 34, height: 34, borderRadius: 9 }]}>
-                        <Ionicons name="location" size={17} color={isSiteVisitOverdue ? '#DC2626' : '#7C3AED'} />
-                      </View>
-                      <View style={{ flex: 1, gap: 4 }}>
-                        <Text style={[s.cardTitle, { flex: 0 }]}>Site Visit Briefing & Details</Text>
-                        <View style={{ alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: surveyColor + '18', borderWidth: 1, borderColor: surveyColor + '40' }}>
-                          <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: surveyColor }}>{surveyStatus}</Text>
-                        </View>
-                      </View>
-                      {siteVisitActs.length > 0 && (
-                        <TouchableOpacity style={s.smallBtn} onPress={() => setShowSiteHistoryModal(true)}>
-                          <Ionicons name="time-outline" size={13} color="#7C3AED" />
-                          <Text style={s.smallBtnText}>History ({siteVisitActs.length})</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <View style={{ backgroundColor: '#FAF5FF', borderWidth: 1, borderColor: '#E9D5FF', borderRadius: 10, padding: 10, gap: 6 }}>
-                      <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#7E22CE', letterSpacing: 0.4 }}>SITE VISIT INSTRUCTIONS</Text>
-                      <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#0F172A', lineHeight: 18, backgroundColor: '#FFFFFF', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#F3E8FF' }}>
-                        {siteNote || 'Lead passed to Site Visit and assigned to site team.'}
-                      </Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                      <View style={[s.specBox, isSiteVisitOverdue && { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-                        <Text style={s.specLabel}>SCHEDULE</Text>
-                        <Text style={[s.specVal, isSiteVisitOverdue && { color: '#DC2626' }]} numberOfLines={1}>
-                          {siteVisitScheduledDate
-                            ? new Date(siteVisitScheduledDate).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                            : 'Not scheduled'}
-                        </Text>
-                      </View>
-                      <View style={s.specBox}>
-                        <Text style={s.specLabel}>ASSIGNED MEMBER</Text>
-                        <Text style={s.specVal} numberOfLines={1}>{siteAssignedName || 'Assigned Site Member'}</Text>
-                      </View>
-                      <View style={s.specBox}>
-                        <Text style={s.specLabel}>PROPERTY SCOPE</Text>
-                        <Text style={s.specVal} numberOfLines={1}>{lead.propertyType || 'Residential'}</Text>
-                      </View>
-                      <View style={s.specBox}>
-                        <Text style={s.specLabel}>SITE LOCATION</Text>
-                        <Text style={s.specVal} numberOfLines={1}>{lead.projectLocation || lead.city || 'Pending'}</Text>
-                      </View>
-                    </View>
-                  </View>
+                  <StageBrief
+                    icon="location-outline"
+                    color={isSiteVisitOverdue ? '#DC2626' : '#7C3AED'}
+                    title="Site visit"
+                    status={surveyStatus}
+                    statusColor={surveyColor}
+                    danger={isSiteVisitOverdue}
+                    meta={[
+                      {
+                        icon: 'calendar-outline',
+                        danger: isSiteVisitOverdue,
+                        text: siteVisitScheduledDate
+                          ? new Date(siteVisitScheduledDate).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                          : 'Not scheduled',
+                      },
+                      { icon: 'person-outline', text: siteAssignedName },
+                    ]}
+                    note={siteNote}
+                    noteLabel="Site visit instructions"
+                    right={siteVisitActs.length > 0 ? (
+                      <TouchableOpacity style={s.smallBtn} onPress={() => setShowSiteHistoryModal(true)}>
+                        <Ionicons name="time-outline" size={14} color="#7C3AED" />
+                        <Text style={[s.smallBtnText, { color: '#7C3AED' }]}>History ({siteVisitActs.length})</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  />
                 );
                 if (lock.isLocked) {
                   return (
@@ -2247,15 +2298,11 @@ export default function Lead360Screen() {
                 return (
                   <View style={{ gap: 16 }}>
                     {briefingCard}
-                    {/* 1. SPATIAL DIMENSIONS */}
+                    {/* Measurements: one card, only the values that were recorded */}
                     <View style={s.card}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
-                          <View style={[s.actionIconBox, { backgroundColor: '#F3E8FF', width: 32, height: 32, borderRadius: 8 }]}>
-                            <Ionicons name="pencil-outline" size={16} color="#7C3AED" />
-                          </View>
-                          <Text style={s.cardTitle} numberOfLines={1}>Spatial Dimensions</Text>
-                        </View>
+                      <View style={s.cardHeaderRow}>
+                        <Ionicons name="resize-outline" size={17} color="#7C3AED" />
+                        <Text style={s.cardTitle}>Measurements</Text>
                         {canDo('crm_site_visits', 'update') && (
                           <TouchableOpacity style={s.smallBtn} onPress={() => setShowSiteModal(true)}>
                             <Ionicons name="create-outline" size={14} color="#2563EB" />
@@ -2263,118 +2310,38 @@ export default function Lead360Screen() {
                           </TouchableOpacity>
                         )}
                       </View>
-                      
-                      {/* Metric Row: Carpet Area & Ceiling Height */}
-                      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
-                        <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                          <Text style={s.metricLabel}>Carpet Area</Text>
-                          <Text style={s.measureVal}>{lead.siteMeasurements.carpetArea ? `${lead.siteMeasurements.carpetArea} Sq.Ft` : '—'}</Text>
-                        </View>
-                        <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                          <Text style={s.metricLabel}>Ceiling Height</Text>
-                          <Text style={s.measureVal}>{lead.siteMeasurements.ceilingHeight ? `${lead.siteMeasurements.ceilingHeight} Ft` : '—'}</Text>
-                        </View>
-                      </View>
-
-                      {/* Floor-to-Ceiling Height */}
-                      {!!lead.siteMeasurements.floorToCeilingHeight && (
-                        <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 10 }}>
-                          <Text style={s.metricLabel}>Floor-to-Ceiling Height</Text>
-                          <Text style={s.measureVal}>{lead.siteMeasurements.floorToCeilingHeight} Ft</Text>
-                        </View>
-                      )}
-
-                      {/* Room dimensions & rooms to design (always shown, like the web) */}
-                      <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 10 }}>
-                        <Text style={s.metricLabel}>Room Dimensions</Text>
-                        <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.roomDimensions || 'Not recorded'}</Text>
-                      </View>
-                      <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                        <Text style={s.metricLabel}>Rooms to Design</Text>
-                        <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.rooms || 'Not specified'}</Text>
-                      </View>
+                      {(() => {
+                        const m = lead.siteMeasurements || {};
+                        return (
+                          <InfoRows
+                            groups={[
+                              { title: 'Space', rows: [
+                                ['Carpet area', m.carpetArea ? `${m.carpetArea} sq ft` : ''],
+                                ['Ceiling height', m.ceilingHeight ? `${m.ceilingHeight} ft` : ''],
+                                ['Floor to ceiling', m.floorToCeilingHeight ? `${m.floorToCeilingHeight} ft` : ''],
+                                ['Room dimensions', m.roomDimensions],
+                                ['Rooms to design', m.rooms],
+                              ] },
+                              { title: 'Openings & structure', rows: [
+                                ['Doors', m.doorDimensions],
+                                ['Windows', m.windowDimensions],
+                                ['Walls / columns', m.columnBeamDimensions || m.wallThickness],
+                              ] },
+                              { title: 'Services', rows: [
+                                ['Electrical points', m.electricalPoints],
+                                ['Plumbing points', m.plumbingPoints],
+                                ['AC locations', m.acLocations],
+                              ] },
+                              { title: 'Furniture & notes', rows: [
+                                ['Existing furniture', m.furnitureDimensions],
+                                ['Site constraints', m.siteConstraints, true],
+                                ['Notes', m.notes],
+                              ] },
+                            ]}
+                          />
+                        );
+                      })()}
                     </View>
-
-                    {/* 2. OPENINGS & STRUCTURE */}
-                    {(
-                      <View style={s.card}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                          <View style={[s.actionIconBox, { backgroundColor: '#EEF2FF', width: 32, height: 32, borderRadius: 8 }]}>
-                            <Ionicons name="construct-outline" size={16} color="#4F46E5" />
-                          </View>
-                          <Text style={s.cardTitle}>Openings & Structure</Text>
-                        </View>
-
-                        <View style={{ gap: 10 }}>
-                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                            <Text style={s.metricLabel}>Door Dimensions</Text>
-                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.doorDimensions || 'Not recorded'}</Text>
-                          </View>
-                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                            <Text style={s.metricLabel}>Window Dimensions</Text>
-                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.windowDimensions || 'Not recorded'}</Text>
-                          </View>
-                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                            <Text style={s.metricLabel}>Wall / Column Dimensions</Text>
-                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.columnBeamDimensions || lead.siteMeasurements.wallThickness || 'Not recorded'}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 3. MEP & UTILITY SERVICES */}
-                    {(
-                      <View style={s.card}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                          <View style={[s.actionIconBox, { backgroundColor: '#FEF3C7', width: 32, height: 32, borderRadius: 8 }]}>
-                            <Ionicons name="flash-outline" size={16} color="#D97706" />
-                          </View>
-                          <Text style={s.cardTitle}>MEP & Utility Services</Text>
-                        </View>
-
-                        <View style={{ gap: 10 }}>
-                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                            <Text style={s.metricLabel}>Electrical Points</Text>
-                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.electricalPoints || 'None recorded'}</Text>
-                          </View>
-                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                            <Text style={s.metricLabel}>Plumbing Points</Text>
-                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.plumbingPoints || 'None recorded'}</Text>
-                          </View>
-                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                            <Text style={s.metricLabel}>AC Locations</Text>
-                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.acLocations || 'None recorded'}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* 4. FURNITURE & CONSTRAINTS */}
-                    {(
-                      <View style={s.card}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                          <View style={[s.actionIconBox, { backgroundColor: '#ECFDF5', width: 32, height: 32, borderRadius: 8 }]}>
-                            <Ionicons name="cube-outline" size={16} color="#059669" />
-                          </View>
-                          <Text style={s.cardTitle}>Furniture & Constraints</Text>
-                        </View>
-
-                        <View style={{ gap: 10 }}>
-                          <View style={{ backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                            <Text style={s.metricLabel}>Existing Furniture</Text>
-                            <Text style={[s.measureVal, { fontSize: 13, marginTop: 2 }]}>{lead.siteMeasurements.furnitureDimensions || 'None recorded'}</Text>
-                          </View>
-                          <View style={{ backgroundColor: '#FEF2F2', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#FEE2E2' }}>
-                            <Text style={[s.metricLabel, { color: '#DC2626' }]}>Site Constraints</Text>
-                            <Text style={[s.measureVal, { fontSize: 13, color: '#991B1B', marginTop: 2 }]}>{lead.siteMeasurements.siteConstraints || 'None reported'}</Text>
-                          </View>
-                          <View style={{ backgroundColor: '#F3E8FF', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#E9D5FF' }}>
-                            <Text style={[s.metricLabel, { color: '#7C3AED' }]}>Additional Site Notes</Text>
-                            <Text style={[s.measureVal, { fontSize: 13, color: '#4C1D95', marginTop: 2 }]}>{lead.siteMeasurements.notes || 'No notes added'}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
 
                     {/* 4. SITE PHOTOS */}
                     <View style={s.card}>
@@ -2383,7 +2350,7 @@ export default function Lead360Screen() {
                           <View style={[s.actionIconBox, { backgroundColor: '#ECFDF5', width: 32, height: 32, borderRadius: 8, flexShrink: 0 }]}>
                             <Ionicons name="images-outline" size={16} color="#059669" />
                           </View>
-                          <Text style={s.cardTitle} numberOfLines={1}>Site Photos & Visual Records ({lead.sitePhotos?.length || 0})</Text>
+                          <Text style={s.cardTitle} numberOfLines={1}>Site photos ({lead.sitePhotos?.length || 0})</Text>
                         </View>
                         {canDo('crm_site_visits', 'update') && (
                           <TouchableOpacity style={[s.smallBtn, { flexShrink: 0 }]} onPress={() => setShowSiteModal(true)}>
@@ -2478,20 +2445,25 @@ export default function Lead360Screen() {
                 const globalSpecialRequests = lead.specialRequests || lead.specialNotes || firstReq.find((r) => r.specialRequests)?.specialRequests;
                 const reschedule = () => (pendingReqActEarly ? openRescheduleRequirements(pendingReqActEarly) : setShowSendReqModal(true));
                 const reqBriefingCard = (
-                  <View style={[s.card, isReqOverdue && !hasRequirements && { borderColor: '#FCA5A5' }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                      <View style={[s.actionIconBox, { backgroundColor: '#ECFDF5', width: 34, height: 34, borderRadius: 9 }]}>
-                        <Ionicons name="color-palette-outline" size={17} color="#059669" />
-                      </View>
-                      <View style={{ flex: 1, gap: 4 }}>
-                        <Text style={[s.cardTitle, { flex: 0 }]}>Requirements Briefing & Specifications</Text>
-                        <View style={{ alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: reqStatusColor + '18', borderWidth: 1, borderColor: reqStatusColor + '40' }}>
-                          <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: reqStatusColor }}>{reqStatusText}</Text>
-                        </View>
-                      </View>
-                    </View>
+                  <StageBrief
+                    icon="color-palette-outline"
+                    color="#059669"
+                    title="Requirements"
+                    status={hasRequirements ? `${reqCount} ${reqCount === 1 ? 'space' : 'spaces'}${!teamReqCount ? ' · client intake' : ''}` : 'Discussion pending'}
+                    statusColor={reqStatusColor}
+                    danger={isReqOverdue && !hasRequirements}
+                    meta={[
+                      {
+                        icon: 'calendar-outline',
+                        danger: isReqOverdue && !hasRequirements,
+                        text: reqScheduled ? new Date(reqScheduled).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not scheduled',
+                      },
+                      { icon: 'person-outline', text: consultantName },
+                    ]}
+                    note={reqNote}
+                  >
                     {!isReadOnly && (
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                      <View style={s.briefActions}>
                         {hasRequirements ? (
                           <>
                             {canDo('crm_requirements', 'update') && (
@@ -2527,38 +2499,7 @@ export default function Lead360Screen() {
                         )}
                       </View>
                     )}
-                    {!!reqNote && (
-                      <View style={[s.briefingCardGreen, { marginBottom: 10 }]}>
-                        <View style={s.briefingIconBoxGreen}>
-                          <Ionicons name="chatbubble-ellipses-outline" size={15} color="#059669" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.briefingLabelGreen}>REQUIREMENT HANDOVER & SCOPE NOTES</Text>
-                          <BriefNoteBody raw={reqNote} textStyle={s.briefingTextGreen} metaTextStyle={s.actMetaLine} />
-                        </View>
-                      </View>
-                    )}
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      <View style={s.specBox}>
-                        <Text style={s.specLabel}>SCHEDULE</Text>
-                        <Text style={[s.specVal, isReqOverdue && !hasRequirements && { color: '#DC2626' }]} numberOfLines={1}>
-                          {reqScheduled ? new Date(reqScheduled).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not scheduled'}
-                        </Text>
-                      </View>
-                      <View style={s.specBox}>
-                        <Text style={s.specLabel}>CONSULTANT</Text>
-                        <Text style={s.specVal} numberOfLines={1}>{consultantName}</Text>
-                      </View>
-                      <View style={s.specBox}>
-                        <Text style={s.specLabel}>TARGET BUDGET</Text>
-                        <Text style={s.specVal} numberOfLines={1}>{lead.budgetRange || (lead.budget ? formatExactCurrency(Number(lead.budget), lead.currency || 'INR') : 'Not specified')}</Text>
-                      </View>
-                      <View style={s.specBox}>
-                        <Text style={s.specLabel}>PROPERTY SCOPE</Text>
-                        <Text style={s.specVal} numberOfLines={1}>{lead.propertyType || lead.projectType || 'Residential'}</Text>
-                      </View>
-                    </View>
-                  </View>
+                  </StageBrief>
                 );
                 if (lock.isLocked) {
                   return (
@@ -2614,30 +2555,17 @@ export default function Lead360Screen() {
 
                     {!!(globalScopeOfWork || globalTimeline || globalSpecialRequests) && (
                       <View style={s.card}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 8, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
-                          <Ionicons name="options-outline" size={14} color="#3B82F6" />
-                          <Text style={[s.specLabel, { color: '#0F172A' }]}>OVERALL PROJECT DIRECTIVES & SCOPE</Text>
+                        <View style={s.cardHeaderRow}>
+                          <Ionicons name="options-outline" size={17} color="#3B82F6" />
+                          <Text style={s.cardTitle}>Project scope</Text>
                         </View>
-                        <View style={{ gap: 8 }}>
-                          {!!globalScopeOfWork && (
-                            <View style={s.specBox}>
-                              <Text style={s.specLabel}>SCOPE OF WORK</Text>
-                              <Text style={s.specVal}>{globalScopeOfWork}</Text>
-                            </View>
-                          )}
-                          {!!globalTimeline && (
-                            <View style={s.specBox}>
-                              <Text style={s.specLabel}>TARGET TIMELINE</Text>
-                              <Text style={s.specVal}>{globalTimeline}</Text>
-                            </View>
-                          )}
-                          {!!globalSpecialRequests && (
-                            <View style={s.specBox}>
-                              <Text style={s.specLabel}>SPECIAL REQUESTS</Text>
-                              <Text style={s.specVal}>{globalSpecialRequests}</Text>
-                            </View>
-                          )}
-                        </View>
+                        <InfoRows
+                          groups={[{ title: '', rows: [
+                            ['Scope of work', globalScopeOfWork],
+                            ['Target timeline', globalTimeline],
+                            ['Special requests', globalSpecialRequests],
+                          ] }]}
+                        />
                       </View>
                     )}
 
@@ -2646,9 +2574,9 @@ export default function Lead360Screen() {
                       isReadOnly={isReadOnly}
                       canEdit={canAnyCrmUpdate || canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update')}
                       hasPassedToSiteVisit={hasPassedToSiteVisit}
-                      currencySymbol={getCurrencySymbol(lead.currency || 'INR')}
+                      currencySymbol={getCurrencySymbol(currencyCode)}
                       onEditSpecs={() => setShowReqModal(true)}
-                      onRefresh={fetchData}
+                      onRefresh={refreshLeadOnly}
                       onOpenShare={() => { setShareModalMode('requirements'); setShowShareModal(true); }}
                     />
                   </View>
@@ -2746,49 +2674,37 @@ export default function Lead360Screen() {
 
                 return (
                   <View style={{ gap: 12 }}>
-                    {/* 2D & 3D Design Drawings & Models (same as web) */}
-                    <View style={s.card}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                        <View style={[s.actionIconBox, { backgroundColor: '#EFF6FF', width: 34, height: 34, borderRadius: 9 }]}>
-                          <Ionicons name="resize-outline" size={17} color="#2563EB" />
+                    <StageBrief
+                      icon="resize-outline"
+                      color="#2563EB"
+                      title="Drawings"
+                      status={headerBadge.text}
+                      statusColor={headerBadge.color}
+                      meta={[
+                        { icon: 'person-outline', text: designerName },
+                        { icon: 'layers-outline', text: `${files2D.length} 2D · ${files3D.length} 3D` },
+                        { icon: 'color-palette-outline', text: lead.requirements?.find((r) => r.designStyle)?.designStyle || lead.requirements?.[0]?.theme || '' },
+                      ]}
+                      note={drawingNote}
+                      noteLabel="Design brief"
+                    >
+                      {!isReadOnly && (pendingDrawingAct || canDo('crm_drawings', 'create')) && (
+                        <View style={s.briefActions}>
+                          {pendingDrawingAct && (
+                            <TouchableOpacity style={s.smallBtn} onPress={() => openRescheduleDrawing(pendingDrawingAct)}>
+                              <Ionicons name="time-outline" size={14} color="#0284C7" />
+                              <Text style={[s.smallBtnText, { color: '#0284C7' }]}>Reschedule</Text>
+                            </TouchableOpacity>
+                          )}
+                          {canDo('crm_drawings', 'create') && (
+                            <TouchableOpacity style={s.smallBtn} onPress={() => setShowDesignModal(true)}>
+                              <Ionicons name="add" size={14} color="#2563EB" />
+                              <Text style={s.smallBtnText}>Upload File</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
-                        <View style={{ flex: 1, gap: 4 }}>
-                          <Text style={[s.cardTitle, { flex: 0 }]}>2D & 3D Design Drawings & Models</Text>
-                          <View style={{ alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: headerBadge.color + '18', borderWidth: 1, borderColor: headerBadge.color + '40' }}>
-                            <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: headerBadge.color }}>{headerBadge.text}</Text>
-                          </View>
-                        </View>
-                      </View>
-                      {!!drawingNote && (
-                      <View style={[s.briefingCardBlue, { marginBottom: 10 }]}>
-                        <View style={s.briefingIconBoxBlue}>
-                          <Ionicons name="chatbubble-ellipses-outline" size={15} color="#1D4ED8" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.briefingLabelBlue}>DESIGN BRIEF & LAYER GUIDELINES</Text>
-                          <BriefNoteBody raw={drawingNote} textStyle={s.briefingTextBlue} metaTextStyle={s.actMetaLine} />
-                        </View>
-                      </View>
-                    )}
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                        <View style={s.specBox}>
-                          <Text style={s.specLabel}>DESIGNER</Text>
-                          <Text style={s.specVal} numberOfLines={1}>{designerName}</Text>
-                        </View>
-                        <View style={s.specBox}>
-                          <Text style={s.specLabel}>STYLE</Text>
-                          <Text style={s.specVal} numberOfLines={1}>{lead.requirements?.find((r) => r.designStyle)?.designStyle || lead.requirements?.[0]?.theme || 'Custom Style'}</Text>
-                        </View>
-                        <View style={s.specBox}>
-                          <Text style={s.specLabel}>SUMMARY</Text>
-                          <Text style={s.specVal} numberOfLines={1}>{files2D.length} 2D • {files3D.length} 3D</Text>
-                        </View>
-                        <View style={s.specBox}>
-                          <Text style={s.specLabel}>SCOPE</Text>
-                          <Text style={s.specVal} numberOfLines={1}>{lead.propertyType || 'Execution'}</Text>
-                        </View>
-                      </View>
-                    </View>
+                      )}
+                    </StageBrief>
 
                     {/* 2D / 3D filter */}
                     <View style={{ flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 10, padding: 3 }}>
@@ -2802,26 +2718,9 @@ export default function Lead360Screen() {
                           style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: drawingFilter === opt.key ? (opt.key === '3d' ? '#7C3AED' : '#2563EB') : 'transparent' }}
                           onPress={() => setDrawingFilter(opt.key)}
                         >
-                          <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: drawingFilter === opt.key ? '#FFFFFF' : '#64748B' }}>{opt.label}</Text>
+                          <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: drawingFilter === opt.key ? '#FFFFFF' : '#64748B' }}>{opt.label}</Text>
                         </TouchableOpacity>
                       ))}
-                    </View>
-
-                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-                      {!isReadOnly && pendingDrawingAct && (
-                        <TouchableOpacity style={s.smallBtn} onPress={() => openRescheduleDrawing(pendingDrawingAct)}>
-                          <Ionicons name="time-outline" size={14} color="#0284C7" />
-                          <Text style={[s.smallBtnText, { color: '#0284C7' }]}>Reschedule</Text>
-                        </TouchableOpacity>
-                      )}
-                      {!isReadOnly && (
-                        canDo('crm_drawings', 'create') && (
-                          <TouchableOpacity style={s.smallBtn} onPress={() => setShowDesignModal(true)}>
-                            <Ionicons name="add" size={14} color="#2563EB" />
-                            <Text style={s.smallBtnText}>Upload File</Text>
-                          </TouchableOpacity>
-                        )
-                      )}
                     </View>
 
                     {/* Client Share Portal Ribbon */}
@@ -2906,16 +2805,16 @@ export default function Lead360Screen() {
                             {/* Overlay: category + version badge (top-left), status pill (top-right) */}
                             <View style={{ position: 'absolute', top: 8, left: 8, flexDirection: 'row', gap: 6 }}>
                               <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
-                                <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' }}>
+                                <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' }}>
                                   {getCrmFileBadge(file.name, file.category || (isDrawing3D(file) ? '3D' : '2D'), drawingFileUrl(file), file.fileType).label}
                                 </Text>
                               </View>
                               <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
-                                <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>v{file.currentVersion || 1}</Text>
+                                <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>v{file.currentVersion || 1}</Text>
                               </View>
                             </View>
                             <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: statusMeta.bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                              <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: statusMeta.color }}>{statusMeta.label}</Text>
+                              <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: statusMeta.color }}>{statusMeta.label}</Text>
                             </View>
                           </TouchableOpacity>
 
@@ -2925,7 +2824,7 @@ export default function Lead360Screen() {
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                               {!!file.roomTag && (
                                 <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                  <Text style={{ fontSize: 9.5, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>{file.roomTag}</Text>
+                                  <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>{file.roomTag}</Text>
                                 </View>
                               )}
                               <Text style={s.fileSub}>{new Date(file.uploadedAt).toLocaleDateString()}</Text>
@@ -2936,14 +2835,14 @@ export default function Lead360Screen() {
 
                             {(status === 'internally_rejected' || status === 'client_changes_requested') && !!file.rejectionReason && (
                               <View style={{ backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 8, padding: 8 }}>
-                                <Text style={{ fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#DC2626' }}>REJECTION REASON</Text>
-                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{file.rejectionReason}</Text>
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#DC2626' }}>REJECTION REASON</Text>
+                                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{file.rejectionReason}</Text>
                               </View>
                             )}
                             {!!file.clientFeedback && (
                               <View style={{ backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 8, padding: 8 }}>
-                                <Text style={{ fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#B45309' }}>CLIENT FEEDBACK</Text>
-                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{file.clientFeedback}</Text>
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#B45309' }}>CLIENT FEEDBACK</Text>
+                                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{file.clientFeedback}</Text>
                               </View>
                             )}
 
@@ -3003,7 +2902,7 @@ export default function Lead360Screen() {
                           <View style={{ gap: 6 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, padding: 10 }}>
                               <Ionicons name="alert-circle" size={14} color="#B45309" />
-                              <Text style={{ flex: 1, fontSize: 11, fontFamily: 'Inter-Medium', color: '#92400E' }}>
+                              <Text style={{ flex: 1, fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#92400E' }}>
                                 Cannot pass to BOQ — {pendingCount} drawing{pendingCount === 1 ? '' : 's'} pending approval.
                               </Text>
                             </View>
@@ -3105,13 +3004,13 @@ export default function Lead360Screen() {
                         <Ionicons name="warning" size={18} color="#E11D48" style={{ marginTop: 1 }} />
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <Text style={s.overBudgetTitle}>Over Target Budget Warning</Text>
+                            <Text style={s.overBudgetTitle}>Over the client's budget</Text>
                             <View style={s.overBudgetPill}>
-                              <Text style={s.overBudgetPillText}>+{boqExcessPct.toFixed(1)}% Over Estimate</Text>
+                              <Text style={s.overBudgetPillText}>+{boqExcessPct >= 10 ? Math.round(boqExcessPct) : boqExcessPct.toFixed(1)}%</Text>
                             </View>
                           </View>
                           <Text style={s.overBudgetSub}>
-                            Current BOQ total of ₹ {formatMillionBillion(estimatedTotal)} exceeds estimated target budget of ₹ {formatMillionBillion(boqMaxBudget)} ({lead?.budgetRange || 'Estimate'}) by ₹ {formatMillionBillion(estimatedTotal - boqMaxBudget)}.
+                            BOQ {cur} {formatMillionBillion(estimatedTotal)} · budget {lead?.budgetRange || `${cur} ${formatMillionBillion(boqMaxBudget)}`}. {cur} {formatMillionBillion(estimatedTotal - boqMaxBudget)} over.
                           </Text>
                         </View>
                       </View>
@@ -3133,7 +3032,7 @@ export default function Lead360Screen() {
                             <View style={{ flex: 1, gap: 4 }}>
                               <Text style={[s.cardTitle, { flex: 0 }]}>Bill of Quantities (BOQ) & Estimations</Text>
                               <View style={{ alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: badge.c + '18', borderWidth: 1, borderColor: badge.c + '40' }}>
-                                <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: badge.c }}>{badge.t}</Text>
+                                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: badge.c }}>{badge.t}</Text>
                               </View>
                             </View>
                           </View>
@@ -3179,7 +3078,7 @@ export default function Lead360Screen() {
                           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                             <View style={s.specBox}>
                               <Text style={s.specLabel}>TOTAL AMOUNT</Text>
-                              <Text style={[s.specVal, { color: boqIsOverBudget ? '#E11D48' : '#4F46E5' }]} numberOfLines={1}>₹{Math.round(estimatedTotal).toLocaleString('en-IN')}</Text>
+                              <Text style={[s.specVal, { color: boqIsOverBudget ? '#E11D48' : '#4F46E5' }]} numberOfLines={1}>{cur} {Math.round(estimatedTotal).toLocaleString(numLocale)}</Text>
                             </View>
                             <View style={s.specBox}>
                               <Text style={s.specLabel}>SCOPE CATEGORIES</Text>
@@ -3232,7 +3131,7 @@ export default function Lead360Screen() {
                               {(b.createdByName || createdDateStr) && (
                                 <Text
                                   style={{
-                                    fontSize: 10,
+                                    fontSize: 11.5,
                                     fontWeight: '500',
                                     color: isAct ? '#93C5FD' : '#64748B',
                                   }}
@@ -3265,28 +3164,28 @@ export default function Lead360Screen() {
                             </View>
                             <View style={{ flex: 1, gap: 4 }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{meta.title}</Text>
+                                <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{meta.title}</Text>
                                 <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, borderWidth: 1, borderColor: meta.c + '55', backgroundColor: '#FFFFFF' }}>
-                                  <Text style={{ fontSize: 9, fontFamily: 'Inter-Black', color: meta.c, textTransform: 'uppercase' }}>{meta.pill}</Text>
+                                  <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: meta.c, textTransform: 'uppercase' }}>{meta.pill}</Text>
                                 </View>
                               </View>
                               {st === 'rejected' && !!activeBoq.rejectionReason ? (
                                 <View style={{ backgroundColor: '#FFFFFF', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#FECACA' }}>
                                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                                     <Ionicons name="close-circle-outline" size={12} color="#DC2626" />
-                                    <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#DC2626' }}>Revisions Required:</Text>
+                                    <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#DC2626' }}>Revisions Required:</Text>
                                   </View>
-                                  <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17, marginTop: 3 }}>"{activeBoq.rejectionReason}"</Text>
+                                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17, marginTop: 3 }}>"{activeBoq.rejectionReason}"</Text>
                                 </View>
                               ) : (
-                                <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17 }}>{meta.text}</Text>
+                                <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17 }}>{meta.text}</Text>
                               )}
-                              <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>
+                              <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>
                                 Version {activeBoq.version || activeBoqIdx + 1} · Created {activeBoq.createdAt ? new Date(activeBoq.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'recently'} · By {activeBoq.createdByName || 'Estimator'}
                                 {activeBoq.updatedAt ? ` · Updated ${new Date(activeBoq.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}${activeBoq.updatedByName ? ` by ${activeBoq.updatedByName}` : ''}` : ''}
                               </Text>
                               {!!activeBoq.submissionNotes && (
-                                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#334155', backgroundColor: '#FFFFFF', borderRadius: 8, padding: 8, marginTop: 4, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', backgroundColor: '#FFFFFF', borderRadius: 8, padding: 8, marginTop: 4, borderWidth: 1, borderColor: '#E2E8F0' }}>
                                   Review Focus / Note: "{activeBoq.submissionNotes}"
                                 </Text>
                               )}
@@ -3327,7 +3226,7 @@ export default function Lead360Screen() {
                       <View style={[s.costRow, s.costRowTotal]}>
                         <Text style={s.grandTotalTitle}>Total BOQ Amount</Text>
                         <Text style={[s.grandTotalAmount, boqIsOverBudget && { color: '#E11D48' }]}>
-                          {smartMoney(estimatedTotal)}
+                          {smartMoney(estimatedTotal, cur)}
                         </Text>
                       </View>
                     </View>
@@ -3351,7 +3250,7 @@ export default function Lead360Screen() {
                               <Ionicons name="pricetag-outline" size={11} color="#4F46E5" />
                               <Text style={s.catChipText} numberOfLines={1} ellipsizeMode="tail">{cat.name}</Text>
                               <Text style={s.catChipCount}>({cat.count})</Text>
-                              <Text style={[s.catChipCount, { fontFamily: 'Inter-Bold', color: '#334155' }]}>₹ {formatMillionBillion(cat.total)}</Text>
+                              <Text style={[s.catChipCount, { fontFamily: 'Inter-Bold', color: '#334155' }]}>{cur} {formatMillionBillion(cat.total)}</Text>
                             </View>
                           ))}
                         </ScrollView>
@@ -3377,12 +3276,12 @@ export default function Lead360Screen() {
                         <View key={g.key} style={s.card}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                             <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
-                              <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#4F46E5' }}>Sec {g.number || gi + 1}</Text>
+                              <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#4F46E5' }}>Sec {g.number || gi + 1}</Text>
                             </View>
                             <Text style={[s.cardTitle, { fontSize: 13.5 }]} numberOfLines={2}>{g.title}</Text>
-                            <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>₹ {formatMillionBillion(g.items.reduce((sum, it) => sum + itemAmount(it), 0))}</Text>
+                            <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{cur} {formatMillionBillion(g.items.reduce((sum, it) => sum + itemAmount(it), 0))}</Text>
                           </View>
-                          {!!g.scope && <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginBottom: 6 }}>{g.scope}</Text>}
+                          {!!g.scope && <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginBottom: 6 }}>{g.scope}</Text>}
                           {g.items.map((it, idx) => (
                             <View key={idx} style={s.boqItemRow}>
                               <View style={{ flex: 1, marginRight: 10 }}>
@@ -3390,11 +3289,11 @@ export default function Lead360Screen() {
                                 {!!it.description && <Text style={s.itemDescText} numberOfLines={3}>{it.description}</Text>}
                                 {!!it.brandMakes && <Text style={[s.itemDescText, { color: '#4F46E5' }]} numberOfLines={1}>Make: {it.brandMakes}</Text>}
                                 <Text style={s.itemQtyRateText}>
-                                  {formatMillionBillion(Number(it.quantity || 0))} {it.unit} × {smartMoney(it.rate || it.unitRate)}
+                                  {formatMillionBillion(Number(it.quantity || 0))} {it.unit} × {smartMoney(it.rate || it.unitRate, cur)}
                                 </Text>
                                 {!!it.remarks && <Text style={[s.itemDescText, { fontStyle: 'italic' }]} numberOfLines={2}>{it.remarks}</Text>}
                               </View>
-                              <Text style={s.itemTotalText}>{smartMoney(itemAmount(it))}</Text>
+                              <Text style={s.itemTotalText}>{smartMoney(itemAmount(it), cur)}</Text>
                             </View>
                           ))}
                         </View>
@@ -3472,13 +3371,13 @@ export default function Lead360Screen() {
                         <Ionicons name="warning" size={18} color="#E11D48" style={{ marginTop: 1 }} />
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <Text style={s.overBudgetTitle}>Over Target Budget Warning</Text>
+                            <Text style={s.overBudgetTitle}>Over the client's budget</Text>
                             <View style={s.overBudgetPill}>
-                              <Text style={s.overBudgetPillText}>+{quoteExcessPct.toFixed(1)}% Over Estimate</Text>
+                              <Text style={s.overBudgetPillText}>+{quoteExcessPct >= 10 ? Math.round(quoteExcessPct) : quoteExcessPct.toFixed(1)}%</Text>
                             </View>
                           </View>
                           <Text style={s.overBudgetSub}>
-                            Quote total ₹ {formatMillionBillion(quoteGrandTotal)} exceeds the client's target budget of ₹ {formatMillionBillion(quoteMaxBudget)} by ₹ {formatMillionBillion(quoteGrandTotal - quoteMaxBudget)}.
+                            Quote {cur} {formatMillionBillion(quoteGrandTotal)} · budget {lead?.budgetRange || `${cur} ${formatMillionBillion(quoteMaxBudget)}`}. {cur} {formatMillionBillion(quoteGrandTotal - quoteMaxBudget)} over.
                           </Text>
                         </View>
                       </View>
@@ -3512,7 +3411,7 @@ export default function Lead360Screen() {
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                           <View>
                             <Text style={s.cardTitle}>Quotation v{currentQuote.version}</Text>
-                            <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>
+                            <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>
                               {currentQuote.items?.length || 0} line item{currentQuote.items?.length === 1 ? '' : 's'}
                             </Text>
                           </View>
@@ -3590,34 +3489,24 @@ export default function Lead360Screen() {
                         </View>
 
                         {/* Prepared For / Details Meta */}
+                        {/* Stacked (not two columns) so the client name, phone and email get the full width */}
                         <View style={s.quoteMetaRow}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={s.quoteMetaLabel}>PREPARED FOR</Text>
-                            <Text style={s.quoteMetaName}>{lead.name}</Text>
-                            <Text style={s.quoteMetaSub}>{lead.mobileNumber}</Text>
-                            {!!lead.email && <Text style={s.quoteMetaSub}>{lead.email}</Text>}
-                          </View>
-                          <View style={{ alignItems: 'flex-end', gap: 3 }}>
-                            <Text style={s.quoteMetaLabel}>QUOTATION DETAILS</Text>
-                            <Text style={s.quoteMetaSub}>
-                              Issue Date: {new Date(currentQuote.createdAt || Date.now()).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            </Text>
-                            <Text style={s.quoteMetaSub}>Lead Reference: {lead.leadNumber || 'LD-XXXX'}</Text>
-                            <Text style={s.quoteMetaSub}>
-                              Quote Reference: {currentQuote.quotationNumber || currentQuote.quoteNumber
-                                || (lead.leadNumber ? `QTN-${lead.leadNumber.replace(/^LD-/, '')}-${currentQuote.version || activeQuoteIdx + 1}` : `QTN-${String(activeQuoteIdx + 1).padStart(3, '0')}`)}
-                            </Text>
-                            <View style={{
-                              paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, borderWidth: 1,
-                              backgroundColor: currentQuote.status === 'Accepted' ? '#ECFDF5' : currentQuote.status === 'Rejected' ? '#FFF1F2' : '#FFFBEB',
-                              borderColor: currentQuote.status === 'Accepted' ? '#A7F3D0' : currentQuote.status === 'Rejected' ? '#FECDD3' : '#FDE68A',
-                            }}>
-                              <Text style={{
-                                fontSize: 9.5, fontFamily: 'Inter-Black', letterSpacing: 0.4,
-                                color: currentQuote.status === 'Accepted' ? '#047857' : currentQuote.status === 'Rejected' ? '#BE123C' : '#B45309',
-                              }}>{(currentQuote.status || 'Draft').toUpperCase()}</Text>
+                          <Text style={s.quoteMetaLabel}>PREPARED FOR</Text>
+                          <Text style={s.quoteMetaName}>{lead.name}</Text>
+                          {!!lead.mobileNumber && <Text style={s.quoteMetaSub}>{lead.mobileNumber}</Text>}
+                          {!!lead.email && <Text style={s.quoteMetaSub} numberOfLines={1}>{lead.email}</Text>}
+                          <View style={s.quoteMetaDivider} />
+                          {[
+                            ['Issue date', new Date(currentQuote.createdAt || Date.now()).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })],
+                            ['Lead ref.', lead.leadNumber || '—'],
+                            ['Quote ref.', currentQuote.quotationNumber || currentQuote.quoteNumber
+                              || (lead.leadNumber ? `QTN-${lead.leadNumber.replace(/^LD-/, '')}-${currentQuote.version || activeQuoteIdx + 1}` : `QTN-${String(activeQuoteIdx + 1).padStart(3, '0')}`)],
+                          ].map(([label, value]) => (
+                            <View key={label} style={s.quoteMetaLine}>
+                              <Text style={s.quoteMetaLineLabel}>{label}</Text>
+                              <Text style={s.quoteMetaLineValue} numberOfLines={1}>{value}</Text>
                             </View>
-                          </View>
+                          ))}
                         </View>
 
                         {/* Scope / Items — fits the screen (no sideways scrolling) */}
@@ -3646,9 +3535,9 @@ export default function Lead360Screen() {
                                   </View>
                                   <View style={s.scopeFigures}>
                                     <Text style={s.scopeMeta}>
-                                      {qty}{item.unit ? ` ${item.unit}` : ''} × {smartMoney(unitPrice)}
+                                      {qty}{item.unit ? ` ${item.unit}` : ''} × {smartMoney(unitPrice, cur)}
                                     </Text>
-                                    <Text style={s.scopeTotal}>{smartMoney(lineTotal)}</Text>
+                                    <Text style={s.scopeTotal}>{smartMoney(lineTotal, cur)}</Text>
                                   </View>
                                 </View>
                               );
@@ -3670,16 +3559,16 @@ export default function Lead360Screen() {
                             <View style={s.quoteTotalsBox}>
                               <View style={s.totalRow}>
                                 <Text style={s.totalLabel}>Subtotal ({quoteItems.length} items)</Text>
-                                <Text style={s.totalVal}>₹ {formatMillionBillion(subtotal)}</Text>
+                                <Text style={s.totalVal}>{cur} {formatMillionBillion(subtotal)}</Text>
                               </View>
                               <View style={s.totalRow}>
                                 <Text style={s.totalLabel}>Tax ({taxPercentage}%)</Text>
-                                <Text style={s.totalVal}>₹ {formatMillionBillion(taxAmount)}</Text>
+                                <Text style={s.totalVal}>{cur} {formatMillionBillion(taxAmount)}</Text>
                               </View>
                               {discount > 0 && (
                                 <View style={s.totalRow}>
                                   <Text style={[s.totalLabel, { color: '#16A34A' }]}>Discount Applied</Text>
-                                  <Text style={[s.totalVal, { color: '#16A34A' }]}>- ₹ {formatMillionBillion(discount)}</Text>
+                                  <Text style={[s.totalVal, { color: '#16A34A' }]}>- {cur} {formatMillionBillion(discount)}</Text>
                                 </View>
                               )}
                               <View style={{ height: 1, backgroundColor: '#E2E8F0', marginVertical: 6 }} />
@@ -3689,7 +3578,7 @@ export default function Lead360Screen() {
                                   <Text style={s.quoteMetaSub}>Net Payable</Text>
                                 </View>
                                 <Text style={s.grandTotalVal}>
-                                  ₹ {formatMillionBillion(grandTotal)}
+                                  {cur} {formatMillionBillion(grandTotal)}
                                 </Text>
                               </View>
                             </View>
@@ -3766,7 +3655,7 @@ export default function Lead360Screen() {
                                   activeOpacity={0.8}
                                 >
                                   <Ionicons name="checkmark-circle-outline" size={15} color="#15803D" style={{ marginRight: 4 }} />
-                                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>Mark Accepted</Text>
+                                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#15803D' }}>Mark Accepted</Text>
                                 </TouchableOpacity>
                               )}
                               {canDo('crm_quotations', 'approve') && (
@@ -3776,7 +3665,7 @@ export default function Lead360Screen() {
                                   activeOpacity={0.8}
                                 >
                                   <Ionicons name="close-circle-outline" size={15} color="#B91C1C" style={{ marginRight: 4 }} />
-                                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#B91C1C' }}>Mark Rejected</Text>
+                                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#B91C1C' }}>Mark Rejected</Text>
                                 </TouchableOpacity>
                               )}
                             </View>
@@ -4156,19 +4045,21 @@ export default function Lead360Screen() {
       </Modal>
 
       {/* 4. Site Visit Modal */}
-      <LogSiteVisitModal
-        visible={showSiteModal}
-        onClose={() => setShowSiteModal(false)}
-        customerId={id}
-        initialMeasurements={lead?.siteMeasurements}
-        initialPhotos={lead?.sitePhotos}
-        instructions={lead?.remarks}
-        isReadOnly={isReadOnly}
-        onSuccess={() => {
-          showToast('Site visit logged successfully!', 'success');
-          fetchData();
-        }}
-      />
+      {showSiteModal && (
+        <LogSiteVisitModal
+          visible={showSiteModal}
+          onClose={() => setShowSiteModal(false)}
+          customerId={id}
+          initialMeasurements={lead?.siteMeasurements}
+          initialPhotos={lead?.sitePhotos}
+          instructions={lead?.remarks}
+          isReadOnly={isReadOnly}
+          onSuccess={() => {
+            showToast('Site visit logged successfully!', 'success');
+            fetchData();
+          }}
+        />
+      )}
 
       {/* BOQ internal approval: send / approve / reject */}
       <Modal visible={!!boqApprovalMode} transparent animationType="slide" onRequestClose={() => setBoqApprovalMode(null)}>
@@ -4188,15 +4079,15 @@ export default function Lead360Screen() {
                 if (!b) return null;
                 return (
                   <View style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, marginBottom: 6 }}>
-                    <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' }}>BOQ Version {b.version || activeBoqIdx + 1}</Text>
-                    <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#475569', marginTop: 2 }}>
-                      ₹{Math.round(Number(b.totalAmount) || 0).toLocaleString('en-IN')} · {(b.items || []).length} items
+                    <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>BOQ Version {b.version || activeBoqIdx + 1}</Text>
+                    <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#475569', marginTop: 2 }}>
+                      {cur} {Math.round(Number(b.totalAmount) || 0).toLocaleString(numLocale)} · {(b.items || []).length} items
                     </Text>
                     {boqApprovalMode !== 'submit' && !!b.assignedReviewerName && (
-                      <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 4 }}>Reviewer: {b.assignedReviewerName}</Text>
+                      <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 4 }}>Reviewer: {b.assignedReviewerName}</Text>
                     )}
                     {boqApprovalMode !== 'submit' && !!b.submissionNotes && (
-                      <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>Note: "{b.submissionNotes}"</Text>
+                      <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>Note: "{b.submissionNotes}"</Text>
                     )}
                   </View>
                 );
@@ -4221,7 +4112,7 @@ export default function Lead360Screen() {
                     <Text style={[s.label, boqApprovalMode === 'reject' && { color: '#E11D48' }]}>
                       {boqApprovalMode === 'reject' ? 'Rejection Reason / Required Revisions *' : 'Handover Notes / Review Focus (Optional)'}
                     </Text>
-                    <Text style={{ fontSize: 10, fontFamily: 'Inter-Regular', color: boqApprovalMode === 'reject' ? '#F43F5E' : '#94A3B8' }}>
+                    <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: boqApprovalMode === 'reject' ? '#F43F5E' : '#94A3B8' }}>
                       {boqApprovalNote.length}/500
                     </Text>
                   </View>
@@ -4237,7 +4128,7 @@ export default function Lead360Screen() {
                 </>
               )}
               {boqApprovalMode === 'approve' && (
-                <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', marginVertical: 8 }}>
+                <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#334155', marginVertical: 8 }}>
                   Approving this BOQ unlocks the Quotations stage for this lead.
                 </Text>
               )}
@@ -4271,7 +4162,7 @@ export default function Lead360Screen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 12, padding: 12, marginBottom: 6 }}>
                 <Ionicons name="time-outline" size={18} color="#D97706" />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#B45309', letterSpacing: 0.4 }}>PREVIOUSLY SCHEDULED</Text>
+                  <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#B45309', letterSpacing: 0.4 }}>PREVIOUSLY SCHEDULED</Text>
                   <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 }}>
                     {rescheduleForm.previousDate
                       ? new Date(rescheduleForm.previousDate).toLocaleString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -4294,7 +4185,7 @@ export default function Lead360Screen() {
                 style={[s.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
                 onPress={openRescheduleDatePicker}
               >
-                <Text style={{ color: rescheduleForm.scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 13 }}>
+                <Text style={{ color: rescheduleForm.scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
                   {rescheduleForm.scheduledDate
                     ? new Date(rescheduleForm.scheduledDate).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
                     : 'Select date & time'}
@@ -4345,35 +4236,39 @@ export default function Lead360Screen() {
       </Modal>
 
       {/* 5. Requirements Modal */}
-      <LogRequirementsModal
-        visible={showReqModal}
-        onClose={() => setShowReqModal(false)}
-        customerId={id}
-        initialBudgetRange={lead?.budgetRange}
-        initialRequirements={lead?.requirements}
-        clientRequirements={lead?.clientRequirements}
-        currentStatus={lead?.status}
-        isReadOnly={isReadOnly}
-        onSuccess={() => {
-          showToast('Requirements logged successfully!', 'success');
-          fetchData();
-        }}
-      />
+      {showReqModal && (
+        <LogRequirementsModal
+          visible={showReqModal}
+          onClose={() => setShowReqModal(false)}
+          customerId={id}
+          initialBudgetRange={lead?.budgetRange}
+          initialRequirements={lead?.requirements}
+          clientRequirements={lead?.clientRequirements}
+          currentStatus={lead?.status}
+          isReadOnly={isReadOnly}
+          onSuccess={() => {
+            showToast('Requirements logged successfully!', 'success');
+            fetchData();
+          }}
+        />
+      )}
 
       {/* 6. Upload Design Modal */}
-      <UploadDesignModal
-        visible={showDesignModal}
-        onClose={() => setShowDesignModal(false)}
-        customerId={id}
-        existingDesigns={lead?.designFiles}
-        users={users}
-        requirements={lead?.requirements}
-        isReadOnly={isReadOnly}
-        onSuccess={() => {
-          showToast('Design file uploaded successfully!', 'success');
-          fetchData();
-        }}
-      />
+      {showDesignModal && (
+        <UploadDesignModal
+          visible={showDesignModal}
+          onClose={() => setShowDesignModal(false)}
+          customerId={id}
+          existingDesigns={lead?.designFiles}
+          users={users}
+          requirements={lead?.requirements}
+          isReadOnly={isReadOnly}
+          onSuccess={() => {
+            showToast('Design file uploaded successfully!', 'success');
+            fetchData();
+          }}
+        />
+      )}
 
       {/* 6b. Drawing Two-Step Approval Workflow Modals */}
       <SendDrawingForApprovalModal
@@ -4422,23 +4317,25 @@ export default function Lead360Screen() {
       />
 
       {/* 7. Advanced Quotation Builder Modal */}
-      <QuotationBuilderModal
-        visible={showQuoteModal}
-        onClose={() => {
-          setShowQuoteModal(false);
-          setEditingQuoteIdx(null);
-        }}
-        customerId={id}
-        existingQuotations={lead?.quotations || []}
-        existingBoqs={lead?.boqs || []}
-        editingQuoteIndex={editingQuoteIdx}
-        budgetRange={lead?.budgetRange || lead?.estimatedBudget || lead?.budget}
-        isReadOnly={isReadOnly}
-        onSuccess={() => {
-          showToast('Quotation saved successfully!', 'success');
-          fetchData();
-        }}
-      />
+      {showQuoteModal && (
+        <QuotationBuilderModal
+          visible={showQuoteModal}
+          onClose={() => {
+            setShowQuoteModal(false);
+            setEditingQuoteIdx(null);
+          }}
+          customerId={id}
+          existingQuotations={lead?.quotations || []}
+          existingBoqs={lead?.boqs || []}
+          editingQuoteIndex={editingQuoteIdx}
+          budgetRange={lead?.budgetRange || lead?.estimatedBudget || lead?.budget}
+          isReadOnly={isReadOnly}
+          onSuccess={() => {
+            showToast('Quotation saved successfully!', 'success');
+            fetchData();
+          }}
+        />
+      )}
 
       {/* 7b. Send Quotation Modal */}
       <SendQuotationModal
@@ -4457,26 +4354,28 @@ export default function Lead360Screen() {
       />
 
       {/* 8. Multi-Section BOQ Builder Modal */}
-      <BoqBuilderModal
-        visible={showBoqModal}
-        onClose={() => setShowBoqModal(false)}
-        customerId={id}
-        customerName={lead?.name}
-        drawings={lead?.designFiles || lead?.drawings || []}
-        existingBoqs={lead?.boqs || []}
-        editingBoqIndex={editingBoqIdx}
-        budgetRange={lead?.budgetRange || lead?.estimatedBudget || lead?.budget}
-        leadStatus={lead?.status}
-        isReadOnly={isReadOnly || Boolean(
-          (lead?.quotations && lead.quotations.some((q) => ['accepted', 'approved', 'converted', 'signed & accepted'].includes(String(q.status || '').toLowerCase()))) ||
-          ['Booking Pending', 'Won', 'Converted'].includes(lead?.status) ||
-          lead?.linkedProject
-        )}
-        onSuccess={() => {
-          showToast('BOQ saved successfully!', 'success');
-          fetchData();
-        }}
-      />
+      {showBoqModal && (
+        <BoqBuilderModal
+          visible={showBoqModal}
+          onClose={() => setShowBoqModal(false)}
+          customerId={id}
+          customerName={lead?.name}
+          drawings={lead?.designFiles || lead?.drawings || []}
+          existingBoqs={lead?.boqs || []}
+          editingBoqIndex={editingBoqIdx}
+          budgetRange={lead?.budgetRange || lead?.estimatedBudget || lead?.budget}
+          leadStatus={lead?.status}
+          isReadOnly={isReadOnly || Boolean(
+            (lead?.quotations && lead.quotations.some((q) => ['accepted', 'approved', 'converted', 'signed & accepted'].includes(String(q.status || '').toLowerCase()))) ||
+            ['Booking Pending', 'Won', 'Converted'].includes(lead?.status) ||
+            lead?.linkedProject
+          )}
+          onSuccess={() => {
+            showToast('BOQ saved successfully!', 'success');
+            fetchData();
+          }}
+        />
+      )}
 
       {/* 8b. Drawing Approval Confirmation Modal */}
       <DrawingConfirmApproveModal
@@ -4500,67 +4399,77 @@ export default function Lead360Screen() {
       />
 
       {/* 9. Stage Advancement Guided Modals */}
-      <SendToSiteVisitModal
-        isOpen={showSendSiteModal}
-        onClose={() => { setShowSendSiteModal(false); setSendSiteInitialData(null); }}
-        customerId={id}
-        users={users}
-        initialData={sendSiteInitialData}
-        onSuccess={() => {
-          showToast(sendSiteInitialData ? 'Site visit rescheduled successfully!' : 'Passed to Site Visit phase!', 'success');
-          setSendSiteInitialData(null);
-          fetchData();
-        }}
-      />
+      {showSendSiteModal && (
+        <SendToSiteVisitModal
+          isOpen={showSendSiteModal}
+          onClose={() => { setShowSendSiteModal(false); setSendSiteInitialData(null); }}
+          customerId={id}
+          users={users}
+          initialData={sendSiteInitialData}
+          onSuccess={() => {
+            showToast(sendSiteInitialData ? 'Site visit rescheduled successfully!' : 'Passed to Site Visit phase!', 'success');
+            setSendSiteInitialData(null);
+            fetchData();
+          }}
+        />
+      )}
 
-      <SendToRequirementsModal
-        isOpen={showSendReqModal}
-        onClose={() => { setShowSendReqModal(false); setSendReqInitialData(null); }}
-        customerId={id}
-        users={users}
-        initialData={sendReqInitialData}
-        onSuccess={() => {
-          showToast(sendReqInitialData ? 'Requirements session rescheduled!' : 'Passed to Requirements phase!', 'success');
-          setSendReqInitialData(null);
-          fetchData();
-        }}
-      />
+      {showSendReqModal && (
+        <SendToRequirementsModal
+          isOpen={showSendReqModal}
+          onClose={() => { setShowSendReqModal(false); setSendReqInitialData(null); }}
+          customerId={id}
+          users={users}
+          initialData={sendReqInitialData}
+          onSuccess={() => {
+            showToast(sendReqInitialData ? 'Requirements session rescheduled!' : 'Passed to Requirements phase!', 'success');
+            setSendReqInitialData(null);
+            fetchData();
+          }}
+        />
+      )}
 
-      <SendToDrawingModal
-        isOpen={showSendDrawingModal}
-        onClose={() => { setShowSendDrawingModal(false); setSendDrawingInitialData(null); }}
-        customerId={id}
-        users={users}
-        initialData={sendDrawingInitialData}
-        onSuccess={() => {
-          showToast(sendDrawingInitialData ? 'Drawing schedule updated!' : 'Passed to Drawing phase!', 'success');
-          setSendDrawingInitialData(null);
-          fetchData();
-        }}
-      />
+      {showSendDrawingModal && (
+        <SendToDrawingModal
+          isOpen={showSendDrawingModal}
+          onClose={() => { setShowSendDrawingModal(false); setSendDrawingInitialData(null); }}
+          customerId={id}
+          users={users}
+          initialData={sendDrawingInitialData}
+          onSuccess={() => {
+            showToast(sendDrawingInitialData ? 'Drawing schedule updated!' : 'Passed to Drawing phase!', 'success');
+            setSendDrawingInitialData(null);
+            fetchData();
+          }}
+        />
+      )}
 
-      <SendToBoqModal
-        isOpen={showSendBoqModal}
-        onClose={() => setShowSendBoqModal(false)}
-        customerId={id}
-        users={users}
-        lead={lead}
-        onSuccess={() => {
-          showToast('Passed to BOQ Estimation phase!', 'success');
-          fetchData();
-        }}
-      />
+      {showSendBoqModal && (
+        <SendToBoqModal
+          isOpen={showSendBoqModal}
+          onClose={() => setShowSendBoqModal(false)}
+          customerId={id}
+          users={users}
+          lead={lead}
+          onSuccess={() => {
+            showToast('Passed to BOQ Estimation phase!', 'success');
+            fetchData();
+          }}
+        />
+      )}
 
-      <SendToQuotationsModal
-        isOpen={showSendQuoteModal}
-        onClose={() => setShowSendQuoteModal(false)}
-        customerId={id}
-        users={users}
-        onSuccess={() => {
-          showToast('Passed to Quotation phase!', 'success');
-          fetchData();
-        }}
-      />
+      {showSendQuoteModal && (
+        <SendToQuotationsModal
+          isOpen={showSendQuoteModal}
+          onClose={() => setShowSendQuoteModal(false)}
+          customerId={id}
+          users={users}
+          onSuccess={() => {
+            showToast('Passed to Quotation phase!', 'success');
+            fetchData();
+          }}
+        />
+      )}
 
       <ConvertToProjectModal
         isOpen={showConvertModal}
@@ -4588,7 +4497,7 @@ export default function Lead360Screen() {
               </Text>
               {currentQuote && (
                 <Text style={[s.quoteDocHeaderSub, { color: '#334155' }]} numberOfLines={1}>
-                  Client: {lead?.name} • Total Scope: {(currentQuote.items || []).length} Items ({formatExactCurrency(Number(currentQuote.grandTotal) || 0, lead?.currency || 'INR')})
+                  Client: {lead?.name} • Total Scope: {(currentQuote.items || []).length} Items ({formatExactCurrency(Number(currentQuote.grandTotal) || 0, currencyCode)})
                 </Text>
               )}
             </View>
@@ -4627,7 +4536,7 @@ export default function Lead360Screen() {
           {currentQuote && (
             <WebView
               originWhitelist={['*']}
-              source={{ html: buildQuotationHtml(lead, currentQuote) }}
+              source={{ html: buildQuotationHtml({ ...lead, currency: currencyCode }, currentQuote) }}
               style={{ flex: 1, backgroundColor: '#F1F5F9' }}
             />
           )}
@@ -4681,17 +4590,17 @@ export default function Lead360Screen() {
 
 const s = StyleSheet.create({
   scopeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 9, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  scopeHeaderText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#475569', letterSpacing: 0.5 },
+  scopeHeaderText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#475569', letterSpacing: 0.5 },
   scopeCountPill: { backgroundColor: '#EEF2FF', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  scopeCountText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#4338CA' },
+  scopeCountText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#4338CA' },
   scopeRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 4 },
-  scopeIndex: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#94A3B8', minWidth: 18 },
-  scopeTitle: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', lineHeight: 18 },
+  scopeIndex: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#94A3B8', minWidth: 18 },
+  scopeTitle: { flex: 1, fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#0F172A', lineHeight: 18 },
   scopeFigures: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 26 },
-  scopeMeta: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B' },
-  scopeTotal: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  scopeMeta: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B' },
+  scopeTotal: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
   quoteFooterBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 10, borderWidth: 1 },
-  quoteFooterText: { fontSize: 12.5, fontFamily: 'Inter-Bold' },
+  quoteFooterText: { fontSize: 13.5, fontFamily: 'Inter-Bold' },
   container: { flex: 1, backgroundColor: '#F8FAFF' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   loadingText: { marginTop: 10, fontSize: 14, color: '#64748B', fontWeight: '500' },
@@ -4706,59 +4615,40 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerLeft: {
-    width: 38,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  headerRight: {
-    minWidth: 38,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  headerLeadInfoCenter: {
+  headerLeadInfo: {
     flex: 1,
     minWidth: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
+    marginLeft: 12,
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 1,
+    gap: 8,
     maxWidth: '100%',
   },
   headerTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Black',
+    fontSize: 19,
+    fontFamily: 'Inter-Bold',
     color: '#0F172A',
     letterSpacing: -0.3,
     flexShrink: 1,
-    textAlign: 'center',
   },
   headerPhoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    marginTop: 2,
+    gap: 6,
+    marginTop: 6,
     maxWidth: '100%',
   },
-  statusBadgeBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    maxWidth: 105,
+  headerStagePill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginRight: 4, flexShrink: 1 },
+  headerStageText: { fontSize: 13.5, fontFamily: 'Inter-Bold' },
+  nextStepBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
   },
+  nextStepText: { flex: 1, fontSize: 14, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  nextStepLabel: { fontFamily: 'Inter-Bold', color: '#2563EB' },
   backBtn: {
     width: 36,
     height: 36,
@@ -4779,14 +4669,8 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FECACA',
   },
-  headerGreeting: {
-    fontSize: 11,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1D4ED8',
-    marginBottom: 1,
-  },
   headerSub: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-SemiBold',
     color: '#1D4ED8',
   },
@@ -4800,19 +4684,9 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   leadIdText: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-Bold',
     color: '#1D4ED8',
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontFamily: 'Inter-Bold',
   },
 
   tabRow: {
@@ -4839,7 +4713,7 @@ const s = StyleSheet.create({
     borderColor: '#BFDBFE',
   },
   tabText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
   },
@@ -4848,70 +4722,43 @@ const s = StyleSheet.create({
     fontFamily: 'Inter-Bold',
   },
   tabContent: { padding: 16 },
-  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  metricCard: {
-    width: '48.5%',
-    backgroundColor: '#FFFFFF',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    justifyContent: 'center',
-  },
   boqApprovalBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
-  boqApprovalBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  boqApprovalBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   ovEditBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  ovEditBtnText: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#2563EB' },
-  ovAddressBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, padding: 12, gap: 4 },
-  ovFieldLabel: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.5 },
-  ovAddressText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A', lineHeight: 19 },
-  ovAddressActions: { flexDirection: 'row', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0', flexWrap: 'wrap' },
-  ovPillBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  ovPillText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155' },
-  ovInfoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: 10, borderRadius: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9' },
-  ovInfoLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ovInfoLabel: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' },
-  ovInfoValue: { flex: 1, textAlign: 'right', fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  metricCardFull: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    justifyContent: 'center',
-  },
-  metricHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  metricLabel: {
-    fontSize: 9.5,
-    fontFamily: 'Inter-Bold',
-    color: '#64748B',
-    letterSpacing: 0.3,
-  },
-  metricVal: {
-    fontSize: 13,
-    fontFamily: 'Inter-SemiBold',
-    color: '#0F172A',
-  },
-  quickActionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  quickActionPillText: {
-    fontSize: 10.5,
-    fontFamily: 'Inter-Bold',
-    color: '#2563EB',
-  },
+  ovEditBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  ovAddressText: { fontSize: 15, fontFamily: 'Inter-SemiBold', color: '#0F172A', lineHeight: 21 },
+  touchNoteWrap: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9', gap: 10 },
+  touchNote: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  touchMeta: { flex: 1, fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  briefIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  briefTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  briefPill: { alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
+  briefPillText: { fontSize: 12.5, fontFamily: 'Inter-Bold' },
+  briefMetaRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 6, marginTop: 12 },
+  briefMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' },
+  briefMetaText: { flexShrink: 1, fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  briefNoteWrap: { marginTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 4, gap: 6 },
+  briefNoteToggle: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  briefNoteToggleText: { flex: 1, fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#475569' },
+  briefNoteText: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  briefActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  infoGroupTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#7C3AED' },
+  infoRow: { gap: 2, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  infoLabel: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#64748B' },
+  infoValue: { fontSize: 14.5, lineHeight: 20, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
+  ovKicker: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  ovBigValue: { fontSize: 26, fontFamily: 'Inter-Bold', color: '#059669', marginTop: 2 },
+  ovBigSub: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 },
+  ovChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  ovChip: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+  ovChipText: { flexShrink: 1, fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  ovContactName: { fontSize: 16, lineHeight: 21, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 6 },
+  ovContactLine: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  ovContactText: { flex: 1, fontSize: 14.5, fontFamily: 'Inter-Medium', color: '#334155' },
+  ovRoundBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' },
+  ovAddressActions: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' },
+  ovPillBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 40, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
+  ovPillText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#334155' },
   actionIconBox: {
     width: 34,
     height: 34,
@@ -4921,34 +4768,33 @@ const s = StyleSheet.create({
   },
   card: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' },
   cardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  cardTitle: { fontSize: 14, fontWeight: '800', color: '#0F172A', flex: 1 },
-  cardSubText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  cardTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1 },
   smallBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#EFF6FF', borderRadius: 8 },
-  smallBtnText: { fontSize: 11, fontWeight: '700', color: '#2563EB' },
+  smallBtnText: { fontSize: 12.5, fontWeight: '700', color: '#2563EB' },
 
   shareRibbon: { backgroundColor: '#FAF5FF', borderWidth: 1, borderColor: '#E9D5FF', borderRadius: 14, padding: 12 },
   shareRibbonIconBox: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center' },
-  shareRibbonTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  shareRibbonSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#7C3AED', marginTop: 1 },
+  shareRibbonTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  shareRibbonSub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#7C3AED', marginTop: 1 },
   shareRibbonBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-  shareRibbonBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
+  shareRibbonBadgeText: { fontSize: 11, fontFamily: 'Inter-Bold' },
   shareRibbonBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: '#7C3AED', borderRadius: 10, paddingVertical: 9 },
-  shareRibbonBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  shareRibbonBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   shareRibbonBtnOutline: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E9D5FF', borderRadius: 10, paddingVertical: 9 },
-  shareRibbonBtnOutlineText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#7C3AED' },
-  emptySubText: { fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', marginVertical: 12 },
+  shareRibbonBtnOutlineText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#7C3AED' },
+  emptySubText: { fontSize: 13, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', marginVertical: 12 },
   followUpCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#E2E8F0', marginTop: 10 },
   dateInput: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 8,
   },
-  dateInputText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  dateInputText: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#0F172A' },
   saveBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: '#2563EB', borderRadius: 14, paddingVertical: 14, marginTop: 20, marginBottom: 10,
   },
-  saveBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   dropdownBtn: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -4956,7 +4802,7 @@ const s = StyleSheet.create({
   },
   dropdownBtnActive: { borderColor: '#2563EB', backgroundColor: '#EFF6FF20' },
   dropdownBtnContent: { flexDirection: 'row', alignItems: 'center' },
-  dropdownBtnText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A' },
+  dropdownBtnText: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#0F172A' },
   dropdownMenu: {
     backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
     marginTop: 4, marginBottom: 10, overflow: 'hidden',
@@ -4967,35 +4813,28 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
   dropdownItemActive: { backgroundColor: '#EFF6FF' },
-  dropdownItemText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155' },
+  dropdownItemText: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#334155' },
   dropdownItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
   timelineItem: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
   timelineBody: { flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' },
-  actType: { fontSize: 11, fontWeight: '800', color: '#334155' },
-  actTime: { fontSize: 10, color: '#94A3B8' },
-  actRemarks: { fontSize: 12, color: '#475569', marginTop: 4 },
-  actMetaLine: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' },
-  actAuthor: { fontSize: 10, color: '#64748B', marginTop: 6, fontWeight: '600' },
+  actType: { fontSize: 12.5, fontWeight: '800', color: '#334155' },
+  actTime: { fontSize: 11.5, color: '#94A3B8' },
+  actRemarks: { fontSize: 13, color: '#475569', marginTop: 4 },
+  actMetaLine: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#64748B' },
+  actAuthor: { fontSize: 11.5, color: '#64748B', marginTop: 6, fontWeight: '600' },
   emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', gap: 8 },
   emptyCardTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
   actionBtnPrimary: { backgroundColor: '#7C3AED', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, marginTop: 8 },
-  actionBtnText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
-  measureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
-  measureItem: { width: '48%', backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10 },
-  measureVal: { fontSize: 14, fontWeight: '800', color: '#0F172A', marginTop: 2 },
+  actionBtnText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   photoThumb: { width: 80, height: 80, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0' },
-  reqRoomName: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
-  reqThemeBadge: { fontSize: 10, fontWeight: '800', color: '#059669', backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  reqDesc: { fontSize: 13, color: '#475569', marginTop: 6, lineHeight: 18 },
   fileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-  fileIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
-  fileName: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
-  fileSub: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
+  fileName: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
+  fileSub: { fontSize: 11.5, color: '#94A3B8', marginTop: 2 },
   versionChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: '#F1F5F9' },
   versionChipActive: { backgroundColor: '#0F172A' },
-  versionChipText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
+  versionChipText: { fontSize: 12.5, fontWeight: '700', color: '#64748B' },
   versionChipTextActive: { color: '#FFFFFF' },
   addVersionBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: '#FFF1F2', justifyContent: 'center' },
   // Quotation Document Preview Modal
@@ -5010,7 +4849,7 @@ const s = StyleSheet.create({
     borderBottomColor: '#E2E8F0',
   },
   quoteDocHeaderTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  quoteDocHeaderSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  quoteDocHeaderSub: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
   quoteDocHeaderBtn: {
     width: 34, height: 34, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center',
@@ -5037,23 +4876,24 @@ const s = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 9,
   },
-  quoteDocActionText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#4F46E5', flexShrink: 1 },
+  quoteDocActionText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#4F46E5', flexShrink: 1 },
   stageBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
-  stageBadgeText: { fontSize: 10.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase', letterSpacing: 0.3 },
+  stageBadgeText: { fontSize: 12, fontFamily: 'Inter-Bold', textTransform: 'uppercase', letterSpacing: 0.3 },
   quoteMetaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#F1F5F9',
     borderRadius: 12,
-    padding: 12,
+    padding: 14,
     marginBottom: 12,
-    gap: 12,
   },
-  quoteMetaLabel: { fontSize: 9.5, fontFamily: 'Inter-ExtraBold', color: '#94A3B8', letterSpacing: 0.3, marginBottom: 4 },
-  quoteMetaName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  quoteMetaSub: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 1 },
+  quoteMetaLabel: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4, marginBottom: 4 },
+  quoteMetaName: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 2 },
+  quoteMetaDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 10 },
+  quoteMetaLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 3 },
+  quoteMetaLineLabel: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B' },
+  quoteMetaLineValue: { flexShrink: 1, fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#0F172A', textAlign: 'right' },
+  quoteMetaSub: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 1 },
   quoteTable: {
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -5061,34 +4901,6 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
     marginBottom: 12,
-  },
-  quoteHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingVertical: 9,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  quoteCol: {
-    fontSize: 11,
-    fontFamily: 'Inter-Bold',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  quoteRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  quoteCell: {
-    fontSize: 12.5,
-    color: '#334155',
   },
   quoteTotalsBox: {
     backgroundColor: '#FFFFFF',
@@ -5104,12 +4916,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   totalLabel: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
   },
   totalVal: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -5132,13 +4944,13 @@ const s = StyleSheet.create({
     marginTop: 10,
   },
   quoteNotesHeader: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-Bold',
     color: '#64748B',
     letterSpacing: 0.5,
   },
   quoteNotesBody: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#334155',
     lineHeight: 17,
@@ -5154,12 +4966,12 @@ const s = StyleSheet.create({
     gap: 10,
   },
   quoteAcceptedTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#15803D',
   },
   quoteAcceptedSubtitle: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Regular',
     color: '#166534',
     marginTop: 1,
@@ -5175,12 +4987,12 @@ const s = StyleSheet.create({
     gap: 10,
   },
   quoteRejectedTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#B91C1C',
   },
   quoteRejectedSubtitle: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Regular',
     color: '#991B1B',
     marginTop: 1,
@@ -5214,311 +5026,21 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   modalTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
   stageOption: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#F1F5F9' },
-  stageOptionText: { fontSize: 13, color: '#334155' },
-  label: { fontSize: 11, fontWeight: '700', color: '#64748B', uppercase: true, marginTop: 4 },
-  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 13, color: '#0F172A', marginBottom: 6 },
+  stageOptionText: { fontSize: 14, color: '#334155' },
+  label: { fontSize: 12.5, fontWeight: '700', color: '#64748B', uppercase: true, marginTop: 4 },
+  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: '#0F172A', marginBottom: 6 },
   inputError: { borderColor: '#DC2626' },
-  fieldErrorText: { fontSize: 10.5, fontFamily: 'Inter-Medium', color: '#DC2626', marginTop: -4, marginBottom: 6 },
+  fieldErrorText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#DC2626', marginTop: -4, marginBottom: 6 },
   chipOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   optionChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#F1F5F9' },
   optionChipActive: { backgroundColor: '#2563EB' },
-  optionChipText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
+  optionChipText: { fontSize: 12.5, fontWeight: '700', color: '#64748B' },
   optionChipTextActive: { color: '#FFFFFF' },
   submitBtn: { backgroundColor: '#2563EB', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 12 },
-  submitBtnText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
-  photoPickBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#EFF6FF', padding: 12, borderRadius: 10, justifyContent: 'center' },
-  photoPickText: { fontSize: 12, fontWeight: '700', color: '#2563EB' },
+  submitBtnText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
   // Quotation Builder Modal (Web Match)
-  quoteModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    marginBottom: 10,
-  },
-  quoteHeaderIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#EEF2FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quoteModalTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    color: '#0F172A',
-    letterSpacing: -0.2,
-  },
-  quoteModalSubtitle: {
-    fontSize: 11.5,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-    marginTop: 1,
-  },
-  quoteCloseBtn: {
-    padding: 4,
-  },
-  quoteItemsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    padding: 10,
-    gap: 8,
-    marginTop: 4,
-  },
-  quoteItemCard: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    padding: 8,
-  },
-  quoteTrashBtn: {
-    width: 28,
-    height: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quoteFieldLabel: {
-    fontSize: 9,
-    fontFamily: 'Inter-Bold',
-    color: '#94A3B8',
-    letterSpacing: 0.3,
-    marginBottom: 3,
-  },
-  quoteDescInput: {
-    height: 38,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: '#0F172A',
-  },
-  quoteQtyInput: {
-    height: 38,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    textAlign: 'center',
-    fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
-    color: '#0F172A',
-    paddingHorizontal: 4,
-  },
-  quoteRateInput: {
-    height: 38,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    textAlign: 'center',
-    fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
-    color: '#0F172A',
-    paddingHorizontal: 6,
-  },
-  quoteRowTotalBox: {
-    flex: 1,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingRight: 2,
-    paddingBottom: 2,
-  },
-  quoteRowTotalText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Bold',
-    color: '#0F172A',
-  },
-  addLineItemBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#EEF2FF',
-    borderRadius: 10,
-    paddingVertical: 10,
-    marginTop: 4,
-  },
-  addLineItemText: {
-    fontSize: 12.5,
-    fontFamily: 'Inter-Bold',
-    color: '#4F46E5',
-  },
-  clientNotesLabel: {
-    fontSize: 10.5,
-    fontFamily: 'Inter-Bold',
-    color: '#334155',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  clientNotesInput: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 12.5,
-    fontFamily: 'Inter-Regular',
-    color: '#0F172A',
-    minHeight: 70,
-    textAlignVertical: 'top',
-  },
-  quoteFinancialCard: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    padding: 14,
-    gap: 10,
-    marginTop: 14,
-    marginBottom: 8,
-  },
-  quoteFinRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  quoteFinLabel: {
-    fontSize: 13,
-    fontFamily: 'Inter-Medium',
-    color: '#475569',
-  },
-  quoteFinVal: {
-    fontSize: 14,
-    fontFamily: 'Inter-Bold',
-    color: '#0F172A',
-  },
-  quoteInlineInput: {
-    width: 48,
-    height: 30,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 6,
-    backgroundColor: '#FFFFFF',
-    textAlign: 'center',
-    fontSize: 12.5,
-    fontFamily: 'Inter-SemiBold',
-    color: '#0F172A',
-    paddingVertical: 0,
-    paddingHorizontal: 4,
-  },
-  quoteTaxVal: {
-    fontSize: 13,
-    fontFamily: 'Inter-SemiBold',
-    color: '#475569',
-  },
-  quoteGrandTotalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    marginTop: 4,
-  },
-  quoteGrandTotalLabel: {
-    fontSize: 15,
-    fontFamily: 'Inter-Bold',
-    color: '#0F172A',
-  },
-  quoteGrandTotalVal: {
-    fontSize: 20,
-    fontFamily: 'Inter-Black',
-    color: '#4F46E5',
-    letterSpacing: -0.3,
-  },
-  quoteModalFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    marginTop: 8,
-  },
-  quoteCancelBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  quoteCancelText: {
-    fontSize: 13,
-    fontFamily: 'Inter-SemiBold',
-    color: '#64748B',
-  },
-  quoteSaveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  quoteSaveText: {
-    fontSize: 13,
-    fontFamily: 'Inter-Bold',
-    color: '#FFFFFF',
-  },
 
   // Stage Advancement Banner
-  advanceBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  advanceBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  advanceIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  advanceBannerTitle: {
-    fontSize: 12,
-    fontFamily: 'Inter-Bold',
-    color: '#0F172A',
-  },
-  advanceBannerSub: {
-    fontSize: 10,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-    marginTop: 1,
-  },
 
   // Locked Phase Card
   lockedCard: {
@@ -5543,7 +5065,7 @@ const s = StyleSheet.create({
     color: '#0F172A',
   },
   lockedSub: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
     textAlign: 'center',
@@ -5558,19 +5080,11 @@ const s = StyleSheet.create({
   },
   unlockActionBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
   },
 
   // BOQ Component Styles
-  boqHeaderCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 12,
-  },
   boqHeaderActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -5579,28 +5093,6 @@ const s = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
-  },
-  boqNumberText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Bold',
-    color: '#0F172A',
-  },
-  versionTag: {
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  versionTagText: {
-    fontSize: 10,
-    fontFamily: 'Inter-Bold',
-    color: '#059669',
-  },
-  boqDateText: {
-    fontSize: 11,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-    marginTop: 2,
   },
   specBox: {
     flexBasis: '48%',
@@ -5612,14 +5104,14 @@ const s = StyleSheet.create({
     padding: 8,
   },
   specLabel: {
-    fontSize: 8.5,
+    fontSize: 10.5,
     fontFamily: 'Inter-Bold',
     color: '#94A3B8',
     letterSpacing: 0.3,
     marginBottom: 2,
   },
   specVal: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -5636,13 +5128,13 @@ const s = StyleSheet.create({
     maxWidth: 160,
   },
   catChipText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#4F46E5',
     flexShrink: 1,
   },
   catChipCount: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-Medium',
     color: '#818CF8',
   },
@@ -5658,7 +5150,7 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   boqLockedPillText: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Bold',
     color: '#64748B',
   },
@@ -5672,7 +5164,7 @@ const s = StyleSheet.create({
     backgroundColor: '#EFF6FF',
   },
   editBoqBtnText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#2563EB',
   },
@@ -5686,7 +5178,7 @@ const s = StyleSheet.create({
     backgroundColor: '#059669',
   },
   newBoqBtnText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
   },
@@ -5710,12 +5202,12 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   costLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
   },
   costVal: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -5726,7 +5218,7 @@ const s = StyleSheet.create({
   },
   grandTotalAmount: {
     fontSize: 16,
-    fontFamily: 'Inter-Black',
+    fontFamily: 'Inter-Bold',
     color: '#059669',
   },
   boqItemRow: {
@@ -5737,40 +5229,27 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
-  catBadgeSmall: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    maxWidth: 110,
-  },
-  catBadgeSmallText: {
-    fontSize: 9,
-    fontFamily: 'Inter-Bold',
-    color: '#475569',
-    textTransform: 'uppercase',
-  },
   itemNameText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
     flex: 1,
     flexShrink: 1,
   },
   itemDescText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
     marginTop: 2,
   },
   itemQtyRateText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Medium',
     color: '#94A3B8',
     marginTop: 3,
   },
   itemTotalText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
     marginLeft: 8,
@@ -5798,11 +5277,11 @@ const s = StyleSheet.create({
   },
   siteOverdueTitle: {
     fontSize: 13.5,
-    fontFamily: 'Inter-ExtraBold',
+    fontFamily: 'Inter-Bold',
     color: '#7F1D1D',
   },
   siteOverdueSub: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#991B1B',
     marginTop: 3,
@@ -5821,7 +5300,7 @@ const s = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   siteOverdueRescheduleBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
   },
@@ -5836,8 +5315,8 @@ const s = StyleSheet.create({
     padding: 14,
   },
   overBudgetTitle: {
-    fontSize: 12.5,
-    fontFamily: 'Inter-ExtraBold',
+    fontSize: 13.5,
+    fontFamily: 'Inter-Bold',
     color: '#BE123C',
   },
   overBudgetPill: {
@@ -5849,34 +5328,17 @@ const s = StyleSheet.create({
     paddingVertical: 2,
   },
   overBudgetPillText: {
-    fontSize: 9,
-    fontFamily: 'Inter-ExtraBold',
+    fontSize: 10.5,
+    fontFamily: 'Inter-Bold',
     color: '#BE123C',
     textTransform: 'uppercase',
   },
   overBudgetSub: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#9F1239',
     marginTop: 4,
     lineHeight: 16,
-  },
-  stageLostActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-  },
-  stageLostActionBtnText: {
-    fontSize: 12.5,
-    fontFamily: 'Inter-Bold',
-    color: '#DC2626',
   },
   lostAlertBanner: {
     flexDirection: 'row',
@@ -5901,12 +5363,12 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   lostAlertTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#991B1B',
   },
   lostAlertReason: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#B91C1C',
     marginTop: 1,
@@ -5923,35 +5385,12 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   reopenLeadBtnText: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#2563EB',
   },
 
   // Overdue Badge
-  overdueBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FEE2E2',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  overdueDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#DC2626',
-  },
-  overdueBadgeText: {
-    fontSize: 10,
-    fontFamily: 'Inter-Bold',
-    color: '#DC2626',
-    textTransform: 'uppercase',
-  },
 
   // Reschedule Button
   rescheduleBtn: {
@@ -5967,81 +5406,12 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   rescheduleBtnText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#7C3AED',
   },
 
   // Site Visit Briefing Banner
-  siteVisitBriefingCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: '#F3E8FF',
-    borderWidth: 1,
-    borderColor: '#DDD6FE',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 4,
-  },
-  siteVisitBriefingIconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: '#EDE9FE',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    marginTop: 1,
-  },
-  siteVisitBriefingLabel: {
-    fontSize: 9.5,
-    fontFamily: 'Inter-Bold',
-    color: '#6D28D9',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 3,
-  },
-  siteVisitBriefingText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: '#1E1B4B',
-    lineHeight: 17,
-  },
-  briefingCardGreen: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    borderRadius: 14,
-    padding: 14,
-  },
-  briefingIconBoxGreen: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: '#D1FAE5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    marginTop: 1,
-  },
-  briefingLabelGreen: {
-    fontSize: 10,
-    fontFamily: 'Inter-Bold',
-    color: '#047857',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 3,
-  },
-  briefingTextGreen: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: '#064E3B',
-    lineHeight: 17,
-  },
   briefingCardBlue: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -6063,7 +5433,7 @@ const s = StyleSheet.create({
     marginTop: 1,
   },
   briefingLabelBlue: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-Bold',
     color: '#1D4ED8',
     textTransform: 'uppercase',
@@ -6071,7 +5441,7 @@ const s = StyleSheet.create({
     marginBottom: 3,
   },
   briefingTextBlue: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Medium',
     color: '#1E3A8A',
     lineHeight: 17,

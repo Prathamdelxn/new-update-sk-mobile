@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity,
   TextInput, Modal, StatusBar, ActivityIndicator, RefreshControl,
   KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
@@ -63,6 +63,9 @@ function formatBudget(amount) {
   return formatCompactCurrency(num > 0 ? num : 0);
 }
 
+const NO_PROJECTS = [];
+const ProjectGap = () => <View style={{ height: 10 }} />;
+
 export default function InteriorProjectsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -77,7 +80,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
       return res?.success && res?.data ? res.data : [];
     },
   });
-  const projects = projectsQuery.data ?? [];
+  const projects = projectsQuery.data ?? NO_PROJECTS;
   const loading = projectsQuery.isPending;
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,7 +143,8 @@ const { hasPermission: canDo } = useInteriorPermissions();
 
   useRefreshOnFocus([queryKeys.interiorProjects]);
 
-  const filteredProjects = projects.filter((p) => {
+  // Memoized so typing in the New Project form doesn't re-filter the list
+  const filteredProjects = useMemo(() => projects.filter((p) => {
     const q = searchQuery.toLowerCase();
     const matchSearch = !q || p.name?.toLowerCase().includes(q) || p.client?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q) || p.location?.city?.toLowerCase().includes(q);
 
@@ -150,14 +154,14 @@ const { hasPermission: canDo } = useInteriorPermissions();
     else if (statusFilter === 'completed') matchStatus = p.status === 'completed' || p.progress === 100;
 
     return matchSearch && matchStatus;
-  });
+  }), [projects, searchQuery, statusFilter]);
 
-  const statCounts = {
+  const statCounts = useMemo(() => ({
     all: projects.length,
     'on-track': projects.filter((p) => p.health === 'on-track' || (!p.health && p.status === 'active')).length,
     'at-risk': projects.filter((p) => p.health === 'at-risk' || p.health === 'delayed').length,
     completed: projects.filter((p) => p.status === 'completed' || p.progress === 100).length,
-  };
+  }), [projects]);
 
   const openCreate = () => {
     setEditingProjectId(null);
@@ -277,11 +281,20 @@ const { hasPermission: canDo } = useInteriorPermissions();
             <ActivityIndicator size="large" color="#2563EB" />
           </View>
         ) : (
-          <ScrollView
+          <FlatList
+            data={filteredProjects}
+            keyExtractor={(project) => String(project.id || project._id)}
+            ItemSeparatorComponent={ProjectGap}
+            initialNumToRender={6}
+            maxToRenderPerBatch={6}
+            windowSize={7}
+            removeClippedSubviews={Platform.OS === 'android'}
+            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={s.scroll}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadProjects(true)} tintColor="#2563EB" colors={['#2563EB']} />}
-          >
+            ListHeaderComponent={
+            <View style={{ marginBottom: 12 }}>
             <View style={s.searchRow}>
               <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
               <TextInput
@@ -306,9 +319,9 @@ const { hasPermission: canDo } = useInteriorPermissions();
                 </TouchableOpacity>
               ))}
             </ScrollView>
-
-            <View style={{ marginTop: 12, gap: 10 }}>
-              {filteredProjects.length === 0 ? (
+            </View>
+            }
+            ListEmptyComponent={
                 <View style={s.empty}>
                   <Ionicons name="folder-open-outline" size={44} color="#94A3B8" />
                   <Text style={s.emptyTitle}>No projects found</Text>
@@ -319,73 +332,39 @@ const { hasPermission: canDo } = useInteriorPermissions();
                     </TouchableOpacity>
                   )}
                 </View>
-              ) : (
-                filteredProjects.map((project) => {
+            }
+            ListFooterComponent={<View style={{ height: 100 }} />}
+            renderItem={({ item: project }) => {
                   const health = HEALTH_META[project.health] || (project.status === 'completed' || project.progress === 100 ? HEALTH_META.completed : HEALTH_META['on-track']);
                   const id = project.id || project._id;
                   return (
-                    <View key={id} style={s.projectCard}>
-                      <TouchableOpacity onPress={() => openProject(project)} activeOpacity={0.85} style={{ gap: 6 }}>
-                        <View style={s.projectTopRow}>
-                          <View style={s.projectIconBox}>
-                            <Ionicons name="grid-outline" size={14} color="#2563EB" />
-                          </View>
-                          <View style={{ flex: 1, minWidth: 0 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-                              {!!project.code && (
-                                <View style={s.codeBadge}>
-                                  <Text style={s.codeBadgeText}>{project.code}</Text>
-                                </View>
-                              )}
-                              {!!project.type && (
-                                <View style={s.typeBadge}>
-                                  <Text style={s.typeBadgeText}>{project.type}</Text>
-                                </View>
-                              )}
-                            </View>
-                            <Text style={s.projectName} numberOfLines={1}>{project.name}</Text>
-                            <Text style={s.projectSub} numberOfLines={1}>{project.client || 'No client'}</Text>
-                          </View>
-                          <View style={[s.statusBadge, { backgroundColor: health.bg }]}>
-                            <Text style={[s.statusBadgeText, { color: health.color }]}>{health.label}</Text>
-                          </View>
+                    // One headline (name + status), one key number (budget + progress), the rest small
+                    <TouchableOpacity style={s.projectCard} onPress={() => openProject(project)} activeOpacity={0.85}>
+                      <View style={s.projectTopRow}>
+                        <Text style={s.projectName} numberOfLines={2}>{project.name}</Text>
+                        <View style={[s.statusBadge, { backgroundColor: health.bg }]}>
+                          <Text style={[s.statusBadgeText, { color: health.color }]}>{health.label}</Text>
                         </View>
+                      </View>
+                      <Text style={s.projectSub} numberOfLines={1}>
+                        {[project.client || 'No client', project.location?.city].filter(Boolean).join(' · ')}
+                      </Text>
 
-                        <View>
-                          <View style={s.statsRow}>
-                            <Text style={s.statBudgetVal}>{formatBudget(getProjectBudget(project))}</Text>
-                            <Text style={s.statProgressVal}>{project.progress || 0}%</Text>
-                          </View>
-                          <View style={s.progressTrack}>
-                            <View style={[s.progressFill, { width: `${project.progress || 0}%`, backgroundColor: health.color }]} />
-                          </View>
-                        </View>
-
-                        <View style={s.dateRow}>
-                          <View style={s.metaRow}>
-                            <Ionicons name="calendar-outline" size={11} color="#94A3B8" />
-                            <Text style={s.metaText}>{project.startDate ? formatDate(new Date(project.startDate)) : '—'}</Text>
-                          </View>
-                          <View style={s.metaRow}>
-                            <Ionicons name="flag-outline" size={11} color="#94A3B8" />
-                            <Text style={s.metaText}>{project.endDate ? formatDate(new Date(project.endDate)) : '—'}</Text>
-                          </View>
-                          {!!(project.location?.city || project.location?.address) && (
-                            <View style={s.metaRow}>
-                              <Ionicons name="location-outline" size={11} color="#94A3B8" />
-                              <Text style={s.metaText} numberOfLines={1}>{project.location?.city || project.location?.address}</Text>
-                            </View>
-                          )}
-                        </View>
-                      </TouchableOpacity>
+                      <View style={s.statsRow}>
+                        <Text style={s.statBudgetVal}>{formatBudget(getProjectBudget(project))}</Text>
+                        <Text style={s.statProgressVal}>{project.progress || 0}% complete</Text>
+                      </View>
+                      <View style={s.progressTrack}>
+                        <View style={[s.progressFill, { width: `${project.progress || 0}%`, backgroundColor: health.color }]} />
+                      </View>
 
                       <View style={s.cardFooterRow}>
-                        <TouchableOpacity style={s.viewProjectBtn} onPress={() => openProject(project)}>
-                          <Text style={s.viewProjectBtnText}>View</Text>
-                        </TouchableOpacity>
+                        <Text style={s.metaText} numberOfLines={1}>
+                          {[project.code, project.endDate ? `Due ${formatDate(new Date(project.endDate))}` : null].filter(Boolean).join('  ·  ')}
+                        </Text>
                         {canDo('projects', 'update') && (
                           <TouchableOpacity style={s.cardIconBtn} onPress={() => openEdit(project)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            <Ionicons name="pencil-outline" size={14} color="#2563EB" />
+                            <Ionicons name="pencil-outline" size={17} color="#2563EB" />
                           </TouchableOpacity>
                         )}
                         {canDo('projects', 'delete') && (
@@ -398,19 +377,15 @@ const { hasPermission: canDo } = useInteriorPermissions();
                             {deletingId === id ? (
                               <ActivityIndicator size="small" color="#DC2626" />
                             ) : (
-                              <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                              <Ionicons name="trash-outline" size={17} color="#DC2626" />
                             )}
                           </TouchableOpacity>
                         )}
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
-                })
-              )}
-            </View>
-
-            <View style={{ height: 100 }} />
-          </ScrollView>
+            }}
+          />
         )}
 
         {canDo('projects', 'create') && (
@@ -540,54 +515,44 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#DBEAFE',
   },
   headerGreeting: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#1D4ED8', marginBottom: 2 },
-  pageTitle: { fontSize: 22, fontFamily: 'Inter-Black', color: '#0F172A', letterSpacing: -0.5 },
+  pageTitle: { fontSize: 22, fontFamily: 'Inter-Bold', color: '#0F172A', letterSpacing: -0.5 },
   headerSubtitle: { fontSize: 11, fontFamily: 'Inter-Medium', color: '#475569', marginTop: 3 },
   totalBadge: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  totalBadgeText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#1D4ED8' },
+  totalBadgeText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#1D4ED8' },
 
   searchRow: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#DBEAFE',
     paddingHorizontal: 14, paddingVertical: 10,
   },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A' },
 
   filterRow: { gap: 8, marginTop: 12, paddingVertical: 2 },
-  filterChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
   filterChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  filterChipText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#475569' },
+  filterChipText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#475569' },
   filterChipTextActive: { color: '#FFFFFF' },
-  filterChipCount: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8' },
-  filterChipCountActive: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#DBEAFE' },
+  filterChipCount: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#94A3B8' },
+  filterChipCountActive: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#DBEAFE' },
 
-  projectCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#DBEAFE', gap: 8 },
-  projectTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  projectIconBox: { width: 28, height: 28, borderRadius: 9, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
-  projectName: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },
-  projectSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7 },
-  statusBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold' },
-  cardIconBtn: { width: 26, height: 26, borderRadius: 8, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  projectCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' },
+  projectTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  projectName: { flex: 1, fontSize: 16, lineHeight: 21, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  projectSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 4 },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  statusBadgeText: { fontSize: 11.5, fontFamily: 'Inter-Bold' },
+  cardIconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
 
-  codeBadge: { backgroundColor: '#F1F5F9', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 },
-  codeBadgeText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#64748B' },
-  typeBadge: { backgroundColor: '#EFF6FF', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 },
-  typeBadgeText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14, marginBottom: 6 },
+  statBudgetVal: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  statProgressVal: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#475569' },
 
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  statBudgetVal: { fontSize: 13.5, fontFamily: 'Inter-Black', color: '#16A34A' },
-  statProgressVal: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#0F172A' },
-
-  progressTrack: { height: 5, borderRadius: 3, backgroundColor: '#F1F5F9', overflow: 'hidden' },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: '#F1F5F9', overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3 },
 
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  metaText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  metaText: { flex: 1, fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' },
 
-  cardFooterRow: { flexDirection: 'row', alignItems: 'center', gap: 6, borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 8 },
-  viewProjectBtn: { flex: 1, backgroundColor: '#2563EB', borderRadius: 9, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
-  viewProjectBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  cardFooterRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12, marginTop: 14 },
 
   empty: { alignItems: 'center', paddingVertical: 48, gap: 12 },
   emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' },

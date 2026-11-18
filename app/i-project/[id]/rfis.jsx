@@ -55,7 +55,7 @@ function DateField({ value, onChange, placeholder = 'Select date', inputStyle })
 
 const dfStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  text: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
   placeholder: { color: '#94A3B8' },
 });
 
@@ -188,11 +188,10 @@ const { can: canDo } = useProjectPermissions(projectId);
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Requests For Information</Text>
-            <Text style={s.headerSub}>Clarify design/drawing discrepancies with consultants.</Text>
           </View>
         </View>
 
@@ -206,7 +205,6 @@ const { can: canDo } = useProjectPermissions(projectId);
               <View style={s.empty}>
                 <Ionicons name="chatbox-ellipses-outline" size={40} color="#CBD5E1" />
                 <Text style={s.emptyTitle}>No RFIs raised yet</Text>
-                <Text style={s.emptySub}>Tap "Raise RFI" to submit a question.</Text>
               </View>
             ) : (
               rfis.map((rfi) => {
@@ -378,26 +376,26 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingTop: 16, gap: 12 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
-  emptySub: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  emptySub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8' },
 
   rfiCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', gap: 8 },
   deleteRfiBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: '#FECDD3', backgroundColor: '#FFF1F2' },
-  deleteRfiText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#E11D48' },
+  deleteRfiText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#E11D48' },
   rfiTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  rfiNumber: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  rfiNumber: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-  pillText: { fontSize: 9.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
-  rfiSubject: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  rfiQuestion: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 17 },
+  pillText: { fontSize: 11, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
+  rfiSubject: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  rfiQuestion: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 17 },
 
   rfiBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 10 },
-  dueText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  viewThreadText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#2563EB' },
+  dueText: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  viewThreadText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#2563EB' },
 
   fab: {
     position: 'absolute', right: 20, bottom: 30,
@@ -411,27 +409,27 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
 
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   chipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  chipText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize' },
+  chipText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize' },
   chipTextActive: { color: '#2563EB' },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },
   saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
 
   questionBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 12, padding: 12 },
-  questionText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#334155', lineHeight: 19 },
+  questionText: { fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#334155', lineHeight: 19 },
 
   resolveBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#BBF7D0', borderRadius: 12, paddingVertical: 10, justifyContent: 'center', marginTop: 14 },
-  resolveBtnText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#16A34A' },
+  resolveBtnText: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#16A34A' },
 
   responseRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  responseInput: { flex: 1, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  responseInput: { flex: 1, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#0F172A' },
   postBtn: { width: 42, height: 42, borderRadius: 12, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' },
 });

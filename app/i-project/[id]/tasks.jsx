@@ -153,12 +153,12 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', i
 
 const ctrlStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  text: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
+  text: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A', flex: 1, marginRight: 8 },
   placeholder: { color: '#94A3B8' },
   menu: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, marginTop: 4, overflow: 'hidden' },
   menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   menuItemActive: { backgroundColor: '#EFF6FF' },
-  menuItemText: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
+  menuItemText: { fontSize: 13.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
   menuItemTextActive: { color: '#2563EB', fontFamily: 'Inter-Bold' },
 });
 
@@ -674,27 +674,18 @@ const { can: canDo } = useProjectPermissions(projectId);
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Ionicons name="chevron-back" size={18} color="#0F172A" />
+            <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Activity / Task Management</Text>
-            <Text style={s.headerSub}>{tasks.length} total · site execution & proof-of-work</Text>
+            <Text style={s.headerTitle}>Tasks</Text>
+            <Text style={s.headerSub}>
+              {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+              {metrics.overdue + metrics.blocked > 0 && (
+                <Text style={{ color: '#DC2626' }}>  ·  {metrics.overdue + metrics.blocked} overdue</Text>
+              )}
+            </Text>
           </View>
         </View>
-
-        {/* KPI strip */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={s.kpiScroll}
-          contentContainerStyle={s.kpiRow}
-        >
-          <View style={s.kpiTile}><Text style={s.kpiNum}>{metrics.total}</Text><Text style={s.kpiLbl}>Total</Text></View>
-          <View style={s.kpiTile}><Text style={[s.kpiNum, { color: '#2563EB' }]}>{metrics.todo}</Text><Text style={s.kpiLbl}>To Do</Text></View>
-          <View style={s.kpiTile}><Text style={[s.kpiNum, { color: '#D97706' }]}>{metrics.inProgress}</Text><Text style={s.kpiLbl}>In Progress</Text></View>
-          <View style={s.kpiTile}><Text style={[s.kpiNum, { color: '#16A34A' }]}>{metrics.completed}</Text><Text style={s.kpiLbl}>Completed</Text></View>
-          <View style={s.kpiTile}><Text style={[s.kpiNum, { color: '#DC2626' }]}>{metrics.overdue + metrics.blocked}</Text><Text style={s.kpiLbl}>Overdue</Text></View>
-        </ScrollView>
 
         {/* View switcher + search + filter toggle */}
         <View style={s.controlBar}>
@@ -712,8 +703,15 @@ const { can: canDo } = useProjectPermissions(projectId);
         </View>
 
         <View style={s.searchRow}>
-          <Ionicons name="search" size={15} color="#94A3B8" style={{ marginRight: 8 }} />
-          <TextInput style={s.searchInput} placeholder="Search tasks, assignees..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
+          <View style={s.searchBox}>
+            <Ionicons name="search" size={16} color="#94A3B8" />
+            <TextInput style={s.searchInput} placeholder="Search tasks, assignees..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
+            {!!searchQuery && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={16} color="#CBD5E1" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {showFilters && (
@@ -1371,53 +1369,62 @@ function TaskCard({ task, onPress, onEdit, onDelete, compact }) {
   const isBlocked = task.status !== 'completed' && (task.dependencies || []).some((d) => typeof d === 'object' && d.status !== 'completed');
   const hasProof = task.status === 'completed' && task.completionProof?.images?.length > 0;
 
+  // Name first; one line of facts (due · priority · blocked · trade); subtasks; assignee
+  const due = formatDate(task.endDate);
   return (
-    <TouchableOpacity style={s.taskCard} onPress={onPress}>
+    <TouchableOpacity style={s.taskCard} onPress={onPress} activeOpacity={0.85}>
       <View style={s.taskTopRow}>
-        <View style={{ flexDirection: 'row', gap: 6, flex: 1 }}>
-          <View style={[s.priorityBadge, { backgroundColor: priority.bg }]}>
-            <Text style={[s.priorityBadgeText, { color: priority.color }]}>{priority.label}</Text>
+        <Text style={s.taskName} numberOfLines={2}>{task.name}</Text>
+        {(onEdit || onDelete) && (
+          <View style={s.taskIconRow}>
+            {onEdit && (
+              <TouchableOpacity onPress={onEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Edit task">
+                <Ionicons name="pencil-outline" size={18} color="#64748B" />
+              </TouchableOpacity>
+            )}
+            {onDelete && (
+              <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Delete task">
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              </TouchableOpacity>
+            )}
           </View>
-          {isBlocked && (
-            <View style={[s.priorityBadge, { backgroundColor: '#FEF2F2' }]}>
-              <Text style={[s.priorityBadgeText, { color: '#DC2626' }]}>Blocked</Text>
-            </View>
-          )}
-        </View>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          {onEdit && (
-            <TouchableOpacity onPress={onEdit} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-              <Ionicons name="pencil-outline" size={14} color="#94A3B8" />
-            </TouchableOpacity>
-          )}
-          {onDelete && (
-            <TouchableOpacity onPress={onDelete} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-              <Ionicons name="trash-outline" size={14} color="#EF4444" />
-            </TouchableOpacity>
-          )}
-        </View>
+        )}
       </View>
-      {!!task.packageId?.trade && !compact && <Text style={s.tradeTag}>#{task.packageId.trade}</Text>}
-      <Text style={s.taskName} numberOfLines={2}>{task.name}</Text>
+
+      <View style={s.taskFactsRow}>
+        <Text style={[s.taskMetaText, isOverdue && s.taskOverdue]}>
+          {isOverdue ? `Overdue · ${due}` : due ? `Due ${due}` : 'No due date'}
+        </Text>
+        <View style={s.priorityDotRow}>
+          <View style={[s.priorityDot, { backgroundColor: priority.color }]} />
+          <Text style={[s.taskMetaText, { color: priority.color }]}>{priority.label}</Text>
+        </View>
+        {isBlocked && <Text style={[s.taskMetaText, s.taskOverdue]}>Blocked</Text>}
+        {!!task.packageId?.trade && !compact && <Text style={s.taskMetaText}>#{task.packageId.trade}</Text>}
+      </View>
+
       {totalSub > 0 && (
         <View style={s.subtaskProgressRow}>
           <View style={s.subtaskProgressTrack}><View style={[s.subtaskProgressFill, { width: `${(doneSub / totalSub) * 100}%` }]} /></View>
-          <Text style={s.subtaskProgressText}>{doneSub}/{totalSub}</Text>
+          <Text style={s.subtaskProgressText}>{doneSub}/{totalSub} steps</Text>
         </View>
       )}
+
       <View style={s.taskBottomRow}>
         <View style={s.taskMetaItem}>
-          <Ionicons name="calendar-outline" size={12} color={isOverdue ? '#DC2626' : '#94A3B8'} />
-          <Text style={[s.taskMetaText, isOverdue && { color: '#DC2626', fontFamily: 'Inter-Bold' }]}>{formatDate(task.endDate) || 'Dates unset'}</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          {hasProof && <Ionicons name="camera" size={13} color="#16A34A" />}
           {assignee ? (
-            <View style={s.assigneeAvatar}><Text style={s.assigneeAvatarText}>{assignee.firstName?.[0] || '?'}</Text></View>
+            <>
+              <View style={s.assigneeAvatar}><Text style={s.assigneeAvatarText}>{assignee.firstName?.[0] || '?'}</Text></View>
+              <Text style={s.taskAssignee} numberOfLines={1}>{[assignee.firstName, assignee.lastName].filter(Boolean).join(' ') || 'Assigned'}</Text>
+            </>
           ) : (
-            <Ionicons name="person-outline" size={14} color="#CBD5E1" />
+            <>
+              <Ionicons name="person-outline" size={16} color="#CBD5E1" />
+              <Text style={[s.taskAssignee, { color: '#94A3B8' }]}>Unassigned</Text>
+            </>
           )}
         </View>
+        {hasProof && <Ionicons name="camera" size={16} color="#16A34A" />}
       </View>
     </TouchableOpacity>
   );
@@ -1431,67 +1438,66 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingTop: 14, gap: 12 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexShrink: 0 },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  headerSub: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: 1 },
+  headerTitle: { fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  headerSub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 },
 
-  kpiScroll: { flexGrow: 0, flexShrink: 0 },
-  kpiRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  kpiTile: { backgroundColor: '#F8FAFC', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: '#F1F5F9', minWidth: 72, alignItems: 'center', justifyContent: 'center' },
-  kpiNum: { fontSize: 16, fontFamily: 'Inter-Black', color: '#0F172A' },
-  kpiLbl: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', marginTop: 1 },
 
   controlBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 10, backgroundColor: '#FFFFFF', flexShrink: 0 },
   viewSwitch: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 10, padding: 3 },
   viewSwitchBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
   viewSwitchBtnActive: { backgroundColor: '#FFFFFF' },
-  viewSwitchText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  viewSwitchText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   viewSwitchTextActive: { color: '#0F172A' },
   filterToggleBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
 
   searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, flexShrink: 0 },
-  searchInput: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#0F172A', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, height: 42 },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A', paddingVertical: 0 },
 
   filterPanel: { backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexShrink: 0 },
-  filterLabel: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 6 },
+  filterLabel: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 6 },
   chipSm: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   chipSmActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  chipSmText: { fontSize: 10.5, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize' },
+  chipSmText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize' },
   chipSmTextActive: { color: '#2563EB' },
 
   columnTabsScroll: { flexGrow: 0, flexShrink: 0 },
   columnTabs: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   colTab: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#F1F5F9', backgroundColor: '#F8FAFC' },
   colDot: { width: 7, height: 7, borderRadius: 4 },
-  colTabText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#64748B' },
+  colTabText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#64748B' },
   colCountBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 },
-  colCountText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#64748B' },
+  colCountText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B' },
 
   empty: { alignItems: 'center', paddingVertical: 60, gap: 10 },
-  emptyTitle: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#94A3B8' },
 
   wbsGroupCard: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden' },
   wbsGroupHeader: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#F8FAFC' },
-  wbsGroupName: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  wbsGroupTrade: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8', textTransform: 'uppercase' },
-  wbsGroupCount: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  wbsGroupName: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  wbsGroupTrade: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textTransform: 'uppercase' },
+  wbsGroupCount: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
   wbsProgressTrack: { height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', overflow: 'hidden', marginTop: 5, width: 100 },
   wbsProgressFill: { height: '100%', borderRadius: 2, backgroundColor: '#10B981' },
 
-  taskCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', gap: 8 },
-  taskTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  priorityBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  priorityBadgeText: { fontSize: 9.5, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
-  tradeTag: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  taskName: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A', lineHeight: 18 },
+  taskCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E2E8F0', gap: 8 },
+  taskTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  taskIconRow: { flexDirection: 'row', gap: 14, paddingTop: 2 },
+  taskFactsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 12, rowGap: 4 },
+  priorityDotRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  priorityDot: { width: 8, height: 8, borderRadius: 4 },
+  taskOverdue: { color: '#DC2626', fontFamily: 'Inter-Bold' },
+  taskAssignee: { flexShrink: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155' },
+  taskName: { flex: 1, fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', lineHeight: 20 },
   subtaskProgressRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  subtaskProgressTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#F1F5F9', overflow: 'hidden' },
-  subtaskProgressFill: { height: '100%', borderRadius: 2, backgroundColor: '#2563EB' },
-  subtaskProgressText: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8' },
-  taskBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 10 },
-  taskMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  taskMetaText: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  assigneeAvatar: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
-  assigneeAvatarText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  subtaskProgressTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: '#F1F5F9', overflow: 'hidden' },
+  subtaskProgressFill: { height: '100%', borderRadius: 3, backgroundColor: '#2563EB' },
+  subtaskProgressText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  taskBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 10 },
+  taskMetaItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  taskMetaText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B' },
+  assigneeAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
+  assigneeAvatarText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#2563EB' },
 
   fab: {
     position: 'absolute', right: 20, bottom: 30,
@@ -1505,93 +1511,93 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 14, marginBottom: 14 },
   modalTitle: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
 
-  label: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
+  label: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#334155', marginBottom: 6, marginTop: 10 },
   matBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, padding: 12, gap: 10, marginTop: 10 },
   matHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  matTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  matSub: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
+  matTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  matSub: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
   matAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#2563EB', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  matAddText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
-  matEmpty: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingVertical: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  matAddText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  matEmpty: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingVertical: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#FFFFFF' },
   matRow: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 10, gap: 8 },
   matRemoveBtn: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, borderColor: '#FECDD3', backgroundColor: '#FFF1F2', alignItems: 'center', justifyContent: 'center' },
-  hintTextSm: { fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  linkBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  hintTextSm: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  linkBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#2563EB' },
   input: {
     backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, fontSize: 13, fontFamily: 'Inter-Regular', color: '#0F172A',
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: 'Inter-Regular', color: '#0F172A',
   },
 
   inlinePkgBox: { padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#EFF6FF' },
   noPkgBox: { padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#EFF6FF', gap: 8 },
-  noPkgText: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#1E3A8A', lineHeight: 17 },
+  noPkgText: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#1E3A8A', lineHeight: 17 },
 
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   chipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  chipText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B', maxWidth: 160 },
+  chipText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B', maxWidth: 160 },
   chipTextActive: { color: '#2563EB' },
 
   addBtn: { width: 42, height: 42, borderRadius: 12, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' },
   subtaskDraftRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 6 },
-  subtaskDraftText: { fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
+  subtaskDraftText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', flex: 1, marginRight: 8 },
 
   saveBtn: { height: 50, borderRadius: 14, backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },
   saveBtnText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   saveBtnSm: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: '#2563EB', alignItems: 'center' },
-  saveBtnSmText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
+  saveBtnSmText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   deleteTaskBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#FECACA' },
-  deleteTaskBtnText: { fontSize: 12, fontFamily: 'Inter-Bold', color: '#DC2626' },
+  deleteTaskBtnText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#DC2626' },
 
   statusOption: { flex: 1, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' },
   statusOptionActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  statusOptionText: { fontSize: 11.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  statusOptionText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
   statusOptionTextActive: { color: '#FFFFFF' },
 
   proofVerifiedBox: { borderWidth: 1, borderColor: '#BBF7D0', backgroundColor: '#F0FDF4', borderRadius: 14, padding: 12, marginBottom: 14, gap: 8 },
-  proofVerifiedTitle: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#14532D', textTransform: 'uppercase' },
-  proofDate: { fontSize: 10, fontFamily: 'Inter-Regular', color: '#166534' },
+  proofVerifiedTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#14532D', textTransform: 'uppercase' },
+  proofDate: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#166534' },
   updateProofBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#BBF7D0', backgroundColor: '#FFFFFF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  updateProofBtnText: { fontSize: 10, fontFamily: 'Inter-Bold', color: '#16A34A' },
-  proofNoPhotos: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#166534', fontStyle: 'italic' },
+  updateProofBtnText: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#16A34A' },
+  proofNoPhotos: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#166534', fontStyle: 'italic' },
   proofImgGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   proofImgThumb: { width: 78, height: 78, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0', position: 'relative' },
   removePhotoBtn: { position: 'absolute', top: 2, right: 2, backgroundColor: '#DC2626', borderRadius: 999, width: 18, height: 18, justifyContent: 'center', alignItems: 'center' },
 
   detailCard: { borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 14, padding: 14, marginBottom: 6 },
   detailRow: { flexDirection: 'row' },
-  detailLabel: { fontSize: 9.5, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase' },
-  detailValue: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2, textTransform: 'capitalize' },
+  detailLabel: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase' },
+  detailValue: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2, textTransform: 'capitalize' },
   detailDivider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 10 },
-  detailDates: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B' },
+  detailDates: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B' },
 
   subtaskRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9, marginBottom: 6 },
   subtaskRowDone: { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' },
-  subtaskRowText: { fontSize: 12, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1 },
+  subtaskRowText: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#0F172A', flex: 1 },
   subtaskRowTextDone: { color: '#94A3B8', textDecorationLine: 'line-through' },
 
-  descriptionText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 19 },
+  descriptionText: { fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#64748B', lineHeight: 19 },
 
-  noComments: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', paddingVertical: 14 },
+  noComments: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', paddingVertical: 14 },
   commentCard: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 12, padding: 10, marginBottom: 8 },
   commentTopRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  commentAuthor: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
-  commentTime: { fontSize: 9.5, fontFamily: 'Inter-Regular', color: '#94A3B8' },
-  commentBody: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B' },
+  commentAuthor: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  commentTime: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  commentBody: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B' },
 
   commentInputRow: { flexDirection: 'row', gap: 8, marginTop: 10, alignItems: 'center' },
-  commentInput: { flex: 1, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#0F172A' },
+  commentInput: { flex: 1, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#0F172A' },
   postBtn: { width: 42, height: 42, borderRadius: 12, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' },
 
   proofSummaryBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#F1F5F9' },
-  proofSummaryTitle: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1, marginRight: 8 },
+  proofSummaryTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A', flex: 1, marginRight: 8 },
   willSet100Badge: { backgroundColor: '#D1FAE5', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  willSet100BadgeText: { fontSize: 9, fontFamily: 'Inter-Bold', color: '#065F46', textTransform: 'uppercase' },
+  willSet100BadgeText: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#065F46', textTransform: 'uppercase' },
 
   photoDropzone: { borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed', borderRadius: 14, paddingVertical: 22, alignItems: 'center', gap: 6, backgroundColor: '#F8FAFC', marginTop: 8 },
-  photoDropzoneText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  photoDropzoneText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B' },
 
   proofSubtaskNotice: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0', borderRadius: 10, padding: 10, marginTop: 14 },
-  proofSubtaskNoticeText: { fontSize: 11, fontFamily: 'Inter-Regular', color: '#166534', flex: 1 },
+  proofSubtaskNoticeText: { fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#166534', flex: 1 },
   confirmCompleteBtn: { height: 50, borderRadius: 14, backgroundColor: '#16A34A', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, marginBottom: 8 },
 
   lightboxOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)' },

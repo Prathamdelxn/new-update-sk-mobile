@@ -18,7 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { interiorCrmService } from '../../services/interiorCrmService';
 import cloudinaryService from '../../services/cloudinaryService';
 import { useAuth } from '../../context/AuthContext';
-import { parseMaxBudget, formatExactCurrency } from '../../utils/format';
+import { parseMaxBudget, formatExactCurrency, getCurrencySymbol } from '../../utils/format';
 import BoqDrawingViewerModal from './BoqDrawingViewerModal';
 
 const STANDARD_UOMS = [
@@ -66,6 +66,7 @@ export default function BoqBuilderModal({
   const targetBoq = isEditing ? existingBoqs[editingBoqIndex] : null;
 
   const { user } = useAuth();
+  const cur = getCurrencySymbol(user?.organization?.settings?.currency || 'INR');
   const currentUserName = useMemo(() => {
     if (!user) return 'Estimator';
     const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
@@ -378,11 +379,11 @@ export default function BoqBuilderModal({
       return;
     }
     if (items.some((i) => i.rate === undefined || i.rate === null || parseFloat(i.rate) <= 0)) {
-      Alert.alert('Error', 'Unit rate must be greater than ₹0 for all items.');
+      Alert.alert('Error', `Unit rate must be greater than ${cur} 0 for all items.`);
       return;
     }
     if (totalAmount <= 0) {
-      Alert.alert('Error', 'Total BOQ amount must be greater than ₹0.');
+      Alert.alert('Error', `Total BOQ amount must be greater than ${cur} 0.`);
       return;
     }
 
@@ -716,7 +717,7 @@ export default function BoqBuilderModal({
                               </View>
 
                               <View style={{ flex: 1.4 }}>
-                                <Text style={s.fieldLabel}>Rate (₹) *</Text>
+                                <Text style={s.fieldLabel}>Rate ({cur}) *</Text>
                                 <TextInput
                                   style={[s.input, isReadOnly && s.inputDisabled]}
                                   value={String(item.rate)}
@@ -786,7 +787,7 @@ export default function BoqBuilderModal({
                   <Text style={s.overBudgetText}>
                     <Text style={{ fontFamily: 'Inter-Bold' }}>Target Budget Exceeded: </Text>
                     Est. budget ({budgetRange}) exceeded by{' '}
-                    <Text style={{ fontFamily: 'Inter-ExtraBold', color: '#E11D48' }}>
+                    <Text style={{ fontFamily: 'Inter-Bold', color: '#E11D48' }}>
                       {formatExactCurrency(budgetExcess)}
                     </Text>
                   </Text>
@@ -815,7 +816,7 @@ export default function BoqBuilderModal({
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={s.fieldLabel}>Notes & Scope Conditions (Optional)</Text>
                 {!isReadOnly && (
-                  <Text style={{ fontSize: 10, fontFamily: 'Inter-Regular', color: notes.length >= 2000 ? '#E11D48' : '#94A3B8' }}>{notes.length}/2000</Text>
+                  <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: notes.length >= 2000 ? '#E11D48' : '#94A3B8' }}>{notes.length}/2000</Text>
                 )}
               </View>
               <TextInput
@@ -955,7 +956,7 @@ const s = StyleSheet.create({
     color: '#0F172A',
   },
   modalSub: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Regular',
     color: '#64748B',
     marginTop: 2,
@@ -972,7 +973,7 @@ const s = StyleSheet.create({
     paddingVertical: 2,
   },
   lockedBadgeText: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-Bold',
     color: '#059669',
   },
@@ -1019,7 +1020,7 @@ const s = StyleSheet.create({
     color: '#0F172A',
   },
   sectionItemCountText: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Medium',
     color: '#64748B',
     marginTop: 2,
@@ -1038,7 +1039,7 @@ const s = StyleSheet.create({
     borderColor: '#E2E8F0',
     paddingHorizontal: 10,
     paddingVertical: 8,
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#0F172A',
     minHeight: 48,
@@ -1054,7 +1055,7 @@ const s = StyleSheet.create({
     borderColor: '#F1F5F9',
   },
   attachmentsTitle: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#1E40AF',
   },
@@ -1082,7 +1083,7 @@ const s = StyleSheet.create({
     maxWidth: 120,
   },
   attThumbName: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-SemiBold',
     color: '#2563EB',
   },
@@ -1102,7 +1103,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   addAttBtnText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-SemiBold',
     color: '#2563EB',
   },
@@ -1125,7 +1126,7 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   itemCardNumber: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#2563EB',
     backgroundColor: '#EFF6FF',
@@ -1134,7 +1135,7 @@ const s = StyleSheet.create({
     borderRadius: 4,
   },
   fieldLabel: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
     marginBottom: 3,
@@ -1147,7 +1148,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 7,
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Medium',
     color: '#0F172A',
   },
@@ -1158,7 +1159,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 7,
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#0F172A',
     minHeight: 46,
@@ -1194,7 +1195,7 @@ const s = StyleSheet.create({
     borderColor: '#2563EB',
   },
   uomPillText: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
   },
@@ -1211,12 +1212,12 @@ const s = StyleSheet.create({
     borderTopColor: '#E2E8F0',
   },
   lineTotalLabel: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
   },
   lineTotalValue: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Bold',
     color: '#0F172A',
   },
@@ -1233,7 +1234,7 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   addItemBtnText: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Bold',
     color: '#2563EB',
   },
@@ -1251,7 +1252,7 @@ const s = StyleSheet.create({
     paddingVertical: 12,
   },
   addSectionBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#2563EB',
   },
@@ -1267,7 +1268,7 @@ const s = StyleSheet.create({
     padding: 10,
   },
   overBudgetText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Medium',
     color: '#BE123C',
     lineHeight: 15,
@@ -1279,7 +1280,7 @@ const s = StyleSheet.create({
     paddingVertical: 2,
   },
   overBudgetPillText: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
   },
@@ -1293,20 +1294,20 @@ const s = StyleSheet.create({
     padding: 14,
   },
   grandTotalLabel: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-Bold',
     color: '#94A3B8',
     letterSpacing: 0.5,
   },
   grandTotalSub: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontFamily: 'Inter-Regular',
     color: '#64748B',
     marginTop: 2,
   },
   grandTotalValue: {
     fontSize: 16,
-    fontFamily: 'Inter-Black',
+    fontFamily: 'Inter-Bold',
     color: '#10B981',
   },
 
@@ -1317,7 +1318,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#0F172A',
     height: 60,
@@ -1343,7 +1344,7 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   cancelBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-SemiBold',
     color: '#64748B',
   },
@@ -1358,7 +1359,7 @@ const s = StyleSheet.create({
     gap: 6,
   },
   saveBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
   },
@@ -1391,14 +1392,14 @@ const s = StyleSheet.create({
     color: '#0F172A',
   },
   pickerSectionLabel: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: 'Inter-Bold',
     color: '#64748B',
     marginBottom: 6,
     textTransform: 'uppercase',
   },
   pickerEmptyText: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
     paddingVertical: 10,
@@ -1411,12 +1412,12 @@ const s = StyleSheet.create({
     borderBottomColor: '#F8FAFC',
   },
   drawingPickTitle: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-SemiBold',
     color: '#0F172A',
   },
   drawingPickSub: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Inter-Regular',
     color: '#64748B',
     marginTop: 1,
@@ -1434,7 +1435,7 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   uploadPickBtnText: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontFamily: 'Inter-Bold',
     color: '#2563EB',
   },
