@@ -758,28 +758,28 @@ const { can: canDo } = useProjectPermissions(projectId);
                       {canSend && (
                         <TouchableOpacity style={[s.primaryActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setSendTarget(dwg)}>
                           <Ionicons name="paper-plane-outline" size={16} color="#FFFFFF" />
-                          <Text style={s.primaryActionText}>Send for Approval</Text>
+                          <Text style={s.primaryActionText} numberOfLines={1}>Send for approval</Text>
                         </TouchableOpacity>
                       )}
                       {awaitingDecision && canDo('drawings', 'approve') && (
                         <>
                           <TouchableOpacity style={[s.primaryActionBtn, s.approveBtn]} onPress={() => openDecision(dwg, 'approve')}>
                             <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
-                            <Text style={s.primaryActionText}>Approve</Text>
+                            <Text style={s.primaryActionText} numberOfLines={1}>Approve</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={[s.primaryActionBtn, s.rejectBtn]} onPress={() => openDecision(dwg, 'reject')}>
                             <Ionicons name="close-circle-outline" size={16} color="#B91C1C" />
-                            <Text style={[s.primaryActionText, { color: '#B91C1C' }]}>Reject</Text>
+                            <Text style={[s.primaryActionText, { color: '#B91C1C' }]} numberOfLines={1}>Reject</Text>
                           </TouchableOpacity>
                         </>
                       )}
                       {dwg.status === 'rejected' && canDo('drawings', 'update') && (
                         <TouchableOpacity style={[s.primaryActionBtn, { backgroundColor: '#0F172A' }]} onPress={() => openRevModal(dwg)}>
                           <Ionicons name="cloud-upload-outline" size={16} color="#FFFFFF" />
-                          <Text style={s.primaryActionText}>Upload Revision</Text>
+                          <Text style={s.primaryActionText} numberOfLines={1}>Upload revision</Text>
                         </TouchableOpacity>
                       )}
-                      <View style={{ flex: 1 }} />
+                      {!(canSend || (awaitingDecision && canDo('drawings', 'approve')) || (dwg.status === 'rejected' && canDo('drawings', 'update'))) && <View style={{ flex: 1 }} />}
                       <TouchableOpacity style={s.iconActionBtn} onPress={() => handleOpenOrPreview(currentRev.url, dwg.title)} accessibilityLabel={isImage ? 'Preview' : 'Open'}>
                         <Ionicons name={isImage ? 'eye-outline' : 'open-outline'} size={18} color="#2563EB" />
                       </TouchableOpacity>
@@ -1272,9 +1272,9 @@ const s = StyleSheet.create({
   dwgTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   dwgFacts: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B' },
   reviewerLine: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#B45309' },
-  primaryActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, paddingHorizontal: 14, borderRadius: 10 },
+  primaryActionBtn: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, paddingHorizontal: 10, borderRadius: 10 },
   primaryActionText: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
-  iconActionBtn: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  iconActionBtn: { flexShrink: 0, width: 40, height: 40, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
 
   dwgThumb: { width: '100%', height: 150, borderRadius: 10, backgroundColor: '#E2E8F0', marginBottom: 10 },
   approvalThumb: { width: 52, height: 52, borderRadius: 10, backgroundColor: '#E2E8F0', overflow: 'hidden' },
@@ -1359,7 +1359,6 @@ const s = StyleSheet.create({
 
   actionsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
     marginTop: 4,
     borderTopWidth: 1,
