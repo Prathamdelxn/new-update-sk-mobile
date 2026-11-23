@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -123,7 +124,7 @@ export default function ProjectFFETab({ projectId, project }) {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { showToast('Item name is required', 'error'); return; }
+    if (!form.name.trim()) { showToast(tr("Item name is required"), 'error'); return; }
     setIsSubmitting(true);
     try {
       const payload = {
@@ -144,8 +145,8 @@ export default function ProjectFFETab({ projectId, project }) {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (res.ok) { showToast(editingItem ? 'Item updated' : 'Item added', 'success'); setModalVisible(false); fetchData(); }
-      else showToast(data.message || 'Failed to save item', 'error');
+      if (res.ok) { showToast(editingItem ? tr("Item updated") : tr("Item added"), 'success'); setModalVisible(false); fetchData(); }
+      else showToast(data.message || tr("Failed to save item"), 'error');
     } catch { showToast(t('networkError'), 'error'); }
     finally { setIsSubmitting(false); }
   };
@@ -158,8 +159,8 @@ export default function ProjectFFETab({ projectId, project }) {
       const res = await fetch(`${API_BASE_URL}/projects/${projectId}/ffe/${item._id}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) { showToast('Item deleted', 'success'); fetchData(); }
-      else { const d = await res.json(); showToast(d.message || 'Failed to delete', 'error'); }
+      if (res.ok) { showToast(tr("Item deleted"), 'success'); fetchData(); }
+      else { const d = await res.json(); showToast(d.message || tr("Failed to delete"), 'error'); }
     } catch { showToast(t('networkError'), 'error'); }
   };
 
@@ -175,13 +176,13 @@ export default function ProjectFFETab({ projectId, project }) {
       {/* Header Row */}
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.sectionTitle}>FFE</Text>
-          <Text style={styles.sectionSubtitle}>{totalItems} items tracked</Text>
+          <Text style={styles.sectionTitle}>{tr("FFE")}</Text>
+          <Text style={styles.sectionSubtitle}>{tr(totalItems)}{tr(" items tracked")}</Text>
         </View>
         {hasPermission('ffe', 'create') && (
           <TouchableOpacity style={styles.addBtn} activeOpacity={0.8} onPress={openAddModal}>
             <Feather name="plus" size={16} color="#FFF" />
-            <Text style={styles.addBtnText}>Add FFE</Text>
+            <Text style={styles.addBtnText}>{tr("Add FFE")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -190,12 +191,12 @@ export default function ProjectFFETab({ projectId, project }) {
       <AdaptiveGlass intensity={20} tint="light" style={styles.costBanner}>
         <View style={styles.costTopRow}>
           <View style={styles.costMainBlock}>
-            <Text style={styles.costLabel}>TOTAL FFE COST</Text>
+            <Text style={styles.costLabel}>{tr("TOTAL FFE COST")}</Text>
             <Text style={styles.costValue}>{formatCost(summary.totalCost, project?.currency)}</Text>
           </View>
           <View style={styles.costProgressBlock}>
-            <Text style={styles.progressPct}>{overallProgress}%</Text>
-            <Text style={styles.progressLabel}>installed</Text>
+            <Text style={styles.progressPct}>{tr(overallProgress)}%</Text>
+            <Text style={styles.progressLabel}>{tr("installed")}</Text>
           </View>
         </View>
         <View style={styles.costStatStrip}>
@@ -203,11 +204,11 @@ export default function ProjectFFETab({ projectId, project }) {
             const sc = STATUS_COLOR[s];
             return (
               <View key={s} style={[styles.costStatChip, { backgroundColor: sc.bg }]}>
-                <Text style={[styles.costStatText, { color: sc.text }]}>{summary.byStatus[s]} {s}</Text>
+                <Text style={[styles.costStatText, { color: sc.text }]}>{tr(summary.byStatus[s])} {tr(s)}</Text>
               </View>
             );
           })}
-          {totalItems === 0 && <Text style={styles.noItemsHint}>No items yet</Text>}
+          {totalItems === 0 && <Text style={styles.noItemsHint}>{tr("No items yet")}</Text>}
         </View>
         {totalItems > 0 && (
           <View style={styles.progressBarBg}>
@@ -232,7 +233,7 @@ export default function ProjectFFETab({ projectId, project }) {
                 color={activeCategory === c ? '#FFFFFF' : '#64748B'}
               />
             )}
-            <Text style={[styles.filterChipText, activeCategory === c && styles.filterChipTextActive]}>{c}</Text>
+            <Text style={[styles.filterChipText, activeCategory === c && styles.filterChipTextActive]}>{tr(c)}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -241,7 +242,7 @@ export default function ProjectFFETab({ projectId, project }) {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100 }}>
           <Feather name="lock" size={48} color="#CBD5E1" />
           <Text style={{ marginTop: 16, fontSize: 16, fontFamily: 'Inter-Medium', color: '#64748B' }}>
-            You don't have permission to view FF&E.
+            {tr("You don't have permission to view FF&E.")}
           </Text>
         </View>
       ) : isLoading ? (
@@ -257,11 +258,11 @@ export default function ProjectFFETab({ projectId, project }) {
               <AdaptiveGlass intensity={20} tint="light" style={styles.emptyIconWrap}>
                 <MaterialIcons name="chair" size={40} color="#93C5FD" />
               </AdaptiveGlass>
-              <Text style={styles.emptyTitle}>No items yet</Text>
+              <Text style={styles.emptyTitle}>{tr("No items yet")}</Text>
               <Text style={styles.emptySubtitle}>
                 {activeCategory === 'All'
-                  ? 'Add furniture, fixtures & equipment to track costs and installation status'
-                  : `No ${activeCategory} items added yet`}
+                  ? tr("Add furniture, fixtures & equipment to track costs and installation status")
+                  : tr("No {{activeCategory}} items added yet", { activeCategory: activeCategory })}
               </Text>
             </View>
           ) : (
@@ -275,22 +276,22 @@ export default function ProjectFFETab({ projectId, project }) {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <View style={{ flex: 1, paddingRight: 12 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                        <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#3B82F6', textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.category}</Text>
+                        <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#3B82F6', textTransform: 'uppercase', letterSpacing: 0.5 }}>{tr(item.category)}</Text>
                         {roomName && (
                           <>
                             <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#CBD5E1' }} />
-                            <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8' }}>{roomName}</Text>
+                            <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#94A3B8' }}>{tr(roomName)}</Text>
                           </>
                         )}
                       </View>
                       
-                      <Text style={styles.itemName}>{item.name}</Text>
+                      <Text style={styles.itemName}>{tr(item.name)}</Text>
                       <Text style={styles.itemCost}>{formatCost(item.totalCost || 0, project?.currency)}</Text>
                     </View>
                     
                     <View style={{ alignItems: 'flex-end', gap: 6 }}>
                       <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
-                        <Text style={[styles.statusPillText, { color: sc.text }]}>{item.status}</Text>
+                        <Text style={[styles.statusPillText, { color: sc.text }]}>{tr(item.status)}</Text>
                       </View>
                     </View>
                   </View>
@@ -299,28 +300,28 @@ export default function ProjectFFETab({ projectId, project }) {
                   <View style={styles.detailRow}>
                     <View style={styles.detailChip}>
                       <Ionicons name="layers-outline" size={12} color="#94A3B8" />
-                      <Text style={styles.detailChipText}>Qty: {item.quantity} {item.unit}</Text>
+                      <Text style={styles.detailChipText}>{tr("Qty: ")}{item.quantity} {tr(item.unit)}</Text>
                     </View>
                     <View style={styles.detailChip}>
                       <Ionicons name="pricetag-outline" size={12} color="#94A3B8" />
-                      <Text style={styles.detailChipText}>{formatCost(item.unitCost || 0, project?.currency)} / unit</Text>
+                      <Text style={styles.detailChipText}>{formatCost(item.unitCost || 0, project?.currency)}{tr(" / unit")}</Text>
                     </View>
                     {item.brand && (
                       <View style={styles.detailChip}>
                         <Ionicons name="business-outline" size={12} color="#94A3B8" />
-                        <Text style={styles.detailChipText}>{item.brand}</Text>
+                        <Text style={styles.detailChipText}>{tr(item.brand)}</Text>
                       </View>
                     )}
                     {item.supplier && (
                       <View style={styles.detailChip}>
                         <Ionicons name="cube-outline" size={12} color="#94A3B8" />
-                        <Text style={styles.detailChipText}>{item.supplier}</Text>
+                        <Text style={styles.detailChipText}>{tr(item.supplier)}</Text>
                       </View>
                     )}
                     {item.colorCode && (
                       <View style={[styles.detailChip, { backgroundColor: '#F8FAFC' }]}>
                         <View style={[styles.colorSwatch, { backgroundColor: item.colorCode }]} />
-                        <Text style={styles.detailChipText}>{item.colorCode}</Text>
+                        <Text style={styles.detailChipText}>{tr(item.colorCode)}</Text>
                       </View>
                     )}
                   </View>
@@ -328,7 +329,7 @@ export default function ProjectFFETab({ projectId, project }) {
                   {item.notes && (
                     <View style={styles.notesRow}>
                       <Ionicons name="document-text-outline" size={13} color="#94A3B8" />
-                      <Text style={styles.notesText} numberOfLines={2}>{item.notes}</Text>
+                      <Text style={styles.notesText} numberOfLines={2}>{tr(item.notes)}</Text>
                     </View>
                   )}
 
@@ -363,8 +364,8 @@ export default function ProjectFFETab({ projectId, project }) {
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalPre}>{editingItem ? 'MODIFY ITEM' : 'NEW ITEM'}</Text>
-                <Text style={styles.modalTitle}>{editingItem ? `Edit "${editingItem.name}"` : 'Add FFE Item'}</Text>
+                <Text style={styles.modalPre}>{editingItem ? tr("MODIFY ITEM") : tr("NEW ITEM")}</Text>
+                <Text style={styles.modalTitle}>{editingItem ? tr("Edit \"{{name}}\"", { name: editingItem.name }) : tr("Add FFE Item")}</Text>
               </View>
               <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -374,27 +375,27 @@ export default function ProjectFFETab({ projectId, project }) {
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
 
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Item Name <Text style={{ color: '#EF4444' }}>*</Text></Text>
-                <TextInput style={styles.input} placeholder="e.g. Sofa Set" placeholderTextColor="#94A3B8" value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} />
+                <Text style={styles.fieldLabel}>{tr("Item Name ")}<Text style={{ color: '#EF4444' }}>*</Text></Text>
+                <TextInput style={styles.input} placeholder={tr("e.g. Sofa Set")} placeholderTextColor="#94A3B8" value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} />
               </View>
 
               <View style={styles.fieldRow}>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Category</Text>
+                  <Text style={styles.fieldLabel}>{tr("Category")}</Text>
                   <TouchableOpacity style={[styles.input, styles.pickerInput]} onPress={() => setShowCatPicker(true)} activeOpacity={0.8}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <MaterialIcons name={CATEGORY_ICON[form.category] || 'category'} size={16} color="#3B82F6" />
-                      <Text style={styles.pickerInputText}>{form.category}</Text>
+                      <Text style={styles.pickerInputText}>{tr(form.category)}</Text>
                     </View>
                     <Ionicons name="chevron-down" size={16} color="#64748B" />
                   </TouchableOpacity>
                 </View>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Status</Text>
+                  <Text style={styles.fieldLabel}>{tr("Status")}</Text>
                   <TouchableOpacity style={[styles.input, styles.pickerInput]} onPress={() => setShowStatusPicker(true)} activeOpacity={0.8}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <View style={[styles.statusDot, { backgroundColor: STATUS_COLOR[form.status]?.text }]} />
-                      <Text style={styles.pickerInputText}>{form.status}</Text>
+                      <Text style={styles.pickerInputText}>{tr(form.status)}</Text>
                     </View>
                     <Ionicons name="chevron-down" size={16} color="#64748B" />
                   </TouchableOpacity>
@@ -403,27 +404,27 @@ export default function ProjectFFETab({ projectId, project }) {
 
               <View style={styles.fieldRow}>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Quantity</Text>
+                  <Text style={styles.fieldLabel}>{tr("Quantity")}</Text>
                   <TextInput style={styles.input} placeholder="1" placeholderTextColor="#94A3B8" keyboardType="numeric" value={form.quantity} onChangeText={v => setForm(f => ({ ...f, quantity: v }))} />
                 </View>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Unit</Text>
-                  <TextInput style={styles.input} placeholder="nos" placeholderTextColor="#94A3B8" value={form.unit} onChangeText={v => setForm(f => ({ ...f, unit: v }))} />
+                  <Text style={styles.fieldLabel}>{tr("Unit")}</Text>
+                  <TextInput style={styles.input} placeholder={tr("nos")} placeholderTextColor="#94A3B8" value={form.unit} onChangeText={v => setForm(f => ({ ...f, unit: v }))} />
                 </View>
                 <View style={[styles.field, { flex: 1.2 }]}>
-                  <Text style={styles.fieldLabel}>Unit Cost ($)</Text>
+                  <Text style={styles.fieldLabel}>{tr("Unit Cost ($)")}</Text>
                   <TextInput style={styles.input} placeholder="0" placeholderTextColor="#94A3B8" keyboardType="numeric" value={form.unitCost} onChangeText={v => setForm(f => ({ ...f, unitCost: v }))} />
                 </View>
               </View>
 
               {rooms.length > 0 && (
                 <View style={styles.field}>
-                  <Text style={styles.fieldLabel}>Assign to Room</Text>
+                  <Text style={styles.fieldLabel}>{tr("Assign to Room")}</Text>
                   <TouchableOpacity style={[styles.input, styles.pickerInput]} onPress={() => setShowRoomPicker(true)} activeOpacity={0.8}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <MaterialIcons name="meeting-room" size={16} color={form.room ? '#2563EB' : '#94A3B8'} />
                       <Text style={[styles.pickerInputText, !form.room && { color: '#94A3B8' }]}>
-                        {rooms.find(r => r._id === form.room)?.name || 'No room assigned'}
+                        {rooms.find(r => r._id === form.room)?.name || tr("No room assigned")}
                       </Text>
                     </View>
                     <Ionicons name="chevron-down" size={16} color="#64748B" />
@@ -432,39 +433,39 @@ export default function ProjectFFETab({ projectId, project }) {
               )}
 
               <View style={styles.sectionDivider}>
-                <Text style={styles.sectionDividerText}>SPECIFICATIONS (OPTIONAL)</Text>
+                <Text style={styles.sectionDividerText}>{tr("SPECIFICATIONS (OPTIONAL)")}</Text>
               </View>
 
               <View style={styles.fieldRow}>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Brand</Text>
-                  <TextInput style={styles.input} placeholder="e.g. IKEA" placeholderTextColor="#94A3B8" value={form.brand} onChangeText={v => setForm(f => ({ ...f, brand: v }))} />
+                  <Text style={styles.fieldLabel}>{tr("Brand")}</Text>
+                  <TextInput style={styles.input} placeholder={tr("e.g. IKEA")} placeholderTextColor="#94A3B8" value={form.brand} onChangeText={v => setForm(f => ({ ...f, brand: v }))} />
                 </View>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Supplier</Text>
-                  <TextInput style={styles.input} placeholder="e.g. ABC Decor" placeholderTextColor="#94A3B8" value={form.supplier} onChangeText={v => setForm(f => ({ ...f, supplier: v }))} />
+                  <Text style={styles.fieldLabel}>{tr("Supplier")}</Text>
+                  <TextInput style={styles.input} placeholder={tr("e.g. ABC Decor")} placeholderTextColor="#94A3B8" value={form.supplier} onChangeText={v => setForm(f => ({ ...f, supplier: v }))} />
                 </View>
               </View>
 
               <View style={styles.fieldRow}>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Finish</Text>
-                  <TextInput style={styles.input} placeholder="e.g. Matte" placeholderTextColor="#94A3B8" value={form.finish} onChangeText={v => setForm(f => ({ ...f, finish: v }))} />
+                  <Text style={styles.fieldLabel}>{tr("Finish")}</Text>
+                  <TextInput style={styles.input} placeholder={tr("e.g. Matte")} placeholderTextColor="#94A3B8" value={form.finish} onChangeText={v => setForm(f => ({ ...f, finish: v }))} />
                 </View>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Color Code</Text>
+                  <Text style={styles.fieldLabel}>{tr("Color Code")}</Text>
                   <TextInput style={styles.input} placeholder="e.g. #F5F5F5" placeholderTextColor="#94A3B8" value={form.colorCode} onChangeText={v => setForm(f => ({ ...f, colorCode: v }))} />
                 </View>
               </View>
 
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Dimensions</Text>
-                <TextInput style={styles.input} placeholder="e.g. 200cm x 90cm x 75cm" placeholderTextColor="#94A3B8" value={form.dimensions} onChangeText={v => setForm(f => ({ ...f, dimensions: v }))} />
+                <Text style={styles.fieldLabel}>{tr("Dimensions")}</Text>
+                <TextInput style={styles.input} placeholder={tr("e.g. 200cm x 90cm x 75cm")} placeholderTextColor="#94A3B8" value={form.dimensions} onChangeText={v => setForm(f => ({ ...f, dimensions: v }))} />
               </View>
 
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Notes</Text>
-                <TextInput style={[styles.input, styles.textArea]} placeholder="Optional notes about this item..." placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={form.notes} onChangeText={v => setForm(f => ({ ...f, notes: v }))} />
+                <Text style={styles.fieldLabel}>{tr("Notes")}</Text>
+                <TextInput style={[styles.input, styles.textArea]} placeholder={tr("Optional notes about this item...")} placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={form.notes} onChangeText={v => setForm(f => ({ ...f, notes: v }))} />
               </View>
 
               <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSubmitting} activeOpacity={0.85}>
@@ -485,7 +486,7 @@ export default function ProjectFFETab({ projectId, project }) {
         <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowCatPicker(false)}>
           <AdaptiveGlass intensity={80} tint="light" style={styles.pickerSheet}>
             <View style={styles.modalHandle} />
-            <Text style={styles.pickerTitle}>Select Category</Text>
+            <Text style={styles.pickerTitle}>{tr("Select Category")}</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
               {CATEGORIES.map(c => (
                 <TouchableOpacity
@@ -498,7 +499,7 @@ export default function ProjectFFETab({ projectId, project }) {
                     <View style={[styles.pickerIcon, form.category === c && { backgroundColor: '#DBEAFE' }]}>
                       <MaterialIcons name={CATEGORY_ICON[c] || 'category'} size={18} color={form.category === c ? '#3B82F6' : '#94A3B8'} />
                     </View>
-                    <Text style={[styles.pickerItemText, form.category === c && styles.pickerItemTextActive]}>{c}</Text>
+                    <Text style={[styles.pickerItemText, form.category === c && styles.pickerItemTextActive]}>{tr(c)}</Text>
                   </View>
                   {form.category === c && <Ionicons name="checkmark-circle" size={18} color="#3B82F6" />}
                 </TouchableOpacity>
@@ -513,7 +514,7 @@ export default function ProjectFFETab({ projectId, project }) {
         <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowStatusPicker(false)}>
           <AdaptiveGlass intensity={80} tint="light" style={styles.pickerSheet}>
             <View style={styles.modalHandle} />
-            <Text style={styles.pickerTitle}>Select Status</Text>
+            <Text style={styles.pickerTitle}>{tr("Select Status")}</Text>
             {STATUSES.map(s => {
               const sc = STATUS_COLOR[s];
               return (
@@ -525,7 +526,7 @@ export default function ProjectFFETab({ projectId, project }) {
                 >
                   <View style={styles.pickerItemRow}>
                     <View style={[styles.statusDot, { backgroundColor: sc.text, width: 12, height: 12, borderRadius: 6 }]} />
-                    <Text style={[styles.pickerItemText, form.status === s && styles.pickerItemTextActive]}>{s}</Text>
+                    <Text style={[styles.pickerItemText, form.status === s && styles.pickerItemTextActive]}>{tr(s)}</Text>
                   </View>
                   {form.status === s && <Ionicons name="checkmark-circle" size={18} color="#3B82F6" />}
                 </TouchableOpacity>
@@ -540,7 +541,7 @@ export default function ProjectFFETab({ projectId, project }) {
         <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowRoomPicker(false)}>
           <AdaptiveGlass intensity={80} tint="light" style={styles.pickerSheet}>
             <View style={styles.modalHandle} />
-            <Text style={styles.pickerTitle}>Assign to Room</Text>
+            <Text style={styles.pickerTitle}>{tr("Assign to Room")}</Text>
             <TouchableOpacity
               style={[styles.pickerItem, !form.room && styles.pickerItemActive]}
               onPress={() => { setForm(f => ({ ...f, room: '' })); setShowRoomPicker(false); }}
@@ -548,7 +549,7 @@ export default function ProjectFFETab({ projectId, project }) {
             >
               <View style={styles.pickerItemRow}>
                 <Ionicons name="close-circle-outline" size={18} color={!form.room ? '#3B82F6' : '#94A3B8'} />
-                <Text style={[styles.pickerItemText, !form.room && styles.pickerItemTextActive]}>No room</Text>
+                <Text style={[styles.pickerItemText, !form.room && styles.pickerItemTextActive]}>{tr("No room")}</Text>
               </View>
               {!form.room && <Ionicons name="checkmark-circle" size={18} color="#3B82F6" />}
             </TouchableOpacity>
@@ -563,8 +564,8 @@ export default function ProjectFFETab({ projectId, project }) {
                   <View style={styles.pickerItemRow}>
                     <MaterialIcons name="meeting-room" size={18} color={form.room === r._id ? '#3B82F6' : '#94A3B8'} />
                     <View>
-                      <Text style={[styles.pickerItemText, form.room === r._id && styles.pickerItemTextActive]}>{r.name}</Text>
-                      <Text style={styles.pickerItemSub}>Floor {r.floor}{r.area ? `  ·  ${r.area} ${r.areaUnit}` : ''}</Text>
+                      <Text style={[styles.pickerItemText, form.room === r._id && styles.pickerItemTextActive]}>{tr(r.name)}</Text>
+                      <Text style={styles.pickerItemSub}>{tr("Floor ")}{tr(r.floor)}{r.area ? `  ·  ${r.area} ${r.areaUnit}` : ''}</Text>
                     </View>
                   </View>
                   {form.room === r._id && <Ionicons name="checkmark-circle" size={18} color="#3B82F6" />}
@@ -591,13 +592,13 @@ export default function ProjectFFETab({ projectId, project }) {
                       <MaterialIcons name={CATEGORY_ICON[detailItem.category] || 'category'} size={26} color={sc.text} />
                     </View>
                     <View style={styles.detailHeaderInfo}>
-                      <Text style={styles.detailName}>{detailItem.name}</Text>
+                      <Text style={styles.detailName}>{tr(detailItem.name)}</Text>
                       <View style={styles.detailTagRow}>
-                        <View style={styles.categoryChip}><Text style={styles.categoryChipText}>{detailItem.category}</Text></View>
+                        <View style={styles.categoryChip}><Text style={styles.categoryChipText}>{tr(detailItem.category)}</Text></View>
                         {detailItem.room?.name && (
                           <View style={styles.roomChip}>
                             <MaterialIcons name="meeting-room" size={10} color="#2563EB" />
-                            <Text style={styles.roomChipText}>{detailItem.room.name}</Text>
+                            <Text style={styles.roomChipText}>{tr(detailItem.room.name)}</Text>
                           </View>
                         )}
                       </View>
@@ -610,32 +611,32 @@ export default function ProjectFFETab({ projectId, project }) {
                   {/* Status + Cost strip */}
                   <View style={styles.detailCostRow}>
                     <View style={[styles.detailStatusBadge, { backgroundColor: sc.bg }]}>
-                      <Text style={[styles.detailStatusText, { color: sc.text }]}>{detailItem.status}</Text>
+                      <Text style={[styles.detailStatusText, { color: sc.text }]}>{tr(detailItem.status)}</Text>
                     </View>
                     <View style={styles.detailCostBlock}>
-                      <Text style={styles.detailCostLabel}>Total Cost</Text>
+                      <Text style={styles.detailCostLabel}>{tr("Total Cost")}</Text>
                       <Text style={styles.detailCostVal}>{formatCost(detailItem.totalCost || 0, project?.currency)}</Text>
                     </View>
                   </View>
 
                   <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
                     {/* Quantity & Pricing */}
-                    <Text style={styles.detailSectionTitle}>QUANTITY & PRICING</Text>
+                    <Text style={styles.detailSectionTitle}>{tr("QUANTITY & PRICING")}</Text>
                     <View style={styles.detailGrid}>
                       <View style={styles.detailGridItem}>
-                        <Text style={styles.detailGridLabel}>Quantity</Text>
-                        <Text style={styles.detailGridVal}>{detailItem.quantity} {detailItem.unit}</Text>
+                        <Text style={styles.detailGridLabel}>{tr("Quantity")}</Text>
+                        <Text style={styles.detailGridVal}>{detailItem.quantity} {tr(detailItem.unit)}</Text>
                       </View>
                       <View style={styles.detailGridItem}>
-                        <Text style={styles.detailGridLabel}>Unit Cost</Text>
+                        <Text style={styles.detailGridLabel}>{tr("Unit Cost")}</Text>
                         <Text style={styles.detailGridVal}>{formatCost(detailItem.unitCost || 0, project?.currency)}</Text>
                       </View>
                       <View style={styles.detailGridItem}>
-                        <Text style={styles.detailGridLabel}>Unit</Text>
+                        <Text style={styles.detailGridLabel}>{tr("Unit")}</Text>
                         <Text style={styles.detailGridVal}>{detailItem.unit || '—'}</Text>
                       </View>
                       <View style={styles.detailGridItem}>
-                        <Text style={styles.detailGridLabel}>Total</Text>
+                        <Text style={styles.detailGridLabel}>{tr("Total")}</Text>
                         <Text style={[styles.detailGridVal, { color: '#2563EB' }]}>{formatCost(detailItem.totalCost || 0, project?.currency)}</Text>
                       </View>
                     </View>
@@ -643,19 +644,19 @@ export default function ProjectFFETab({ projectId, project }) {
                     {/* Specifications */}
                     {(detailItem.brand || detailItem.modelNo || detailItem.supplier || detailItem.finish || detailItem.dimensions || detailItem.colorCode) && (
                       <>
-                        <Text style={styles.detailSectionTitle}>SPECIFICATIONS</Text>
+                        <Text style={styles.detailSectionTitle}>{tr("SPECIFICATIONS")}</Text>
                         <View style={styles.detailGrid}>
-                          {detailItem.brand && <View style={styles.detailGridItem}><Text style={styles.detailGridLabel}>Brand</Text><Text style={styles.detailGridVal}>{detailItem.brand}</Text></View>}
-                          {detailItem.modelNo && <View style={styles.detailGridItem}><Text style={styles.detailGridLabel}>Model No.</Text><Text style={styles.detailGridVal}>{detailItem.modelNo}</Text></View>}
-                          {detailItem.supplier && <View style={styles.detailGridItem}><Text style={styles.detailGridLabel}>Supplier</Text><Text style={styles.detailGridVal}>{detailItem.supplier}</Text></View>}
-                          {detailItem.finish && <View style={styles.detailGridItem}><Text style={styles.detailGridLabel}>Finish</Text><Text style={styles.detailGridVal}>{detailItem.finish}</Text></View>}
-                          {detailItem.dimensions && <View style={styles.detailGridItem}><Text style={styles.detailGridLabel}>Dimensions</Text><Text style={styles.detailGridVal}>{detailItem.dimensions}</Text></View>}
+                          {detailItem.brand && <View style={styles.detailGridItem}><Text style={styles.detailGridLabel}>{tr("Brand")}</Text><Text style={styles.detailGridVal}>{tr(detailItem.brand)}</Text></View>}
+                          {detailItem.modelNo && <View style={styles.detailGridItem}><Text style={styles.detailGridLabel}>{tr("Model No.")}</Text><Text style={styles.detailGridVal}>{tr(detailItem.modelNo)}</Text></View>}
+                          {detailItem.supplier && <View style={styles.detailGridItem}><Text style={styles.detailGridLabel}>{tr("Supplier")}</Text><Text style={styles.detailGridVal}>{tr(detailItem.supplier)}</Text></View>}
+                          {detailItem.finish && <View style={styles.detailGridItem}><Text style={styles.detailGridLabel}>{tr("Finish")}</Text><Text style={styles.detailGridVal}>{tr(detailItem.finish)}</Text></View>}
+                          {detailItem.dimensions && <View style={styles.detailGridItem}><Text style={styles.detailGridLabel}>{tr("Dimensions")}</Text><Text style={styles.detailGridVal}>{tr(detailItem.dimensions)}</Text></View>}
                           {detailItem.colorCode && (
                             <View style={styles.detailGridItem}>
-                              <Text style={styles.detailGridLabel}>Color</Text>
+                              <Text style={styles.detailGridLabel}>{tr("Color")}</Text>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                                 <View style={[styles.colorSwatch, { width: 14, height: 14, borderRadius: 4, backgroundColor: detailItem.colorCode }]} />
-                                <Text style={styles.detailGridVal}>{detailItem.colorCode}</Text>
+                                <Text style={styles.detailGridVal}>{tr(detailItem.colorCode)}</Text>
                               </View>
                             </View>
                           )}
@@ -666,9 +667,9 @@ export default function ProjectFFETab({ projectId, project }) {
                     {/* Notes */}
                     {detailItem.notes && (
                       <>
-                        <Text style={styles.detailSectionTitle}>NOTES</Text>
+                        <Text style={styles.detailSectionTitle}>{tr("NOTES")}</Text>
                         <View style={styles.detailNotesBox}>
-                          <Text style={styles.detailNotesText}>{detailItem.notes}</Text>
+                          <Text style={styles.detailNotesText}>{tr(detailItem.notes)}</Text>
                         </View>
                       </>
                     )}
@@ -677,11 +678,11 @@ export default function ProjectFFETab({ projectId, project }) {
                     <View style={styles.detailActions}>
                       <TouchableOpacity style={styles.detailEditBtn} onPress={() => { setDetailItem(null); openEditModal(detailItem); }} activeOpacity={0.8}>
                         <Ionicons name="create-outline" size={16} color="#3B82F6" />
-                        <Text style={styles.detailEditBtnText}>Edit Item</Text>
+                        <Text style={styles.detailEditBtnText}>{tr("Edit Item")}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.detailDeleteBtn} onPress={() => { setDetailItem(null); confirmDelete(detailItem); }} activeOpacity={0.8}>
                         <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                        <Text style={styles.detailDeleteBtnText}>Delete</Text>
+                        <Text style={styles.detailDeleteBtnText}>{tr("Delete")}</Text>
                       </TouchableOpacity>
                     </View>
                   </ScrollView>
@@ -694,9 +695,9 @@ export default function ProjectFFETab({ projectId, project }) {
 
       <ConfirmModal
         visible={confirmModal.visible}
-        title="Delete Item"
-        message={`Remove "${confirmModal.item?.name}" from FFE list?`}
-        confirmText="Delete"
+        title={tr("Delete Item")}
+        message={tr("Remove \"{{name}}\" from FFE list?", { name: confirmModal.item?.name })}
+        confirmText={tr("Delete")}
         type="danger"
         onConfirm={handleDelete}
         onCancel={() => setConfirmModal({ visible: false, item: null })}

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
@@ -26,8 +27,8 @@ function StatCard({ label, value, color, icon }) {
       <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
         <Ionicons name={icon} size={20} color={color} />
       </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{tr(value)}</Text>
+      <Text style={styles.statLabel}>{tr(label)}</Text>
     </View>
   );
 }
@@ -39,12 +40,12 @@ function AlertRow({ icon, iconColor, iconBg, title, subtitle, badge, badgeColor 
         <Ionicons name={icon} size={16} color={iconColor} />
       </View>
       <View style={styles.alertBody}>
-        <Text style={styles.alertTitle} numberOfLines={1}>{title}</Text>
-        {!!subtitle && <Text style={styles.alertSub} numberOfLines={1}>{subtitle}</Text>}
+        <Text style={styles.alertTitle} numberOfLines={1}>{tr(title)}</Text>
+        {!!subtitle && <Text style={styles.alertSub} numberOfLines={1}>{tr(subtitle)}</Text>}
       </View>
       {!!badge && (
         <View style={[styles.alertBadge, { backgroundColor: badgeColor + '20' }]}>
-          <Text style={[styles.alertBadgeText, { color: badgeColor }]}>{badge}</Text>
+          <Text style={[styles.alertBadgeText, { color: badgeColor }]}>{tr(badge)}</Text>
         </View>
       )}
     </View>
@@ -160,7 +161,7 @@ export default function ProjectDashboardTab({ project, onOpenChat, refreshTrigge
                   iconColor="#EF4444"
                   iconBg="#FEE2E2"
                   title={m.name}
-                  subtitle={m.description}
+                  subtitle={tr(m.description)}
                   badge={t('daysOverdue', { d: Math.abs(d) })}
                   badgeColor="#EF4444"
                 />
@@ -184,7 +185,7 @@ export default function ProjectDashboardTab({ project, onOpenChat, refreshTrigge
                   iconColor="#F59E0B"
                   iconBg="#FEF3C7"
                   title={m.name}
-                  subtitle={m.description}
+                  subtitle={tr(m.description)}
                   badge={d === 0 ? t('dueToday') : t('daysLeft', { d })}
                   badgeColor="#F59E0B"
                 />
@@ -226,7 +227,7 @@ export default function ProjectDashboardTab({ project, onOpenChat, refreshTrigge
                 icon="alert-circle-outline"
                 iconColor="#8B5CF6"
                 iconBg="#EDE9FE"
-                title={s.title ?? s.description}
+                title={s.title ?? tr(s.description)}
                 subtitle={s.location}
                 badge={s.status}
                 badgeColor="#8B5CF6"

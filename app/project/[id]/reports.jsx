@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -294,7 +295,7 @@ export default function ProjectReportsTab() {
 
     } catch (error) {
       console.error("PDF export/email failed:", error);
-      Alert.alert("Error", error.message || "Something went wrong while requesting the report.");
+      Alert.alert(tr("Error"), error.message || tr("Something went wrong while requesting the report."));
     } finally {
       setIsExporting(false);
     }
@@ -334,7 +335,7 @@ export default function ProjectReportsTab() {
   const handleExportCSV = async () => {
     const entries = Object.entries(groupedTasks);
     if (entries.length === 0) {
-      Alert.alert('Nothing to export', 'No report data available to export.');
+      Alert.alert(tr("Nothing to export"), tr("No report data available to export."));
       return;
     }
     const rows = [['Milestone Name', 'Task Title', 'Completed By', 'Completed Date', 'Completion Note']];
@@ -347,7 +348,7 @@ export default function ProjectReportsTab() {
       await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
       await Sharing.shareAsync(uri, { mimeType: 'text/csv', dialogTitle: 'Export Report as CSV', UTI: 'public.comma-separated-values-text' });
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to export the report.');
+      Alert.alert(tr("Error"), e.message || tr("Failed to export the report."));
     }
   };
 
@@ -408,16 +409,16 @@ export default function ProjectReportsTab() {
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Download Report PDF', UTI: 'com.adobe.pdf' });
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to download the PDF report.');
+      Alert.alert(tr("Error"), e.message || tr("Failed to download the PDF report."));
     }
   };
 
   const openExportOptions = () => {
-    Alert.alert('Export Report', 'Choose how to export this report.', [
-      { text: 'Download Report PDF', onPress: handleDownloadPDF },
-      { text: 'Email PDF', onPress: handleExportPDF },
-      { text: 'Export Report as CSV', onPress: handleExportCSV },
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Export Report"), tr("Choose how to export this report."), [
+      { text: tr("Download Report PDF"), onPress: handleDownloadPDF },
+      { text: tr("Email PDF"), onPress: handleExportPDF },
+      { text: tr("Export Report as CSV"), onPress: handleExportCSV },
+      { text: tr("Cancel"), style: 'cancel' },
     ]);
   };
 
@@ -451,9 +452,9 @@ export default function ProjectReportsTab() {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, marginTop: 40 }}>
         <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
-        <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>Access Restricted</Text>
+        <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>{tr("Access Restricted")}</Text>
         <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', marginTop: 8 }}>
-          You don't have permission to view Reports.
+          {tr("You don't have permission to view Reports.")}
         </Text>
       </View>
     );
@@ -470,19 +471,19 @@ export default function ProjectReportsTab() {
               style={[styles.toggleBtn, reportType === 'Daily' && styles.toggleBtnActive]}
               onPress={() => setReportType('Daily')}
             >
-              <Text style={[styles.toggleText, reportType === 'Daily' && styles.toggleTextActive]}>Daily</Text>
+              <Text style={[styles.toggleText, reportType === 'Daily' && styles.toggleTextActive]}>{tr("Daily")}</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.toggleBtn, reportType === 'Monthly' && styles.toggleBtnActive]}
               onPress={() => setReportType('Monthly')}
             >
-              <Text style={[styles.toggleText, reportType === 'Monthly' && styles.toggleTextActive]}>Monthly</Text>
+              <Text style={[styles.toggleText, reportType === 'Monthly' && styles.toggleTextActive]}>{tr("Monthly")}</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.toggleBtn, reportType === 'Custom' && styles.toggleBtnActive]}
               onPress={() => setReportType('Custom')}
             >
-              <Text style={[styles.toggleText, reportType === 'Custom' && styles.toggleTextActive]}>Custom</Text>
+              <Text style={[styles.toggleText, reportType === 'Custom' && styles.toggleTextActive]}>{tr("Custom")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -491,14 +492,14 @@ export default function ProjectReportsTab() {
         {reportType === 'Custom' && (
           <View style={styles.dateSelectorContainer}>
             <View style={styles.dateSelectorCol}>
-              <Text style={styles.dateSelectorLabel}>Start Date</Text>
+              <Text style={styles.dateSelectorLabel}>{tr("Start Date")}</Text>
               <TouchableOpacity style={styles.dateButton} onPress={() => setShowStartPicker(true)}>
                 <Feather name="calendar" size={14} color="#3B82F6" />
                 <Text style={styles.dateButtonText}>{startDate.toLocaleDateString()}</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.dateSelectorCol}>
-              <Text style={styles.dateSelectorLabel}>End Date</Text>
+              <Text style={styles.dateSelectorLabel}>{tr("End Date")}</Text>
               <TouchableOpacity style={styles.dateButton} onPress={() => setShowEndPicker(true)}>
                 <Feather name="calendar" size={14} color="#3B82F6" />
                 <Text style={styles.dateButtonText}>{endDate.toLocaleDateString()}</Text>
@@ -530,17 +531,17 @@ export default function ProjectReportsTab() {
 
         <View style={styles.headerContainer}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>{headerLabel}</Text>
-            <Text style={styles.bigNumber}>{headerCount}</Text>
+            <Text style={styles.title}>{tr(headerLabel)}</Text>
+            <Text style={styles.bigNumber}>{tr(headerCount)}</Text>
             <Text style={styles.subtitle}>
-              {reportType === 'Daily' && 'in last 7 days'}
-              {reportType === 'Monthly' && 'in last 6 months'}
-              {reportType === 'Custom' && `from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`}
+              {reportType === 'Daily' && tr("in last 7 days")}
+              {reportType === 'Monthly' && tr("in last 6 months")}
+              {reportType === 'Custom' && tr("from {{startDate}} to {{endDate}}", { startDate: startDate.toLocaleDateString(), endDate: endDate.toLocaleDateString() })}
             </Text>
           </View>
           <TouchableOpacity style={styles.exportButton} onPress={openExportOptions} activeOpacity={0.8}>
             <Feather name="download" size={16} color="#FFFFFF" />
-            <Text style={styles.exportButtonText}>Export</Text>
+            <Text style={styles.exportButtonText}>{tr("Export")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -584,10 +585,10 @@ export default function ProjectReportsTab() {
                 onPress={() => setCustomSubTab(tab)}
               >
                 <Text style={[styles.subTabBtnText, customSubTab === tab && styles.subTabBtnTextActive]}>
-                  {tab === 'Tasks' && `Tasks (${totalFiltered})`}
-                  {tab === 'Logs' && `Logs (${filteredLogs.length})`}
-                  {tab === 'Issues' && `Issues (${filteredIssues.length})`}
-                  {tab === 'Snags' && `Snags (${filteredSnags.length})`}
+                  {tab === 'Tasks' && tr("Tasks ({{totalFiltered}})", { totalFiltered: totalFiltered })}
+                  {tab === 'Logs' && tr("Logs ({{filteredLogsCount}})", { filteredLogsCount: filteredLogs.length })}
+                  {tab === 'Issues' && tr("Issues ({{filteredIssuesCount}})", { filteredIssuesCount: filteredIssues.length })}
+                  {tab === 'Snags' && tr("Snags ({{filteredSnagsCount}})", { filteredSnagsCount: filteredSnags.length })}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -598,21 +599,21 @@ export default function ProjectReportsTab() {
         <View style={styles.listSection}>
           {reportType !== 'Custom' || customSubTab === 'Tasks' ? (
             <>
-              <Text style={styles.listTitle}>Breakdown by Milestone</Text>
+              <Text style={styles.listTitle}>{tr("Breakdown by Milestone")}</Text>
               {Object.keys(groupedTasks).length === 0 ? (
                 <View style={styles.emptyBox}>
-                  <Text style={styles.emptyText}>No tasks completed in this range.</Text>
+                  <Text style={styles.emptyText}>{tr("No tasks completed in this range.")}</Text>
                 </View>
               ) : (
                 Object.entries(groupedTasks).map(([milestoneName, tasks], idx) => (
                   <View key={idx} style={styles.milestoneBlock}>
-                    <Text style={styles.milestoneName}>{milestoneName}</Text>
+                    <Text style={styles.milestoneName}>{tr(milestoneName)}</Text>
                     <View style={styles.tasksContainer}>
                       {tasks.map((task, tIdx) => (
                         <TouchableOpacity key={tIdx} style={styles.simpleTaskRow} activeOpacity={0.7} onPress={() => setSelectedTask(task)}>
                           <View style={styles.dot} />
                           <View style={styles.taskInfo}>
-                            <Text style={styles.taskTitle}>{task.title}</Text>
+                            <Text style={styles.taskTitle}>{tr(task.title)}</Text>
                             <Text style={styles.taskDate}>{task.completedAtDate.toLocaleDateString()}</Text>
                           </View>
                           <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
@@ -625,10 +626,10 @@ export default function ProjectReportsTab() {
             </>
           ) : customSubTab === 'Logs' ? (
             <>
-              <Text style={styles.listTitle}>Activity Logs</Text>
+              <Text style={styles.listTitle}>{tr("Activity Logs")}</Text>
               {filteredLogs.length === 0 ? (
                 <View style={styles.emptyBox}>
-                  <Text style={styles.emptyText}>No activity logs in this range.</Text>
+                  <Text style={styles.emptyText}>{tr("No activity logs in this range.")}</Text>
                 </View>
               ) : (
                 <View style={styles.logsList}>
@@ -639,12 +640,12 @@ export default function ProjectReportsTab() {
                           <Text style={styles.logUserTxt}>{log.userName?.charAt(0) || 'U'}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.logUserTitle}>{log.userName || 'System'}</Text>
-                          <Text style={styles.logRoleText}>{log.userRole || 'Member'}</Text>
+                          <Text style={styles.logUserTitle}>{log.userName || tr("System")}</Text>
+                          <Text style={styles.logRoleText}>{log.userRole || tr("Member")}</Text>
                         </View>
                         <Text style={styles.logTimeText}>{new Date(log.timestamp).toLocaleDateString()}</Text>
                       </View>
-                      <Text style={styles.logDetails} numberOfLines={2}>{log.details}</Text>
+                      <Text style={styles.logDetails} numberOfLines={2}>{tr(log.details)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -652,26 +653,26 @@ export default function ProjectReportsTab() {
             </>
           ) : customSubTab === 'Issues' ? (
             <>
-              <Text style={styles.listTitle}>Project Issues</Text>
+              <Text style={styles.listTitle}>{tr("Project Issues")}</Text>
               {filteredIssues.length === 0 ? (
                 <View style={styles.emptyBox}>
-                  <Text style={styles.emptyText}>No issues reported in this range.</Text>
+                  <Text style={styles.emptyText}>{tr("No issues reported in this range.")}</Text>
                 </View>
               ) : (
                 <View style={styles.issuesList}>
                   {filteredIssues.map((issue, idx) => (
                     <TouchableOpacity key={idx} style={styles.issueCard} activeOpacity={0.8} onPress={() => setSelectedIssueDetail(issue)}>
                       <View style={styles.issueHeader}>
-                        <Text style={styles.issueCardTitle} numberOfLines={1}>{issue.title}</Text>
+                        <Text style={styles.issueCardTitle} numberOfLines={1}>{tr(issue.title)}</Text>
                         <View style={[styles.priorityTag, { backgroundColor: issue.priority === 'Critical' ? '#FEF2F2' : '#F8FAFC' }]}>
-                          <Text style={[styles.priorityTagText, { color: issue.priority === 'Critical' ? '#EF4444' : '#64748B' }]}>{issue.priority}</Text>
+                          <Text style={[styles.priorityTagText, { color: issue.priority === 'Critical' ? '#EF4444' : '#64748B' }]}>{tr(issue.priority)}</Text>
                         </View>
                       </View>
-                      <Text style={styles.issueDesc} numberOfLines={2}>{issue.description}</Text>
+                      <Text style={styles.issueDesc} numberOfLines={2}>{tr(issue.description)}</Text>
                       <View style={styles.issueFooter}>
                         <Text style={styles.issueDateText}>{new Date(issue.createdAt).toLocaleDateString()}</Text>
                         <View style={[styles.statusBadge, { backgroundColor: issue.status === 'Resolved' || issue.status === 'Closed' ? '#DCFCE7' : '#FEF3C7' }]}>
-                          <Text style={[styles.statusBadgeText, { color: issue.status === 'Resolved' || issue.status === 'Closed' ? '#16A34A' : '#D97706' }]}>{issue.status}</Text>
+                          <Text style={[styles.statusBadgeText, { color: issue.status === 'Resolved' || issue.status === 'Closed' ? '#16A34A' : '#D97706' }]}>{tr(issue.status)}</Text>
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -681,26 +682,26 @@ export default function ProjectReportsTab() {
             </>
           ) : (
             <>
-              <Text style={styles.listTitle}>Project Snags</Text>
+              <Text style={styles.listTitle}>{tr("Project Snags")}</Text>
               {filteredSnags.length === 0 ? (
                 <View style={styles.emptyBox}>
-                  <Text style={styles.emptyText}>No snags reported in this range.</Text>
+                  <Text style={styles.emptyText}>{tr("No snags reported in this range.")}</Text>
                 </View>
               ) : (
                 <View style={styles.issuesList}>
                   {filteredSnags.map((snag, idx) => (
                     <TouchableOpacity key={idx} style={styles.issueCard} activeOpacity={0.8} onPress={() => setSelectedSnagDetail(snag)}>
                       <View style={styles.issueHeader}>
-                        <Text style={styles.issueCardTitle} numberOfLines={1}>{snag.title}</Text>
+                        <Text style={styles.issueCardTitle} numberOfLines={1}>{tr(snag.title)}</Text>
                         <View style={[styles.priorityTag, { backgroundColor: snag.priority === 'Critical' ? '#FEF2F2' : '#F8FAFC' }]}>
-                          <Text style={[styles.priorityTagText, { color: snag.priority === 'Critical' ? '#EF4444' : '#64748B' }]}>{snag.priority}</Text>
+                          <Text style={[styles.priorityTagText, { color: snag.priority === 'Critical' ? '#EF4444' : '#64748B' }]}>{tr(snag.priority)}</Text>
                         </View>
                       </View>
-                      <Text style={styles.issueDesc} numberOfLines={2}>{snag.description}</Text>
+                      <Text style={styles.issueDesc} numberOfLines={2}>{tr(snag.description)}</Text>
                       <View style={styles.issueFooter}>
                         <Text style={styles.issueDateText}>{new Date(snag.createdAt).toLocaleDateString()}</Text>
                         <View style={[styles.statusBadge, { backgroundColor: snag.status === 'Resolved' ? '#DCFCE7' : '#FEF3C7' }]}>
-                          <Text style={[styles.statusBadgeText, { color: snag.status === 'Resolved' ? '#16A34A' : '#D97706' }]}>{snag.status}</Text>
+                          <Text style={[styles.statusBadgeText, { color: snag.status === 'Resolved' ? '#16A34A' : '#D97706' }]}>{tr(snag.status)}</Text>
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -720,66 +721,66 @@ export default function ProjectReportsTab() {
           <View style={styles.modalContent}>
             <View style={styles.dragHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Task Details</Text>
+              <Text style={styles.modalTitle}>{tr("Task Details")}</Text>
               <TouchableOpacity onPress={() => setSelectedTask(null)}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.detailTitle}>{selectedTask?.title}</Text>
+              <Text style={styles.detailTitle}>{tr(selectedTask?.title)}</Text>
               
               <View style={styles.detailRow}>
                 <Feather name="calendar" size={16} color="#64748B" />
                 <Text style={styles.detailText}>
-                  Start Date: {selectedTask?.startDate ? new Date(selectedTask.startDate).toLocaleDateString() : 'N/A'}
+                  {tr("Start Date: ")}{selectedTask?.startDate ? new Date(selectedTask.startDate).toLocaleDateString() : 'N/A'}
                 </Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Feather name="calendar" size={16} color="#64748B" />
                 <Text style={styles.detailText}>
-                  End Date: {selectedTask?.endDate ? new Date(selectedTask.endDate).toLocaleDateString() : 'N/A'}
+                  {tr("End Date: ")}{selectedTask?.endDate ? new Date(selectedTask.endDate).toLocaleDateString() : 'N/A'}
                 </Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Feather name="user" size={16} color="#64748B" />
                 <Text style={styles.detailText}>
-                  Created By: {selectedTask?.createdByName || 'Unknown'}
+                  {tr("Created By: ")}{selectedTask?.createdByName || tr("Unknown")}
                 </Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Feather name="user" size={16} color="#64748B" />
                 <Text style={styles.detailText}>
-                  Completed By: {selectedTask?.completedByName || 'Unknown'}
+                  {tr("Completed By: ")}{selectedTask?.completedByName || tr("Unknown")}
                 </Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Feather name="calendar" size={16} color="#64748B" />
                 <Text style={styles.detailText}>
-                  Completed On: {selectedTask?.completedAtDate?.toLocaleDateString()}
+                  {tr("Completed On: ")}{selectedTask?.completedAtDate?.toLocaleDateString()}
                 </Text>
               </View>
 
               {selectedTask?.completionNote ? (
                 <View style={styles.noteBox}>
-                  <Text style={styles.noteLabel}>Completion Note:</Text>
-                  <Text style={styles.noteText}>{selectedTask.completionNote}</Text>
+                  <Text style={styles.noteLabel}>{tr("Completion Note:")}</Text>
+                  <Text style={styles.noteText}>{tr(selectedTask.completionNote)}</Text>
                 </View>
               ) : null}
 
               {selectedTask?.proofImage?.url ? (
                 <View style={styles.proofContainer}>
-                  <Text style={styles.proofLabel}>Proof of Work:</Text>
+                  <Text style={styles.proofLabel}>{tr("Proof of Work:")}</Text>
                   <Image source={{ uri: selectedTask.proofImage.url }} style={styles.proofImage} resizeMode="cover" />
                 </View>
               ) : (
                 <View style={styles.noProofBox}>
                   <Ionicons name="image-outline" size={24} color="#CBD5E1" />
-                  <Text style={styles.noProofText}>No proof image provided</Text>
+                  <Text style={styles.noProofText}>{tr("No proof image provided")}</Text>
                 </View>
               )}
             </ScrollView>
@@ -794,7 +795,7 @@ export default function ProjectReportsTab() {
           <View style={styles.modalContent}>
             <View style={styles.dragHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Log Details</Text>
+              <Text style={styles.modalTitle}>{tr("Log Details")}</Text>
               <TouchableOpacity onPress={() => setSelectedLog(null)}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
@@ -806,26 +807,26 @@ export default function ProjectReportsTab() {
                   <Text style={styles.largeLogUserTxt}>{selectedLog?.userName?.charAt(0) || 'S'}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.logDetailUserName}>{selectedLog?.userName || 'System Action'}</Text>
-                  <Text style={styles.logDetailUserRole}>{selectedLog?.userRole || 'System'}</Text>
+                  <Text style={styles.logDetailUserName}>{selectedLog?.userName || tr("System Action")}</Text>
+                  <Text style={styles.logDetailUserRole}>{selectedLog?.userRole || tr("System")}</Text>
                 </View>
               </View>
 
               <View style={styles.detailRow}>
                 <Feather name="activity" size={16} color="#64748B" />
-                <Text style={styles.detailText}>Action: {selectedLog?.action}</Text>
+                <Text style={styles.detailText}>{tr("Action: ")}{tr(selectedLog?.action)}</Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Feather name="calendar" size={16} color="#64748B" />
                 <Text style={styles.detailText}>
-                  Timestamp: {selectedLog ? new Date(selectedLog.timestamp).toLocaleString() : ''}
+                  {tr("Timestamp: ")}{selectedLog ? new Date(selectedLog.timestamp).toLocaleString() : ''}
                 </Text>
               </View>
 
               <View style={styles.noteBox}>
-                <Text style={styles.noteLabel}>Details:</Text>
-                <Text style={styles.noteText}>{selectedLog?.details}</Text>
+                <Text style={styles.noteLabel}>{tr("Details:")}</Text>
+                <Text style={styles.noteText}>{tr(selectedLog?.details)}</Text>
               </View>
             </ScrollView>
           </View>
@@ -839,45 +840,45 @@ export default function ProjectReportsTab() {
           <View style={styles.modalContent}>
             <View style={styles.dragHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Issue Details</Text>
+              <Text style={styles.modalTitle}>{tr("Issue Details")}</Text>
               <TouchableOpacity onPress={() => setSelectedIssueDetail(null)}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.detailTitle}>{selectedIssueDetail?.title}</Text>
+              <Text style={styles.detailTitle}>{tr(selectedIssueDetail?.title)}</Text>
 
               <View style={styles.detailRow}>
                 <Feather name="info" size={16} color="#64748B" />
-                <Text style={styles.detailText}>Category: {selectedIssueDetail?.category || 'Other'}</Text>
+                <Text style={styles.detailText}>{tr("Category: ")}{selectedIssueDetail?.category || tr("Other")}</Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Feather name="alert-circle" size={16} color="#64748B" />
-                <Text style={styles.detailText}>Priority: {selectedIssueDetail?.priority || 'Medium'}</Text>
+                <Text style={styles.detailText}>{tr("Priority: ")}{selectedIssueDetail?.priority || tr("Medium")}</Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Feather name="activity" size={16} color="#64748B" />
-                <Text style={styles.detailText}>Status: {selectedIssueDetail?.status}</Text>
+                <Text style={styles.detailText}>{tr("Status: ")}{tr(selectedIssueDetail?.status)}</Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Feather name="calendar" size={16} color="#64748B" />
                 <Text style={styles.detailText}>
-                  Reported: {selectedIssueDetail ? new Date(selectedIssueDetail.createdAt).toLocaleString() : ''}
+                  {tr("Reported: ")}{selectedIssueDetail ? new Date(selectedIssueDetail.createdAt).toLocaleString() : ''}
                 </Text>
               </View>
 
               <View style={styles.noteBox}>
-                <Text style={styles.noteLabel}>Description:</Text>
-                <Text style={styles.noteText}>{selectedIssueDetail?.description}</Text>
+                <Text style={styles.noteLabel}>{tr("Description:")}</Text>
+                <Text style={styles.noteText}>{tr(selectedIssueDetail?.description)}</Text>
               </View>
 
               {selectedIssueDetail?.images && selectedIssueDetail.images.length > 0 && (
                 <View style={styles.proofContainer}>
-                  <Text style={styles.proofLabel}>Attachments:</Text>
+                  <Text style={styles.proofLabel}>{tr("Attachments:")}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
                     {selectedIssueDetail.images.map((img, idx) => (
                       <Image key={idx} source={{ uri: img }} style={styles.issueImagePreview} resizeMode="cover" />
@@ -897,40 +898,40 @@ export default function ProjectReportsTab() {
           <View style={styles.modalContent}>
             <View style={styles.dragHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Snag Details</Text>
+              <Text style={styles.modalTitle}>{tr("Snag Details")}</Text>
               <TouchableOpacity onPress={() => setSelectedSnagDetail(null)}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.detailTitle}>{selectedSnagDetail?.title}</Text>
+              <Text style={styles.detailTitle}>{tr(selectedSnagDetail?.title)}</Text>
 
               <View style={styles.detailRow}>
                 <Feather name="alert-circle" size={16} color="#64748B" />
-                <Text style={styles.detailText}>Priority: {selectedSnagDetail?.priority || 'Medium'}</Text>
+                <Text style={styles.detailText}>{tr("Priority: ")}{selectedSnagDetail?.priority || tr("Medium")}</Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Feather name="activity" size={16} color="#64748B" />
-                <Text style={styles.detailText}>Status: {selectedSnagDetail?.status}</Text>
+                <Text style={styles.detailText}>{tr("Status: ")}{tr(selectedSnagDetail?.status)}</Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Feather name="calendar" size={16} color="#64748B" />
                 <Text style={styles.detailText}>
-                  Reported: {selectedSnagDetail ? new Date(selectedSnagDetail.createdAt).toLocaleString() : ''}
+                  {tr("Reported: ")}{selectedSnagDetail ? new Date(selectedSnagDetail.createdAt).toLocaleString() : ''}
                 </Text>
               </View>
 
               <View style={styles.noteBox}>
-                <Text style={styles.noteLabel}>Description:</Text>
-                <Text style={styles.noteText}>{selectedSnagDetail?.description}</Text>
+                <Text style={styles.noteLabel}>{tr("Description:")}</Text>
+                <Text style={styles.noteText}>{tr(selectedSnagDetail?.description)}</Text>
               </View>
 
               {selectedSnagDetail?.images && selectedSnagDetail.images.length > 0 && (
                 <View style={styles.proofContainer}>
-                  <Text style={styles.proofLabel}>Attachments:</Text>
+                  <Text style={styles.proofLabel}>{tr("Attachments:")}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
                     {selectedSnagDetail.images.map((img, idx) => (
                       <Image key={idx} source={{ uri: img }} style={styles.issueImagePreview} resizeMode="cover" />
@@ -948,9 +949,9 @@ export default function ProjectReportsTab() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { alignItems: 'center', paddingVertical: 40 }]}>
             <ActivityIndicator size="large" color="#3B82F6" style={{ marginBottom: 20, transform: [{ scale: 1.2 }] }} />
-            <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 10 }}>Generating Report...</Text>
+            <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 10 }}>{tr("Generating Report...")}</Text>
             <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', paddingHorizontal: 20, lineHeight: 22 }}>
-              Please wait while we compile your project data and prepare the document. It will be sent to your email shortly.
+              {tr("Please wait while we compile your project data and prepare the document. It will be sent to your email shortly.")}
             </Text>
           </View>
         </View>
@@ -964,15 +965,15 @@ export default function ProjectReportsTab() {
             <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#DCFCE7', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
               <Feather name="check" size={40} color="#16A34A" />
             </View>
-            <Text style={{ fontSize: 24, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 10 }}>Report Sent!</Text>
+            <Text style={{ fontSize: 24, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 10 }}>{tr("Report Sent!")}</Text>
             <Text style={{ fontSize: 16, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center', marginBottom: 30, paddingHorizontal: 20, lineHeight: 24 }}>
-              The project report has been successfully generated and emailed to <Text style={{ fontFamily: 'Inter-Medium', color: '#3B82F6' }}>{successEmail}</Text>.
+              {tr("The project report has been successfully generated and emailed to ")}<Text style={{ fontFamily: 'Inter-Medium', color: '#3B82F6' }}>{tr(successEmail)}</Text>.
             </Text>
             <TouchableOpacity 
               style={{ backgroundColor: '#3B82F6', paddingVertical: 14, paddingHorizontal: 40, borderRadius: 12, width: '100%', alignItems: 'center', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
               onPress={() => setSuccessEmail(null)}
             >
-              <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-SemiBold' }}>Done!</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-SemiBold' }}>{tr("Done!")}</Text>
             </TouchableOpacity>
           </View>
         </View>

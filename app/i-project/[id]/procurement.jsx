@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
@@ -20,6 +21,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useOrgCurrency } from '../../utils/interior/orgCurrency';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -117,14 +119,12 @@ function genRef(prefix) {
   return `${prefix}-${year}-${Math.floor(100 + Math.random() * 900)}`;
 }
 
-function formatCost(amount) {
-  return `₹${Math.round(amount || 0).toLocaleString('en-IN')}`;
-}
-
 const emptyForm = { vendorName: '', deliveryDate: '' };
 const emptyItem = { name: '', quantity: '1', unit: 'nos', unitPrice: '0' };
 
 export default function InteriorProcurementScreen() {
+  const orgCurrency = useOrgCurrency();
+  const formatCost = orgCurrency.money;
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
@@ -273,12 +273,12 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const addItemLine = () => {
     if (!newItem.name || !newItem.name.trim()) {
-      showToast('Please select a material from catalog', 'error');
+      showToast(tr("Please select a material from catalog"), 'error');
       return;
     }
     const qty = parseInt(newItem.quantity, 10);
     if (!qty || qty <= 0) {
-      showToast('Quantity must be at least 1', 'error');
+      showToast(tr("Quantity must be at least 1"), 'error');
       return;
     }
     const parsedPrice = parseFloat(newItem.unitPrice);
@@ -320,7 +320,7 @@ const { can: canDo } = useProjectPermissions(projectId);
     }
 
     if (itemsToSubmit.length === 0) {
-      showToast('Please select and add at least one material item', 'error');
+      showToast(tr("Please select and add at least one material item"), 'error');
       return;
     }
 
@@ -355,7 +355,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
       await interiorApiClient.post(`/projects/${projectId}/procurement`, payload);
       showToast(
-        selectedPipeline === 'requested' ? 'Material request created successfully!' : 'Purchase Order created successfully!',
+        selectedPipeline === 'requested' ? tr("Material request created successfully!") : tr("Purchase Order created successfully!"),
         'success'
       );
       setIsAddOpen(false);
@@ -367,7 +367,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       loadAll();
     } catch (e) {
       console.error('Create PO failed:', e);
-      showToast(e.message || 'Failed to create request', 'error');
+      showToast(e.message || tr("Failed to create request"), 'error');
     } finally {
       setCreating(false);
     }
@@ -377,13 +377,13 @@ const { can: canDo } = useProjectPermissions(projectId);
     setUpdatingPo(true);
     try {
       await interiorApiClient.put(`/projects/${projectId}/procurement/${po._id}`, { status: nextStatus });
-      showToast(`Status updated to: ${nextStatus}`, 'success');
+      showToast(tr("Status updated to: {{nextStatus}}", { nextStatus: nextStatus }), 'success');
       if (selectedPo) {
         setSelectedPo((p) => ({ ...p, status: nextStatus }));
       }
       loadAll();
     } catch (e) {
-      showToast(e.message || 'Failed to update status', 'error');
+      showToast(e.message || tr("Failed to update status"), 'error');
     } finally {
       setUpdatingPo(false);
     }
@@ -400,7 +400,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleSendRfq = async () => {
     if (rfqVendors.length === 0) {
-      showToast('Please select or specify at least one vendor', 'error');
+      showToast(tr("Please select or specify at least one vendor"), 'error');
       return;
     }
     setSendingRfq(true);
@@ -419,13 +419,13 @@ const { can: canDo } = useProjectPermissions(projectId);
         console.warn('Status update to rfq notice:', err);
       }
 
-      showToast(`Quotation request dispatched to ${rfqVendors.length} vendors!`, 'success');
+      showToast(tr("Quotation request dispatched to {{rfqVendorsCount}} vendors!", { rfqVendorsCount: rfqVendors.length }), 'success');
       setIsRfqOpen(false);
       setSelectedPo(null);
       setSelectedPipeline('rfq');
       loadAll();
     } catch (e) {
-      showToast(e.message || 'Failed to send RFQ', 'error');
+      showToast(e.message || tr("Failed to send RFQ"), 'error');
     } finally {
       setSendingRfq(false);
     }
@@ -443,10 +443,10 @@ const { can: canDo } = useProjectPermissions(projectId);
         materialName: cleanName,
       });
       setSelectedPo((prev) => (prev ? { ...prev, isLinkActive: next, materialName: cleanName } : prev));
-      showToast(next ? 'Link reactivated' : 'Link manually expired', 'success');
+      showToast(next ? tr("Link reactivated") : tr("Link manually expired"), 'success');
       loadAll();
     } catch (e) {
-      showToast(e.message || 'Failed to update link status', 'error');
+      showToast(e.message || tr("Failed to update link status"), 'error');
     } finally {
       setTogglingLink(false);
     }
@@ -499,9 +499,9 @@ const { can: canDo } = useProjectPermissions(projectId);
             materialName,
             poLink,
           });
-          showToast(`Supplier ${vendorName} awarded, PO approved and e-mail sent!`, 'success');
+          showToast(tr("Supplier {{vendorName}} awarded, PO approved and e-mail sent!", { vendorName: vendorName }), 'success');
         } catch (mailErr) {
-          showToast('PO approved, but the award e-mail could not be sent.', 'error');
+          showToast(tr("PO approved, but the award e-mail could not be sent."), 'error');
         }
       } else if (targetPhone) {
         const msg = encodeURIComponent(`Hello ${vendorName},
@@ -513,14 +513,14 @@ ${poLink}
 
 Thank you.`);
         Linking.openURL(`https://wa.me/${String(targetPhone).replace(/\D/g, '')}?text=${msg}`).catch(() => {});
-        showToast(`Supplier ${vendorName} awarded! PO approved — opened WhatsApp.`, 'success');
+        showToast(tr("Supplier {{vendorName}} awarded! PO approved — opened WhatsApp.", { vendorName: vendorName }), 'success');
       } else {
-        showToast(`Supplier ${vendorName} awarded! PO Approved.`, 'success');
+        showToast(tr("Supplier {{vendorName}} awarded! PO Approved.", { vendorName: vendorName }), 'success');
       }
       setSelectedPo(null);
       loadAll();
     } catch (e) {
-      showToast(e.message || 'Failed to award quote', 'error');
+      showToast(e.message || tr("Failed to award quote"), 'error');
     } finally {
       setUpdatingPo(false);
     }
@@ -559,7 +559,7 @@ Thank you.`);
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        showToast('Camera roll permission required', 'error');
+        showToast(tr("Camera roll permission required"), 'error');
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -574,13 +574,13 @@ Thank you.`);
         else setGrnProofPhoto(uri);
       }
     } catch (e) {
-      showToast('Photo attach failed', 'error');
+      showToast(tr("Photo attach failed"), 'error');
     }
   };
 
   const handleSubmitGrn = async () => {
     if (!grnChallan.trim()) {
-      showToast('Please enter Challan / Invoice number', 'error');
+      showToast(tr("Please enter Challan / Invoice number"), 'error');
       return;
     }
 
@@ -621,11 +621,11 @@ Thank you.`);
         grns: updatedGrns,
       });
 
-      showToast('GRN recorded & materials inwarded successfully!', 'success');
+      showToast(tr("GRN recorded & materials inwarded successfully!"), 'success');
       setIsGrnOpen(false);
       loadAll();
     } catch (e) {
-      showToast(e.message || 'Failed to submit GRN', 'error');
+      showToast(e.message || tr("Failed to submit GRN"), 'error');
     } finally {
       setSubmittingGrn(false);
     }
@@ -696,11 +696,11 @@ Thank you.`);
   const handleSubmitPayment = async () => {
     const amt = parseFloat(payForm.amount);
     if (!amt || amt <= 0) {
-      showToast('Enter a valid payment amount', 'error');
+      showToast(tr("Enter a valid payment amount"), 'error');
       return;
     }
     if (!payForm.referenceNo.trim()) {
-      showToast('Reference / UTR number is required', 'error');
+      showToast(tr("Reference / UTR number is required"), 'error');
       return;
     }
     setSubmittingPayment(true);
@@ -719,12 +719,12 @@ Thank you.`);
         projectLocation: payForm.projectLocation?.trim(),
         invoiceNo: payForm.invoiceNo?.trim(),
       });
-      showToast('Vendor payment recorded successfully!', 'success');
+      showToast(tr("Vendor payment recorded successfully!"), 'success');
       setIsPayOpen(false);
       setPayingPo(null);
       loadAll();
     } catch (e) {
-      showToast(e.message || 'Failed to record payment', 'error');
+      showToast(e.message || tr("Failed to record payment"), 'error');
     } finally {
       setSubmittingPayment(false);
     }
@@ -748,7 +748,7 @@ Thank you.`);
 
   const handleApprovePo = async () => {
     if (!approveVendorName.trim()) {
-      showToast('Please assign a vendor before approving', 'error');
+      showToast(tr("Please assign a vendor before approving"), 'error');
       return;
     }
     setSubmittingApproval(true);
@@ -759,12 +759,12 @@ Thank you.`);
         items: finalItems,
         status: 'approved',
       });
-      showToast('Purchase Order approved & vendor assigned!', 'success');
+      showToast(tr("Purchase Order approved & vendor assigned!"), 'success');
       setIsApproveOpen(false);
       setApprovingPo(null);
       loadAll();
     } catch (e) {
-      showToast(e.message || 'Failed to approve PO', 'error');
+      showToast(e.message || tr("Failed to approve PO"), 'error');
     } finally {
       setSubmittingApproval(false);
     }
@@ -774,7 +774,7 @@ Thank you.`);
   const handleLogInstallation = async () => {
     const qty = parseFloat(installQty);
     if (!qty || qty <= 0) {
-      showToast('Enter a valid installation quantity', 'error');
+      showToast(tr("Enter a valid installation quantity"), 'error');
       return;
     }
     const currentAvailable = Math.max(
@@ -783,7 +783,7 @@ Thank you.`);
       (selectedStock?.installedQuantity || 0)
     );
     if (qty > currentAvailable) {
-      showToast(`Cannot install more than currently available (${currentAvailable} ${selectedStock?.unit || ''})`, 'error');
+      showToast(tr("Cannot install more than currently available ({{currentAvailable}} {{value}})", { currentAvailable: currentAvailable, value: selectedStock?.unit || '' }), 'error');
       return;
     }
 
@@ -795,13 +795,13 @@ Thank you.`);
         quantity: qty,
         notes: installNotes.trim(),
       });
-      showToast('Installation logged & stock updated!', 'success');
+      showToast(tr("Installation logged & stock updated!"), 'success');
       setSelectedStock(null);
       setInstallQty('');
       setInstallNotes('');
       loadAll();
     } catch (e) {
-      showToast(e.message || 'Failed to log installation', 'error');
+      showToast(e.message || tr("Failed to log installation"), 'error');
     } finally {
       setLoggingInstall(false);
     }
@@ -827,7 +827,7 @@ Thank you.`);
 
   const handleCreateMaterial = async () => {
     if (!matName.trim()) {
-      showToast('Please enter material name', 'error');
+      showToast(tr("Please enter material name"), 'error');
       return;
     }
     setCreatingMaterial(true);
@@ -837,7 +837,7 @@ Thank you.`);
           productName: matName.trim(),
           unit: matUnit.trim() || 'Nos',
         });
-        showToast('Material updated successfully', 'success');
+        showToast(tr("Material updated successfully"), 'success');
       } else {
         await interiorApiClient.post(`/projects/${projectId}/inventory`, {
           action: 'create_material',
@@ -845,7 +845,7 @@ Thank you.`);
           unit: matUnit.trim() || 'Nos',
           initialStock: parseFloat(matStock) || 0,
         });
-        showToast('Material added to Site Inventory', 'success');
+        showToast(tr("Material added to Site Inventory"), 'success');
       }
       setIsCreateMaterialOpen(false);
       setEditingMaterialId(null);
@@ -853,7 +853,7 @@ Thank you.`);
       setMatStock('0');
       loadAll();
     } catch (e) {
-      showToast(e.message || 'Failed to save material', 'error');
+      showToast(e.message || tr("Failed to save material"), 'error');
     } finally {
       setCreatingMaterial(false);
     }
@@ -861,20 +861,20 @@ Thank you.`);
 
   const handleDeleteMaterial = (item) => {
     Alert.alert(
-      'Delete Material',
-      `Are you sure you want to delete "${item.productName || item.name}"? This will permanently remove it from inventory.`,
+      tr("Delete Material"),
+      tr("Are you sure you want to delete \"{{value}}\"? This will permanently remove it from inventory.", { value: item.productName || item.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Delete',
+          text: tr("Delete"),
           style: 'destructive',
           onPress: async () => {
             try {
               await interiorApiClient.delete(`/projects/${projectId}/inventory/${item._id}`);
-              showToast('Material deleted successfully', 'success');
+              showToast(tr("Material deleted successfully"), 'success');
               loadAll();
             } catch (err) {
-              showToast(err.message || 'Failed to delete material', 'error');
+              showToast(err.message || tr("Failed to delete material"), 'error');
             }
           },
         },
@@ -908,11 +908,11 @@ Thank you.`);
         items: sanitizedItems,
         amount: newTotal,
       });
-      showToast('PO rates updated successfully', 'success');
+      showToast(tr("PO rates updated successfully"), 'success');
       setSelectedPo((prev) => ({ ...prev, items: sanitizedItems, amount: newTotal }));
       loadAll();
     } catch (err) {
-      showToast(err.message || 'Failed to update rates', 'error');
+      showToast(err.message || tr("Failed to update rates"), 'error');
     } finally {
       setSavingPoRates(false);
     }
@@ -921,22 +921,22 @@ Thank you.`);
   const handleDeletePo = (po) => {
     const isRequest = po?.status === 'requested';
     Alert.alert(
-      isRequest ? 'Delete Material Request' : 'Delete Purchase Order',
-      `Are you sure you want to delete ${po?.poNumber || (isRequest ? 'this Material Request' : 'this Purchase Order')}? This action cannot be undone.`,
+      isRequest ? tr("Delete Material Request") : tr("Delete Purchase Order"),
+      tr("Are you sure you want to delete {{value}}? This action cannot be undone.", { value: po?.poNumber || (isRequest ? 'this Material Request' : 'this Purchase Order') }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: isRequest ? 'Delete Request' : 'Delete PO',
+          text: isRequest ? tr("Delete Request") : tr("Delete PO"),
           style: 'destructive',
           onPress: async () => {
             setDeletingPo(true);
             try {
               await interiorApiClient.delete(`/projects/${projectId}/procurement/${po._id}`);
-              showToast(isRequest ? 'Material request deleted' : 'Purchase Order deleted successfully', 'success');
+              showToast(isRequest ? tr("Material request deleted") : tr("Purchase Order deleted successfully"), 'success');
               setSelectedPo(null);
               loadAll();
             } catch (err) {
-              showToast(err.message || 'Failed to delete', 'error');
+              showToast(err.message || tr("Failed to delete"), 'error');
             } finally {
               setDeletingPo(false);
             }
@@ -976,7 +976,7 @@ Thank you.`);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Procurement</Text>
+            <Text style={s.headerTitle}>{tr("Procurement")}</Text>
           </View>
         </View>
 
@@ -988,7 +988,7 @@ Thank you.`);
               { key: 'inventory', label: 'Inventory' },
             ].map((t) => (
               <TouchableOpacity key={t.key} style={[s.segBtn, activeTab === t.key && s.segBtnActive]} onPress={() => setActiveTab(t.key)} activeOpacity={0.8}>
-                <Text style={[s.segText, activeTab === t.key && s.segTextActive]}>{t.label}</Text>
+                <Text style={[s.segText, activeTab === t.key && s.segTextActive]}>{tr(t.label)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -1018,7 +1018,7 @@ Thank you.`);
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
-                        {p.label}
+                        {tr(p.label)}
                         {count > 0 ? <Text style={[s.pipelineCount, selectedPipeline === p.key && { color: '#2563EB' }]}>  {count}</Text> : null}
                       </Text>
                     </TouchableOpacity>
@@ -1043,16 +1043,16 @@ Thank you.`);
             {activeTab === 'procurement' && (
               <View style={s.sumCard}>
                 <View style={s.figCol}>
-                  <Text style={s.figLabel}>Budget</Text>
+                  <Text style={s.figLabel}>{tr("Budget")}</Text>
                   <Text style={s.figValue} numberOfLines={1}>{formatCost(totalProcurementBudget)}</Text>
                 </View>
                 <View style={[s.figCol, { alignItems: 'center' }]}>
-                  <Text style={s.figLabel}>Active POs</Text>
-                  <Text style={s.figValue}>{activePoCount}</Text>
+                  <Text style={s.figLabel}>{tr("Active POs")}</Text>
+                  <Text style={s.figValue}>{tr(activePoCount)}</Text>
                 </View>
                 <View style={[s.figCol, { alignItems: 'flex-end' }]}>
-                  <Text style={s.figLabel}>Delivered</Text>
-                  <Text style={[s.figValue, { color: '#059669' }]}>{deliveredPoCount}</Text>
+                  <Text style={s.figLabel}>{tr("Delivered")}</Text>
+                  <Text style={[s.figValue, { color: '#059669' }]}>{tr(deliveredPoCount)}</Text>
                 </View>
               </View>
             )}
@@ -1061,7 +1061,7 @@ Thank you.`);
                 filteredPos.length === 0 ? (
                   <View style={s.empty}>
                     <Ionicons name="cart-outline" size={44} color="#CBD5E1" />
-                    <Text style={s.emptyTitle}>No Purchase Orders Found</Text>
+                    <Text style={s.emptyTitle}>{tr("No Purchase Orders Found")}</Text>
                   </View>
                 ) : (
                   filteredPos.map((po) => {
@@ -1092,29 +1092,29 @@ Thank you.`);
                     return (
                       <TouchableOpacity key={po._id} style={s.card} onPress={() => openPoDetails(po)} activeOpacity={0.85}>
                         <View style={s.poTitleRow}>
-                          <Text style={s.vendorTitle} numberOfLines={2}>{title}</Text>
+                          <Text style={s.vendorTitle} numberOfLines={2}>{tr(title)}</Text>
                           <View style={[s.statusBadge, { backgroundColor: `${pipe.color}15` }]}>
-                            <Text style={[s.statusBadgeText, { color: pipe.color }]}>{pipe.label}</Text>
+                            <Text style={[s.statusBadgeText, { color: pipe.color }]}>{tr(pipe.label)}</Text>
                           </View>
                         </View>
-                        <Text style={s.poSub} numberOfLines={1}>{facts}</Text>
+                        <Text style={s.poSub} numberOfLines={1}>{tr(facts)}</Text>
 
                         {po.status === 'requested' || po.status === 'rfq' ? (
                           <Text style={s.poMuted}>
-                            {po.status === 'rfq' ? `RFQ sent · ${quoteCount} ${quoteCount === 1 ? 'quote' : 'quotes'} received` : 'Material request · awaiting quotes'}
+                            {po.status === 'rfq' ? tr("RFQ sent · {{quoteCount}} {{value}} received", { quoteCount: quoteCount, value: quoteCount === 1 ? 'quote' : 'quotes' }) : tr("Material request · awaiting quotes")}
                           </Text>
                         ) : (
                           <View style={s.figRow}>
                             <View style={s.figCol}>
-                              <Text style={s.figLabel}>Amount</Text>
+                              <Text style={s.figLabel}>{tr("Amount")}</Text>
                               <Text style={[s.figValue, { color: '#2563EB' }]} numberOfLines={1}>{formatCost(totalAmt)}</Text>
                             </View>
                             <View style={[s.figCol, { alignItems: 'center' }]}>
-                              <Text style={s.figLabel}>Payment</Text>
-                              <Text style={[s.figValue, { color: payStatus.color }]} numberOfLines={1}>{payStatus.label}</Text>
+                              <Text style={s.figLabel}>{tr("Payment")}</Text>
+                              <Text style={[s.figValue, { color: payStatus.color }]} numberOfLines={1}>{tr(payStatus.label)}</Text>
                             </View>
                             <View style={[s.figCol, { alignItems: 'flex-end' }]}>
-                              <Text style={s.figLabel}>{grnsCount > 0 ? 'Received' : 'Delivery'}</Text>
+                              <Text style={s.figLabel}>{grnsCount > 0 ? tr("Received") : tr("Delivery")}</Text>
                               <Text style={s.figValue} numberOfLines={1}>
                                 {grnsCount > 0
                                   ? `${grnsCount} GRN`
@@ -1133,7 +1133,7 @@ Thank you.`);
                                 onPress={a.onPress}
                               >
                                 <Ionicons name={a.icon} size={15} color={a.color} />
-                                <Text style={[s.cardActionText, { color: a.color }]} numberOfLines={1}>{a.label}</Text>
+                                <Text style={[s.cardActionText, { color: a.color }]} numberOfLines={1}>{tr(a.label)}</Text>
                               </TouchableOpacity>
                             ))}
                           </View>
@@ -1147,7 +1147,7 @@ Thank you.`);
                 inventory.length === 0 ? (
                   <View style={s.empty}>
                     <Ionicons name="cube-outline" size={44} color="#CBD5E1" />
-                    <Text style={s.emptyTitle}>Site Inventory Empty</Text>
+                    <Text style={s.emptyTitle}>{tr("Site Inventory Empty")}</Text>
                                       </View>
                 ) : (
                   inventory.map((item) => {
@@ -1163,7 +1163,7 @@ Thank you.`);
                         <View style={s.poTitleRow}>
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={s.vendorTitle} numberOfLines={2}>{item.productName || item.name}</Text>
-                            <Text style={s.poSub}>{item.unit || 'nos'}{historyList.length ? `  ·  used ${historyList.length} ${historyList.length === 1 ? 'time' : 'times'}` : ''}</Text>
+                            <Text style={s.poSub}>{item.unit || tr("nos")}{historyList.length ? tr("  ·  used {{historyListCount}} {{value}}", { historyListCount: historyList.length, value: historyList.length === 1 ? 'time' : 'times' }) : ''}</Text>
                           </View>
                           {(canDo('inventory', 'update') || canDo('inventory', 'delete')) && (
                             <TouchableOpacity
@@ -1172,7 +1172,7 @@ Thank you.`);
                                 const opts = [];
                                 if (canDo('inventory', 'update')) opts.push({ text: 'Edit material', onPress: () => openEditMaterial(item) });
                                 if (canDo('inventory', 'delete')) opts.push({ text: 'Delete material', style: 'destructive', onPress: () => handleDeleteMaterial(item) });
-                                Alert.alert(item.productName || item.name, undefined, [...opts, { text: 'Cancel', style: 'cancel' }]);
+                                Alert.alert(item.productName || item.name, undefined, [...opts, { text: tr("Cancel"), style: 'cancel' }]);
                               }}
                             >
                               <Ionicons name="ellipsis-vertical" size={17} color="#64748B" />
@@ -1182,23 +1182,23 @@ Thank you.`);
 
                         <View style={s.figRow}>
                           <View style={s.figCol}>
-                            <Text style={s.figLabel}>Delivered</Text>
-                            <Text style={s.figValue}>{totalRec}</Text>
+                            <Text style={s.figLabel}>{tr("Delivered")}</Text>
+                            <Text style={s.figValue}>{tr(totalRec)}</Text>
                           </View>
                           <View style={[s.figCol, { alignItems: 'center' }]}>
-                            <Text style={s.figLabel}>Used</Text>
-                            <Text style={s.figValue}>{instQty}</Text>
+                            <Text style={s.figLabel}>{tr("Used")}</Text>
+                            <Text style={s.figValue}>{tr(instQty)}</Text>
                           </View>
                           <View style={[s.figCol, { alignItems: 'flex-end' }]}>
-                            <Text style={s.figLabel}>Available</Text>
-                            <Text style={[s.figValue, { color: inStock > 0 ? '#2563EB' : '#DC2626' }]}>{inStock}</Text>
+                            <Text style={s.figLabel}>{tr("Available")}</Text>
+                            <Text style={[s.figValue, { color: inStock > 0 ? '#2563EB' : '#DC2626' }]}>{tr(inStock)}</Text>
                           </View>
                         </View>
                         <View style={s.usageRow}>
                           <View style={s.usageTrack}>
                             <View style={[s.usageFill, { width: `${Math.min(100, percentInstalled)}%` }]} />
                           </View>
-                          <Text style={s.usagePct}>{percentInstalled}% used</Text>
+                          <Text style={s.usagePct}>{tr(percentInstalled)}{tr("% used")}</Text>
                         </View>
 
                         <View style={s.cardActions}>
@@ -1209,13 +1209,13 @@ Thank you.`);
                               onPress={() => { setSelectedStock(item); setInstallQty(''); setInstallNotes(''); }}
                             >
                               <Ionicons name="hammer-outline" size={15} color="#1D4ED8" />
-                              <Text style={[s.cardActionText, { color: '#1D4ED8' }]}>{inStock <= 0 ? 'Out of stock' : 'Log usage'}</Text>
+                              <Text style={[s.cardActionText, { color: '#1D4ED8' }]}>{inStock <= 0 ? tr("Out of stock") : tr("Log usage")}</Text>
                             </TouchableOpacity>
                           )}
                           {historyList.length > 0 && (
                             <TouchableOpacity style={[s.cardActionBtn, { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]} onPress={() => toggleHistory(item._id)}>
                               <Ionicons name={isHistoryExpanded ? 'chevron-up' : 'time-outline'} size={15} color="#334155" />
-                              <Text style={[s.cardActionText, { color: '#334155' }]}>History</Text>
+                              <Text style={[s.cardActionText, { color: '#334155' }]}>{tr("History")}</Text>
                             </TouchableOpacity>
                           )}
                         </View>
@@ -1226,12 +1226,12 @@ Thank you.`);
                               <View key={log._id || hIdx} style={s.historyItemRow}>
                                 <View style={{ flex: 1 }}>
                                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <Text style={s.historyQtyText}>{log.quantity} {item.unit || 'nos'} used</Text>
+                                    <Text style={s.historyQtyText}>{log.quantity} {item.unit || tr("nos")}{tr(" used")}</Text>
                                     <Text style={s.historyDateText}>
                                       {log.date ? new Date(log.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : ''}
                                     </Text>
                                   </View>
-                                  {log.notes ? <Text style={s.historyNotesText} numberOfLines={2}>{log.notes}</Text> : null}
+                                  {log.notes ? <Text style={s.historyNotesText} numberOfLines={2}>{tr(log.notes)}</Text> : null}
                                 </View>
                               </View>
                             ))}
@@ -1284,8 +1284,8 @@ Thank you.`);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>{selectedPipeline === 'requested' ? 'New Material Request' : 'New Purchase Order'}</Text>
-                <Text style={s.modalSubtitle}>Order materials, hardware & fit-out supplies</Text>
+                <Text style={s.modalTitle}>{selectedPipeline === 'requested' ? tr("New Material Request") : tr("New Purchase Order")}</Text>
+                <Text style={s.modalSubtitle}>{tr("Order materials, hardware & fit-out supplies")}</Text>
               </View>
               <TouchableOpacity
                 onPress={() => {
@@ -1305,10 +1305,10 @@ Thank you.`);
                   which only asks for it once creating an actual Purchase Order. */}
               {selectedPipeline !== 'requested' && (
                 <>
-                  <Text style={s.label}>Vendor / Supplier Name</Text>
+                  <Text style={s.label}>{tr("Vendor / Supplier Name")}</Text>
                   <TextInput
                     style={s.input}
-                    placeholder="e.g. Century Ply & Hardware Hub (optional if unassigned)"
+                    placeholder={tr("e.g. Century Ply & Hardware Hub (optional if unassigned)")}
                     placeholderTextColor="#94A3B8"
                     value={form.vendorName}
                     onChangeText={(t) => setForm((f) => ({ ...f, vendorName: t }))}
@@ -1316,16 +1316,16 @@ Thank you.`);
                 </>
               )}
 
-              <Text style={s.label}>{selectedPipeline === 'requested' ? 'Target Delivery Date' : 'Expected Delivery Date'}</Text>
+              <Text style={s.label}>{selectedPipeline === 'requested' ? tr("Target Delivery Date") : tr("Expected Delivery Date")}</Text>
               <DateField value={form.deliveryDate} onChange={(v) => setForm((f) => ({ ...f, deliveryDate: v }))} inputStyle={s.input} />
 
-              <Text style={[s.label, { marginTop: 14 }]}>Line Items ({poItems.length})</Text>
+              <Text style={[s.label, { marginTop: 14 }]}>{tr("Line Items (")}{poItems.length})</Text>
               {poItems.map((item, idx) => (
                 <View key={idx} style={s.addedItemRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.addedItemTitle}>{item.name}</Text>
+                    <Text style={s.addedItemTitle}>{tr(item.name)}</Text>
                     <Text style={s.addedItemSub}>
-                      {item.quantity} {item.unit} @ ₹{item.unitPrice} = {formatCost(item.quantity * item.unitPrice)}
+                      {item.quantity} {tr(item.unit)} @ {formatCost(item.unitPrice)} = {formatCost(item.quantity * item.unitPrice)}
                     </Text>
                   </View>
                   <TouchableOpacity onPress={() => removeItemLine(idx)}>
@@ -1337,7 +1337,7 @@ Thank you.`);
               {/* Add item inputs */}
               <View style={s.newItemBox}>
                 <View style={{ gap: 6 }}>
-                  <Text style={s.customModeLabel}>Select Material from Catalog *</Text>
+                  <Text style={s.customModeLabel}>{tr("Select Material from Catalog *")}</Text>
 
                   {/* Dropdown Trigger */}
                   <TouchableOpacity
@@ -1349,16 +1349,16 @@ Thank you.`);
                     <View style={{ flex: 1 }}>
                       {newItem.name ? (
                         <View>
-                          <Text style={s.dropdownSelectedText} numberOfLines={1}>{newItem.name}</Text>
+                          <Text style={s.dropdownSelectedText} numberOfLines={1}>{tr(newItem.name)}</Text>
                           {selectedInventoryItem && (
                             <Text style={s.dropdownStockHint}>
-                              Available in stock: {getAvailableStock(selectedInventoryItem)} {selectedInventoryItem.unit || ''}
+                              {tr("Available in stock: ")}{getAvailableStock(selectedInventoryItem)} {selectedInventoryItem.unit || ''}
                             </Text>
                           )}
                         </View>
                       ) : (
                         <Text style={s.dropdownPlaceholderText}>
-                          {inventory.length > 0 ? 'Select Material from Inventory...' : 'No inventory materials found'}
+                          {inventory.length > 0 ? tr("Select Material from Inventory...") : tr("No inventory materials found")}
                         </Text>
                       )}
                     </View>
@@ -1377,7 +1377,7 @@ Thank you.`);
                           <Ionicons name="search-outline" size={14} color="#94A3B8" />
                           <TextInput
                             style={s.dropdownSearchInput}
-                            placeholder="Search inventory materials..."
+                            placeholder={tr("Search inventory materials...")}
                             placeholderTextColor="#94A3B8"
                             value={materialSearchText}
                             onChangeText={setMaterialSearchText}
@@ -1398,7 +1398,7 @@ Thank you.`);
                         {filteredInventory.length === 0 ? (
                           <View style={s.dropdownEmpty}>
                             <Text style={s.dropdownEmptyText}>
-                              {materialSearchText ? 'No matching materials found' : 'No materials in inventory yet. Add materials in Material Management tab.'}
+                              {materialSearchText ? tr("No matching materials found") : tr("No materials in inventory yet. Add materials in Material Management tab.")}
                             </Text>
                           </View>
                         ) : (
@@ -1415,13 +1415,13 @@ Thank you.`);
                               >
                                 <View style={{ flex: 1, marginRight: 8 }}>
                                   <Text style={[s.dropdownItemTitle, isSelected && s.dropdownItemTitleSelected]} numberOfLines={1}>
-                                    {matName}
+                                    {tr(matName)}
                                   </Text>
                                   <View style={s.dropdownItemSubRow}>
-                                    <Text style={s.dropdownItemSub}>Unit: {item.unit || 'nos'}</Text>
+                                    <Text style={s.dropdownItemSub}>{tr("Unit: ")}{item.unit || tr("nos")}</Text>
                                     <View style={[s.stockPill, avail > 0 ? s.stockPillInStock : s.stockPillOut]}>
                                       <Text style={[s.stockPillText, avail > 0 ? s.stockPillTextInStock : s.stockPillTextOut]}>
-                                        Available: {avail} {item.unit || ''}
+                                        {tr("Available: ")}{tr(avail)} {item.unit || ''}
                                       </Text>
                                     </View>
                                   </View>
@@ -1439,7 +1439,7 @@ Thank you.`);
                 {/* 3-Col Inputs for Qty, Unit, Rate */}
                 <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.miniFieldLabel}>Qty *</Text>
+                    <Text style={s.miniFieldLabel}>{tr("Qty *")}</Text>
                     <TextInput
                       style={s.inputSm}
                       keyboardType="numeric"
@@ -1450,17 +1450,17 @@ Thank you.`);
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.miniFieldLabel}>Unit</Text>
+                    <Text style={s.miniFieldLabel}>{tr("Unit")}</Text>
                     <TextInput
                       style={[s.inputSm, { backgroundColor: '#F1F5F9', color: '#475569' }]}
                       editable={false}
-                      placeholder="nos"
+                      placeholder={tr("nos")}
                       placeholderTextColor="#94A3B8"
                       value={newItem.unit || 'nos'}
                     />
                   </View>
                   <View style={{ flex: 1.2 }}>
-                    <Text style={s.miniFieldLabel}>Rate (₹)</Text>
+                    <Text style={s.miniFieldLabel}>{tr("Rate (")}{orgCurrency.code})</Text>
                     <TextInput
                       style={s.inputSm}
                       keyboardType="numeric"
@@ -1474,7 +1474,7 @@ Thank you.`);
 
                 <TouchableOpacity style={s.addItemBtn} onPress={addItemLine}>
                   <Ionicons name="add" size={14} color="#2563EB" />
-                  <Text style={s.addItemBtnText}>Add Item Line</Text>
+                  <Text style={s.addItemBtnText}>{tr("Add Item Line")}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1483,7 +1483,7 @@ Thank you.`);
                 onPress={handleCreatePo}
                 disabled={creating}
               >
-                {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{selectedPipeline === 'requested' ? 'Create Material Request' : 'Create Purchase Order'}</Text>}
+                {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{selectedPipeline === 'requested' ? tr("Create Material Request") : tr("Create Purchase Order")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1498,8 +1498,8 @@ Thank you.`);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>Dispatch Request For Quotation (RFQ)</Text>
-                <Text style={s.modalSubtitle}>PO #{selectedPo?._id?.slice(-5)?.toUpperCase()}</Text>
+                <Text style={s.modalTitle}>{tr("Dispatch Request For Quotation (RFQ)")}</Text>
+                <Text style={s.modalSubtitle}>{tr("PO #")}{selectedPo?._id?.slice(-5)?.toUpperCase()}</Text>
               </View>
               <TouchableOpacity onPress={() => setIsRfqOpen(false)} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -1507,7 +1507,7 @@ Thank you.`);
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Target Vendors ({vendors.length} registered)</Text>
+              <Text style={s.label}>{tr("Target Vendors (")}{vendors.length}{tr(" registered)")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginVertical: 6 }}>
                 {vendors.map((v) => {
                   const isSel = rfqVendors.includes(v._id);
@@ -1522,17 +1522,17 @@ Thank you.`);
                       }}
                     >
                       <Ionicons name={isSel ? 'checkmark' : 'add'} size={12} color={isSel ? '#FFFFFF' : '#475569'} />
-                      <Text style={[s.vendorChipText, isSel && s.vendorChipTextActive]}>{v.name}</Text>
+                      <Text style={[s.vendorChipText, isSel && s.vendorChipTextActive]}>{tr(v.name)}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
 
-              <Text style={s.label}>Commercial Notes & Terms</Text>
+              <Text style={s.label}>{tr("Commercial Notes & Terms")}</Text>
               <TextInput
                 style={[s.input, { height: 75, textAlignVertical: 'top' }]}
                 multiline
-                placeholder="e.g. Please quote inclusive of delivery to site by Friday. Payment terms 30 days."
+                placeholder={tr("e.g. Please quote inclusive of delivery to site by Friday. Payment terms 30 days.")}
                 placeholderTextColor="#94A3B8"
                 value={rfqNotes}
                 onChangeText={setRfqNotes}
@@ -1546,7 +1546,7 @@ Thank you.`);
                 {sendingRfq ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={s.saveBtnText}>Send Quotation Requests</Text>
+                  <Text style={s.saveBtnText}>{tr("Send Quotation Requests")}</Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -1562,8 +1562,8 @@ Thank you.`);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>Goods Received Note (GRN)</Text>
-                <Text style={s.modalSubtitle}>Verify incoming delivery against PO items</Text>
+                <Text style={s.modalTitle}>{tr("Goods Received Note (GRN)")}</Text>
+                <Text style={s.modalSubtitle}>{tr("Verify incoming delivery against PO items")}</Text>
               </View>
               <TouchableOpacity onPress={() => setIsGrnOpen(false)} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -1571,26 +1571,26 @@ Thank you.`);
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Delivery Challan / Invoice # *</Text>
+              <Text style={s.label}>{tr("Delivery Challan / Invoice # *")}</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. DC-9842 / INV-402"
+                placeholder={tr("e.g. DC-9842 / INV-402")}
                 placeholderTextColor="#94A3B8"
                 value={grnChallan}
                 onChangeText={setGrnChallan}
               />
 
-              <Text style={[s.label, { marginTop: 12 }]}>Inward Items Verification</Text>
+              <Text style={[s.label, { marginTop: 12 }]}>{tr("Inward Items Verification")}</Text>
               {grnReceivedItems.map((item, idx) => (
                 <View key={idx} style={s.grnItemRow}>
                   <View style={{ flex: 1.5 }}>
-                    <Text style={s.grnItemTitle}>{item.name}</Text>
+                    <Text style={s.grnItemTitle}>{tr(item.name)}</Text>
                     <Text style={s.grnItemSub}>
-                      Ordered: {item.orderedQuantity} {item.unit} · Prev: {item.previouslyReceived}
+                      {tr("Ordered: ")}{tr(item.orderedQuantity)} {tr(item.unit)}{tr(" · Prev: ")}{tr(item.previouslyReceived)}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.miniLabel}>Received Now</Text>
+                    <Text style={s.miniLabel}>{tr("Received Now")}</Text>
                     <TextInput
                       style={s.inputSm}
                       keyboardType="numeric"
@@ -1605,10 +1605,10 @@ Thank you.`);
                 </View>
               ))}
 
-              <Text style={[s.label, { marginTop: 12 }]}>Received By</Text>
+              <Text style={[s.label, { marginTop: 12 }]}>{tr("Received By")}</Text>
               <TextInput
                 style={s.input}
-                placeholder="Name of person receiving delivery"
+                placeholder={tr("Name of person receiving delivery")}
                 placeholderTextColor="#94A3B8"
                 value={grnReceivedBy}
                 onChangeText={setGrnReceivedBy}
@@ -1617,7 +1617,7 @@ Thank you.`);
               {/* Photo Attachments — side by side, matching web's split challan/invoice viewer */}
               <View style={{ marginTop: 12, flexDirection: 'row', gap: 10 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Delivery Challan Photo</Text>
+                  <Text style={s.label}>{tr("Delivery Challan Photo")}</Text>
                   {grnProofPhoto ? (
                     <View style={s.grnProofBox}>
                       <Image source={{ uri: grnProofPhoto }} style={s.grnProofImg} />
@@ -1628,13 +1628,13 @@ Thank you.`);
                   ) : (
                     <TouchableOpacity style={s.photoPickerBoxSm} onPress={() => handlePickGrnPhoto('proof')}>
                       <Ionicons name="camera-outline" size={20} color="#2563EB" />
-                      <Text style={s.photoPickerBoxSmText}>Attach Challan</Text>
+                      <Text style={s.photoPickerBoxSmText}>{tr("Attach Challan")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Vendor Invoice Photo</Text>
+                  <Text style={s.label}>{tr("Vendor Invoice Photo")}</Text>
                   {grnInvoicePhoto ? (
                     <View style={s.grnProofBox}>
                       <Image source={{ uri: grnInvoicePhoto }} style={s.grnProofImg} />
@@ -1645,7 +1645,7 @@ Thank you.`);
                   ) : (
                     <TouchableOpacity style={s.photoPickerBoxSm} onPress={() => handlePickGrnPhoto('invoice')}>
                       <Ionicons name="receipt-outline" size={20} color="#2563EB" />
-                      <Text style={s.photoPickerBoxSmText}>Attach Invoice</Text>
+                      <Text style={s.photoPickerBoxSmText}>{tr("Attach Invoice")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -1659,7 +1659,7 @@ Thank you.`);
                 {submittingGrn ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={s.saveBtnText}>Verify & Inward to Inventory</Text>
+                  <Text style={s.saveBtnText}>{tr("Verify & Inward to Inventory")}</Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -1675,8 +1675,8 @@ Thank you.`);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>Approve & Select Vendor</Text>
-                <Text style={s.modalSubtitle}>Lock final rates and assign the vendor before approving</Text>
+                <Text style={s.modalTitle}>{tr("Approve & Select Vendor")}</Text>
+                <Text style={s.modalSubtitle}>{tr("Lock final rates and assign the vendor before approving")}</Text>
               </View>
               <TouchableOpacity onPress={() => setIsApproveOpen(false)} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -1684,24 +1684,24 @@ Thank you.`);
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Assigned Vendor *</Text>
+              <Text style={s.label}>{tr("Assigned Vendor *")}</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. Century Ply & Hardware Hub"
+                placeholder={tr("e.g. Century Ply & Hardware Hub")}
                 placeholderTextColor="#94A3B8"
                 value={approveVendorName}
                 onChangeText={setApproveVendorName}
               />
 
-              <Text style={[s.label, { marginTop: 12 }]}>Final Locked Rates</Text>
+              <Text style={[s.label, { marginTop: 12 }]}>{tr("Final Locked Rates")}</Text>
               {approveItems.map((item, idx) => (
                 <View key={idx} style={s.grnItemRow}>
                   <View style={{ flex: 1.5 }}>
-                    <Text style={s.grnItemTitle}>{item.name}</Text>
-                    <Text style={s.grnItemSub}>{item.quantity} {item.unit}</Text>
+                    <Text style={s.grnItemTitle}>{tr(item.name)}</Text>
+                    <Text style={s.grnItemSub}>{item.quantity} {tr(item.unit)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.miniLabel}>Rate ₹ / {item.unit}</Text>
+                    <Text style={s.miniLabel}>{tr("Rate (")}{orgCurrency.code}) / {tr(item.unit)}</Text>
                     <TextInput
                       style={s.inputSm}
                       keyboardType="numeric"
@@ -1713,7 +1713,7 @@ Thank you.`);
               ))}
 
               <View style={s.poTotalRow}>
-                <Text style={s.poTotalLabel}>Approved Total Value:</Text>
+                <Text style={s.poTotalLabel}>{tr("Approved Total Value:")}</Text>
                 <Text style={s.poTotalVal}>
                   {formatCost(approveItems.reduce((s2, it) => s2 + (parseInt(it.quantity, 10) || 0) * (parseFloat(it.unitPrice) || 0), 0))}
                 </Text>
@@ -1724,7 +1724,7 @@ Thank you.`);
                 onPress={handleApprovePo}
                 disabled={submittingApproval}
               >
-                {submittingApproval ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Approve Purchase Order</Text>}
+                {submittingApproval ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Approve Purchase Order")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1739,8 +1739,8 @@ Thank you.`);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>Pay Vendor</Text>
-                <Text style={s.modalSubtitle}>{payingPo?.vendorName} · {payingPo?.poNumber || payingPo?._id}</Text>
+                <Text style={s.modalTitle}>{tr("Pay Vendor")}</Text>
+                <Text style={s.modalSubtitle}>{tr(payingPo?.vendorName)} · {payingPo?.poNumber || payingPo?._id}</Text>
               </View>
               <TouchableOpacity onPress={() => setIsPayOpen(false)} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -1751,15 +1751,15 @@ Thank you.`);
               {payingPo && (
                 <View style={s.paySummaryBox}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.miniLabel}>Order Value</Text>
+                    <Text style={s.miniLabel}>{tr("Order Value")}</Text>
                     <Text style={s.paySummaryVal}>{formatCost(getPoAmount(payingPo))}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.miniLabel}>Already Paid</Text>
+                    <Text style={s.miniLabel}>{tr("Already Paid")}</Text>
                     <Text style={s.paySummaryVal}>{formatCost(getPoPaidAmount(payingPo))}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.miniLabel}>Remaining</Text>
+                    <Text style={s.miniLabel}>{tr("Remaining")}</Text>
                     <Text style={[s.paySummaryVal, { color: '#DC2626' }]}>
                       {formatCost(Math.max(0, getPoAmount(payingPo) - getPoPaidAmount(payingPo)))}
                     </Text>
@@ -1767,10 +1767,10 @@ Thank you.`);
                 </View>
               )}
               <Text style={s.smartHint}>
-                Suggested amount is auto-calculated from the value of goods actually received so far, so you don't overpay for partial deliveries.
+                {tr("Suggested amount is auto-calculated from the value of goods actually received so far, so you don't overpay for partial deliveries.")}
               </Text>
 
-              <Text style={s.label}>Payment Amount (₹) *</Text>
+              <Text style={s.label}>{tr("Payment Amount (")}{orgCurrency.code}) *</Text>
               <TextInput
                 style={s.input}
                 keyboardType="numeric"
@@ -1780,25 +1780,25 @@ Thank you.`);
                 onChangeText={(t) => setPayForm((f) => ({ ...f, amount: t }))}
               />
 
-              <Text style={s.label}>Payment Mode</Text>
+              <Text style={s.label}>{tr("Payment Mode")}</Text>
               <View style={s.pillWrap}>
                 {PAYMENT_METHODS.map((m) => (
                   <TouchableOpacity key={m} style={[s.pill, payForm.paymentMethod === m && s.pillActive]} onPress={() => setPayForm((f) => ({ ...f, paymentMethod: m }))}>
-                    <Text style={[s.pillText, payForm.paymentMethod === m && s.pillTextActive]}>{m}</Text>
+                    <Text style={[s.pillText, payForm.paymentMethod === m && s.pillTextActive]}>{tr(m)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.label}>Ref / UTR Number *</Text>
+              <Text style={s.label}>{tr("Ref / UTR Number *")}</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. UTR-9812401"
+                placeholder={tr("e.g. UTR-9812401")}
                 placeholderTextColor="#94A3B8"
                 value={payForm.referenceNo}
                 onChangeText={(t) => setPayForm((f) => ({ ...f, referenceNo: t }))}
               />
 
-              <Text style={s.label}>Remarks</Text>
+              <Text style={s.label}>{tr("Remarks")}</Text>
               <TextInput
                 style={[s.input, { height: 60, textAlignVertical: 'top' }]}
                 multiline
@@ -1807,28 +1807,28 @@ Thank you.`);
                 onChangeText={(t) => setPayForm((f) => ({ ...f, remarks: t }))}
               />
 
-              <Text style={s.label}>Project Name</Text>
+              <Text style={s.label}>{tr("Project Name")}</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. Skyline Residency"
+                placeholder={tr("e.g. Skyline Residency")}
                 placeholderTextColor="#94A3B8"
                 value={payForm.projectName}
                 onChangeText={(t) => setPayForm((f) => ({ ...f, projectName: t }))}
               />
 
-              <Text style={s.label}>Project Location</Text>
+              <Text style={s.label}>{tr("Project Location")}</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. Mumbai, MH"
+                placeholder={tr("e.g. Mumbai, MH")}
                 placeholderTextColor="#94A3B8"
                 value={payForm.projectLocation}
                 onChangeText={(t) => setPayForm((f) => ({ ...f, projectLocation: t }))}
               />
 
-              <Text style={s.label}>Invoice No.</Text>
+              <Text style={s.label}>{tr("Invoice No.")}</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. INV-2023-001"
+                placeholder={tr("e.g. INV-2023-001")}
                 placeholderTextColor="#94A3B8"
                 value={payForm.invoiceNo}
                 onChangeText={(t) => setPayForm((f) => ({ ...f, invoiceNo: t }))}
@@ -1839,7 +1839,7 @@ Thank you.`);
                 onPress={handleSubmitPayment}
                 disabled={submittingPayment}
               >
-                {submittingPayment ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Record Payment</Text>}
+                {submittingPayment ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Record Payment")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1854,8 +1854,8 @@ Thank you.`);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>Log Installation</Text>
-                <Text style={s.modalSubtitle}>{selectedStock?.name}</Text>
+                <Text style={s.modalTitle}>{tr("Log Installation")}</Text>
+                <Text style={s.modalSubtitle}>{tr(selectedStock?.name)}</Text>
               </View>
               <TouchableOpacity onPress={() => setSelectedStock(null)} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -1863,8 +1863,8 @@ Thank you.`);
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Available In Stock: {selectedStock?.quantity} {selectedStock?.unit}</Text>
-              <Text style={s.label}>Quantity to Install *</Text>
+              <Text style={s.label}>{tr("Available In Stock: ")}{selectedStock?.quantity} {tr(selectedStock?.unit)}</Text>
+              <Text style={s.label}>{tr("Quantity to Install *")}</Text>
               <TextInput
                 style={s.input}
                 keyboardType="numeric"
@@ -1874,11 +1874,11 @@ Thank you.`);
                 onChangeText={setInstallQty}
               />
 
-              <Text style={s.label}>Installation Location & Remarks</Text>
+              <Text style={s.label}>{tr("Installation Location & Remarks")}</Text>
               <TextInput
                 style={[s.input, { height: 75, textAlignVertical: 'top' }]}
                 multiline
-                placeholder="e.g. Installed in Master Bedroom wardrobe carcasses."
+                placeholder={tr("e.g. Installed in Master Bedroom wardrobe carcasses.")}
                 placeholderTextColor="#94A3B8"
                 value={installNotes}
                 onChangeText={setInstallNotes}
@@ -1892,7 +1892,7 @@ Thank you.`);
                 {loggingInstall ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={s.saveBtnText}>Record Installation & Deduct Stock</Text>
+                  <Text style={s.saveBtnText}>{tr("Record Installation & Deduct Stock")}</Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -1909,8 +1909,8 @@ Thank you.`);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>{editingMaterialId ? 'Edit Material' : 'Add Site Material'}</Text>
-                <Text style={s.modalSubtitle}>{editingMaterialId ? 'Update material details' : 'Register direct inventory stock'}</Text>
+                <Text style={s.modalTitle}>{editingMaterialId ? tr("Edit Material") : tr("Add Site Material")}</Text>
+                <Text style={s.modalSubtitle}>{editingMaterialId ? tr("Update material details") : tr("Register direct inventory stock")}</Text>
               </View>
               <TouchableOpacity onPress={() => setIsCreateMaterialOpen(false)} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -1918,25 +1918,25 @@ Thank you.`);
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Material Name *</Text>
+              <Text style={s.label}>{tr("Material Name *")}</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. 12mm Greenlam Charcoal Laminate"
+                placeholder={tr("e.g. 12mm Greenlam Charcoal Laminate")}
                 placeholderTextColor="#94A3B8"
                 value={matName}
                 onChangeText={setMatName}
               />
 
-              <Text style={s.label}>Unit of Measurement</Text>
+              <Text style={s.label}>{tr("Unit of Measurement")}</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. Sheets, Bags, Boxes, Rft"
+                placeholder={tr("e.g. Sheets, Bags, Boxes, Rft")}
                 placeholderTextColor="#94A3B8"
                 value={matUnit}
                 onChangeText={setMatUnit}
               />
 
-              <Text style={s.label}>{editingMaterialId ? 'Initial Stock (Current Available)' : 'Initial Stock (Default: 0)'}</Text>
+              <Text style={s.label}>{editingMaterialId ? tr("Initial Stock (Current Available)") : tr("Initial Stock (Default: 0)")}</Text>
               <TextInput
                 style={[s.input, editingMaterialId && { backgroundColor: '#F1F5F9', color: '#64748B' }]}
                 keyboardType="numeric"
@@ -1948,7 +1948,7 @@ Thank you.`);
               />
               {!!editingMaterialId && (
                 <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8', marginTop: -4, marginBottom: 8 }}>
-                  Stock is updated by deliveries (GRN) and installations, not by editing the material.
+                  {tr("Stock is updated by deliveries (GRN) and installations, not by editing the material.")}
                 </Text>
               )}
 
@@ -1960,7 +1960,7 @@ Thank you.`);
                 {creatingMaterial ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={s.saveBtnText}>{editingMaterialId ? 'Update Material' : 'Add Material to Inventory'}</Text>
+                  <Text style={s.saveBtnText}>{editingMaterialId ? tr("Update Material") : tr("Add Material to Inventory")}</Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -1976,8 +1976,8 @@ Thank you.`);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={s.modalTitle}>{selectedPo?.poNumber || 'Purchase Order'}</Text>
-                <Text style={s.modalSubtitle}>{selectedPo?.vendorName || 'Unassigned Vendor'}</Text>
+                <Text style={s.modalTitle}>{selectedPo?.poNumber || tr("Purchase Order")}</Text>
+                <Text style={s.modalSubtitle}>{selectedPo?.vendorName || tr("Unassigned Vendor")}</Text>
               </View>
               <TouchableOpacity onPress={() => setSelectedPo(null)} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -1989,7 +1989,7 @@ Thank you.`);
                 <View style={s.poMetaBox}>
                   <Ionicons name="calendar-outline" size={14} color="#2563EB" />
                   <Text style={s.poMetaText}>
-                    Target Delivery:{' '}
+                    {tr("Target Delivery:")}{' '}
                     <Text style={{ fontFamily: 'Inter-SemiBold', color: '#0F172A' }}>
                       {new Date(selectedPo.deliveryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </Text>
@@ -1997,7 +1997,7 @@ Thank you.`);
                 </View>
               )}
 
-              <Text style={s.label}>Current Pipeline Stage</Text>
+              <Text style={s.label}>{tr("Current Pipeline Stage")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginVertical: 6 }}>
                 {PIPELINES.map((p) => (
                   <TouchableOpacity
@@ -2016,7 +2016,7 @@ Thank you.`);
                     disabled={updatingPo}
                   >
                     <Text style={[s.stageChipText, selectedPo?.status === p.key && { color: '#FFFFFF', fontFamily: 'Inter-Bold' }]}>
-                      {p.label}
+                      {tr(p.label)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -2027,9 +2027,9 @@ Thank you.`);
                 <View style={s.quotesSection}>
                   <View style={s.quotesHeaderRow}>
                     <Ionicons name="pricetags" size={15} color="#2563EB" />
-                    <Text style={s.quotesHeaderTitle}>Supplier Quotations ({selectedPo.quotes.length})</Text>
+                    <Text style={s.quotesHeaderTitle}>{tr("Supplier Quotations (")}{selectedPo.quotes.length})</Text>
                   </View>
-                  <Text style={s.quotesSubtext}>Compare rates received from suppliers and award the PO.</Text>
+                  <Text style={s.quotesSubtext}>{tr("Compare rates received from suppliers and award the PO.")}</Text>
 
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.quotesCardScroll}>
                     {(() => {
@@ -2054,13 +2054,13 @@ Thank you.`);
                           <View key={qIdx} style={[s.quoteCard, isLowest && s.quoteCardLowest]}>
                             <View style={s.quoteCardHeader}>
                               <View style={{ flex: 1 }}>
-                                <Text style={s.quoteSupplierBadge}>Supplier {qIdx + 1}</Text>
-                                <Text style={s.quoteVendorName} numberOfLines={1}>{quote.vendorName || 'Vendor'}</Text>
+                                <Text style={s.quoteSupplierBadge}>{tr("Supplier ")}{qIdx + 1}</Text>
+                                <Text style={s.quoteVendorName} numberOfLines={1}>{quote.vendorName || tr("Vendor")}</Text>
                               </View>
                               {isLowest && (
                                 <View style={s.lowestBadge}>
                                   <Ionicons name="sparkles" size={10} color="#059669" />
-                                  <Text style={s.lowestBadgeText}>Lowest</Text>
+                                  <Text style={s.lowestBadgeText}>{tr("Lowest")}</Text>
                                 </View>
                               )}
                             </View>
@@ -2070,7 +2070,7 @@ Thank you.`);
                                 const rate = (quote.rates || []).find((r) => r.itemId === (item._id || item.id) || r.name === item.name);
                                 return (
                                   <View key={itemIdx} style={s.quoteRateRow}>
-                                    <Text style={s.quoteItemName} numberOfLines={1}>{item.name}</Text>
+                                    <Text style={s.quoteItemName} numberOfLines={1}>{tr(item.name)}</Text>
                                     <Text style={s.quoteItemRate}>
                                       {rate ? `${formatCost(rate.unitPrice)}/${item.unit || 'nos'}` : '—'}
                                     </Text>
@@ -2080,7 +2080,7 @@ Thank you.`);
                             </View>
 
                             <View style={s.quoteTotalRow}>
-                              <Text style={s.quoteTotalLabel}>Total Quote:</Text>
+                              <Text style={s.quoteTotalLabel}>{tr("Total Quote:")}</Text>
                               <Text style={[s.quoteTotalVal, isLowest && { color: '#059669' }]}>
                                 {formatCost(myTotal)}
                               </Text>
@@ -2098,7 +2098,7 @@ Thank you.`);
                                   <>
                                     <Ionicons name="trophy-outline" size={13} color={isLowest ? '#FFFFFF' : '#2563EB'} />
                                     <Text style={[s.awardBtnText, isLowest && s.awardBtnTextLowest]}>
-                                      {isLowest ? 'Award PO' : 'Award'}
+                                      {isLowest ? tr("Award PO") : tr("Award")}
                                     </Text>
                                   </>
                                 )}
@@ -2119,25 +2119,25 @@ Thank you.`);
                   <View style={[s.rfqLinkBox, !active && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Text style={[s.rfqLinkTitle, !active && { color: '#64748B' }]}>
-                        {active ? 'Public RFQ Link Active' : 'RFQ Link Expired'}
+                        {active ? tr("Public RFQ Link Active") : tr("RFQ Link Expired")}
                       </Text>
-                      {!active && <Text style={s.rfqLinkBadge}>Deactivated</Text>}
+                      {!active && <Text style={s.rfqLinkBadge}>{tr("Deactivated")}</Text>}
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={s.rfqLinkUrl} numberOfLines={1}>{link}</Text>
+                      <Text style={s.rfqLinkUrl} numberOfLines={1}>{tr(link)}</Text>
                       <TouchableOpacity
                         style={[s.rfqLinkBtn, !active && { opacity: 0.4 }]}
                         disabled={!active}
                         onPress={async () => {
                           await Clipboard.setStringAsync(link);
-                          showToast('Link copied!', 'success');
+                          showToast(tr("Link copied!"), 'success');
                         }}
                       >
-                        <Text style={s.rfqLinkBtnText}>Copy</Text>
+                        <Text style={s.rfqLinkBtnText}>{tr("Copy")}</Text>
                       </TouchableOpacity>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <Text style={s.rfqLinkHint}>{active ? 'Vendors can currently submit quotes' : 'No longer accepting quotes'}</Text>
+                      <Text style={s.rfqLinkHint}>{active ? tr("Vendors can currently submit quotes") : tr("No longer accepting quotes")}</Text>
                       {canDo('procurement', 'update') && (
                         <TouchableOpacity
                           style={[s.rfqLinkBtn, active ? { backgroundColor: '#DC2626', borderColor: '#DC2626' } : null]}
@@ -2147,7 +2147,7 @@ Thank you.`);
                           {togglingLink ? (
                             <ActivityIndicator size="small" color={active ? '#FFFFFF' : '#4F46E5'} />
                           ) : (
-                            <Text style={[s.rfqLinkBtnText, active && { color: '#FFFFFF' }]}>{active ? 'Force Expire Now' : 'Reactivate Link'}</Text>
+                            <Text style={[s.rfqLinkBtnText, active && { color: '#FFFFFF' }]}>{active ? tr("Force Expire Now") : tr("Reactivate Link")}</Text>
                           )}
                         </TouchableOpacity>
                       )}
@@ -2160,9 +2160,9 @@ Thank you.`);
                 <View style={s.awaitingQuotesBox}>
                   <Ionicons name="time-outline" size={18} color="#6366F1" />
                   <View style={{ flex: 1 }}>
-                    <Text style={s.awaitingQuotesTitle}>Awaiting Supplier Quotations</Text>
+                    <Text style={s.awaitingQuotesTitle}>{tr("Awaiting Supplier Quotations")}</Text>
                     <Text style={s.awaitingQuotesSub}>
-                      Quotation request has been dispatched. Quotes submitted by suppliers will appear here for comparison and awarding.
+                      {tr("Quotation request has been dispatched. Quotes submitted by suppliers will appear here for comparison and awarding.")}
                     </Text>
                   </View>
                 </View>
@@ -2177,7 +2177,7 @@ Thank you.`);
                 return (
                   <>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 6 }}>
-                      <Text style={s.label}>Ordered Line Items ({itemsToRender.length})</Text>
+                      <Text style={s.label}>{tr("Ordered Line Items (")}{itemsToRender.length})</Text>
                       {canEditRates ? (
                         canDo('procurement', 'update') && (
                           <TouchableOpacity
@@ -2190,7 +2190,7 @@ Thank you.`);
                             ) : (
                               <>
                                 <Ionicons name="save-outline" size={13} color="#2563EB" />
-                                <Text style={s.saveRatesBtnText}>Save Rates</Text>
+                                <Text style={s.saveRatesBtnText}>{tr("Save Rates")}</Text>
                               </>
                             )}
                           </TouchableOpacity>
@@ -2198,7 +2198,7 @@ Thank you.`);
                       ) : (
                         <View style={s.ratesLockedBadge}>
                           <Ionicons name="lock-closed" size={11} color="#64748B" />
-                          <Text style={s.ratesLockedText}>Rates Locked</Text>
+                          <Text style={s.ratesLockedText}>{tr("Rates Locked")}</Text>
                         </View>
                       )}
                     </View>
@@ -2211,15 +2211,15 @@ Thank you.`);
                       return (
                         <View key={i} style={s.poDetailItemRow}>
                           <View style={{ flex: 1, marginRight: 8 }}>
-                            <Text style={s.poDetailItemTitle}>{it.name}</Text>
+                            <Text style={s.poDetailItemTitle}>{tr(it.name)}</Text>
                             <Text style={s.poDetailItemSub}>
-                              Quantity: {qty} {it.unit || 'nos'}
+                              {tr("Quantity: ")}{qty} {it.unit || tr("nos")}
                             </Text>
                           </View>
                           {canEditRates ? (
                             <View style={{ alignItems: 'flex-end', gap: 4 }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#64748B' }}>₹</Text>
+                                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#64748B' }}>{tr(orgCurrency.symbol)}</Text>
                                 <TextInput
                                   style={s.rateInput}
                                   keyboardType="numeric"
@@ -2228,14 +2228,14 @@ Thank you.`);
                                   placeholder="0"
                                   placeholderTextColor="#94A3B8"
                                 />
-                                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#94A3B8' }}>/{it.unit || 'nos'}</Text>
+                                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Medium', color: '#94A3B8' }}>/{it.unit || tr("nos")}</Text>
                               </View>
                               <Text style={s.itemSubtotalText}>= {formatCost(subtotal)}</Text>
                             </View>
                           ) : (
                             <View style={{ alignItems: 'flex-end' }}>
                               <Text style={s.poDetailItemSub}>
-                                @ ₹{price} / {it.unit || 'nos'}
+                                @ {formatCost(price)} / {it.unit || tr("nos")}
                               </Text>
                               <Text style={s.itemSubtotalText}>{formatCost(subtotal)}</Text>
                             </View>
@@ -2246,7 +2246,7 @@ Thank you.`);
 
                     {selectedPo?.status !== 'requested' && selectedPo?.status !== 'rfq' && (
                       <View style={s.poTotalRow}>
-                        <Text style={s.poTotalLabel}>Grand Total Value:</Text>
+                        <Text style={s.poTotalLabel}>{tr("Grand Total Value:")}</Text>
                         <Text style={s.poTotalVal}>{formatCost(grandTotal)}</Text>
                       </View>
                     )}
@@ -2256,22 +2256,22 @@ Thank you.`);
 
               {selectedPo && selectedPo?.status !== 'requested' && selectedPo?.status !== 'rfq' && (
                 <View style={s.poTotalRow}>
-                  <Text style={s.poTotalLabel}>Paid to Vendor:</Text>
+                  <Text style={s.poTotalLabel}>{tr("Paid to Vendor:")}</Text>
                   <Text style={[s.poTotalVal, { color: getPoPaymentStatus(selectedPo).color }]}>
-                    {formatCost(getPoPaidAmount(selectedPo))} ({getPoPaymentStatus(selectedPo).label})
+                    {formatCost(getPoPaidAmount(selectedPo))} ({tr(getPoPaymentStatus(selectedPo).label)})
                   </Text>
                 </View>
               )}
 
               {(selectedPo?.grns || []).length > 0 && (
                 <>
-                  <Text style={[s.label, { marginTop: 14 }]}>GRN History ({selectedPo.grns.length})</Text>
+                  <Text style={[s.label, { marginTop: 14 }]}>{tr("GRN History (")}{selectedPo.grns.length})</Text>
                   {selectedPo.grns.map((grn, idx) => (
                     <View key={idx} style={s.grnHistoryRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.grnItemTitle}>Challan {grn.challanNumber || '—'}</Text>
+                        <Text style={s.grnItemTitle}>{tr("Challan ")}{grn.challanNumber || '—'}</Text>
                         <Text style={s.grnItemSub}>
-                          {grn.receivedBy ? `By ${grn.receivedBy} · ` : ''}
+                          {grn.receivedBy ? tr("By {{receivedBy}} · ", { receivedBy: grn.receivedBy }) : ''}
                           {grn.receivedAt ? new Date(grn.receivedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                         </Text>
                         <Text style={s.grnItemSub}>
@@ -2301,7 +2301,7 @@ Thank you.`);
                     <>
                       <Ionicons name="trash-outline" size={15} color="#DC2626" />
                       <Text style={s.deletePoBtnText}>
-                        {selectedPo?.status === 'requested' ? 'Delete Material Request' : 'Delete Purchase Order'}
+                        {selectedPo?.status === 'requested' ? tr("Delete Material Request") : tr("Delete Purchase Order")}
                       </Text>
                     </>
                   )}
@@ -2319,26 +2319,26 @@ Thank you.`);
         <View style={s.lightboxOverlay}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={s.lightboxHeader}>
-              <Text style={s.lightboxTitle}>Challan {viewingGrnDocs?.challanNumber || ''}</Text>
+              <Text style={s.lightboxTitle}>{tr("Challan ")}{viewingGrnDocs?.challanNumber || ''}</Text>
               <TouchableOpacity onPress={() => setViewingGrnDocs(null)} style={s.lightboxCloseBtn}>
                 <Ionicons name="close" size={22} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
             <View style={s.lightboxSplitBody}>
               <View style={s.lightboxSplitPane}>
-                <Text style={s.lightboxPaneLabel}>Delivery Challan</Text>
+                <Text style={s.lightboxPaneLabel}>{tr("Delivery Challan")}</Text>
                 {viewingGrnDocs?.proofUrl ? (
                   <Image source={{ uri: viewingGrnDocs.proofUrl }} style={s.lightboxSplitImage} resizeMode="contain" />
                 ) : (
-                  <Text style={s.lightboxPaneEmpty}>No challan photo</Text>
+                  <Text style={s.lightboxPaneEmpty}>{tr("No challan photo")}</Text>
                 )}
               </View>
               <View style={s.lightboxSplitPane}>
-                <Text style={s.lightboxPaneLabel}>Vendor Invoice</Text>
+                <Text style={s.lightboxPaneLabel}>{tr("Vendor Invoice")}</Text>
                 {viewingGrnDocs?.invoiceUrl ? (
                   <Image source={{ uri: viewingGrnDocs.invoiceUrl }} style={s.lightboxSplitImage} resizeMode="contain" />
                 ) : (
-                  <Text style={s.lightboxPaneEmpty}>No invoice photo</Text>
+                  <Text style={s.lightboxPaneEmpty}>{tr("No invoice photo")}</Text>
                 )}
               </View>
             </View>

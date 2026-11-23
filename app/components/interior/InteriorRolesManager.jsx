@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // =============================================================================
 // Interior — Roles & Permissions manager (live roles, editable)
 // Same rules as the web Roles tab (InteriorRolesManager.tsx):
@@ -100,7 +101,7 @@ function RoleEditor({ role, visible, onClose, onSaved }) {
   const enabledModules = PERMISSION_MODULES.filter((m) => (matrix[m.key] || []).length > 0).length;
 
   const handleSave = async () => {
-    if (!name.trim()) return showToast('Role name is required', 'error');
+    if (!name.trim()) return showToast(tr("Role name is required"), 'error');
     setSaving(true);
     try {
       const permissions = fromMatrix(matrix);
@@ -110,15 +111,15 @@ function RoleEditor({ role, visible, onClose, onSaved }) {
           description: description.trim(),
           permissions,
         });
-        showToast('Role updated', 'success');
+        showToast(tr("Role updated"), 'success');
       } else {
         await interiorApiClient.post('/roles', { name: name.trim(), description: description.trim(), permissions });
-        showToast('Role created', 'success');
+        showToast(tr("Role created"), 'success');
       }
       onSaved();
       onClose();
     } catch (e) {
-      showToast(e.message || 'Failed to save role', 'error'); // the server's reason
+      showToast(e.message || tr("Failed to save role"), 'error'); // the server's reason
     } finally {
       setSaving(false);
     }
@@ -130,8 +131,8 @@ function RoleEditor({ role, visible, onClose, onSaved }) {
         <View style={s.sheet}>
           <View style={s.sheetHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={s.sheetTitle}>{isEdit ? 'Edit Role' : 'New Role'}</Text>
-              <Text style={s.sheetSub}>{enabledModules} of {PERMISSION_MODULES.length} modules enabled</Text>
+              <Text style={s.sheetTitle}>{isEdit ? tr("Edit Role") : tr("New Role")}</Text>
+              <Text style={s.sheetSub}>{tr(enabledModules)}{tr(" of ")}{PERMISSION_MODULES.length}{tr(" modules enabled")}</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={22} color="#64748B" />
@@ -139,36 +140,36 @@ function RoleEditor({ role, visible, onClose, onSaved }) {
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
-            <Text style={s.label}>Role name</Text>
+            <Text style={s.label}>{tr("Role name")}</Text>
             <TextInput
               value={name}
               onChangeText={setName}
               editable={!(isEdit && role.isSystem)}
-              placeholder="e.g. Site Supervisor"
+              placeholder={tr("e.g. Site Supervisor")}
               placeholderTextColor="#94A3B8"
               style={[s.input, isEdit && role.isSystem && { opacity: 0.6 }]}
             />
-            {isEdit && role.isSystem && <Text style={s.hint}>Built-in roles can&apos;t be renamed.</Text>}
-            <Text style={[s.label, { marginTop: 12 }]}>Description</Text>
+            {isEdit && role.isSystem && <Text style={s.hint}>{tr("Built-in roles can't be renamed.")}</Text>}
+            <Text style={[s.label, { marginTop: 12 }]}>{tr("Description")}</Text>
             <TextInput
               value={description}
               onChangeText={setDescription}
-              placeholder="Brief summary of what this role does"
+              placeholder={tr("Brief summary of what this role does")}
               placeholderTextColor="#94A3B8"
               style={s.input}
             />
 
             <View style={s.presetRow}>
-              <TouchableOpacity style={s.presetBtn} onPress={() => applyPreset('read')}><Text style={s.presetText}>Read Only</Text></TouchableOpacity>
-              <TouchableOpacity style={[s.presetBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => applyPreset('full')}><Text style={[s.presetText, { color: '#2563EB' }]}>Full Access</Text></TouchableOpacity>
-              <TouchableOpacity style={[s.presetBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]} onPress={() => applyPreset('clear')}><Text style={[s.presetText, { color: '#DC2626' }]}>Clear All</Text></TouchableOpacity>
+              <TouchableOpacity style={s.presetBtn} onPress={() => applyPreset('read')}><Text style={s.presetText}>{tr("Read Only")}</Text></TouchableOpacity>
+              <TouchableOpacity style={[s.presetBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => applyPreset('full')}><Text style={[s.presetText, { color: '#2563EB' }]}>{tr("Full Access")}</Text></TouchableOpacity>
+              <TouchableOpacity style={[s.presetBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]} onPress={() => applyPreset('clear')}><Text style={[s.presetText, { color: '#DC2626' }]}>{tr("Clear All")}</Text></TouchableOpacity>
             </View>
 
             {MODULE_CATEGORIES.map((category) => (
               <View key={category} style={s.categoryBox}>
-                <Text style={s.categoryTitle}>{category}</Text>
+                <Text style={s.categoryTitle}>{tr(category)}</Text>
                 {category === 'Project Execution' && (
-                  <Text style={s.categoryHint}>Project Config → View is turned on automatically with any project module — it&apos;s needed to open a project.</Text>
+                  <Text style={s.categoryHint}>{tr("Project Config → View is turned on automatically with any project module — it's needed to open a project.")}</Text>
                 )}
                 {PERMISSION_MODULES.filter((m) => m.category === category).map((mod) => {
                   const offered = moduleActions(mod.key);
@@ -177,12 +178,12 @@ function RoleEditor({ role, visible, onClose, onSaved }) {
                   return (
                     <View key={mod.key} style={s.moduleRow}>
                       <View style={s.moduleHead}>
-                        <Text style={s.moduleLabel}>{mod.label}</Text>
+                        <Text style={s.moduleLabel}>{tr(mod.label)}</Text>
                         <TouchableOpacity
                           style={[s.fullChip, full && s.fullChipOn, count > 0 && !full && s.fullChipPartial]}
                           onPress={() => toggleFull(mod.key)}
                         >
-                          <Text style={[s.fullChipText, (full || count > 0) && { color: full ? '#FFFFFF' : '#2563EB' }]}>Full</Text>
+                          <Text style={[s.fullChipText, (full || count > 0) && { color: full ? '#FFFFFF' : '#2563EB' }]}>{tr("Full")}</Text>
                         </TouchableOpacity>
                       </View>
                       <View style={s.actionWrap}>
@@ -194,7 +195,7 @@ function RoleEditor({ role, visible, onClose, onSaved }) {
                               onPress={() => toggle(mod.key, a.key)}
                               style={[s.actionChip, on && { backgroundColor: ACTION_COLORS[a.key], borderColor: ACTION_COLORS[a.key] }]}
                             >
-                              <Text style={[s.actionChipText, on && { color: '#FFFFFF' }]}>{a.label}</Text>
+                              <Text style={[s.actionChipText, on && { color: '#FFFFFF' }]}>{tr(a.label)}</Text>
                             </TouchableOpacity>
                           );
                         })}
@@ -207,9 +208,9 @@ function RoleEditor({ role, visible, onClose, onSaved }) {
           </ScrollView>
 
           <View style={s.sheetFooter}>
-            <TouchableOpacity style={s.cancelBtn} onPress={onClose}><Text style={s.cancelText}>Cancel</Text></TouchableOpacity>
+            <TouchableOpacity style={s.cancelBtn} onPress={onClose}><Text style={s.cancelText}>{tr("Cancel")}</Text></TouchableOpacity>
             <TouchableOpacity style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
-              {saving ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveText}>{isEdit ? 'Save Changes' : 'Create Role'}</Text>}
+              {saving ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveText}>{isEdit ? tr("Save Changes") : tr("Create Role")}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -240,7 +241,7 @@ export default function InteriorRolesManager() {
       const raw = res?.data ?? res ?? [];
       setRoles(Array.isArray(raw) ? raw : []);
     } catch (e) {
-      showToast(e.message || 'Failed to load roles', 'error');
+      showToast(e.message || tr("Failed to load roles"), 'error');
     } finally {
       setLoading(false);
     }
@@ -254,18 +255,18 @@ export default function InteriorRolesManager() {
   };
 
   const confirmDelete = (role) =>
-    Alert.alert('Delete role', `Delete the "${role.name}" role? This can't be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete role"), tr("Delete the \"{{name}}\" role? This can't be undone.", { name: role.name }), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete',
+        text: tr("Delete"),
         style: 'destructive',
         onPress: async () => {
           try {
             await interiorApiClient.delete(`/roles/${role._id}`);
-            showToast('Role deleted', 'success');
+            showToast(tr("Role deleted"), 'success');
             onChanged();
           } catch (e) {
-            showToast(e.message || 'Failed to delete role', 'error');
+            showToast(e.message || tr("Failed to delete role"), 'error');
           }
         },
       },
@@ -282,7 +283,7 @@ export default function InteriorRolesManager() {
       {canCreate && (
         <TouchableOpacity style={s.newRoleBtn} onPress={() => setEditing(null)}>
           <Ionicons name="add-circle-outline" size={18} color="#2563EB" />
-          <Text style={s.newRoleText}>New Role</Text>
+          <Text style={s.newRoleText}>{tr("New Role")}</Text>
         </TouchableOpacity>
       )}
 
@@ -297,10 +298,10 @@ export default function InteriorRolesManager() {
                 <Ionicons name={locked ? 'lock-closed-outline' : 'shield-outline'} size={17} color={locked ? '#E11D48' : '#64748B'} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={s.roleTitle} numberOfLines={1}>{role.name}</Text>
-                <Text style={s.roleDesc} numberOfLines={1}>{locked ? 'Full access — locked' : role.description || (role.isSystem ? 'Built-in role' : 'Custom role')}</Text>
+                <Text style={s.roleTitle} numberOfLines={1}>{tr(role.name)}</Text>
+                <Text style={s.roleDesc} numberOfLines={1}>{locked ? tr("Full access — locked") : role.description || (role.isSystem ? tr("Built-in role") : tr("Custom role"))}</Text>
               </View>
-              <Text style={s.roleCount}>{withAccess}/{PERMISSION_MODULES.length}</Text>
+              <Text style={s.roleCount}>{tr(withAccess)}/{PERMISSION_MODULES.length}</Text>
               {canUpdate && !locked && (
                 <TouchableOpacity onPress={() => setEditing(role)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                   <Ionicons name="create-outline" size={18} color="#2563EB" />
@@ -322,14 +323,14 @@ export default function InteriorRolesManager() {
                   return (
                     <View key={m.key} style={s.matrixRow}>
                       <Ionicons name={actions.length ? 'checkmark-circle' : 'remove-circle-outline'} size={13} color={actions.length ? '#059669' : '#CBD5E1'} />
-                      <Text style={[s.matrixLabel, !actions.length && { opacity: 0.4 }]} numberOfLines={1}>{m.label}</Text>
+                      <Text style={[s.matrixLabel, !actions.length && { opacity: 0.4 }]} numberOfLines={1}>{tr(m.label)}</Text>
                       <View style={s.matrixActions}>
                         {full ? (
-                          <Text style={s.fullBadge}>Full</Text>
+                          <Text style={s.fullBadge}>{tr("Full")}</Text>
                         ) : actions.length ? (
                           actions.map((a) => (
                             <Text key={a} style={[s.actionBadge, { color: ACTION_COLORS[a], borderColor: ACTION_COLORS[a] }]}>
-                              {PERMISSION_ACTIONS.find((x) => x.key === a)?.short}
+                              {tr(PERMISSION_ACTIONS.find((x) => x.key === a)?.short)}
                             </Text>
                           ))
                         ) : (

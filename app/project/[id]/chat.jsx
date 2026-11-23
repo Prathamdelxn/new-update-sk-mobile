@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Keyboard, LayoutAnimation, Dimensions, Modal, Alert, UIManager, DeviceEventEmitter } from 'react-native';
 
@@ -185,10 +186,10 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
 
   const handleDeleteMessage = async (messageId) => {
     setReactingToMsg(null);
-    Alert.alert('Delete Message', 'Are you sure you want to delete this message?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete Message"), tr("Are you sure you want to delete this message?"), [
+      { text: tr("Cancel"), style: 'cancel' },
       { 
-        text: 'Delete', 
+        text: tr("Delete"), 
         style: 'destructive',
         onPress: async () => {
           try {
@@ -198,7 +199,7 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
             });
             if (!res.ok) throw new Error('Delete failed');
           } catch (e) {
-            showToast('Failed to delete', 'error');
+            showToast(tr("Failed to delete"), 'error');
           }
         }
       }
@@ -327,7 +328,7 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
       });
     } catch (e) {
       console.error(e);
-      showToast('Action failed', 'error');
+      showToast(tr("Action failed"), 'error');
       // Remove optimistic message on error
       setMessages(prev => prev.filter(m => m._id !== optimisticMsg._id));
       setInputText(content);
@@ -351,7 +352,7 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
           </View>
         )}
         <View style={styles.messageBubbleContainer}>
-          {!isMe && <Text style={styles.senderName}>{item.senderName} • {item.senderRole}</Text>}
+          {!isMe && <Text style={styles.senderName}>{tr(item.senderName)} • {tr(item.senderRole)}</Text>}
           <TouchableOpacity 
             activeOpacity={0.9} 
             onLongPress={() => setReactingToMsg(item)}
@@ -362,10 +363,10 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
               {item.replyTo && (
                 <View style={[styles.replyQuote, isMe ? styles.myReplyQuote : styles.otherReplyQuote]}>
                   <Text style={[styles.replySender, isMe && { color: 'rgba(255,255,255,0.7)' }]} numberOfLines={1}>
-                    {item.replyTo.senderName}
+                    {tr(item.replyTo.senderName)}
                   </Text>
                   <Text style={[styles.replyText, isMe && { color: 'rgba(255,255,255,0.6)' }]} numberOfLines={1}>
-                    {item.replyTo.content || (item.replyTo.attachments?.length > 0 ? "Attachment" : "")}
+                    {item.replyTo.content || (item.replyTo.attachments?.length > 0 ? tr("Attachment") : "")}
                   </Text>
                 </View>
               )}
@@ -396,7 +397,7 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
               ))}
               <View style={{ flexDirection: 'row', alignItems: 'flex-end', flexWrap: 'wrap', gap: 4 }}>
                 {item.content ? <Text style={[styles.messageText, isMe && styles.myText]}>{item.content}</Text> : null}
-                {item.isEdited && <Text style={[styles.editedTag, isMe && { color: 'rgba(255,255,255,0.5)' }]}>(edited)</Text>}
+                {item.isEdited && <Text style={[styles.editedTag, isMe && { color: 'rgba(255,255,255,0.5)' }]}>{tr("(edited)")}</Text>}
               </View>
               
               {/* Reactions display */}
@@ -413,14 +414,14 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
                       style={[styles.reactionBadge, isMe && styles.myReactionBadge]}
                       onPress={() => handleReaction(item._id, emoji)}
                     >
-                      <Text style={styles.reactionEmoji}>{emoji}</Text>
+                      <Text style={styles.reactionEmoji}>{tr(emoji)}</Text>
                       <Text style={[styles.reactionCount, isMe && styles.myReactionCount]}>{count}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
 
-              <Text style={[styles.messageTime, isMe && styles.myTime]}>{time}</Text>
+              <Text style={[styles.messageTime, isMe && styles.myTime]}>{tr(time)}</Text>
             </AdaptiveGlass>
           </TouchableOpacity>
         </View>
@@ -505,9 +506,9 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
             <View style={styles.contextInfo}>
               <Ionicons name={replyingToMsg ? "return-up-back" : "pencil"} size={16} color="#3B82F6" />
               <View style={{ flex: 1 }}>
-                <Text style={styles.contextLabel}>{replyingToMsg ? "Replying to" : "Editing message"}</Text>
+                <Text style={styles.contextLabel}>{replyingToMsg ? tr("Replying to") : tr("Editing message")}</Text>
                 <Text style={styles.contextText} numberOfLines={1}>
-                  {(replyingToMsg || editingMsg).content || "Attachment"}
+                  {(replyingToMsg || editingMsg).content || tr("Attachment")}
                 </Text>
               </View>
             </View>
@@ -539,7 +540,7 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
             {filteredModules.map(m => (
               <TouchableOpacity key={m} style={styles.mentionChip} onPress={() => selectMention(m)} activeOpacity={0.7}>
                 <Ionicons name={MODULE_ICONS[m] || 'apps-outline'} size={14} color="#2563EB" />
-                <Text style={styles.mentionChipText}>{m}</Text>
+                <Text style={styles.mentionChipText}>{tr(m)}</Text>
               </TouchableOpacity>
             ))}
           </AdaptiveGlass>
@@ -609,7 +610,7 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
                   style={styles.emojiBtn}
                   onPress={() => handleReaction(reactingToMsg._id, emoji)}
                 >
-                  <Text style={styles.emojiText}>{emoji}</Text>
+                  <Text style={styles.emojiText}>{tr(emoji)}</Text>
                 </TouchableOpacity>
               ))}
             </AdaptiveGlass>
@@ -618,20 +619,20 @@ export default function ProjectChatTab({ modules = [], onNavigateToModule }) {
             <View style={styles.actionMenu}>
               <TouchableOpacity style={styles.actionBtn} onPress={() => startReply(reactingToMsg)}>
                 <Ionicons name="return-up-back" size={20} color="#334155" />
-                <Text style={styles.actionText}>Reply</Text>
+                <Text style={styles.actionText}>{tr("Reply")}</Text>
               </TouchableOpacity>
               
               {(reactingToMsg?.sender === (user.id || user._id)) && (
                 <TouchableOpacity style={styles.actionBtn} onPress={() => startEdit(reactingToMsg)}>
                   <Ionicons name="pencil" size={20} color="#334155" />
-                  <Text style={styles.actionText}>Edit</Text>
+                  <Text style={styles.actionText}>{tr("Edit")}</Text>
                 </TouchableOpacity>
               )}
 
               {(reactingToMsg?.sender === (user.id || user._id) || user.role === 'Admin') && (
                 <TouchableOpacity style={[styles.actionBtn, { borderBottomWidth: 0 }]} onPress={() => handleDeleteMessage(reactingToMsg._id)}>
                   <Ionicons name="trash" size={20} color="#EF4444" />
-                  <Text style={[styles.actionText, { color: '#EF4444' }]}>Delete</Text>
+                  <Text style={[styles.actionText, { color: '#EF4444' }]}>{tr("Delete")}</Text>
                 </TouchableOpacity>
               )}
             </View>

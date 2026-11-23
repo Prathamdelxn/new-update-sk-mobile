@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 ﻿import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -92,11 +93,11 @@ export default function CrmPipelineScreen() {
             <Ionicons name="chevron-back" size={18} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Pipeline Views</Text>
-            <Text style={s.headerSub}>All leads at each sales stage.</Text>
+            <Text style={s.headerTitle}>{tr("Pipeline Views")}</Text>
+            <Text style={s.headerSub}>{tr("All leads at each sales stage.")}</Text>
           </View>
           <View style={s.totalBadge}>
-            <Text style={s.totalBadgeText}>{filtered.length} leads</Text>
+            <Text style={s.totalBadgeText}>{filtered.length}{tr(" leads")}</Text>
           </View>
         </View>
 
@@ -113,7 +114,7 @@ export default function CrmPipelineScreen() {
                 onPress={() => setActiveStage(st.key)}
               >
                 <Ionicons name={st.icon} size={13} color={isActive ? '#FFFFFF' : st.color} />
-                <Text style={[s.tabBtnText, isActive && { color: '#FFFFFF' }]}>{st.label}</Text>
+                <Text style={[s.tabBtnText, isActive && { color: '#FFFFFF' }]}>{tr(st.label)}</Text>
                 {count > 0 && (
                   <View style={[s.tabCount, isActive && { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
                     <Text style={[s.tabCountText, isActive && { color: '#FFFFFF' }]}>{count}</Text>
@@ -137,9 +138,9 @@ export default function CrmPipelineScreen() {
                 <View style={[s.emptyIconBox, { backgroundColor: `${stage.color}15` }]}>
                   <Ionicons name={stage.icon} size={28} color={stage.color} />
                 </View>
-                <Text style={s.emptyTitle}>No leads in this stage</Text>
+                <Text style={s.emptyTitle}>{tr("No leads in this stage")}</Text>
                 <Text style={s.emptySub}>
-                  Leads will appear here once they reach the {stage.label} stage.
+                  {tr("Leads will appear here once they reach the ")}{tr(stage.label)}{tr(" stage.")}
                 </Text>
               </View>
             ) : (
@@ -155,26 +156,26 @@ export default function CrmPipelineScreen() {
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={s.leadName} numberOfLines={1}>{lead.name}</Text>
-                      <Text style={s.leadNumber}>{lead.leadNumber || 'LD-XXXX'}</Text>
+                      <Text style={s.leadName} numberOfLines={1}>{tr(lead.name)}</Text>
+                      <Text style={s.leadNumber}>{lead.leadNumber || tr("LD-XXXX")}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                       <Ionicons name="home-outline" size={11} color="#94A3B8" />
                       <Text style={s.leadLocation} numberOfLines={1}>
-                        {lead.projectLocation || 'Location Pending'}
+                        {lead.projectLocation || tr("Location Pending")}
                       </Text>
                     </View>
                     {lead.assignedSalesExecutive && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                         <Ionicons name="person-outline" size={10} color="#94A3B8" />
                         <Text style={s.leadAssigned} numberOfLines={1}>
-                          {lead.assignedSalesExecutive?.fullName || lead.assignedSalesExecutive?.name || 'Assigned'}
+                          {lead.assignedSalesExecutive?.fullName || lead.assignedSalesExecutive?.name || tr("Assigned")}
                         </Text>
                       </View>
                     )}
                   </View>
                   <View style={[s.statusBadge, { backgroundColor: `${stage.color}15` }]}>
-                    <Text style={[s.statusBadgeText, { color: stage.color }]}>{lead.status}</Text>
+                    <Text style={[s.statusBadgeText, { color: stage.color }]}>{tr(lead.status)}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
                 </TouchableOpacity>

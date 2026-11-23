@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, ScrollView, StatusBar, TextInput, Modal, DeviceEventEmitter, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -158,7 +159,7 @@ export default function TemplateScreen() {
         setNewCategoryName('');
         DeviceEventEmitter.emit('categories_updated');
       } else {
-        showToast(data.message || 'Failed to add category', 'error');
+        showToast(data.message || tr("Failed to add category"), 'error');
       }
     } catch (e) {
       showToast(t('networkError'), 'error');
@@ -196,10 +197,10 @@ export default function TemplateScreen() {
         setCategories(prev => prev.map(c => c._id === selectedCategory._id ? data : c));
         setIsEditCategoryModalVisible(false);
         setSelectedCategory(null);
-        showToast('Category updated successfully', 'success');
+        showToast(tr("Category updated successfully"), 'success');
         DeviceEventEmitter.emit('categories_updated');
       } else {
-        showToast(data.message || 'Failed to update category', 'error');
+        showToast(data.message || tr("Failed to update category"), 'error');
       }
     } catch (e) {
       showToast(t('networkError'), 'error');
@@ -234,12 +235,12 @@ export default function TemplateScreen() {
         }
         setIsCategoryActionSheetVisible(false);
         setSelectedCategory(null);
-        showToast('Category and associated templates removed.', 'delete');
+        showToast(tr("Category and associated templates removed."), 'delete');
         setIsDeleteCategoryModalVisible(false);
         DeviceEventEmitter.emit('categories_updated');
       } else {
         const data = await response.json();
-        showToast(data.message || 'Failed to delete category', 'error');
+        showToast(data.message || tr("Failed to delete category"), 'error');
         setIsDeleteCategoryModalVisible(false);
       }
     } catch (error) {
@@ -305,11 +306,11 @@ export default function TemplateScreen() {
         setTemplatesList(prev => prev.filter(t => (t._id || t.id) !== templateId));
         setIsActionSheetVisible(false);
         setSelectedTemplate(null);
-        showToast('Project template has been removed.', 'delete');
+        showToast(tr("Project template has been removed."), 'delete');
         setIsDeleteTemplateModalVisible(false);
       } else {
         const data = await response.json();
-        showToast(data.message || 'Failed to delete template', 'error');
+        showToast(data.message || tr("Failed to delete template"), 'error');
         setIsDeleteTemplateModalVisible(false);
       }
     } catch (error) {
@@ -362,7 +363,7 @@ export default function TemplateScreen() {
 
           <View style={styles.areaUnderImage}>
             <Ionicons name="map-outline" size={12} color="#3B82F6" />
-            <Text style={styles.areaTextUnder}>{item.area?.toLocaleString('en-US')} sqft</Text>
+            <Text style={styles.areaTextUnder}>{item.area?.toLocaleString('en-US')}{tr(" sqft")}</Text>
           </View>
         </View>
 
@@ -371,7 +372,7 @@ export default function TemplateScreen() {
           <View style={styles.cardHeaderRow}>
             <View style={styles.categoryBadge}>
               <Text style={styles.categoryBadgeText}>
-                {item.category?.name || 'Uncategorized'}
+                {item.category?.name || tr("Uncategorized")}
               </Text>
             </View>
             <TouchableOpacity onPress={() => openTemplateActions(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -379,7 +380,7 @@ export default function TemplateScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.templateTitle} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.templateTitle} numberOfLines={1}>{tr(item.name)}</Text>
 
           <View style={styles.detailsRow}>
             <View style={styles.detailItem}>
@@ -393,7 +394,7 @@ export default function TemplateScreen() {
           <View style={styles.footerRow}>
             <View style={styles.assetCount}>
               <Ionicons name="document-attach-outline" size={12} color="#94A3B8" />
-              <Text style={styles.assetCountText}>{item.files?.length || 0} Files Attached</Text>
+              <Text style={styles.assetCountText}>{item.files?.length || 0}{tr(" Files Attached")}</Text>
             </View>
           </View>
         </View>
@@ -407,10 +408,10 @@ export default function TemplateScreen() {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, backgroundColor: '#F8FAFC' }}>
         <Ionicons name="lock-closed-outline" size={56} color="#CBD5E1" />
         <Text style={{ marginTop: 16, fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' }}>
-          You don't have access to templates
+          {tr("You don't have access to templates")}
         </Text>
         <Text style={{ marginTop: 8, fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', lineHeight: 20 }}>
-          Ask your admin to enable Template Management → View on your role.
+          {tr("Ask your admin to enable Template Management → View on your role.")}
         </Text>
       </View>
     );
@@ -454,7 +455,7 @@ export default function TemplateScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name={icon} size={15} color={pageTab === key ? '#2563EB' : '#64748B'} />
-                <Text style={[styles.pageTabText, pageTab === key && styles.pageTabTextActive]}>{label}</Text>
+                <Text style={[styles.pageTabText, pageTab === key && styles.pageTabTextActive]}>{tr(label)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -492,7 +493,7 @@ export default function TemplateScreen() {
                   onLongPress={() => { if (cat._id !== 'All') openCategoryActions(cat); }}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.filterChipText, activeCategory === cat._id && styles.filterChipTextActive]}>{cat.name}</Text>
+                  <Text style={[styles.filterChipText, activeCategory === cat._id && styles.filterChipTextActive]}>{tr(cat.name)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -511,7 +512,7 @@ export default function TemplateScreen() {
                   onPress={() => setSortBy(key)}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.filterChipText, sortBy === key && styles.filterChipTextActive]}>{label}</Text>
+                  <Text style={[styles.filterChipText, sortBy === key && styles.filterChipTextActive]}>{tr(label)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -549,7 +550,7 @@ export default function TemplateScreen() {
                   onPress={() => {
                     const hasCreateCategoryPermission = hasAnyRolePermission(user, 'category:create');
                     if (!hasCreateCategoryPermission) {
-                      showToast('You do not have permission to create categories.', 'error');
+                      showToast(tr("You do not have permission to create categories."), 'error');
                       return;
                     }
                     setIsAddModalVisible(false);
@@ -573,7 +574,7 @@ export default function TemplateScreen() {
                   onPress={() => {
                     const hasCreateTemplatePermission = hasAnyRolePermission(user, 'template:create');
                     if (!hasCreateTemplatePermission) {
-                      showToast('You do not have permission to create templates.', 'error');
+                      showToast(tr("You do not have permission to create templates."), 'error');
                       return;
                     }
                     setIsAddModalVisible(false);
@@ -637,7 +638,7 @@ export default function TemplateScreen() {
                           setTimeout(() => openCategoryActions(cat), 300);
                         }}
                       >
-                        <Text style={styles.categoryBadgeText}>{cat.name}</Text>
+                        <Text style={styles.categoryBadgeText}>{tr(cat.name)}</Text>
                       </TouchableOpacity>
                     ))
                   )}
@@ -730,7 +731,7 @@ export default function TemplateScreen() {
                   onPress={() => {
                     const hasEditTemplatePermission = hasAnyRolePermission(user, 'template:update');
                     if (!hasEditTemplatePermission) {
-                      showToast('You do not have permission to edit templates.', 'error');
+                      showToast(tr("You do not have permission to edit templates."), 'error');
                       return;
                     }
                     setIsActionSheetVisible(false);
@@ -759,7 +760,7 @@ export default function TemplateScreen() {
                 <TouchableOpacity style={[styles.actionSheetRow, styles.deleteRow]} activeOpacity={0.7} onPress={() => {
                   const hasDeleteTemplatePermission = hasAnyRolePermission(user, 'template:delete');
                   if (!hasDeleteTemplatePermission) {
-                    showToast('You do not have permission to delete templates.', 'error');
+                    showToast(tr("You do not have permission to delete templates."), 'error');
                     return;
                   }
                   deleteTemplate();
@@ -807,7 +808,7 @@ export default function TemplateScreen() {
                   onPress={() => {
                     const hasEditCategoryPermission = hasAnyRolePermission(user, 'category:update');
                     if (!hasEditCategoryPermission) {
-                      showToast('You do not have permission to edit categories.', 'error');
+                      showToast(tr("You do not have permission to edit categories."), 'error');
                       return;
                     }
                     handleEditCategory();
@@ -822,7 +823,7 @@ export default function TemplateScreen() {
                 <TouchableOpacity style={[styles.actionSheetRow, styles.deleteRow]} activeOpacity={0.7} onPress={() => {
                   const hasDeleteCategoryPermission = hasAnyRolePermission(user, 'category:delete');
                   if (!hasDeleteCategoryPermission) {
-                    showToast('You do not have permission to delete categories.', 'error');
+                    showToast(tr("You do not have permission to delete categories."), 'error');
                     return;
                   }
                   deleteCategory();
@@ -865,7 +866,7 @@ export default function TemplateScreen() {
                 <Ionicons name="folder-outline" size={20} color="#3B82F6" style={{ marginRight: 12 }} />
                 <TextInput
                   style={styles.sheetInput}
-                  placeholder="e.g. Residential, Commercial..."
+                  placeholder={tr("e.g. Residential, Commercial...")}
                   placeholderTextColor="#94A3B8"
                   value={editingCategoryName}
                   onChangeText={setEditingCategoryName}
@@ -914,7 +915,7 @@ export default function TemplateScreen() {
         ) : !hasAnyRolePermission(user, 'template:view') ? (
           <View style={styles.centralLoader}>
             <Ionicons name="lock-closed-outline" size={40} color="#CBD5E1" />
-            <Text style={styles.loaderText}>You don't have permission to view templates. Ask your admin to enable Template Management → View.</Text>
+            <Text style={styles.loaderText}>{tr("You don't have permission to view templates. Ask your admin to enable Template Management → View.")}</Text>
           </View>
         ) : isTemplatesLoading && templatesList.length === 0 ? (
           <SkeletonList variant="rows" />

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React from 'react';
 import {
   Modal,
@@ -34,9 +35,9 @@ export default function DrawingConfirmApproveModal({
             <Ionicons name="shield-checkmark" size={28} color="#059669" />
           </View>
 
-          <Text style={s.title}>Approve Architectural Drawing</Text>
+          <Text style={s.title}>{tr("Approve Architectural Drawing")}</Text>
           <Text style={s.subText}>
-            You are approving this drawing for {leadName ? <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{leadName}</Text> : 'the client'}.
+            {tr("You are approving this drawing for ")}{leadName ? <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr(leadName)}</Text> : tr("the client")}.
           </Text>
 
           {/* Drawing Info Box */}
@@ -44,15 +45,15 @@ export default function DrawingConfirmApproveModal({
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Ionicons name="document-text" size={20} color="#2563EB" />
               <View style={{ flex: 1 }}>
-                <Text style={s.infoTitle} numberOfLines={1}>{drawingTitle}</Text>
-                <Text style={s.infoMeta}>Version {versionNum} • {category}</Text>
+                <Text style={s.infoTitle} numberOfLines={1}>{tr(drawingTitle)}</Text>
+                <Text style={s.infoMeta}>{tr("Version ")}{tr(versionNum)} • {tr(category)}</Text>
               </View>
             </View>
 
             <View style={s.noticeRow}>
               <Ionicons name="information-circle-outline" size={14} color="#059669" />
               <Text style={s.noticeText}>
-                Approving this drawing confirms it meets all design standards and unlocks the BOQ Estimation phase.
+                {tr("Approving this drawing confirms it meets all design standards and unlocks the BOQ Estimation phase.")}
               </Text>
             </View>
           </View>
@@ -64,7 +65,7 @@ export default function DrawingConfirmApproveModal({
               onPress={onClose}
               disabled={isSubmitting}
             >
-              <Text style={s.cancelBtnText}>Cancel</Text>
+              <Text style={s.cancelBtnText}>{tr("Cancel")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -77,7 +78,7 @@ export default function DrawingConfirmApproveModal({
               ) : (
                 <>
                   <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-                  <Text style={s.confirmBtnText}>Confirm & Approve</Text>
+                  <Text style={s.confirmBtnText}>{tr("Confirm & Approve")}</Text>
                 </>
               )}
             </TouchableOpacity>

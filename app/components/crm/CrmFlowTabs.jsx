@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,7 +48,7 @@ export default function CrmFlowTabs({ activeTab, onSelectTab, counts = {} }) {
                 color={isActive ? '#2563EB' : '#64748B'}
               />
               <Text style={[s.tabLabel, isActive && s.tabLabelActive]}>
-                {stage.label}
+                {tr(stage.label)}
               </Text>
               {typeof count === 'number' && (
                 <View style={[s.countBadge, isActive && s.countBadgeActive]}>

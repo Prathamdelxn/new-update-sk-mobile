@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, Animated, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -215,7 +216,7 @@ export default function FullWorkspacePreview() {
             <Ionicons name="arrow-back" size={22} color="#0F172A" />
           </TouchableOpacity>
           <View style={styles.hText}>
-            <Text style={styles.hTitle} numberOfLines={2}>{project?.name}</Text>
+            <Text style={styles.hTitle} numberOfLines={2}>{tr(project?.name)}</Text>
           </View>
           <View style={styles.hBtnSpacer} />
         </View>

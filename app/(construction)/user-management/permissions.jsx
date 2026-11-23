@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -94,7 +95,7 @@ export default function RolePermissionsEdit() {
       if (response.ok) {
         setPermissions(fromBackendFormat(data.permissions || []));
       } else {
-        showToast('Failed to load permissions', 'error');
+        showToast(tr("Failed to load permissions"), 'error');
       }
     } catch (e) {
       console.error(e);
@@ -151,11 +152,11 @@ export default function RolePermissionsEdit() {
 
   const handleSave = async () => {
     if (isAdminRole) {
-      showToast('System Admin permissions cannot be modified.', 'error');
+      showToast(tr("System Admin permissions cannot be modified."), 'error');
       return;
     }
     if (!canEditRoles) {
-      showToast("You don't have permission to update roles.", 'error');
+      showToast(tr("You don't have permission to update roles."), 'error');
       return;
     }
     if (missingProjectView) {
@@ -177,11 +178,11 @@ export default function RolePermissionsEdit() {
       });
 
       if (response.ok) {
-        showToast('Permissions saved successfully', 'success');
+        showToast(tr("Permissions saved successfully"), 'success');
         router.back();
       } else {
         const data = await response.json();
-        showToast(data.message || 'Failed to save changes', 'error');
+        showToast(data.message || tr("Failed to save changes"), 'error');
       }
     } catch (e) {
       showToast(t('networkErrorTryAgain'), 'error');
@@ -284,7 +285,7 @@ export default function RolePermissionsEdit() {
               {!isAdminRole && !canEditRoles && (
                 <View style={styles.protectedNotice}>
                   <Ionicons name="eye-outline" size={20} color="#1D4ED8" />
-                  <Text style={styles.protectedNoticeText}>View only — you need User Management → Update to change role permissions.</Text>
+                  <Text style={styles.protectedNoticeText}>{tr("View only — you need User Management → Update to change role permissions.")}</Text>
                 </View>
               )}
               {missingProjectView && (
@@ -292,10 +293,10 @@ export default function RolePermissionsEdit() {
                   <Ionicons name="warning-outline" size={20} color="#B45309" />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.projectViewNoticeText}>
-                      This role has project permissions but not Project Management → View. Members with it won't be able to open any project, so those permissions won't work.
+                      {tr("This role has project permissions but not Project Management → View. Members with it won't be able to open any project, so those permissions won't work.")}
                     </Text>
                     <TouchableOpacity style={styles.projectViewNoticeBtn} onPress={enableProjectView}>
-                      <Text style={styles.projectViewNoticeBtnText}>Enable Project View</Text>
+                      <Text style={styles.projectViewNoticeBtnText}>{tr("Enable Project View")}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -303,7 +304,7 @@ export default function RolePermissionsEdit() {
               {MODULES.map((module) => (
                 <ModulePermissionCard
                   key={module.id}
-                  title={module.title}
+                  title={tr(module.title)}
                   permissions={permissions[module.id] || DEFAULT_ACTIONS}
                   onToggle={(actionId) => !isReadOnly && toggleAction(module.id, actionId)}
                   excludeActions={module.excludeActions}

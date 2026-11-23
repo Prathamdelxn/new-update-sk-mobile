@@ -567,7 +567,8 @@ export const AuthProvider = ({ children }) => {
       const fresh = isInterior ? data?.data?.user : data?.user;
       if (!fresh) return;
       const merged = isInterior
-        ? { ...current, ...fresh, organization: { ...(current.organization || {}), industryType: 'interior' } }
+        // keep the org fresh too (currency / settings changed by an admin)
+        ? { ...current, ...fresh, organization: { ...(current.organization || {}), ...(data?.data?.organization || {}), industryType: 'interior' } }
         : { ...current, ...fresh };
       const normalized = normalizeUser(merged);
       userRef.current = normalized;

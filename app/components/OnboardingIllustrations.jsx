@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,7 +78,7 @@ export const ProjectScene = () => (
     <View style={s.miniCard}>
       <View style={s.miniCardHeader}>
         <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-        <Text style={s.miniCardTitle}>75% Complete</Text>
+        <Text style={s.miniCardTitle}>{tr("75% Complete")}</Text>
       </View>
       <View style={s.progressTrack}>
         <View style={[s.progressFill, { width: '75%' }]} />
@@ -123,7 +124,7 @@ export const BlueprintScene = () => (
 
     {/* Checklist overlay */}
     <View style={s.checklistCard}>
-      <Text style={s.checklistTitle}>Tasks</Text>
+      <Text style={s.checklistTitle}>{tr("Tasks")}</Text>
       {['Foundation', 'Framing', 'Electrical'].map((t, i) => (
         <View key={i} style={s.checkItem}>
           <Ionicons 
@@ -131,7 +132,7 @@ export const BlueprintScene = () => (
             size={13} 
             color={i < 2 ? "#10B981" : "#94A3B8"} 
           />
-          <Text style={[s.checkText, i < 2 && s.checkDone]}>{t}</Text>
+          <Text style={[s.checkText, i < 2 && s.checkDone]}>{tr(t)}</Text>
         </View>
       ))}
     </View>
@@ -176,7 +177,7 @@ export const FinanceScene = () => (
 
     {/* Amount card */}
     <View style={s.amountCard}>
-      <Text style={s.amountLabel}>Total Budget</Text>
+      <Text style={s.amountLabel}>{tr("Total Budget")}</Text>
       <Text style={s.amountValue}>₹24,50,000</Text>
       <View style={s.amountRow}>
         <Ionicons name="trending-up" size={12} color="#10B981" />
@@ -191,7 +192,7 @@ export const FinanceScene = () => (
           <Ionicons name="cube-outline" size={12} color="#2563EB" />
         </View>
         <View>
-          <Text style={s.txnName}>Materials</Text>
+          <Text style={s.txnName}>{tr("Materials")}</Text>
           <Text style={s.txnAmt}>₹3,20,000</Text>
         </View>
       </View>
@@ -201,7 +202,7 @@ export const FinanceScene = () => (
           <Ionicons name="people-outline" size={12} color="#D97706" />
         </View>
         <View>
-          <Text style={s.txnName}>Labour</Text>
+          <Text style={s.txnName}>{tr("Labour")}</Text>
           <Text style={s.txnAmt}>₹1,85,000</Text>
         </View>
       </View>

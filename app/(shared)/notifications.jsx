@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -121,12 +122,12 @@ export default function NotificationsScreen() {
               </View>
               <View style={styles.content}>
                 <View style={styles.topRow}>
-                  <Text style={styles.title}>{item.title}</Text>
+                  <Text style={styles.title}>{tr(item.title)}</Text>
                   <Text style={styles.time}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                 </View>
-                <Text style={styles.message} numberOfLines={2}>{item.message}</Text>
+                <Text style={styles.message} numberOfLines={2}>{tr(item.message)}</Text>
                 {item.project && (
-                  <Text style={styles.projectTag}>Project: {item.project.name}</Text>
+                  <Text style={styles.projectTag}>{tr("Project: ")}{tr(item.project.name)}</Text>
                 )}
               </View>
               {!item.isRead && <View style={styles.unreadDot} />}

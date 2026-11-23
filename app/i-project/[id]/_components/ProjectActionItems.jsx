@@ -1,3 +1,4 @@
+import { tr } from '../../../utils/i18n/tr';
 // "What needs doing" — the project's next steps, most urgent first (same as the web overview)
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
@@ -7,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useProjectPermissions } from '../../../utils/interior/useProjectPermissions';
 import { useInteriorPermissions } from '../../../utils/interior/useInteriorPermissions';
 import { formatCurrency } from '../../../utils/common/format';
+import { useOrgCurrency } from '../../../utils/interior/orgCurrency';
 import {
   ACTION_SOURCES, KIND_META, fetchActionSources, buildActionItems, groupActionItems,
   bucketOf, dueLabel, startOfDay, idOf,
@@ -35,12 +37,13 @@ export default function ProjectActionItems({ projectId, project }) {
     queryFn: () => fetchActionSources(projectId, allowed),
   });
 
-  const currency = project?.budget?.currency;
+  // Organisation currency (project.budget.currency can be a stale INR)
+  const currency = useOrgCurrency().code;
   const items = useMemo(
     () => buildActionItems(query.data, {
       me: idOf(user),
       projectStatus: project?.status,
-      formatMoney: (n) => formatCurrency(n, currency || 'INR'),
+      formatMoney: (n) => formatCurrency(n, currency),
     }),
     [query.data, user, project?.status, currency]
   );
@@ -66,9 +69,9 @@ export default function ProjectActionItems({ projectId, project }) {
   return (
     <View>
       <View style={s.headRow}>
-        <Text style={s.title}>What needs doing</Text>
+        <Text style={s.title}>{tr("What needs doing")}</Text>
         {!loading && visible.length > 0 && <View style={s.countPill}><Text style={s.countText}>{visible.length}</Text></View>}
-        {!loading && overdueCount > 0 && <View style={[s.countPill, { backgroundColor: '#FEF2F2' }]}><Text style={[s.countText, { color: '#DC2626' }]}>{overdueCount} overdue</Text></View>}
+        {!loading && overdueCount > 0 && <View style={[s.countPill, { backgroundColor: '#FEF2F2' }]}><Text style={[s.countText, { color: '#DC2626' }]}>{tr(overdueCount)}{tr(" overdue")}</Text></View>}
         <View style={{ flex: 1 }} />
         <TouchableOpacity onPress={() => query.refetch()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           {query.isFetching && !loading ? <ActivityIndicator size="small" color="#64748B" /> : <Ionicons name="refresh" size={17} color="#64748B" />}
@@ -85,7 +88,7 @@ export default function ProjectActionItems({ projectId, project }) {
               activeOpacity={0.8}
             >
               <Text style={[s.segText, activeScope === k && s.segTextActive]}>
-                {k === 'mine' ? `Assigned to me (${mineCount})` : `All (${items.length})`}
+                {k === 'mine' ? tr("Assigned to me ({{mineCount}})", { mineCount: mineCount }) : tr("All ({{itemsCount}})", { itemsCount: items.length })}
               </Text>
             </TouchableOpacity>
           ))}
@@ -98,11 +101,11 @@ export default function ProjectActionItems({ projectId, project }) {
         ) : visible.length === 0 ? (
           <View style={s.empty}>
             <Ionicons name="checkmark-done-circle-outline" size={30} color="#10B981" />
-            <Text style={s.emptyTitle}>{activeScope === 'mine' ? 'Nothing assigned to you right now' : 'All caught up'}</Text>
+            <Text style={s.emptyTitle}>{activeScope === 'mine' ? tr("Nothing assigned to you right now") : tr("All caught up")}</Text>
             <Text style={s.emptySub}>
               {activeScope === 'mine' && items.length > 0
-                ? `There are ${items.length} open items for the team. Switch to All to see them.`
-                : 'No overdue work, pending approvals or open issues.'}
+                ? tr("There are {{itemsCount}} open items for the team. Switch to All to see them.", { itemsCount: items.length })
+                : tr("No overdue work, pending approvals or open issues.")}
             </Text>
           </View>
         ) : (
@@ -126,12 +129,12 @@ export default function ProjectActionItems({ projectId, project }) {
                           <Ionicons name={meta.icon} size={17} color={meta.color} />
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={s.action} numberOfLines={1}>{it.action}</Text>
-                          {!!it.title && <Text style={s.itemTitle} numberOfLines={1}>{it.title}</Text>}
+                          <Text style={s.action} numberOfLines={1}>{tr(it.action)}</Text>
+                          {!!it.title && <Text style={s.itemTitle} numberOfLines={1}>{tr(it.title)}</Text>}
                           <Text style={s.meta} numberOfLines={1}>
-                            {meta.label}
+                            {tr(meta.label)}
                             {it.meta ? ` · ${it.meta}` : ''}
-                            {it.mine ? <Text style={{ color: '#2563EB', fontFamily: 'Inter-SemiBold' }}> · You</Text> : null}
+                            {it.mine ? <Text style={{ color: '#2563EB', fontFamily: 'Inter-SemiBold' }}>{tr(" · You")}</Text> : null}
                             {it.priority === 'critical' || it.priority === 'high' ? (
                               <Text style={{ color: it.priority === 'critical' ? '#DC2626' : '#EA580C', fontFamily: 'Inter-SemiBold' }}>
                                 {` · ${it.priority === 'critical' ? 'Critical' : 'High'}`}
@@ -141,7 +144,7 @@ export default function ProjectActionItems({ projectId, project }) {
                         </View>
                         {!!label && (
                           <View style={[s.duePill, overdue ? s.duePillOverdue : g.key === 'later' ? s.duePillLater : null]}>
-                            <Text style={[s.dueText, overdue ? { color: '#DC2626' } : g.key === 'later' ? { color: '#64748B' } : null]}>{label}</Text>
+                            <Text style={[s.dueText, overdue ? { color: '#DC2626' } : g.key === 'later' ? { color: '#64748B' } : null]}>{tr(label)}</Text>
                           </View>
                         )}
                         <Ionicons name="chevron-forward" size={15} color="#CBD5E1" />
@@ -153,7 +156,7 @@ export default function ProjectActionItems({ projectId, project }) {
             })}
             {visible.length > LIMIT && (
               <TouchableOpacity onPress={() => setExpanded((v) => !v)} style={s.moreBtn}>
-                <Text style={s.moreText}>{expanded ? 'Show less' : `Show all ${visible.length}`}</Text>
+                <Text style={s.moreText}>{expanded ? tr("Show less") : tr("Show all {{visibleCount}}", { visibleCount: visible.length })}</Text>
               </TouchableOpacity>
             )}
           </>

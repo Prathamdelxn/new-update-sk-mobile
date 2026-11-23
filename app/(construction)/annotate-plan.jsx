@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 // import React, { useState, useCallback, useEffect, useRef } from 'react';
 // import {
 //   View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal,
@@ -1056,7 +1057,7 @@ function PinTooltip({ ann }) {
 
   return (
     <View style={styles.tooltip} pointerEvents="none">
-      <Text style={styles.tooltipText} numberOfLines={2}>{summary}</Text>
+      <Text style={styles.tooltipText} numberOfLines={2}>{tr(summary)}</Text>
       <View style={styles.tooltipArrow} />
     </View>
   );
@@ -1093,7 +1094,7 @@ function TabBtn({ label, icon, active, onPress }) {
       activeOpacity={0.75}
     >
       <Ionicons name={icon} size={16} color={active ? COLORS.primary : COLORS.textTertiary} />
-      <Text style={[styles.tabBtnText, active && styles.tabBtnTextActive]}>{label}</Text>
+      <Text style={[styles.tabBtnText, active && styles.tabBtnTextActive]}>{tr(label)}</Text>
     </TouchableOpacity>
   );
 }
@@ -1120,7 +1121,7 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
     try {
       const perm = await Audio.requestPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Permission required', 'Allow microphone access to record audio.');
+        Alert.alert(tr("Permission required"), tr("Allow microphone access to record audio."));
         return;
       }
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
@@ -1128,7 +1129,7 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
       setRecording(recording);
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Failed to start recording');
+      Alert.alert(tr("Error"), tr("Failed to start recording"));
     }
   };
 
@@ -1168,7 +1169,7 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
       setPicking(true);
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Permission required', 'Allow photo library access to attach media.');
+        Alert.alert(tr("Permission required"), tr("Allow photo library access to attach media."));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -1210,11 +1211,11 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
             <View style={styles.sheetHeader}>
               <View style={styles.sheetPinBadge}>
                 <Ionicons name="location" size={14} color={COLORS.pin} />
-                <Text style={styles.sheetPinLabel}>Pin #{pinIdx}</Text>
+                <Text style={styles.sheetPinLabel}>{tr("Pin #")}{tr(pinIdx)}</Text>
                 {readOnly && (
                   <View style={styles.readOnlyTag}>
                     <Ionicons name="eye-outline" size={10} color={COLORS.textSecondary} />
-                    <Text style={styles.readOnlyTagText}>View Only</Text>
+                    <Text style={styles.readOnlyTagText}>{tr("View Only")}</Text>
                   </View>
                 )}
               </View>
@@ -1232,10 +1233,10 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
 
             {/* Tabs */}
             <View style={styles.tabRow}>
-              <TabBtn label="Text" icon="text-outline" active={tab === 'text'} onPress={() => setTab('text')} />
-              <TabBtn label="Photo" icon="image-outline" active={tab === 'photo'} onPress={() => setTab('photo')} />
-              <TabBtn label="Video" icon="videocam-outline" active={tab === 'video'} onPress={() => setTab('video')} />
-              <TabBtn label="Mic" icon="mic-outline" active={tab === 'audio'} onPress={() => setTab('audio')} />
+              <TabBtn label={tr("Text")} icon="text-outline" active={tab === 'text'} onPress={() => setTab('text')} />
+              <TabBtn label={tr("Photo")} icon="image-outline" active={tab === 'photo'} onPress={() => setTab('photo')} />
+              <TabBtn label={tr("Video")} icon="videocam-outline" active={tab === 'video'} onPress={() => setTab('video')} />
+              <TabBtn label={tr("Mic")} icon="mic-outline" active={tab === 'audio'} onPress={() => setTab('audio')} />
             </View>
 
             {/* Tab content */}
@@ -1246,7 +1247,7 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                     style={styles.annotInput}
                     multiline
                     numberOfLines={5}
-                    placeholder={t ? t('describeLocationDefectNote') : 'Describe the location or defect…'}
+                    placeholder={t ? t('describeLocationDefectNote') : tr("Describe the location or defect…")}
                     placeholderTextColor={COLORS.textTertiary}
                     value={text}
                     onChangeText={setText}
@@ -1254,7 +1255,7 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                     autoFocus={!readOnly}
                   />
                   {text.length > 0 && (
-                    <Text style={styles.charCount}>{text.length} chars</Text>
+                    <Text style={styles.charCount}>{text.length}{tr(" chars")}</Text>
                   )}
                 </>
               )}
@@ -1279,7 +1280,7 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                   ) : readOnly ? (
                     <View style={styles.mediaEmptyState}>
                       <Ionicons name="image-outline" size={26} color={COLORS.textTertiary} />
-                      <Text style={styles.mediaEmptyText}>No photo attached</Text>
+                      <Text style={styles.mediaEmptyText}>{tr("No photo attached")}</Text>
                     </View>
                   ) : (
                     <TouchableOpacity
@@ -1295,8 +1296,8 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                           <View style={styles.mediaPickerIcon}>
                             <Ionicons name="camera" size={26} color={COLORS.primary} />
                           </View>
-                          <Text style={styles.mediaPickerTitle}>Attach a Photo</Text>
-                          <Text style={styles.mediaPickerSub}>From your gallery</Text>
+                          <Text style={styles.mediaPickerTitle}>{tr("Attach a Photo")}</Text>
+                          <Text style={styles.mediaPickerSub}>{tr("From your gallery")}</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -1327,7 +1328,7 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                   ) : readOnly ? (
                     <View style={styles.mediaEmptyState}>
                       <Ionicons name="videocam-outline" size={26} color={COLORS.textTertiary} />
-                      <Text style={styles.mediaEmptyText}>No video attached</Text>
+                      <Text style={styles.mediaEmptyText}>{tr("No video attached")}</Text>
                     </View>
                   ) : (
                     <TouchableOpacity
@@ -1343,8 +1344,8 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                           <View style={styles.mediaPickerIcon}>
                             <Ionicons name="videocam" size={26} color={COLORS.primary} />
                           </View>
-                          <Text style={styles.mediaPickerTitle}>Attach a Video</Text>
-                          <Text style={styles.mediaPickerSub}>Up to 60 seconds from your gallery</Text>
+                          <Text style={styles.mediaPickerTitle}>{tr("Attach a Video")}</Text>
+                          <Text style={styles.mediaPickerSub}>{tr("Up to 60 seconds from your gallery")}</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -1360,7 +1361,7 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                         <Ionicons name="musical-notes-outline" size={32} color={COLORS.primarySoftBorder} />
                         <TouchableOpacity style={styles.audioPlayBtn} onPress={playAudio} activeOpacity={0.8}>
                           <Ionicons name="play" size={24} color={COLORS.white} />
-                          <Text style={styles.audioPlayText}>Play Recording</Text>
+                          <Text style={styles.audioPlayText}>{tr("Play Recording")}</Text>
                         </TouchableOpacity>
                       </View>
                       {!readOnly && (
@@ -1372,7 +1373,7 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                   ) : readOnly ? (
                     <View style={styles.mediaEmptyState}>
                       <Ionicons name="mic-outline" size={26} color={COLORS.textTertiary} />
-                      <Text style={styles.mediaEmptyText}>No audio attached</Text>
+                      <Text style={styles.mediaEmptyText}>{tr("No audio attached")}</Text>
                     </View>
                   ) : (
                     <TouchableOpacity
@@ -1385,16 +1386,16 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                           <View style={[styles.mediaPickerIcon, { backgroundColor: COLORS.surface }]}>
                             <Ionicons name="stop" size={26} color={COLORS.pin} />
                           </View>
-                          <Text style={[styles.mediaPickerTitle, { color: COLORS.pin }]}>Tap to Stop</Text>
-                          <Text style={styles.mediaPickerSub}>Recording in progress…</Text>
+                          <Text style={[styles.mediaPickerTitle, { color: COLORS.pin }]}>{tr("Tap to Stop")}</Text>
+                          <Text style={styles.mediaPickerSub}>{tr("Recording in progress…")}</Text>
                         </>
                       ) : (
                         <>
                           <View style={styles.mediaPickerIcon}>
                             <Ionicons name="mic" size={26} color={COLORS.primary} />
                           </View>
-                          <Text style={styles.mediaPickerTitle}>Record Audio</Text>
-                          <Text style={styles.mediaPickerSub}>Voice note for this pin</Text>
+                          <Text style={styles.mediaPickerTitle}>{tr("Record Audio")}</Text>
+                          <Text style={styles.mediaPickerSub}>{tr("Voice note for this pin")}</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -1409,25 +1410,25 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                 {text ? (
                   <View style={styles.attachChip}>
                     <Ionicons name="chatbubble-ellipses-outline" size={12} color={COLORS.primary} />
-                    <Text style={styles.attachChipText}>Note</Text>
+                    <Text style={styles.attachChipText}>{tr("Note")}</Text>
                   </View>
                 ) : null}
                 {imageUri ? (
                   <View style={styles.attachChip}>
                     <Ionicons name="image-outline" size={12} color={COLORS.success} />
-                    <Text style={styles.attachChipText}>Photo</Text>
+                    <Text style={styles.attachChipText}>{tr("Photo")}</Text>
                   </View>
                 ) : null}
                 {videoUri ? (
                   <View style={styles.attachChip}>
                     <Ionicons name="videocam-outline" size={12} color={COLORS.video} />
-                    <Text style={styles.attachChipText}>Video</Text>
+                    <Text style={styles.attachChipText}>{tr("Video")}</Text>
                   </View>
                 ) : null}
                 {audioUri ? (
                   <View style={styles.attachChip}>
                     <Ionicons name="mic-outline" size={12} color={COLORS.primaryDark} />
-                    <Text style={styles.attachChipText}>Audio</Text>
+                    <Text style={styles.attachChipText}>{tr("Audio")}</Text>
                   </View>
                 ) : null}
               </View>
@@ -1446,7 +1447,7 @@ function AnnotationModal({ visible, annotation, onSave, onDelete, onClose, uploa
                 ) : (
                   <>
                     <Ionicons name="checkmark-circle" size={18} color={COLORS.white} />
-                    <Text style={styles.sheetSaveBtnText}>Save Pin</Text>
+                    <Text style={styles.sheetSaveBtnText}>{tr("Save Pin")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -1527,7 +1528,7 @@ export default function AnnotatePlan() {
         setPdfImageUri(data.dataUrl);
       } else {
         setPdfRenderFailed(true);
-        showToast('Could not render PDF for annotation.', 'error');
+        showToast(tr("Could not render PDF for annotation."), 'error');
       }
     } catch (e) {
       setPdfRenderFailed(true);
@@ -1655,7 +1656,7 @@ export default function AnnotatePlan() {
         finalAudioUri = await cloudinaryService.uploadFile(audioUri, `ann_audio_${Date.now()}.m4a`, 'audio/m4a');
       }
     } catch (e) {
-      showToast('Media upload failed', 'error');
+      showToast(tr("Media upload failed"), 'error');
       setIsUploading(false);
       return;
     } finally {
@@ -1701,9 +1702,9 @@ export default function AnnotatePlan() {
       if (!res.ok) { const e = await res.json(); throw new Error(e.message); }
       persistedIdsRef.current = new Set(annotations.map(a => a.clientId));
       setHasUnsaved(false);
-      showToast('Annotations saved.', 'success');
+      showToast(tr("Annotations saved."), 'success');
     } catch (e) {
-      showToast(e.message || 'Save failed', 'error');
+      showToast(e.message || tr("Save failed"), 'error');
     } finally { setIsSaving(false); }
   }, [annotations, documentId, folderId, projectId, token, showToast]);
 
@@ -1727,9 +1728,9 @@ export default function AnnotatePlan() {
           <View style={{ flex: 1 }}>
             <View style={styles.hLabelRow}>
               <View style={styles.hLabelDot} />
-              <Text style={styles.hLabel}>PLAN ANNOTATIONS</Text>
+              <Text style={styles.hLabel}>{tr("PLAN ANNOTATIONS")}</Text>
             </View>
-            <Text style={styles.hTitle} numberOfLines={1}>{name || 'Plan'}</Text>
+            <Text style={styles.hTitle} numberOfLines={1}>{name || tr("Plan")}</Text>
           </View>
           {hasUnsaved && !isSaving && (
             <View style={styles.unsavedDot} />
@@ -1746,7 +1747,7 @@ export default function AnnotatePlan() {
               ) : (
                 <>
                   <Ionicons name="cloud-upload-outline" size={14} color={COLORS.white} />
-                  <Text style={styles.saveHeaderBtnText}>Save</Text>
+                  <Text style={styles.saveHeaderBtnText}>{tr("Save")}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -1786,12 +1787,12 @@ export default function AnnotatePlan() {
                   {isCanvasLoading ? (
                     <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', gap: SPACE.sm }}>
                       <ActivityIndicator size="large" color={COLORS.primary} />
-                      <Text style={styles.loadingText}>{isPdf ? 'Rendering PDF…' : 'Loading plan…'}</Text>
+                      <Text style={styles.loadingText}>{isPdf ? tr("Rendering PDF…") : tr("Loading plan…")}</Text>
                     </View>
                   ) : pdfRenderFailed ? (
                     <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', gap: SPACE.sm, paddingHorizontal: SPACE.xxl }}>
                       <Ionicons name="alert-circle-outline" size={32} color={COLORS.textTertiary} />
-                      <Text style={[styles.loadingText, { textAlign: 'center' }]}>Couldn't render this PDF for annotation.</Text>
+                      <Text style={[styles.loadingText, { textAlign: 'center' }]}>{tr("Couldn't render this PDF for annotation.")}</Text>
                     </View>
                   ) : (
                     <Image
@@ -1832,7 +1833,7 @@ export default function AnnotatePlan() {
             <View style={styles.addPinOverlay} pointerEvents="none">
               <View style={styles.addPinHintBox}>
                 <Ionicons name="location" size={16} color={COLORS.white} />
-                <Text style={styles.addPinHint}>Tap anywhere to place a pin</Text>
+                <Text style={styles.addPinHint}>{tr("Tap anywhere to place a pin")}</Text>
               </View>
             </View>
           )}
@@ -1900,7 +1901,7 @@ export default function AnnotatePlan() {
               activeOpacity={0.85}
             >
               <Ionicons name={isAddingPin ? 'close' : 'location'} size={16} color={COLORS.white} />
-              <Text style={styles.addPinBtnText}>{isAddingPin ? 'Cancel' : 'Add Pin'}</Text>
+              <Text style={styles.addPinBtnText}>{isAddingPin ? tr("Cancel") : tr("Add Pin")}</Text>
             </TouchableOpacity>
           )}
 

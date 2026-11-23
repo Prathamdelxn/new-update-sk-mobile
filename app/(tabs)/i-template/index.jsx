@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -90,7 +91,7 @@ export default function InteriorTemplatesScreen() {
   };
 
   const handleCreateTemplate = async () => {
-    if (!title.trim() || !category) return showToast('Please enter a title and select a category.', 'error');
+    if (!title.trim() || !category) return showToast(tr("Please enter a title and select a category."), 'error');
     setIsSubmittingTemplate(true);
     try {
       const res = await fetch(`${API_BASE_URL}/templates`, {
@@ -112,19 +113,19 @@ export default function InteriorTemplatesScreen() {
       if (res.ok) {
         setTemplates((prev) => [data, ...prev]);
         setIsTemplateModalVisible(false);
-        showToast('Template created successfully!', 'success');
+        showToast(tr("Template created successfully!"), 'success');
       } else {
-        showToast(data.message || 'Failed to create template.', 'error');
+        showToast(data.message || tr("Failed to create template."), 'error');
       }
     } catch (e) {
-      showToast('Network error. Check server/IP.', 'error');
+      showToast(tr("Network error. Check server/IP."), 'error');
     } finally {
       setIsSubmittingTemplate(false);
     }
   };
 
   const handleCreateCategory = async () => {
-    if (!catName.trim()) return showToast('Please enter a category name.', 'error');
+    if (!catName.trim()) return showToast(tr("Please enter a category name."), 'error');
     setIsSubmittingCategory(true);
     try {
       const res = await fetch(`${API_BASE_URL}/template-categories`, {
@@ -137,12 +138,12 @@ export default function InteriorTemplatesScreen() {
         setCategories((prev) => [...prev, data]);
         setIsCategoryModalVisible(false);
         setCatName('');
-        showToast('Category created!', 'success');
+        showToast(tr("Category created!"), 'success');
       } else {
-        showToast(data.message || 'Failed to create category.', 'error');
+        showToast(data.message || tr("Failed to create category."), 'error');
       }
     } catch (e) {
-      showToast('Network error. Check server/IP.', 'error');
+      showToast(tr("Network error. Check server/IP."), 'error');
     } finally {
       setIsSubmittingCategory(false);
     }
@@ -158,12 +159,12 @@ export default function InteriorTemplatesScreen() {
       });
       if (res.ok) {
         setTemplates((prev) => prev.filter((t) => t._id !== deletingTemplate._id));
-        showToast('Template deleted.', 'success');
+        showToast(tr("Template deleted."), 'success');
       } else {
-        showToast('Failed to delete template.', 'error');
+        showToast(tr("Failed to delete template."), 'error');
       }
     } catch (e) {
-      showToast('Network error. Check server/IP.', 'error');
+      showToast(tr("Network error. Check server/IP."), 'error');
     } finally {
       setIsDeleting(false);
       setDeletingTemplate(null);
@@ -181,12 +182,12 @@ export default function InteriorTemplatesScreen() {
       if (res.ok) {
         setCategories((prev) => prev.filter((c) => c._id !== deletingCategory._id));
         setTemplates((prev) => prev.filter((t) => (t.category?._id || t.category) !== deletingCategory._id));
-        showToast('Category deleted.', 'success');
+        showToast(tr("Category deleted."), 'success');
       } else {
-        showToast('Failed to delete category.', 'error');
+        showToast(tr("Failed to delete category."), 'error');
       }
     } catch (e) {
-      showToast('Network error. Check server/IP.', 'error');
+      showToast(tr("Network error. Check server/IP."), 'error');
     } finally {
       setIsDeleting(false);
       setDeletingCategory(null);
@@ -200,8 +201,8 @@ export default function InteriorTemplatesScreen() {
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <View>
-            <Text style={s.headerGreeting}>Workspace</Text>
-            <Text style={s.pageTitle}>Templates</Text>
+            <Text style={s.headerGreeting}>{tr("Workspace")}</Text>
+            <Text style={s.pageTitle}>{tr("Templates")}</Text>
           </View>
           <HeaderNotification />
         </View>
@@ -216,17 +217,17 @@ export default function InteriorTemplatesScreen() {
           >
             {/* Stats */}
             <View style={s.statsGrid}>
-              <StatCard icon="layers-outline" iconBg="#F0F9FF" iconColor="#0284C7" label="Total Templates" value={`${templates.length}`} sub="blueprints" />
-              <StatCard icon="folder-open-outline" iconBg="#EEF2FF" iconColor="#4F46E5" label="Categories" value={`${categories.length}`} />
+              <StatCard icon="layers-outline" iconBg="#F0F9FF" iconColor="#0284C7" label={tr("Total Templates")} value={`${templates.length}`} sub="blueprints" />
+              <StatCard icon="folder-open-outline" iconBg="#EEF2FF" iconColor="#4F46E5" label={tr("Categories")} value={`${categories.length}`} />
             </View>
 
             {/* Tab switcher */}
             <View style={s.tabSwitcher}>
               <TouchableOpacity style={[s.tabBtn, activeTab === 'templates' && s.tabBtnActive]} onPress={() => setActiveTab('templates')}>
-                <Text style={[s.tabBtnText, activeTab === 'templates' && s.tabBtnTextActive]}>Templates ({templates.length})</Text>
+                <Text style={[s.tabBtnText, activeTab === 'templates' && s.tabBtnTextActive]}>{tr("Templates (")}{templates.length})</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.tabBtn, activeTab === 'categories' && s.tabBtnActive]} onPress={() => setActiveTab('categories')}>
-                <Text style={[s.tabBtnText, activeTab === 'categories' && s.tabBtnTextActive]}>Categories ({categories.length})</Text>
+                <Text style={[s.tabBtnText, activeTab === 'categories' && s.tabBtnTextActive]}>{tr("Categories (")}{categories.length})</Text>
               </TouchableOpacity>
             </View>
 
@@ -234,7 +235,7 @@ export default function InteriorTemplatesScreen() {
               <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
               <TextInput
                 style={s.searchInput}
-                placeholder={activeTab === 'templates' ? 'Search templates...' : 'Search categories...'}
+                placeholder={activeTab === 'templates' ? tr("Search templates...") : tr("Search categories...")}
                 placeholderTextColor="#94A3B8"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -246,10 +247,10 @@ export default function InteriorTemplatesScreen() {
                 {filteredTemplates.length === 0 ? (
                   <View style={s.empty}>
                     <Ionicons name="layers-outline" size={44} color="#94A3B8" />
-                    <Text style={s.emptyTitle}>No templates found</Text>
+                    <Text style={s.emptyTitle}>{tr("No templates found")}</Text>
                     <TouchableOpacity style={s.emptyBtn} onPress={openCreateTemplate}>
                       <Ionicons name="add" size={16} color="#FFFFFF" />
-                      <Text style={s.emptyBtnText}>Create Template</Text>
+                      <Text style={s.emptyBtnText}>{tr("Create Template")}</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -273,16 +274,16 @@ export default function InteriorTemplatesScreen() {
                     >
                       <View style={s.templateTopRow}>
                         <View style={s.categoryBadge}>
-                          <Text style={s.categoryBadgeText}>{t.category?.name || 'Uncategorized'}</Text>
+                          <Text style={s.categoryBadgeText}>{t.category?.name || tr("Uncategorized")}</Text>
                         </View>
                         {!!t.updatedAt && (
                           <Text style={s.updatedText}>
-                            Updated {new Date(t.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            {tr("Updated ")}{new Date(t.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </Text>
                         )}
                       </View>
-                      <Text style={s.templateTitle}>{t.name}</Text>
-                      {!!t.description && <Text style={s.templateDesc} numberOfLines={2}>{t.description}</Text>}
+                      <Text style={s.templateTitle}>{tr(t.name)}</Text>
+                      {!!t.description && <Text style={s.templateDesc} numberOfLines={2}>{tr(t.description)}</Text>}
                       <View style={s.templateStatsRow}>
                         {(t.minBudget > 0 || t.maxBudget > 0) && (
                           <View style={s.templateStat}>
@@ -293,19 +294,19 @@ export default function InteriorTemplatesScreen() {
                         {t.area > 0 && (
                           <View style={s.templateStat}>
                             <Ionicons name="map-outline" size={13} color="#4F46E5" />
-                            <Text style={s.templateStatText}>{t.area} sqft</Text>
+                            <Text style={s.templateStatText}>{tr(t.area)}{tr(" sqft")}</Text>
                           </View>
                         )}
                         {t.estimatedDays > 0 && (
                           <View style={s.templateStat}>
                             <Ionicons name="time-outline" size={13} color="#16A34A" />
-                            <Text style={s.templateStatText}>{t.estimatedDays} days</Text>
+                            <Text style={s.templateStatText}>{tr(t.estimatedDays)}{tr(" days")}</Text>
                           </View>
                         )}
                       </View>
                       <View style={s.templateBottomRow}>
                         <View style={s.applyBtn}>
-                          <Text style={s.applyBtnText}>View Template</Text>
+                          <Text style={s.applyBtnText}>{tr("View Template")}</Text>
                           <Ionicons name="arrow-forward" size={13} color="#2563EB" />
                         </View>
                         <TouchableOpacity onPress={() => setDeletingTemplate(t)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -321,7 +322,7 @@ export default function InteriorTemplatesScreen() {
                 {filteredCategories.length === 0 ? (
                   <View style={s.empty}>
                     <Ionicons name="folder-open-outline" size={44} color="#94A3B8" />
-                    <Text style={s.emptyTitle}>No categories found</Text>
+                    <Text style={s.emptyTitle}>{tr("No categories found")}</Text>
                   </View>
                 ) : (
                   filteredCategories.map((c) => (
@@ -334,10 +335,10 @@ export default function InteriorTemplatesScreen() {
                           <Ionicons name="trash-outline" size={16} color="#EF4444" />
                         </TouchableOpacity>
                       </View>
-                      <Text style={s.categoryName}>{c.name}</Text>
+                      <Text style={s.categoryName}>{tr(c.name)}</Text>
                       <View style={s.categoryBottomRow}>
-                        <Text style={s.categoryCount}>{templateCountFor(c._id)} Templates</Text>
-                        <Text style={s.categoryActive}>Active</Text>
+                        <Text style={s.categoryCount}>{templateCountFor(c._id)}{tr(" Templates")}</Text>
+                        <Text style={s.categoryActive}>{tr("Active")}</Text>
                       </View>
                     </View>
                   ))
@@ -362,32 +363,32 @@ export default function InteriorTemplatesScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Create Workflow Template</Text>
+              <Text style={s.modalTitle}>{tr("Create Workflow Template")}</Text>
               <TouchableOpacity onPress={() => setIsTemplateModalVisible(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Template Title</Text>
-              <TextInput style={s.input} placeholder="e.g. Luxury Apartment 3BHK Blueprint" placeholderTextColor="#94A3B8" value={title} onChangeText={setTitle} />
+              <Text style={s.label}>{tr("Template Title")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Luxury Apartment 3BHK Blueprint")} placeholderTextColor="#94A3B8" value={title} onChangeText={setTitle} />
 
-              <Text style={s.label}>Category</Text>
+              <Text style={s.label}>{tr("Category")}</Text>
               {categories.length === 0 ? (
-                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' }}>Create a category first.</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' }}>{tr("Create a category first.")}</Text>
               ) : (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {categories.map((c) => (
                     <TouchableOpacity key={c._id} style={[s.optionChip, category === c._id && s.optionChipActive]} onPress={() => setCategory(c._id)}>
-                      <Text style={[s.optionChipText, category === c._id && s.optionChipTextActive]}>{c.name}</Text>
+                      <Text style={[s.optionChipText, category === c._id && s.optionChipTextActive]}>{tr(c.name)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
 
-              <Text style={s.label}>Description</Text>
+              <Text style={s.label}>{tr("Description")}</Text>
               <TextInput
                 style={[s.input, { height: 80, textAlignVertical: 'top' }]}
-                placeholder="Describe included rooms, veneers, and BOQ items..."
+                placeholder={tr("Describe included rooms, veneers, and BOQ items...")}
                 placeholderTextColor="#94A3B8"
                 value={description}
                 onChangeText={setDescription}
@@ -396,22 +397,22 @@ export default function InteriorTemplatesScreen() {
 
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Min Budget</Text>
+                  <Text style={s.label}>{tr("Min Budget")}</Text>
                   <TextInput style={s.input} placeholder="0" placeholderTextColor="#94A3B8" value={minBudget} onChangeText={setMinBudget} keyboardType="numeric" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Max Budget</Text>
+                  <Text style={s.label}>{tr("Max Budget")}</Text>
                   <TextInput style={s.input} placeholder="0" placeholderTextColor="#94A3B8" value={maxBudget} onChangeText={setMaxBudget} keyboardType="numeric" />
                 </View>
               </View>
 
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Area (sqft)</Text>
+                  <Text style={s.label}>{tr("Area (sqft)")}</Text>
                   <TextInput style={s.input} placeholder="e.g. 1200" placeholderTextColor="#94A3B8" value={area} onChangeText={setArea} keyboardType="numeric" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Estimated Days</Text>
+                  <Text style={s.label}>{tr("Estimated Days")}</Text>
                   <TextInput style={s.input} placeholder="e.g. 45" placeholderTextColor="#94A3B8" value={estimatedDays} onChangeText={setEstimatedDays} keyboardType="numeric" />
                 </View>
               </View>
@@ -420,7 +421,7 @@ export default function InteriorTemplatesScreen() {
                 {isSubmittingTemplate ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
                   <>
                     <Ionicons name="send" size={15} color="#FFFFFF" />
-                    <Text style={s.saveBtnText}>Save Template</Text>
+                    <Text style={s.saveBtnText}>{tr("Save Template")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -434,20 +435,20 @@ export default function InteriorTemplatesScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Add Template Category</Text>
+              <Text style={s.modalTitle}>{tr("Add Template Category")}</Text>
               <TouchableOpacity onPress={() => setIsCategoryModalVisible(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Category Name</Text>
-              <TextInput style={s.input} placeholder="e.g. Hospitality & Retail" placeholderTextColor="#94A3B8" value={catName} onChangeText={setCatName} />
+              <Text style={s.label}>{tr("Category Name")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Hospitality & Retail")} placeholderTextColor="#94A3B8" value={catName} onChangeText={setCatName} />
 
               <TouchableOpacity style={s.saveBtn} onPress={handleCreateCategory} disabled={isSubmittingCategory}>
                 {isSubmittingCategory ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
                   <>
                     <Ionicons name="send" size={15} color="#FFFFFF" />
-                    <Text style={s.saveBtnText}>Save Category</Text>
+                    <Text style={s.saveBtnText}>{tr("Save Category")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -458,9 +459,9 @@ export default function InteriorTemplatesScreen() {
 
       <ConfirmModal
         visible={!!deletingTemplate}
-        title="Delete Template"
-        message={`Are you sure you want to delete "${deletingTemplate?.name}"?`}
-        confirmText="Delete"
+        title={tr("Delete Template")}
+        message={tr("Are you sure you want to delete \"{{name}}\"?", { name: deletingTemplate?.name })}
+        confirmText={tr("Delete")}
         type="destructive"
         isSubmitting={isDeleting}
         onConfirm={handleConfirmDeleteTemplate}
@@ -469,9 +470,9 @@ export default function InteriorTemplatesScreen() {
 
       <ConfirmModal
         visible={!!deletingCategory}
-        title="Delete Category"
-        message={`Are you sure you want to delete "${deletingCategory?.name}"? Templates in this category will also be removed.`}
-        confirmText="Delete"
+        title={tr("Delete Category")}
+        message={tr("Are you sure you want to delete \"{{name}}\"? Templates in this category will also be removed.", { name: deletingCategory?.name })}
+        confirmText={tr("Delete")}
         type="destructive"
         isSubmitting={isDeleting}
         onConfirm={handleConfirmDeleteCategory}
@@ -487,9 +488,9 @@ function StatCard({ icon, iconBg, iconColor, label, value, sub }) {
       <View style={[s.statIconBox, { backgroundColor: iconBg }]}>
         <Ionicons name={icon} size={16} color={iconColor} />
       </View>
-      <Text style={s.statLabel}>{label}</Text>
+      <Text style={s.statLabel}>{tr(label)}</Text>
       <Text style={s.statValue}>
-        {value} {!!sub && <Text style={s.statValueSub}>{sub}</Text>}
+        {tr(value)} {!!sub && <Text style={s.statValueSub}>{tr(sub)}</Text>}
       </Text>
     </View>
   );

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // Dropdown field: shows the selected option and opens an inline list
 // (works inside modals and scroll views). options: [{ value, label }] or strings.
 import { useState } from 'react';
@@ -17,7 +18,7 @@ export default function SelectField({ value, onChange, options = [], placeholder
         activeOpacity={0.7}
       >
         <Text style={[s.text, !selected && s.placeholder]} numberOfLines={1}>
-          {selected ? selected.label : placeholder}
+          {selected ? tr(selected.label) : placeholder}
         </Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
       </TouchableOpacity>
@@ -25,7 +26,7 @@ export default function SelectField({ value, onChange, options = [], placeholder
         <View style={s.menu}>
           <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 220 }}>
             {list.length === 0 ? (
-              <Text style={s.empty}>No options</Text>
+              <Text style={s.empty}>{tr("No options")}</Text>
             ) : (
               list.map((o, idx) => {
                 const active = o.value === value;
@@ -38,7 +39,7 @@ export default function SelectField({ value, onChange, options = [], placeholder
                       setOpen(false);
                     }}
                   >
-                    <Text style={[s.itemText, active && s.itemTextActive]} numberOfLines={1}>{o.label}</Text>
+                    <Text style={[s.itemText, active && s.itemTextActive]} numberOfLines={1}>{tr(o.label)}</Text>
                     {active && <Ionicons name="checkmark" size={15} color="#2563EB" />}
                   </TouchableOpacity>
                 );

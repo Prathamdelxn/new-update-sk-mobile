@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,10 +37,10 @@ const ModulePermissionCard = ({ title, permissions, onToggle, excludeActions = [
         style={styles.header}
       >
         <View style={styles.titleContent}>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title}>{tr(title)}</Text>
           {!isExpanded && (
             <Text style={styles.summaryText}>
-              {activeCount === 0 ? 'No access defined' : `${activeCount} permissions enabled`}
+              {activeCount === 0 ? tr("No access defined") : tr("{{activeCount}} permissions enabled", { activeCount: activeCount })}
             </Text>
           )}
         </View>
@@ -72,7 +73,7 @@ const ModulePermissionCard = ({ title, permissions, onToggle, excludeActions = [
                   styles.actionLabel,
                   isActive ? { color: action.color, fontFamily: 'Inter-Bold' } : null
                 ]}>
-                  {action.label}
+                  {tr(action.label)}
                 </Text>
               </TouchableOpacity>
             );

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -125,7 +126,7 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', i
     <View>
       <TouchableOpacity style={[inputStyle, ctrlStyles.row]} onPress={() => setOpen((v) => !v)}>
         <Text style={[ctrlStyles.text, !selected && ctrlStyles.placeholder]} numberOfLines={1}>
-          {selected ? selected.label : placeholder}
+          {selected ? tr(selected.label) : placeholder}
         </Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
       </TouchableOpacity>
@@ -140,7 +141,7 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', i
                   style={[ctrlStyles.menuItem, active && ctrlStyles.menuItemActive]}
                   onPress={() => { onChange(o.value); setOpen(false); }}
                 >
-                  <Text style={[ctrlStyles.menuItemText, active && ctrlStyles.menuItemTextActive]} numberOfLines={1}>{o.label}</Text>
+                  <Text style={[ctrlStyles.menuItemText, active && ctrlStyles.menuItemTextActive]} numberOfLines={1}>{tr(o.label)}</Text>
                   {active && <Ionicons name="checkmark" size={14} color="#2563EB" />}
                 </TouchableOpacity>
               );
@@ -324,12 +325,12 @@ const { can: canDo } = useProjectPermissions(projectId);
       const aRes = await interiorApiClient.post(`/projects/${projectId}/wbs`, { type: 'area', name: 'Primary Space', parentId: zRes?.data?._id });
       const pRes = await interiorApiClient.post(`/projects/${projectId}/wbs`, { type: 'package', name: 'Interior & Fitout', trade: 'interior', parentId: aRes?.data?._id });
       if (pRes?.success && pRes?.data?._id) {
-        showToast('Default WBS structure & package created!', 'success');
+        showToast(tr("Default WBS structure & package created!"), 'success');
         setForm((f) => ({ ...f, packageId: String(pRes.data._id) }));
         await fetchData();
       }
     } catch (e) {
-      showToast(e.message || 'Failed to create starter package', 'error');
+      showToast(e.message || tr("Failed to create starter package"), 'error');
     } finally {
       setCreatingPkg(false);
     }
@@ -345,14 +346,14 @@ const { can: canDo } = useProjectPermissions(projectId);
       const aRes = await interiorApiClient.post(`/projects/${projectId}/wbs`, { type: 'area', name: 'Main Area', parentId: zRes?.data?._id });
       const pRes = await interiorApiClient.post(`/projects/${projectId}/wbs`, { type: 'package', name: inlinePkg.name.trim(), trade: inlinePkg.trade, parentId: aRes?.data?._id });
       if (pRes?.success && pRes?.data?._id) {
-        showToast(`Package "${inlinePkg.name}" created!`, 'success');
+        showToast(tr("Package \"{{name}}\" created!", { name: inlinePkg.name }), 'success');
         setForm((f) => ({ ...f, packageId: String(pRes.data._id) }));
         setShowInlinePkgForm(false);
         setInlinePkg({ name: '', trade: 'interior' });
         await fetchData();
       }
     } catch (e) {
-      showToast(e.message || 'Failed to create package', 'error');
+      showToast(e.message || tr("Failed to create package"), 'error');
     } finally {
       setCreatingPkg(false);
     }
@@ -363,7 +364,7 @@ const { can: canDo } = useProjectPermissions(projectId);
   // -----------------------------------------------------------------------
   const handleCreateTask = async () => {
     if (!form.name.trim() || !form.packageId) {
-      showToast('Task name and WBS package are required', 'error');
+      showToast(tr("Task name and WBS package are required"), 'error');
       return;
     }
     setCreating(true);
@@ -391,12 +392,12 @@ const { can: canDo } = useProjectPermissions(projectId);
         }
       }
 
-      showToast('Task created successfully in "To Do"', 'success');
+      showToast(tr("Task created successfully in \"To Do\""), 'success');
       setIsCreateOpen(false);
       setForm(emptyForm);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to create task', 'error');
+      showToast(e.message || tr("Failed to create task"), 'error');
     } finally {
       setCreating(false);
     }
@@ -455,7 +456,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         setNewComment('');
       }
     } catch (e) {
-      showToast('Failed to post comment', 'error');
+      showToast(tr("Failed to post comment"), 'error');
     } finally {
       setPostingComment(false);
     }
@@ -490,7 +491,7 @@ const { can: canDo } = useProjectPermissions(projectId);
     try {
       await interiorApiClient.put(`/projects/${projectId}/tasks/${task._id}`, { status });
     } catch (e) {
-      showToast('Failed to update status', 'error');
+      showToast(tr("Failed to update status"), 'error');
       fetchData();
     }
   };
@@ -498,7 +499,7 @@ const { can: canDo } = useProjectPermissions(projectId);
   const pickProofImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      showToast('Photo library permission is required', 'error');
+      showToast(tr("Photo library permission is required"), 'error');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -568,7 +569,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       const updated = res?.success && res?.data ? { ...res.data, status: 'completed', progress: 100 } : { ...proofTask, ...payload };
       setTasks((prev) => prev.map((t) => (t._id === proofTask._id ? updated : t)));
       if (selectedTask?._id === proofTask._id) setSelectedTask(updated);
-      showToast(materialUsages.length ? 'Task marked as Completed with Material Usage logged!' : 'Task marked as Completed with Proof of Work verified!', 'success');
+      showToast(materialUsages.length ? tr("Task marked as Completed with Material Usage logged!") : tr("Task marked as Completed with Proof of Work verified!"), 'success');
       setIsProofOpen(false);
       setProofTask(null);
       setProofImages([]);
@@ -576,7 +577,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setMaterialUsages([]);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to complete task', 'error');
+      showToast(e.message || tr("Failed to complete task"), 'error');
     } finally {
       setSubmittingProof(false);
     }
@@ -608,23 +609,23 @@ const { can: canDo } = useProjectPermissions(projectId);
       setSelectedTask(updated);
       setTasks((prev) => prev.map((t) => (t._id === selectedTask._id ? updated : t)));
     } catch (e) {
-      showToast(e.message || 'Failed to update subtask', 'error');
+      showToast(e.message || tr("Failed to update subtask"), 'error');
     }
   };
 
   const deleteTask = (task) => {
-    Alert.alert('Delete Task', `Are you sure you want to delete "${task.name}"? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete Task"), tr("Are you sure you want to delete \"{{name}}\"? This cannot be undone.", { name: task.name }), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: tr("Delete"), style: 'destructive', onPress: async () => {
           try {
             await interiorApiClient.delete(`/projects/${projectId}/tasks/${task._id}`);
-            showToast('Task deleted successfully', 'delete');
+            showToast(tr("Task deleted successfully"), 'delete');
             setSelectedTask(null);
             setIsEditingTask(false);
             fetchData();
           } catch (e) {
-            showToast(e.message || 'Failed to delete task', 'error');
+            showToast(e.message || tr("Failed to delete task"), 'error');
           }
         },
       },
@@ -667,13 +668,13 @@ const { can: canDo } = useProjectPermissions(projectId);
         subtasks,
       };
       const res = await interiorApiClient.put(`/projects/${projectId}/tasks/${selectedTask._id}`, payload);
-      showToast('Task updated successfully!', 'success');
+      showToast(tr("Task updated successfully!"), 'success');
       const updated = res?.success && res?.data ? res.data : { ...selectedTask, ...payload };
       setSelectedTask(updated);
       setIsEditingTask(false);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to update task', 'error');
+      showToast(e.message || tr("Failed to update task"), 'error');
     }
   };
 
@@ -688,11 +689,11 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Tasks</Text>
+            <Text style={s.headerTitle}>{tr("Tasks")}</Text>
             <Text style={s.headerSub}>
-              {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+              {tasks.length} {tasks.length === 1 ? tr("task") : tr("tasks")}
               {metrics.overdue + metrics.blocked > 0 && (
-                <Text style={{ color: '#DC2626' }}>  ·  {metrics.overdue + metrics.blocked} overdue</Text>
+                <Text style={{ color: '#DC2626' }}>  ·  {metrics.overdue + metrics.blocked}{tr(" overdue")}</Text>
               )}
             </Text>
           </View>
@@ -702,10 +703,10 @@ const { can: canDo } = useProjectPermissions(projectId);
         <View style={s.controlBar}>
           <View style={s.viewSwitch}>
             <TouchableOpacity style={[s.viewSwitchBtn, viewMode === 'board' && s.viewSwitchBtnActive]} onPress={() => setViewMode('board')}>
-              <Text style={[s.viewSwitchText, viewMode === 'board' && s.viewSwitchTextActive]}>Board</Text>
+              <Text style={[s.viewSwitchText, viewMode === 'board' && s.viewSwitchTextActive]}>{tr("Board")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.viewSwitchBtn, viewMode === 'wbs' && s.viewSwitchBtnActive]} onPress={() => setViewMode('wbs')}>
-              <Text style={[s.viewSwitchText, viewMode === 'wbs' && s.viewSwitchTextActive]}>By WBS</Text>
+              <Text style={[s.viewSwitchText, viewMode === 'wbs' && s.viewSwitchTextActive]}>{tr("By WBS")}</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={s.filterToggleBtn} onPress={() => setShowFilters((v) => !v)}>
@@ -716,7 +717,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         <View style={s.searchRow}>
           <View style={s.searchBox}>
             <Ionicons name="search" size={16} color="#94A3B8" />
-            <TextInput style={s.searchInput} placeholder="Search tasks, assignees..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
+            <TextInput style={s.searchInput} placeholder={tr("Search tasks, assignees...")} placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
             {!!searchQuery && (
               <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="close-circle" size={16} color="#CBD5E1" />
@@ -727,21 +728,21 @@ const { can: canDo } = useProjectPermissions(projectId);
 
         {showFilters && (
           <View style={s.filterPanel}>
-            <Text style={s.filterLabel}>Priority</Text>
+            <Text style={s.filterLabel}>{tr("Priority")}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
               <TouchableOpacity style={[s.chipSm, filterPriority === 'all' && s.chipSmActive]} onPress={() => setFilterPriority('all')}>
-                <Text style={[s.chipSmText, filterPriority === 'all' && s.chipSmTextActive]}>All</Text>
+                <Text style={[s.chipSmText, filterPriority === 'all' && s.chipSmTextActive]}>{tr("All")}</Text>
               </TouchableOpacity>
               {PRIORITIES.map((p) => (
                 <TouchableOpacity key={p} style={[s.chipSm, filterPriority === p && s.chipSmActive]} onPress={() => setFilterPriority(p)}>
-                  <Text style={[s.chipSmText, filterPriority === p && s.chipSmTextActive]}>{PRIORITY_META[p].label}</Text>
+                  <Text style={[s.chipSmText, filterPriority === p && s.chipSmTextActive]}>{tr(PRIORITY_META[p].label)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <Text style={s.filterLabel}>Assignee</Text>
+            <Text style={s.filterLabel}>{tr("Assignee")}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 6, marginBottom: 4 }}>
               <TouchableOpacity style={[s.chipSm, filterAssignee === 'all' && s.chipSmActive]} onPress={() => setFilterAssignee('all')}>
-                <Text style={[s.chipSmText, filterAssignee === 'all' && s.chipSmTextActive]}>All</Text>
+                <Text style={[s.chipSmText, filterAssignee === 'all' && s.chipSmTextActive]}>{tr("All")}</Text>
               </TouchableOpacity>
               {members.map((m) => {
                 const uid = m.userId?._id || m._id;
@@ -768,7 +769,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               return (
                 <TouchableOpacity key={col.id} style={[s.colTab, active && { borderColor: col.color, backgroundColor: col.color + '14' }]} onPress={() => setActiveColumn(col.id)}>
                   <View style={[s.colDot, { backgroundColor: col.color }]} />
-                  <Text style={[s.colTabText, active && { color: col.color }]}>{col.title}</Text>
+                  <Text style={[s.colTabText, active && { color: col.color }]}>{tr(col.title)}</Text>
                   <View style={s.colCountBadge}><Text style={s.colCountText}>{count}</Text></View>
                 </TouchableOpacity>
               );
@@ -783,7 +784,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             {colTasks.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="checkbox-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>{activeColumn === 'all' ? 'No tasks yet' : 'No tasks in this column'}</Text>
+                <Text style={s.emptyTitle}>{activeColumn === 'all' ? tr("No tasks yet") : tr("No tasks in this column")}</Text>
               </View>
             ) : (
               colTasks.map((task) => <TaskCard key={task._id} task={task} onPress={() => openTask(task)} onEdit={canDo('tasks', 'update') ? () => openEditTask(task) : undefined} onDelete={canDo('tasks', 'delete') ? () => deleteTask(task) : undefined} />)
@@ -795,7 +796,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             {tasksByPackage.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="layers-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No tasks found</Text>
+                <Text style={s.emptyTitle}>{tr("No tasks found")}</Text>
               </View>
             ) : (
               tasksByPackage.map((group) => {
@@ -807,10 +808,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                     <TouchableOpacity style={s.wbsGroupHeader} onPress={() => toggleWbsGroup(group.package.id)}>
                       <Ionicons name={isExpanded ? 'chevron-down' : 'chevron-forward'} size={15} color="#64748B" />
                       <View style={{ flex: 1, marginLeft: 8 }}>
-                        <Text style={s.wbsGroupName}>{group.package.name} <Text style={s.wbsGroupTrade}>({group.package.trade})</Text></Text>
+                        <Text style={s.wbsGroupName}>{tr(group.package.name)} <Text style={s.wbsGroupTrade}>({tr(group.package.trade)})</Text></Text>
                         <View style={s.wbsProgressTrack}><View style={[s.wbsProgressFill, { width: `${pkgProgress}%` }]} /></View>
                       </View>
-                      <Text style={s.wbsGroupCount}>{completedInGroup}/{group.tasks.length}</Text>
+                      <Text style={s.wbsGroupCount}>{tr(completedInGroup)}/{group.tasks.length}</Text>
                     </TouchableOpacity>
                     {isExpanded && (
                       <View style={{ padding: 10, gap: 8 }}>
@@ -837,7 +838,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Add Task to WBS Package</Text>
+              <Text style={s.modalTitle}>{tr("Add Task to WBS Package")}</Text>
               <TouchableOpacity onPress={() => setIsCreateOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
@@ -845,34 +846,34 @@ const { can: canDo } = useProjectPermissions(projectId);
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={s.label}>WBS Target Package *</Text>
+                <Text style={s.label}>{tr("WBS Target Package *")}</Text>
                 <TouchableOpacity onPress={() => setShowInlinePkgForm((v) => !v)}>
-                  <Text style={s.linkBtnText}>{showInlinePkgForm ? 'Cancel' : '+ New Package'}</Text>
+                  <Text style={s.linkBtnText}>{showInlinePkgForm ? tr("Cancel") : tr("+ New Package")}</Text>
                 </TouchableOpacity>
               </View>
 
               {showInlinePkgForm ? (
                 <View style={s.inlinePkgBox}>
-                  <TextInput style={s.input} placeholder="Package Name (e.g. Electrical)" placeholderTextColor="#94A3B8" value={inlinePkg.name} onChangeText={(v) => setInlinePkg({ ...inlinePkg, name: v })} />
+                  <TextInput style={s.input} placeholder={tr("Package Name (e.g. Electrical)")} placeholderTextColor="#94A3B8" value={inlinePkg.name} onChangeText={(v) => setInlinePkg({ ...inlinePkg, name: v })} />
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 6, marginTop: 8, marginBottom: 8 }}>
                     {TRADES.map((t) => (
                       <TouchableOpacity key={t.value} style={[s.chipSm, inlinePkg.trade === t.value && s.chipSmActive]} onPress={() => setInlinePkg({ ...inlinePkg, trade: t.value })}>
-                        <Text style={[s.chipSmText, inlinePkg.trade === t.value && s.chipSmTextActive]}>{t.label}</Text>
+                        <Text style={[s.chipSmText, inlinePkg.trade === t.value && s.chipSmTextActive]}>{tr(t.label)}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
                   {canDo('wbs', 'create') && (
                     <TouchableOpacity style={[s.saveBtnSm, creatingPkg && { opacity: 0.7 }]} onPress={handleCreateInlinePackage} disabled={creatingPkg}>
-                      {creatingPkg ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnSmText}>Save & Select Package</Text>}
+                      {creatingPkg ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnSmText}>{tr("Save & Select Package")}</Text>}
                     </TouchableOpacity>
                   )}
                 </View>
               ) : wbsPackages.length === 0 ? (
                 <View style={s.noPkgBox}>
-                  <Text style={s.noPkgText}>Tasks must belong to a WBS Trade Package. Tap below to initialize a starter package.</Text>
+                  <Text style={s.noPkgText}>{tr("Tasks must belong to a WBS Trade Package. Tap below to initialize a starter package.")}</Text>
                   {canDo('wbs', 'create') && (
                     <TouchableOpacity style={[s.saveBtnSm, creatingPkg && { opacity: 0.7 }]} onPress={handleQuickCreateDefaultWbs} disabled={creatingPkg}>
-                      {creatingPkg ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnSmText}>Initialize Starter Package</Text>}
+                      {creatingPkg ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnSmText}>{tr("Initialize Starter Package")}</Text>}
                     </TouchableOpacity>
                   )}
                 </View>
@@ -881,62 +882,62 @@ const { can: canDo } = useProjectPermissions(projectId);
                   value={form.packageId}
                   options={wbsPackages.map((pkg) => ({ value: pkg.id, label: `${pkg.name} (${pkg.trade})` }))}
                   onChange={(v) => setForm({ ...form, packageId: v })}
-                  placeholder="Select WBS package"
+                  placeholder={tr("Select WBS package")}
                   inputStyle={s.input}
                 />
               )}
 
-              <Text style={s.label}>Task Name *</Text>
-              <TextInput style={s.input} placeholder="e.g. Core Conduit Fixing" placeholderTextColor="#94A3B8" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
+              <Text style={s.label}>{tr("Task Name *")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Core Conduit Fixing")} placeholderTextColor="#94A3B8" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
 
               {milestones.length > 0 && (
                 <>
-                  <Text style={s.label}>Link to Milestone (Optional)</Text>
+                  <Text style={s.label}>{tr("Link to Milestone (Optional)")}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
                     <TouchableOpacity style={[s.chip, !form.milestoneId && s.chipActive]} onPress={() => setForm({ ...form, milestoneId: '' })}>
-                      <Text style={[s.chipText, !form.milestoneId && s.chipTextActive]}>None</Text>
+                      <Text style={[s.chipText, !form.milestoneId && s.chipTextActive]}>{tr("None")}</Text>
                     </TouchableOpacity>
                     {milestones.map((m) => (
                       <TouchableOpacity key={m._id} style={[s.chip, form.milestoneId === m._id && s.chipActive]} onPress={() => setForm({ ...form, milestoneId: m._id })}>
-                        <Text style={[s.chipText, form.milestoneId === m._id && s.chipTextActive]}>{m.name}</Text>
+                        <Text style={[s.chipText, form.milestoneId === m._id && s.chipTextActive]}>{tr(m.name)}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
                 </>
               )}
 
-              <Text style={s.label}>Priority</Text>
+              <Text style={s.label}>{tr("Priority")}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                 {PRIORITIES.map((p) => (
                   <TouchableOpacity key={p} style={[s.chip, form.priority === p && s.chipActive]} onPress={() => setForm({ ...form, priority: p })}>
-                    <Text style={[s.chipText, form.priority === p && s.chipTextActive]}>{PRIORITY_META[p].label}</Text>
+                    <Text style={[s.chipText, form.priority === p && s.chipTextActive]}>{tr(PRIORITY_META[p].label)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.label}>Assignee</Text>
+              <Text style={s.label}>{tr("Assignee")}</Text>
               <SelectDropdown
                 value={form.assigneeId}
                 options={[{ value: '', label: 'Unassigned' }, ...members.map((m) => ({ value: m.userId?._id || m._id, label: memberName(m) }))]}
                 onChange={(v) => setForm({ ...form, assigneeId: v })}
-                placeholder="Select assignee"
+                placeholder={tr("Select assignee")}
                 inputStyle={s.input}
               />
 
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Start Date</Text>
+                  <Text style={s.label}>{tr("Start Date")}</Text>
                   <DateField value={form.startDate} onChange={(v) => setForm({ ...form, startDate: v })} inputStyle={s.input} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>End Date</Text>
+                  <Text style={s.label}>{tr("End Date")}</Text>
                   <DateField value={form.endDate} onChange={(v) => setForm({ ...form, endDate: v })} inputStyle={s.input} />
                 </View>
               </View>
 
               {tasks.length > 0 && (
                 <>
-                  <Text style={s.label}>Depends On (Optional)</Text>
+                  <Text style={s.label}>{tr("Depends On (Optional)")}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
                     {tasks.map((t) => {
                       const active = form.dependencies.includes(t._id);
@@ -944,7 +945,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                         <TouchableOpacity key={t._id} style={[s.chip, active && s.chipActive]} onPress={() => {
                           setForm((f) => ({ ...f, dependencies: active ? f.dependencies.filter((id) => id !== t._id) : [...f.dependencies, t._id] }));
                         }}>
-                          <Text style={[s.chipText, active && s.chipTextActive]} numberOfLines={1}>{t.name}</Text>
+                          <Text style={[s.chipText, active && s.chipTextActive]} numberOfLines={1}>{tr(t.name)}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -953,11 +954,11 @@ const { can: canDo } = useProjectPermissions(projectId);
               )}
 
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 6 }}>
-                <Text style={s.label}>Execution Subtasks Checklist</Text>
-                <Text style={s.hintTextSm}>{form.initialSubtasks.length} added</Text>
+                <Text style={s.label}>{tr("Execution Subtasks Checklist")}</Text>
+                <Text style={s.hintTextSm}>{form.initialSubtasks.length}{tr(" added")}</Text>
               </View>
               <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TextInput style={[s.input, { flex: 1 }]} placeholder="Add subtask..." placeholderTextColor="#94A3B8" value={newInitialSubtask} onChangeText={setNewInitialSubtask} onSubmitEditing={() => {
+                <TextInput style={[s.input, { flex: 1 }]} placeholder={tr("Add subtask...")} placeholderTextColor="#94A3B8" value={newInitialSubtask} onChangeText={setNewInitialSubtask} onSubmitEditing={() => {
                   if (newInitialSubtask.trim()) { setForm((f) => ({ ...f, initialSubtasks: [...f.initialSubtasks, newInitialSubtask.trim()] })); setNewInitialSubtask(''); }
                 }} />
                 <TouchableOpacity style={s.addBtn} onPress={() => {
@@ -968,18 +969,18 @@ const { can: canDo } = useProjectPermissions(projectId);
               </View>
               {form.initialSubtasks.map((st, idx) => (
                 <View key={idx} style={s.subtaskDraftRow}>
-                  <Text style={s.subtaskDraftText} numberOfLines={1}>{st}</Text>
+                  <Text style={s.subtaskDraftText} numberOfLines={1}>{tr(st)}</Text>
                   <TouchableOpacity onPress={() => setForm((f) => ({ ...f, initialSubtasks: f.initialSubtasks.filter((_, i) => i !== idx) }))}>
                     <Ionicons name="close" size={14} color="#94A3B8" />
                   </TouchableOpacity>
                 </View>
               ))}
 
-              <Text style={s.label}>Description</Text>
-              <TextInput style={[s.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]} placeholder="Specify task instructions..." placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} multiline />
+              <Text style={s.label}>{tr("Description")}</Text>
+              <TextInput style={[s.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]} placeholder={tr("Specify task instructions...")} placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} multiline />
 
               <TouchableOpacity style={[s.saveBtn, creating && { opacity: 0.7 }]} onPress={handleCreateTask} disabled={creating}>
-                {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Create Task</Text>}
+                {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Create Task")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -994,8 +995,8 @@ const { can: canDo } = useProjectPermissions(projectId);
               <>
                 <View style={s.modalHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.modalTitle} numberOfLines={1}>{selectedTask.name}</Text>
-                    {!!selectedTask.packageId && <Text style={s.headerSub}>{selectedTask.packageId.name} ({selectedTask.packageId.trade})</Text>}
+                    <Text style={s.modalTitle} numberOfLines={1}>{tr(selectedTask.name)}</Text>
+                    {!!selectedTask.packageId && <Text style={s.headerSub}>{tr(selectedTask.packageId.name)} ({tr(selectedTask.packageId.trade)})</Text>}
                   </View>
                   {canDo('tasks', 'update') && (
                     <TouchableOpacity onPress={() => openEditTask(selectedTask)} style={{ marginRight: 14 }}>
@@ -1008,11 +1009,11 @@ const { can: canDo } = useProjectPermissions(projectId);
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false}>
-                  <Text style={s.label}>Task Status</Text>
+                  <Text style={s.label}>{tr("Task Status")}</Text>
                   <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
                     {COLUMNS.map((col) => (
                       <TouchableOpacity key={col.id} style={[s.statusOption, selectedTask.status === col.id && s.statusOptionActive]} onPress={() => canDo('tasks', 'update') && updateStatus(selectedTask, col.id)}>
-                        <Text style={[s.statusOptionText, selectedTask.status === col.id && s.statusOptionTextActive]}>{col.title}</Text>
+                        <Text style={[s.statusOptionText, selectedTask.status === col.id && s.statusOptionTextActive]}>{tr(col.title)}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -1022,17 +1023,17 @@ const { can: canDo } = useProjectPermissions(projectId);
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
-                          <Text style={s.proofVerifiedTitle}>Proof of Work Verified</Text>
+                          <Text style={s.proofVerifiedTitle}>{tr("Proof of Work Verified")}</Text>
                         </View>
                         {canDo('tasks', 'update') && (
                           <TouchableOpacity style={s.updateProofBtn} onPress={() => initiateCompleteTask(selectedTask)}>
                             <Ionicons name="camera-outline" size={12} color="#16A34A" />
-                            <Text style={s.updateProofBtnText}>Update Proof</Text>
+                            <Text style={s.updateProofBtnText}>{tr("Update Proof")}</Text>
                           </TouchableOpacity>
                         )}
                       </View>
                       {selectedTask.completionProof?.completedAt && (
-                        <Text style={s.proofDate}>Completed on {new Date(selectedTask.completionProof.completedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</Text>
+                        <Text style={s.proofDate}>{tr("Completed on ")}{new Date(selectedTask.completionProof.completedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</Text>
                       )}
                       {selectedTask.completionProof?.images?.length > 0 ? (
                         <View style={s.proofImgGrid}>
@@ -1043,22 +1044,22 @@ const { can: canDo } = useProjectPermissions(projectId);
                           ))}
                         </View>
                       ) : (
-                        <Text style={s.proofNoPhotos}>No site photos attached to this proof.</Text>
+                        <Text style={s.proofNoPhotos}>{tr("No site photos attached to this proof.")}</Text>
                       )}
                       {selectedTask.completionProof?.materialUsage?.length > 0 && (
                         <View style={{ marginTop: 10, gap: 4 }}>
-                          <Text style={s.matTitle}>Materials Used</Text>
+                          <Text style={s.matTitle}>{tr("Materials Used")}</Text>
                           {selectedTask.completionProof.materialUsage.map((m, i) => (
                             <Text key={i} style={s.matSub}>
-                              • {m.materialName} — {m.quantity} {m.unit || ''}{m.notes ? ` (${m.notes})` : ''}
+                              • {tr(m.materialName)} — {m.quantity} {m.unit || ''}{m.notes ? ` (${m.notes})` : ''}
                             </Text>
                           ))}
                         </View>
                       )}
                       {!!selectedTask.completionProof?.notes && (
                         <View style={{ marginTop: 10, gap: 2 }}>
-                          <Text style={s.matTitle}>Completion Notes</Text>
-                          <Text style={s.matSub}>{selectedTask.completionProof.notes}</Text>
+                          <Text style={s.matTitle}>{tr("Completion Notes")}</Text>
+                          <Text style={s.matSub}>{tr(selectedTask.completionProof.notes)}</Text>
                         </View>
                       )}
                     </View>
@@ -1067,48 +1068,48 @@ const { can: canDo } = useProjectPermissions(projectId);
                   <View style={s.detailCard}>
                     <View style={s.detailRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.detailLabel}>Priority</Text>
+                        <Text style={s.detailLabel}>{tr("Priority")}</Text>
                         <Text style={s.detailValue}>{PRIORITY_META[selectedTask.priority]?.label || selectedTask.priority}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.detailLabel}>Progress</Text>
+                        <Text style={s.detailLabel}>{tr("Progress")}</Text>
                         <Text style={s.detailValue}>{selectedTask.progress || 0}%</Text>
                       </View>
                     </View>
                     <View style={s.detailDivider} />
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Ionicons name="calendar-outline" size={14} color="#2563EB" />
-                      <Text style={s.detailDates}>{formatDate(selectedTask.startDate) || 'Start unset'} — {formatDate(selectedTask.endDate) || 'End unset'}</Text>
+                      <Text style={s.detailDates}>{formatDate(selectedTask.startDate) || tr("Start unset")} — {formatDate(selectedTask.endDate) || tr("End unset")}</Text>
                     </View>
                   </View>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8 }}>
                     <Text style={[s.label, { marginTop: 0 }]}>
-                      Subtasks ({(selectedTask.subtasks || []).filter((sub) => sub.completed).length}/{(selectedTask.subtasks || []).length})
+                      {tr("Subtasks (")}{(selectedTask.subtasks || []).filter((sub) => sub.completed).length}/{(selectedTask.subtasks || []).length})
                     </Text>
                   </View>
                   {(selectedTask.subtasks || []).length === 0 ? (
-                    <Text style={s.noComments}>No subtasks defined for this task.</Text>
+                    <Text style={s.noComments}>{tr("No subtasks defined for this task.")}</Text>
                   ) : (
                     selectedTask.subtasks.map((sub, idx) => (
                       <TouchableOpacity key={idx} style={[s.subtaskRow, sub.completed && s.subtaskRowDone]} onPress={() => toggleSubtask(idx)}>
                         <Ionicons name={sub.completed ? 'checkbox' : 'square-outline'} size={17} color={sub.completed ? '#16A34A' : '#CBD5E1'} />
-                        <Text style={[s.subtaskRowText, sub.completed && s.subtaskRowTextDone]} numberOfLines={2}>{sub.title}</Text>
+                        <Text style={[s.subtaskRowText, sub.completed && s.subtaskRowTextDone]} numberOfLines={2}>{tr(sub.title)}</Text>
                       </TouchableOpacity>
                     ))
                   )}
 
-                  <Text style={[s.label, { marginTop: 16 }]}>Description</Text>
-                  <Text style={s.descriptionText}>{selectedTask.description || 'No description provided.'}</Text>
+                  <Text style={[s.label, { marginTop: 16 }]}>{tr("Description")}</Text>
+                  <Text style={s.descriptionText}>{selectedTask.description || tr("No description provided.")}</Text>
 
-                  <Text style={[s.label, { marginTop: 18 }]}>Task Discussions ({comments.length})</Text>
+                  <Text style={[s.label, { marginTop: 18 }]}>{tr("Task Discussions (")}{comments.length})</Text>
                   {comments.length === 0 ? (
-                    <Text style={s.noComments}>No messages on this task yet. Type below to align your team.</Text>
+                    <Text style={s.noComments}>{tr("No messages on this task yet. Type below to align your team.")}</Text>
                   ) : (
                     comments.map((c) => (
                       <View key={c._id} style={s.commentCard}>
                         <View style={s.commentTopRow}>
-                          <Text style={s.commentAuthor}>{c.userId?.firstName} {c.userId?.lastName}</Text>
+                          <Text style={s.commentAuthor}>{tr(c.userId?.firstName)} {tr(c.userId?.lastName)}</Text>
                           <Text style={s.commentTime}>{new Date(c.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
                         </View>
                         <Text style={s.commentBody}>{c.content}</Text>
@@ -1117,7 +1118,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                   )}
 
                   <View style={s.commentInputRow}>
-                    <TextInput style={s.commentInput} placeholder="Post execution update or ask question..." placeholderTextColor="#94A3B8" value={newComment} onChangeText={setNewComment} />
+                    <TextInput style={s.commentInput} placeholder={tr("Post execution update or ask question...")} placeholderTextColor="#94A3B8" value={newComment} onChangeText={setNewComment} />
                     <TouchableOpacity style={s.postBtn} onPress={postComment} disabled={postingComment}>
                       {postingComment ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="send" size={16} color="#FFFFFF" />}
                     </TouchableOpacity>
@@ -1130,69 +1131,69 @@ const { can: canDo } = useProjectPermissions(projectId);
             {selectedTask && isEditingTask && (
               <>
                 <View style={s.modalHeader}>
-                  <Text style={s.modalTitle}>Edit Task</Text>
+                  <Text style={s.modalTitle}>{tr("Edit Task")}</Text>
                   <TouchableOpacity onPress={() => setIsEditingTask(false)}>
                     <Ionicons name="close" size={22} color="#64748B" />
                   </TouchableOpacity>
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false}>
-                  <Text style={s.label}>Task Name *</Text>
+                  <Text style={s.label}>{tr("Task Name *")}</Text>
                   <TextInput style={s.input} value={editForm.name} onChangeText={(v) => setEditForm({ ...editForm, name: v })} />
 
-                  <Text style={s.label}>WBS Package</Text>
+                  <Text style={s.label}>{tr("WBS Package")}</Text>
                   <SelectDropdown
                     value={editForm.packageId}
                     options={wbsPackages.map((pkg) => ({ value: pkg.id, label: `${pkg.name} (${pkg.trade})` }))}
                     onChange={(v) => setEditForm({ ...editForm, packageId: v })}
-                    placeholder="Select WBS package"
+                    placeholder={tr("Select WBS package")}
                     inputStyle={s.input}
                   />
 
-                  <Text style={s.label}>Description</Text>
+                  <Text style={s.label}>{tr("Description")}</Text>
                   <TextInput style={[s.input, { height: 70, textAlignVertical: 'top', paddingTop: 12 }]} multiline value={editForm.description} onChangeText={(v) => setEditForm({ ...editForm, description: v })} />
 
-                  <Text style={s.label}>Priority</Text>
+                  <Text style={s.label}>{tr("Priority")}</Text>
                   <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                     {PRIORITIES.map((p) => (
                       <TouchableOpacity key={p} style={[s.chip, editForm.priority === p && s.chipActive]} onPress={() => setEditForm({ ...editForm, priority: p })}>
-                        <Text style={[s.chipText, editForm.priority === p && s.chipTextActive]}>{PRIORITY_META[p].label}</Text>
+                        <Text style={[s.chipText, editForm.priority === p && s.chipTextActive]}>{tr(PRIORITY_META[p].label)}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
-                  <Text style={s.label}>Assignee</Text>
+                  <Text style={s.label}>{tr("Assignee")}</Text>
                   <SelectDropdown
                     value={editForm.assigneeId}
                     options={[{ value: '', label: 'Unassigned' }, ...members.map((m) => ({ value: m.userId?._id || m._id, label: memberName(m) }))]}
                     onChange={(v) => setEditForm({ ...editForm, assigneeId: v })}
-                    placeholder="Select assignee"
+                    placeholder={tr("Select assignee")}
                     inputStyle={s.input}
                   />
 
                   <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.label}>Start Date</Text>
+                      <Text style={s.label}>{tr("Start Date")}</Text>
                       <DateField value={editForm.startDate} onChange={(v) => setEditForm({ ...editForm, startDate: v })} inputStyle={s.input} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.label}>End Date</Text>
+                      <Text style={s.label}>{tr("End Date")}</Text>
                       <DateField value={editForm.endDate} onChange={(v) => setEditForm({ ...editForm, endDate: v })} inputStyle={s.input} />
                     </View>
                   </View>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 6 }}>
-                    <Text style={s.label}>Subtasks Checklist ({editForm.subtasks?.length || 0})</Text>
+                    <Text style={s.label}>{tr("Subtasks Checklist (")}{editForm.subtasks?.length || 0})</Text>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TextInput style={[s.input, { flex: 1 }]} placeholder="Add a new subtask..." placeholderTextColor="#94A3B8" value={newEditSubtask} onChangeText={setNewEditSubtask} onSubmitEditing={addEditSubtask} />
+                    <TextInput style={[s.input, { flex: 1 }]} placeholder={tr("Add a new subtask...")} placeholderTextColor="#94A3B8" value={newEditSubtask} onChangeText={setNewEditSubtask} onSubmitEditing={addEditSubtask} />
                     <TouchableOpacity style={s.addBtn} onPress={addEditSubtask}>
                       <Ionicons name="add" size={16} color="#FFFFFF" />
                     </TouchableOpacity>
                   </View>
                   {(editForm.subtasks || []).map((sub, idx) => (
                     <View key={idx} style={s.subtaskDraftRow}>
-                      <Text style={[s.subtaskDraftText, sub.completed && { textDecorationLine: 'line-through', color: '#94A3B8' }]} numberOfLines={1}>{sub.title}</Text>
+                      <Text style={[s.subtaskDraftText, sub.completed && { textDecorationLine: 'line-through', color: '#94A3B8' }]} numberOfLines={1}>{tr(sub.title)}</Text>
                       <TouchableOpacity onPress={() => removeEditSubtask(idx)}>
                         <Ionicons name="trash-outline" size={14} color="#EF4444" />
                       </TouchableOpacity>
@@ -1203,11 +1204,11 @@ const { can: canDo } = useProjectPermissions(projectId);
                     {canDo('tasks', 'delete') && (
                       <TouchableOpacity style={s.deleteTaskBtn} onPress={() => deleteTask(selectedTask)}>
                         <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                        <Text style={s.deleteTaskBtnText}>Delete Task</Text>
+                        <Text style={s.deleteTaskBtnText}>{tr("Delete Task")}</Text>
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity style={s.saveBtnSm} onPress={saveEditedTask}>
-                      <Text style={s.saveBtnSmText}>Save Changes</Text>
+                      <Text style={s.saveBtnSmText}>{tr("Save Changes")}</Text>
                     </TouchableOpacity>
                   </View>
                   <View style={{ height: 20 }} />
@@ -1224,8 +1225,8 @@ const { can: canDo } = useProjectPermissions(projectId);
           <View style={s.modalCard}>
             <View style={[s.modalHeader, { backgroundColor: '#F0FDF4' }]}>
               <View style={{ flex: 1 }}>
-                <Text style={s.modalTitle}>Complete Task & Proof of Work</Text>
-                <Text style={s.headerSub}>Upload site completion and inspection photos</Text>
+                <Text style={s.modalTitle}>{tr("Complete Task & Proof of Work")}</Text>
+                <Text style={s.headerSub}>{tr("Upload site completion and inspection photos")}</Text>
               </View>
               <TouchableOpacity onPress={() => { setIsProofOpen(false); setProofTask(null); }}>
                 <Ionicons name="close" size={22} color="#64748B" />
@@ -1235,8 +1236,8 @@ const { can: canDo } = useProjectPermissions(projectId);
             <ScrollView showsVerticalScrollIndicator={false}>
               {proofTask && (
                 <View style={s.proofSummaryBox}>
-                  <Text style={s.proofSummaryTitle} numberOfLines={1}>{proofTask.name}</Text>
-                  <View style={s.willSet100Badge}><Text style={s.willSet100BadgeText}>Will set 100% progress</Text></View>
+                  <Text style={s.proofSummaryTitle} numberOfLines={1}>{tr(proofTask.name)}</Text>
+                  <View style={s.willSet100Badge}><Text style={s.willSet100BadgeText}>{tr("Will set 100% progress")}</Text></View>
                 </View>
               )}
 
@@ -1244,16 +1245,16 @@ const { can: canDo } = useProjectPermissions(projectId);
               <View style={s.matBox}>
                 <View style={s.matHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.matTitle}>Link Inventory & Material Usage</Text>
-                    <Text style={s.matSub}>Record materials and quantities consumed for this activity</Text>
+                    <Text style={s.matTitle}>{tr("Link Inventory & Material Usage")}</Text>
+                    <Text style={s.matSub}>{tr("Record materials and quantities consumed for this activity")}</Text>
                   </View>
                   <TouchableOpacity style={s.matAddBtn} onPress={addMaterialRow}>
                     <Ionicons name="add" size={14} color="#FFFFFF" />
-                    <Text style={s.matAddText}>Add Material</Text>
+                    <Text style={s.matAddText}>{tr("Add Material")}</Text>
                   </TouchableOpacity>
                 </View>
                 {materialUsages.length === 0 ? (
-                  <Text style={s.matEmpty}>No materials added. Tap Add Material to log consumption.</Text>
+                  <Text style={s.matEmpty}>{tr("No materials added. Tap Add Material to log consumption.")}</Text>
                 ) : (
                   materialUsages.map((mat, idx) => (
                     <View key={idx} style={s.matRow}>
@@ -1267,7 +1268,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                       {(!mat.inventoryId || inventoryItems.length === 0) && (
                         <TextInput
                           style={s.input}
-                          placeholder="Material name (e.g. 18mm Plywood)"
+                          placeholder={tr("Material name (e.g. 18mm Plywood)")}
                           placeholderTextColor="#94A3B8"
                           value={mat.materialName}
                           onChangeText={(v) => updateMaterialRow(idx, 'materialName', v)}
@@ -1276,7 +1277,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                         <TextInput
                           style={[s.input, { flex: 1 }]}
-                          placeholder="Qty"
+                          placeholder={tr("Qty")}
                           placeholderTextColor="#94A3B8"
                           keyboardType="decimal-pad"
                           value={String(mat.quantity)}
@@ -1284,7 +1285,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                         />
                         <TextInput
                           style={[s.input, { flex: 1 }]}
-                          placeholder="Unit"
+                          placeholder={tr("Unit")}
                           placeholderTextColor="#94A3B8"
                           value={mat.unit}
                           onChangeText={(v) => updateMaterialRow(idx, 'unit', v)}
@@ -1295,7 +1296,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </View>
                       <TextInput
                         style={s.input}
-                        placeholder="Usage note (optional)"
+                        placeholder={tr("Usage note (optional)")}
                         placeholderTextColor="#94A3B8"
                         value={mat.notes}
                         onChangeText={(v) => updateMaterialRow(idx, 'notes', v)}
@@ -1305,10 +1306,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                 )}
               </View>
 
-              <Text style={s.label}>Site Completion Photos ({proofImages.length})</Text>
+              <Text style={s.label}>{tr("Site Completion Photos (")}{proofImages.length})</Text>
               <TouchableOpacity style={s.photoDropzone} onPress={pickProofImage}>
                 <Ionicons name="cloud-upload-outline" size={26} color="#16A34A" />
-                <Text style={s.photoDropzoneText}>Tap to select site photos</Text>
+                <Text style={s.photoDropzoneText}>{tr("Tap to select site photos")}</Text>
               </TouchableOpacity>
 
               {proofImages.length > 0 && (
@@ -1324,10 +1325,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                 </View>
               )}
 
-              <Text style={s.label}>Completion Notes (Optional)</Text>
+              <Text style={s.label}>{tr("Completion Notes (Optional)")}</Text>
               <TextInput
                 style={[s.input, { minHeight: 80, textAlignVertical: 'top' }]}
-                placeholder="Add any notes, inspection remarks, or quality observations..."
+                placeholder={tr("Add any notes, inspection remarks, or quality observations...")}
                 placeholderTextColor="#94A3B8"
                 multiline
                 value={proofNotes}
@@ -1337,12 +1338,12 @@ const { can: canDo } = useProjectPermissions(projectId);
               {proofTask?.subtasks?.length > 0 && (
                 <View style={s.proofSubtaskNotice}>
                   <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
-                  <Text style={s.proofSubtaskNoticeText}>All {proofTask.subtasks.length} subtasks will be marked as completed.</Text>
+                  <Text style={s.proofSubtaskNoticeText}>{tr("All ")}{proofTask.subtasks.length}{tr(" subtasks will be marked as completed.")}</Text>
                 </View>
               )}
 
               <TouchableOpacity style={[s.confirmCompleteBtn, submittingProof && { opacity: 0.7 }]} onPress={submitProof} disabled={submittingProof}>
-                {submittingProof ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Confirm & Complete Task</Text>}
+                {submittingProof ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Confirm & Complete Task")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1354,7 +1355,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         <View style={s.lightboxOverlay}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={s.lightboxHeader}>
-              <Text style={s.lightboxTitle}>Proof of Work Photo</Text>
+              <Text style={s.lightboxTitle}>{tr("Proof of Work Photo")}</Text>
               <TouchableOpacity onPress={() => setLightboxUrl(null)} style={s.lightboxCloseBtn}>
                 <Ionicons name="close" size={22} color="#FFFFFF" />
               </TouchableOpacity>
@@ -1385,16 +1386,16 @@ function TaskCard({ task, onPress, onEdit, onDelete, compact }) {
   return (
     <TouchableOpacity style={s.taskCard} onPress={onPress} activeOpacity={0.85}>
       <View style={s.taskTopRow}>
-        <Text style={s.taskName} numberOfLines={2}>{task.name}</Text>
+        <Text style={s.taskName} numberOfLines={2}>{tr(task.name)}</Text>
         {(onEdit || onDelete) && (
           <View style={s.taskIconRow}>
             {onEdit && (
-              <TouchableOpacity onPress={onEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Edit task">
+              <TouchableOpacity onPress={onEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={tr("Edit task")}>
                 <Ionicons name="pencil-outline" size={18} color="#64748B" />
               </TouchableOpacity>
             )}
             {onDelete && (
-              <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Delete task">
+              <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={tr("Delete task")}>
                 <Ionicons name="trash-outline" size={18} color="#EF4444" />
               </TouchableOpacity>
             )}
@@ -1404,20 +1405,20 @@ function TaskCard({ task, onPress, onEdit, onDelete, compact }) {
 
       <View style={s.taskFactsRow}>
         <Text style={[s.taskMetaText, isOverdue && s.taskOverdue]}>
-          {isOverdue ? `Overdue · ${due}` : due ? `Due ${due}` : 'No due date'}
+          {isOverdue ? tr("Overdue · {{due}}", { due: due }) : due ? `Due ${due}` : tr("No due date")}
         </Text>
         <View style={s.priorityDotRow}>
           <View style={[s.priorityDot, { backgroundColor: priority.color }]} />
-          <Text style={[s.taskMetaText, { color: priority.color }]}>{priority.label}</Text>
+          <Text style={[s.taskMetaText, { color: priority.color }]}>{tr(priority.label)}</Text>
         </View>
-        {isBlocked && <Text style={[s.taskMetaText, s.taskOverdue]}>Blocked</Text>}
-        {!!task.packageId?.trade && !compact && <Text style={s.taskMetaText}>#{task.packageId.trade}</Text>}
+        {isBlocked && <Text style={[s.taskMetaText, s.taskOverdue]}>{tr("Blocked")}</Text>}
+        {!!task.packageId?.trade && !compact && <Text style={s.taskMetaText}>#{tr(task.packageId.trade)}</Text>}
       </View>
 
       {totalSub > 0 && (
         <View style={s.subtaskProgressRow}>
           <View style={s.subtaskProgressTrack}><View style={[s.subtaskProgressFill, { width: `${(doneSub / totalSub) * 100}%` }]} /></View>
-          <Text style={s.subtaskProgressText}>{doneSub}/{totalSub} steps</Text>
+          <Text style={s.subtaskProgressText}>{tr(doneSub)}/{tr(totalSub)}{tr(" steps")}</Text>
         </View>
       )}
 
@@ -1426,12 +1427,12 @@ function TaskCard({ task, onPress, onEdit, onDelete, compact }) {
           {assignee ? (
             <>
               <View style={s.assigneeAvatar}><Text style={s.assigneeAvatarText}>{assignee.firstName?.[0] || '?'}</Text></View>
-              <Text style={s.taskAssignee} numberOfLines={1}>{[assignee.firstName, assignee.lastName].filter(Boolean).join(' ') || 'Assigned'}</Text>
+              <Text style={s.taskAssignee} numberOfLines={1}>{[assignee.firstName, assignee.lastName].filter(Boolean).join(' ') || tr("Assigned")}</Text>
             </>
           ) : (
             <>
               <Ionicons name="person-outline" size={16} color="#CBD5E1" />
-              <Text style={[s.taskAssignee, { color: '#94A3B8' }]}>Unassigned</Text>
+              <Text style={[s.taskAssignee, { color: '#94A3B8' }]}>{tr("Unassigned")}</Text>
             </>
           )}
         </View>

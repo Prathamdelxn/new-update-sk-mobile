@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // import React, { useState, useEffect, useCallback } from 'react';
 // import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, TextInput, ScrollView, Alert, Image } from 'react-native';
 // import { Ionicons } from '@expo/vector-icons';
@@ -661,12 +662,12 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
       });
 
       if (res.ok) {
-        showToast(`Budget request ${action.toLowerCase()}ed successfully`, 'success');
+        showToast(tr("Budget request {{action}}ed successfully", { action: action.toLowerCase() }), 'success');
         await fetchSurvey();
         if (fetchProjectData) await fetchProjectData();
       } else {
         const err = await res.json();
-        showToast(err.message || 'Failed to update budget status', 'error');
+        showToast(err.message || tr("Failed to update budget status"), 'error');
       }
     } catch (e) {
       showToast(t('networkErrorProcessing', 'Network Error'), 'error');
@@ -708,7 +709,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
   const handleAction = async (action) => {
     if (isProcessing) return;
     if (action === 'Reject' && !rejectionReason.trim()) {
-      showToast('Please provide a reason for rejecting the survey.', 'error');
+      showToast(tr("Please provide a reason for rejecting the survey."), 'error');
       return;
     }
 
@@ -727,14 +728,14 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
       });
 
       if (res.ok) {
-        showToast(`Survey successfully ${action.toLowerCase()}ed!`, 'success');
+        showToast(tr("Survey successfully {{action}}ed!", { action: action.toLowerCase() }), 'success');
         setIsRejectModalVisible(false);
         setRejectionReason('');
         await fetchSurvey();
         if (fetchProjectData) fetchProjectData();
       } else {
         const err = await res.json();
-        showToast(err.message || `Failed to ${action} survey`, 'error');
+        showToast(err.message || tr("Failed to {{action}} survey", { action: action }), 'error');
       }
     } catch (e) {
       showToast(t('networkErrorProcessing'), 'error');
@@ -755,7 +756,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
       }
     } catch (e) {
       console.error(e);
-      showToast('Failed to load approvers', 'error');
+      showToast(tr("Failed to load approvers"), 'error');
     } finally {
       setIsFetchingApprovers(false);
     }
@@ -764,7 +765,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
   const handleSendBudgetRequest = async () => {
     if (isSendingBudgetReq) return;
     if (!selectedApprover) {
-      showToast('Please select an approver', 'error');
+      showToast(tr("Please select an approver"), 'error');
       return;
     }
     setIsSendingBudgetReq(true);
@@ -779,12 +780,12 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
       });
 
       if (res.ok) {
-        showToast('Budget request sent successfully', 'success');
+        showToast(tr("Budget request sent successfully"), 'success');
         setIsBudgetModalVisible(false);
         await fetchSurvey();
       } else {
         const err = await res.json();
-        showToast(err.message || 'Failed to send request', 'error');
+        showToast(err.message || tr("Failed to send request"), 'error');
       }
     } catch (e) {
       showToast(t('networkError'), 'error');
@@ -814,7 +815,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
     return (
       <View style={styles.centerContainer}>
         <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
-        <Text style={styles.emptyText}>You don't have permission to view the site survey.</Text>
+        <Text style={styles.emptyText}>{tr("You don't have permission to view the site survey.")}</Text>
       </View>
     );
   }
@@ -828,7 +829,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
     return (
       <View style={styles.centerContainer}>
         <Ionicons name="document-text-outline" size={48} color="#CBD5E1" />
-        <Text style={styles.emptyText}>No site survey found for this project yet.</Text>
+        <Text style={styles.emptyText}>{tr("No site survey found for this project yet.")}</Text>
         
         {canManageSurvey && (
           <TouchableOpacity 
@@ -839,7 +840,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
             })}
           >
             <Ionicons name="add-circle-outline" size={18} color="#2563EB" />
-            <Text style={styles.editSurveyBtnText}>Start Site Survey</Text>
+            <Text style={styles.editSurveyBtnText}>{tr("Start Site Survey")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -877,7 +878,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
           </View>
           <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
             <Ionicons name={badge.icon} size={14} color={badge.text} />
-            <Text style={[styles.statusBadgeText, { color: badge.text }]}>{survey.status}</Text>
+            <Text style={[styles.statusBadgeText, { color: badge.text }]}>{tr(survey.status)}</Text>
           </View>
         </View>
 
@@ -889,8 +890,8 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
                 <Text style={{ color: '#64748B', fontSize: 14, fontFamily: 'Inter-SemiBold' }}>{surveyorName.charAt(0).toUpperCase()}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' }} numberOfLines={1}>{surveyorName}</Text>
-                {!!surveyorEmail && <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' }} numberOfLines={1}>{surveyorEmail}</Text>}
+                <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: '#0F172A' }} numberOfLines={1}>{tr(surveyorName)}</Text>
+                {!!surveyorEmail && <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' }} numberOfLines={1}>{tr(surveyorEmail)}</Text>}
               </View>
             </View>
           </View>
@@ -903,7 +904,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
         {survey.status === 'Needs Attention' && survey.rejectionReason && (
           <View style={styles.rejectionBox}>
             <Text style={styles.rejectionBoxTitle}>{t('rejectionFeedback', 'Rejection Feedback')}</Text>
-            <Text style={styles.rejectionBoxText}>{survey.rejectionReason}</Text>
+            <Text style={styles.rejectionBoxText}>{tr(survey.rejectionReason)}</Text>
           </View>
         )}
 
@@ -937,31 +938,31 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
            <View style={[styles.iconCircle, { backgroundColor: survey.accessibility === 'Good' ? '#D1FAE5' : (survey.accessibility === 'Hazardous' || survey.accessibility === 'Needs Work') ? '#FEE2E2' : '#FEF3C7' }]}>
              <Ionicons name={isInterior ? 'home' : 'analytics'} size={20} color={survey.accessibility === 'Good' ? '#059669' : (survey.accessibility === 'Hazardous' || survey.accessibility === 'Needs Work') ? '#DC2626' : '#D97706'} />
            </View>
-           <Text style={styles.gridVal}>{survey.accessibility}</Text>
-           <Text style={styles.gridLabel}>{isInterior ? 'Space Condition' : t('accessibility', 'Accessibility')}</Text>
+           <Text style={styles.gridVal}>{tr(survey.accessibility)}</Text>
+           <Text style={styles.gridLabel}>{isInterior ? tr("Space Condition") : t('accessibility', 'Accessibility')}</Text>
         </AdaptiveGlass>
 
         <AdaptiveGlass intensity={20} tint="light" style={styles.gridItem}>
            <View style={[styles.iconCircle, { backgroundColor: survey.powerAvailable ? '#DBEAFE' : '#F1F5F9' }]}>
              <Ionicons name={isInterior ? 'bulb' : 'flash'} size={20} color={survey.powerAvailable ? '#2563EB' : '#94A3B8'} />
            </View>
-           <Text style={styles.gridVal}>{survey.powerAvailable ? 'Accessible' : 'None'}</Text>
-           <Text style={styles.gridLabel}>{isInterior ? 'Electrical Access' : t('gridPower', 'Grid Power')}</Text>
+           <Text style={styles.gridVal}>{survey.powerAvailable ? tr("Accessible") : tr("None")}</Text>
+           <Text style={styles.gridLabel}>{isInterior ? tr("Electrical Access") : t('gridPower', 'Grid Power')}</Text>
         </AdaptiveGlass>
 
         <AdaptiveGlass intensity={20} tint="light" style={styles.gridItem}>
            <View style={[styles.iconCircle, { backgroundColor: survey.waterAvailable ? '#E0F2FE' : '#F1F5F9' }]}>
              <Ionicons name="water" size={20} color={survey.waterAvailable ? '#0284C7' : '#94A3B8'} />
            </View>
-           <Text style={styles.gridVal}>{survey.waterAvailable ? 'Accessible' : 'None'}</Text>
-           <Text style={styles.gridLabel}>{isInterior ? 'Plumbing Access' : t('waterSupply', 'Water Supply')}</Text>
+           <Text style={styles.gridVal}>{survey.waterAvailable ? tr("Accessible") : tr("None")}</Text>
+           <Text style={styles.gridLabel}>{isInterior ? tr("Plumbing Access") : t('waterSupply', 'Water Supply')}</Text>
         </AdaptiveGlass>
         
         <AdaptiveGlass intensity={20} tint="light" style={styles.gridItem}>
            <View style={[styles.iconCircle, { backgroundColor: survey.affectsBudget ? '#FEE2E2' : '#D1FAE5' }]}>
              <Ionicons name="wallet" size={20} color={survey.affectsBudget ? '#DC2626' : '#059669'} />
            </View>
-           <Text style={styles.gridVal}>{survey.affectsBudget ? 'Impacted' : 'Stable'}</Text>
+           <Text style={styles.gridVal}>{survey.affectsBudget ? tr("Impacted") : tr("Stable")}</Text>
            <Text style={styles.gridLabel}>{t('budgetState', 'Budget State')}</Text>
         </AdaptiveGlass>
       </View>
@@ -969,12 +970,12 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
       {/* Interior: Room Details */}
       {isInterior && (survey.roomCount || survey.ceilingHeight || survey.naturalLighting || survey.ventilationAvailable !== undefined) && (
         <AdaptiveGlass intensity={20} tint="light" style={styles.card}>
-          <Text style={styles.cardLabel}>ROOM DETAILS</Text>
+          <Text style={styles.cardLabel}>{tr("ROOM DETAILS")}</Text>
           <View style={styles.detailStrip}>
-            {survey.roomCount != null && <View style={styles.detailItem}><Ionicons name="grid-outline" size={18} color="#3B82F6" /><Text style={styles.detailVal}>{survey.roomCount}</Text><Text style={styles.detailLabel}>Rooms</Text></View>}
-            {survey.ceilingHeight ? <View style={styles.detailItem}><Ionicons name="arrow-up-outline" size={18} color="#8B5CF6" /><Text style={styles.detailVal}>{survey.ceilingHeight} {survey.ceilingHeightUnit || 'ft'}</Text><Text style={styles.detailLabel}>Ceiling Height</Text></View> : null}
-            {survey.naturalLighting ? <View style={styles.detailItem}><Ionicons name="sunny-outline" size={18} color="#F59E0B" /><Text style={styles.detailVal}>{survey.naturalLighting}</Text><Text style={styles.detailLabel}>Natural Light</Text></View> : null}
-            <View style={styles.detailItem}><Ionicons name="thermometer-outline" size={18} color={survey.ventilationAvailable ? '#10B981' : '#94A3B8'} /><Text style={styles.detailVal}>{survey.ventilationAvailable ? 'Yes' : 'No'}</Text><Text style={styles.detailLabel}>Ventilation</Text></View>
+            {survey.roomCount != null && <View style={styles.detailItem}><Ionicons name="grid-outline" size={18} color="#3B82F6" /><Text style={styles.detailVal}>{tr(survey.roomCount)}</Text><Text style={styles.detailLabel}>{tr("Rooms")}</Text></View>}
+            {survey.ceilingHeight ? <View style={styles.detailItem}><Ionicons name="arrow-up-outline" size={18} color="#8B5CF6" /><Text style={styles.detailVal}>{tr(survey.ceilingHeight)} {survey.ceilingHeightUnit || tr("ft")}</Text><Text style={styles.detailLabel}>{tr("Ceiling Height")}</Text></View> : null}
+            {survey.naturalLighting ? <View style={styles.detailItem}><Ionicons name="sunny-outline" size={18} color="#F59E0B" /><Text style={styles.detailVal}>{tr(survey.naturalLighting)}</Text><Text style={styles.detailLabel}>{tr("Natural Light")}</Text></View> : null}
+            <View style={styles.detailItem}><Ionicons name="thermometer-outline" size={18} color={survey.ventilationAvailable ? '#10B981' : '#94A3B8'} /><Text style={styles.detailVal}>{survey.ventilationAvailable ? tr("Yes") : tr("No")}</Text><Text style={styles.detailLabel}>{tr("Ventilation")}</Text></View>
           </View>
         </AdaptiveGlass>
       )}
@@ -982,7 +983,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
       {/* Interior: wall, MEP and access diagnostics (same rows as the web survey details) */}
       {isInterior && (survey.wallCondition || survey.electricalPhase || survey.elevatorAccessibility || survey.dampnessObserved !== undefined) && (
         <AdaptiveGlass intensity={20} tint="light" style={styles.card}>
-          <Text style={styles.cardLabel}>SITE DIAGNOSTICS</Text>
+          <Text style={styles.cardLabel}>{tr("SITE DIAGNOSTICS")}</Text>
           {[
             ['Wall Condition', survey.wallCondition],
             survey.dampnessObserved !== undefined && ['Dampness Check', survey.dampnessObserved ? 'Dampness Observed' : 'No Dampness', survey.dampnessObserved ? '#DC2626' : '#059669'],
@@ -994,8 +995,8 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
             survey.elevatorCapacityKg ? ['Elevator Capacity', `${survey.elevatorCapacityKg} kg`] : null,
           ].filter((row) => row && row[1]).map(([label, value, color]) => (
             <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-              <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#64748B' }}>{label}</Text>
-              <Text style={{ flex: 1, textAlign: 'right', fontSize: 12.5, fontFamily: 'Inter-Bold', color: color || '#0F172A' }}>{value}</Text>
+              <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#64748B' }}>{tr(label)}</Text>
+              <Text style={{ flex: 1, textAlign: 'right', fontSize: 12.5, fontFamily: 'Inter-Bold', color: color || '#0F172A' }}>{tr(value)}</Text>
             </View>
           ))}
         </AdaptiveGlass>
@@ -1006,35 +1007,35 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
         <AdaptiveGlass intensity={20} tint="light" style={[styles.card, { borderColor: '#FDE68A', backgroundColor: 'rgba(254,252,232,0.8)' }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Ionicons name="construct-outline" size={18} color="#D97706" />
-            <Text style={[styles.cardLabel, { color: '#D97706', marginBottom: 0 }]}>STRUCTURAL MODIFICATIONS NEEDED</Text>
+            <Text style={[styles.cardLabel, { color: '#D97706', marginBottom: 0 }]}>{tr("STRUCTURAL MODIFICATIONS NEEDED")}</Text>
           </View>
-          <Text style={styles.notesText}>{survey.structuralNotes || 'Structural changes required — no details provided.'}</Text>
+          <Text style={styles.notesText}>{survey.structuralNotes || tr("Structural changes required — no details provided.")}</Text>
         </AdaptiveGlass>
       )}
 
       {/* Interior: Client Style Preference */}
       {isInterior && survey.clientStylePreference ? (
         <AdaptiveGlass intensity={20} tint="light" style={styles.card}>
-          <Text style={styles.cardLabel}>CLIENT STYLE PREFERENCE</Text>
-          <Text style={styles.notesText}>{survey.clientStylePreference}</Text>
+          <Text style={styles.cardLabel}>{tr("CLIENT STYLE PREFERENCE")}</Text>
+          <Text style={styles.notesText}>{tr(survey.clientStylePreference)}</Text>
         </AdaptiveGlass>
       ) : null}
 
       {/* Detail Notes */}
       <AdaptiveGlass intensity={20} tint="light" style={styles.card}>
-         <Text style={styles.cardLabel}>{isInterior ? 'SPACE & CONDITION NOTES' : 'TERRAIN & SOIL REPORT'}</Text>
-         <Text style={styles.notesText}>{survey.terrainNotes || (isInterior ? 'No space condition notes provided.' : 'No specific technical notes provided.')}</Text>
+         <Text style={styles.cardLabel}>{isInterior ? tr("SPACE & CONDITION NOTES") : tr("TERRAIN & SOIL REPORT")}</Text>
+         <Text style={styles.notesText}>{survey.terrainNotes || (isInterior ? tr("No space condition notes provided.") : tr("No specific technical notes provided."))}</Text>
       </AdaptiveGlass>
 
       <AdaptiveGlass intensity={20} tint="light" style={styles.card}>
          <Text style={styles.cardLabel}>{t('surveyorComments', 'SURVEYOR COMMENTS')}</Text>
-         <Text style={styles.notesText}>{survey.surveyorComments || 'No general comments provided.'}</Text>
+         <Text style={styles.notesText}>{survey.surveyorComments || tr("No general comments provided.")}</Text>
       </AdaptiveGlass>
 
       {/* Observation Image */}
       {survey.observationImage && (
         <AdaptiveGlass intensity={20} tint="light" style={styles.card}>
-          <Text style={styles.cardLabel}>{isInterior ? 'SPACE OBSERVATION PHOTO' : t('siteObservationPhoto', 'SITE OBSERVATION PHOTO')}</Text>
+          <Text style={styles.cardLabel}>{isInterior ? tr("SPACE OBSERVATION PHOTO") : t('siteObservationPhoto', 'SITE OBSERVATION PHOTO')}</Text>
           <TouchableOpacity onPress={() => setSelectedImage(survey.observationImage)} activeOpacity={0.8}>
             <Image source={{ uri: survey.observationImage }} style={styles.observationImage} />
           </TouchableOpacity>
@@ -1044,7 +1045,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
       {/* Interior: Additional Room Photos */}
       {isInterior && survey.additionalPhotos?.length > 0 && (
         <AdaptiveGlass intensity={20} tint="light" style={styles.card}>
-          <Text style={styles.cardLabel}>ADDITIONAL ROOM PHOTOS</Text>
+          <Text style={styles.cardLabel}>{tr("ADDITIONAL ROOM PHOTOS")}</Text>
           <View style={styles.photoGrid}>
             {survey.additionalPhotos.map((uri, idx) => (
               <TouchableOpacity key={idx} onPress={() => setSelectedImage(uri)} activeOpacity={0.8}>
@@ -1062,8 +1063,8 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
             <Ionicons name="alert-circle" size={20} color="#DC2626" />
             <Text style={styles.budgetAlertTitle}>{t('budgetModificationRequested', 'Budget Modification Requested')}</Text>
           </View>
-          <Text style={styles.budgetAlertAmt}>New Estimate: {formatCurrency(survey.recommendedBudget, project?.currency)}</Text>
-          <Text style={styles.budgetAlertReason}>{survey.budgetReason}</Text>
+          <Text style={styles.budgetAlertAmt}>{tr("New Estimate: ")}{formatCurrency(survey.recommendedBudget, project?.currency)}</Text>
+          <Text style={styles.budgetAlertReason}>{tr(survey.budgetReason)}</Text>
           
           {survey.status === 'Approved' && !survey.budgetRequestSent && (
             <TouchableOpacity 
@@ -1092,10 +1093,10 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
                 <View style={{ marginTop: 16, gap: 4 }}>
                   <View style={[styles.statusBadge, { backgroundColor: '#D1FAE5', alignSelf: 'flex-start' }]}>
                     <Ionicons name="checkmark-circle" size={14} color="#059669" />
-                    <Text style={[styles.statusBadgeText, { color: '#059669' }]}>Budget Approved</Text>
+                    <Text style={[styles.statusBadgeText, { color: '#059669' }]}>{tr("Budget Approved")}</Text>
                   </View>
                   <Text style={{ fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#059669', marginTop: 2 }}>
-                    Approved by {updatedBy}
+                    {tr("Approved by ")}{tr(updatedBy)}
                   </Text>
                 </View>
               );
@@ -1106,10 +1107,10 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
                 <View style={{ marginTop: 16, gap: 4 }}>
                   <View style={[styles.statusBadge, { backgroundColor: '#FEE2E2', alignSelf: 'flex-start' }]}>
                     <Ionicons name="close-circle" size={14} color="#DC2626" />
-                    <Text style={[styles.statusBadgeText, { color: '#DC2626' }]}>Budget Rejected</Text>
+                    <Text style={[styles.statusBadgeText, { color: '#DC2626' }]}>{tr("Budget Rejected")}</Text>
                   </View>
                   <Text style={{ fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#DC2626', marginTop: 2 }}>
-                    Rejected by {updatedBy}
+                    {tr("Rejected by ")}{tr(updatedBy)}
                   </Text>
                 </View>
               );
@@ -1124,7 +1125,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
                   </View>
                   {assignedTo && (
                     <Text style={{ fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#D97706', marginTop: 2 }}>
-                      Assigned to: {assignedTo}
+                      {tr("Assigned to: ")}{tr(assignedTo)}
                     </Text>
                   )}
                 </View>
@@ -1217,8 +1218,8 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
 
       <ConfirmModal 
         visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={tr(confirmModal.title)}
+        message={tr(confirmModal.message)}
         confirmText={confirmModal.confirmText}
         type={confirmModal.type}
         isSubmitting={isProcessing}
@@ -1266,7 +1267,7 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
             ) : (
               <ScrollView style={{ maxHeight: 200, marginBottom: 20 }}>
                 {budgetApprovers.length === 0 ? (
-                  <Text style={styles.emptyText}>No approvers assigned to this project.</Text>
+                  <Text style={styles.emptyText}>{tr("No approvers assigned to this project.")}</Text>
                 ) : (
                   budgetApprovers.map(a => (
                     <TouchableOpacity
@@ -1278,8 +1279,8 @@ export default function ProjectSurveyTab({ project, fetchProjectData }) {
                       onPress={() => setSelectedApprover(a._id)}
                     >
                       <View>
-                        <Text style={[styles.approverName, selectedApprover === a._id && { color: '#2563EB' }]}>{a.name}</Text>
-                        <Text style={styles.approverRole}>{a.roleName}</Text>
+                        <Text style={[styles.approverName, selectedApprover === a._id && { color: '#2563EB' }]}>{tr(a.name)}</Text>
+                        <Text style={styles.approverRole}>{tr(a.roleName)}</Text>
                       </View>
                       {selectedApprover === a._id && <Ionicons name="checkmark-circle" size={20} color="#2563EB" />}
                     </TouchableOpacity>

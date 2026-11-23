@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 
 
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList, Image, Linking } from 'react-native';
@@ -234,7 +235,7 @@ export default function CreateProjectScreen() {
             size: file.size,
           }]);
         } catch (uploadError) {
-          showToast('There was an error uploading your file to Cloudinary.', 'error');
+          showToast(tr("There was an error uploading your file to Cloudinary."), 'error');
         } finally {
           setIsUploading(false);
         }
@@ -273,7 +274,7 @@ export default function CreateProjectScreen() {
             size: file.size,
           }]);
         } catch (uploadError) {
-          showToast('There was an error uploading your drawing to Cloudinary.', 'error');
+          showToast(tr("There was an error uploading your drawing to Cloudinary."), 'error');
         } finally {
           setIsUploadingDrawing(false);
         }
@@ -292,7 +293,7 @@ export default function CreateProjectScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        showToast('Location permission is required.', 'error');
+        showToast(tr("Location permission is required."), 'error');
         setIsFetchingLocation(false);
         return;
       }
@@ -300,10 +301,10 @@ export default function CreateProjectScreen() {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       setSiteLat(loc.coords.latitude.toString());
       setSiteLng(loc.coords.longitude.toString());
-      showToast('Location fetched successfully!', 'success');
+      showToast(tr("Location fetched successfully!"), 'success');
     } catch (err) {
       console.log("Location Error:", err);
-      showToast('Failed to fetch location.', 'error');
+      showToast(tr("Failed to fetch location."), 'error');
     } finally {
       setIsFetchingLocation(false);
     }
@@ -329,7 +330,7 @@ export default function CreateProjectScreen() {
       end.setHours(0, 0, 0, 0);
 
       if (end < start) {
-        showToast('Target End Date cannot be earlier than Start Date.', 'error');
+        showToast(tr("Target End Date cannot be earlier than Start Date."), 'error');
         return;
       }
     }
@@ -384,11 +385,11 @@ export default function CreateProjectScreen() {
       });
 
       if (response.ok) {
-        showToast('Project created successfully!', 'success');
+        showToast(tr("Project created successfully!"), 'success');
         router.replace('/(tabs)/project');
       } else {
         const errorData = await response.json();
-        showToast(errorData.message || 'Failed to create project', 'error');
+        showToast(errorData.message || tr("Failed to create project"), 'error');
       }
     } catch (e) {
       showToast(t('networkErrorCheckServer'), 'error');
@@ -445,7 +446,7 @@ export default function CreateProjectScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.infoLabel}>{t('projectCategory')}</Text>
-                      <Text style={styles.infoValue} numberOfLines={1}>{selectedCategoryName}</Text>
+                      <Text style={styles.infoValue} numberOfLines={1}>{tr(selectedCategoryName)}</Text>
                     </View>
                   </View>
 
@@ -518,14 +519,14 @@ export default function CreateProjectScreen() {
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.inputLabel, { marginLeft: 0, color: '#334155' }]}>Pinpoint on Map</Text>
+                      <Text style={[styles.inputLabel, { marginLeft: 0, color: '#334155' }]}>{tr("Pinpoint on Map")}</Text>
                       {siteLat && siteLng ? (
                         <Text style={{fontSize: 12, fontFamily: 'Inter-Medium', color: '#10B981', marginTop: 2}}>
                           {parseFloat(siteLat).toFixed(4)}, {parseFloat(siteLng).toFixed(4)}
                         </Text>
                       ) : (
                         <Text style={{fontSize: 12, fontFamily: 'Inter-Medium', color: '#94A3B8', marginTop: 2}}>
-                          Optional for attendance tracking
+                          {tr("Optional for attendance tracking")}
                         </Text>
                       )}
                     </View>
@@ -583,7 +584,7 @@ export default function CreateProjectScreen() {
                           onPress={() => setAreaUnit('sqft')}
                           activeOpacity={0.7}
                         >
-                          <Text style={{ fontSize: 12, fontFamily: 'Inter-Bold', color: areaUnit === 'sqft' ? '#0F172A' : '#64748B' }}>SQFT</Text>
+                          <Text style={{ fontSize: 12, fontFamily: 'Inter-Bold', color: areaUnit === 'sqft' ? '#0F172A' : '#64748B' }}>{tr("SQFT")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={{
@@ -600,14 +601,14 @@ export default function CreateProjectScreen() {
                           onPress={() => setAreaUnit('sqm')}
                           activeOpacity={0.7}
                         >
-                          <Text style={{ fontSize: 12, fontFamily: 'Inter-Bold', color: areaUnit === 'sqm' ? '#0F172A' : '#64748B' }}>SQM</Text>
+                          <Text style={{ fontSize: 12, fontFamily: 'Inter-Bold', color: areaUnit === 'sqm' ? '#0F172A' : '#64748B' }}>{tr("SQM")}</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
                   </View>
 
                   <View style={[styles.inputGroup, { marginTop: 16 }]}>
-                    <Text style={styles.inputLabel}>Attendance Radius</Text>
+                    <Text style={styles.inputLabel}>{tr("Attendance Radius")}</Text>
                     <TextInput
                       style={styles.input}
                       placeholder="e.g. 100"
@@ -627,7 +628,7 @@ export default function CreateProjectScreen() {
                     <Text style={styles.inputLabel}>
                       {t('estBudget')}
                       {params.isEditing === 'true' && (
-                        <Text style={styles.readonlyTag}> (read-only)</Text>
+                        <Text style={styles.readonlyTag}>{tr(" (read-only)")}</Text>
                       )}
                     </Text>
                     <View style={[styles.budgetRow, params.isEditing === 'true' && styles.budgetRowReadonly]}>
@@ -636,8 +637,8 @@ export default function CreateProjectScreen() {
                         activeOpacity={params.isEditing === 'true' ? 1 : 0.7}
                         onPress={() => params.isEditing !== 'true' && setIsCurrencyModalVisible(true)}
                       >
-                        <Text style={styles.currencyPrefixFlag}>{selectedCountryFlag}</Text>
-                        <Text style={styles.currencyPrefixCode}>{currency}</Text>
+                        <Text style={styles.currencyPrefixFlag}>{tr(selectedCountryFlag)}</Text>
+                        <Text style={styles.currencyPrefixCode}>{tr(currency)}</Text>
                         {params.isEditing !== 'true' && (
                           <MaterialIcons name="arrow-drop-down" size={18} color="#64748B" />
                         )}
@@ -713,7 +714,7 @@ export default function CreateProjectScreen() {
                 {/* --- 4. Technical Drawings Card --- */}
                 <View style={styles.bentoCard}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.bentoSectionTitle}>Technical Drawings</Text>
+                    <Text style={styles.bentoSectionTitle}>{tr("Technical Drawings")}</Text>
                     <TouchableOpacity
                       style={styles.addDocBtn}
                       onPress={pickDrawing}
@@ -727,7 +728,7 @@ export default function CreateProjectScreen() {
                   {isUploadingDrawing && (
                     <View style={styles.uploadingBox}>
                       <ActivityIndicator size="small" color="#3B82F6" />
-                      <Text style={styles.uploadingText}>Uploading Drawing...</Text>
+                      <Text style={styles.uploadingText}>{tr("Uploading Drawing...")}</Text>
                     </View>
                   )}
 
@@ -742,8 +743,8 @@ export default function CreateProjectScreen() {
                           />
                         </View>
                         <View style={styles.docInfo}>
-                          <Text style={styles.docName} numberOfLines={1}>{doc.name}</Text>
-                          <Text style={styles.docSize}>{(doc.size / 1024).toFixed(1)} KB</Text>
+                          <Text style={styles.docName} numberOfLines={1}>{tr(doc.name)}</Text>
+                          <Text style={styles.docSize}>{(doc.size / 1024).toFixed(1)}{tr(" KB")}</Text>
                         </View>
                         <TouchableOpacity onPress={() => setPreviewDoc(doc)} style={styles.docActionBtn}>
                           <MaterialIcons name="visibility" size={20} color="#3B82F6" />
@@ -754,7 +755,7 @@ export default function CreateProjectScreen() {
                       </View>
                     ))}
                     {drawings.length === 0 && !isUploadingDrawing && (
-                      <Text style={styles.emptyDocText}>No drawings attached</Text>
+                      <Text style={styles.emptyDocText}>{tr("No drawings attached")}</Text>
                     )}
                   </View>
                 </View>
@@ -791,8 +792,8 @@ export default function CreateProjectScreen() {
                           />
                         </View>
                         <View style={styles.docInfo}>
-                          <Text style={styles.docName} numberOfLines={1}>{doc.name}</Text>
-                          <Text style={styles.docSize}>{(doc.size / 1024).toFixed(1)} KB</Text>
+                          <Text style={styles.docName} numberOfLines={1}>{tr(doc.name)}</Text>
+                          <Text style={styles.docSize}>{(doc.size / 1024).toFixed(1)}{tr(" KB")}</Text>
                         </View>
                         <TouchableOpacity onPress={() => setPreviewDoc(doc)} style={styles.docActionBtn}>
                           <MaterialIcons name="visibility" size={20} color="#3B82F6" />
@@ -816,9 +817,9 @@ export default function CreateProjectScreen() {
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#F8FAFC', zIndex: 9999, elevation: 9999 }]}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
-               <Text style={{ fontSize: 18, fontFamily: 'Inter-Bold', color: '#0F172A' }}>Choose Location</Text>
+               <Text style={{ fontSize: 18, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr("Choose Location")}</Text>
                <TouchableOpacity onPress={() => setIsMapModalVisible(false)} style={{ paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#2563EB', borderRadius: 8 }}>
-                 <Text style={{ color: '#fff', fontFamily: 'Inter-SemiBold' }}>Confirm</Text>
+                 <Text style={{ color: '#fff', fontFamily: 'Inter-SemiBold' }}>{tr("Confirm")}</Text>
                </TouchableOpacity>
             </View>
             <View style={{ flex: 1 }}>
@@ -847,7 +848,7 @@ export default function CreateProjectScreen() {
           >
             <View style={styles.previewOverlay}>
               <View style={styles.previewHeader}>
-                <Text style={styles.previewTitle} numberOfLines={1}>{previewDoc?.name}</Text>
+                <Text style={styles.previewTitle} numberOfLines={1}>{tr(previewDoc?.name)}</Text>
                 <TouchableOpacity onPress={() => setPreviewDoc(null)}>
                   <Ionicons name="close" size={26} color="#FFFFFF" />
                 </TouchableOpacity>
@@ -862,13 +863,13 @@ export default function CreateProjectScreen() {
               ) : (
                 <View style={styles.previewPdfBox}>
                   <MaterialIcons name="picture-as-pdf" size={64} color="#EF4444" />
-                  <Text style={styles.previewPdfName} numberOfLines={2}>{previewDoc?.name}</Text>
+                  <Text style={styles.previewPdfName} numberOfLines={2}>{tr(previewDoc?.name)}</Text>
                   <TouchableOpacity
                     style={styles.previewOpenBtn}
                     onPress={() => Linking.openURL(previewDoc?.url)}
                   >
                     <MaterialIcons name="open-in-browser" size={20} color="#FFFFFF" />
-                    <Text style={styles.previewOpenText}>Open in Browser</Text>
+                    <Text style={styles.previewOpenText}>{tr("Open in Browser")}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -883,7 +884,7 @@ export default function CreateProjectScreen() {
           >
             <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Select Currency</Text>
+                <Text style={styles.modalTitle}>{tr("Select Currency")}</Text>
                 <TouchableOpacity onPress={() => setIsCurrencyModalVisible(false)}>
                   <Ionicons name="close" size={24} color="#0F172A" />
                 </TouchableOpacity>
@@ -892,7 +893,7 @@ export default function CreateProjectScreen() {
                 <Ionicons name="search" size={20} color="#94A3B8" />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Search country or currency..."
+                  placeholder={tr("Search country or currency...")}
                   placeholderTextColor="#94A3B8"
                   value={currencySearch}
                   onChangeText={setCurrencySearch}
@@ -916,10 +917,10 @@ export default function CreateProjectScreen() {
                       setCurrencySearch('');
                     }}
                   >
-                    <Text style={styles.countryFlag}>{item.flag}</Text>
+                    <Text style={styles.countryFlag}>{tr(item.flag)}</Text>
                     <View style={styles.countryInfo}>
-                      <Text style={styles.countryName}>{item.name}</Text>
-                      <Text style={styles.countryCurrency}>{item.currencyCode} · {item.currencyName}</Text>
+                      <Text style={styles.countryName}>{tr(item.name)}</Text>
+                      <Text style={styles.countryCurrency}>{tr(item.currencyCode)} · {tr(item.currencyName)}</Text>
                     </View>
                     {currency === item.currencyCode && (
                       <MaterialIcons name="check-circle" size={20} color="#3B82F6" />

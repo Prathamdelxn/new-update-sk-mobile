@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -65,7 +66,7 @@ export default function AttendanceModule() {
         setProjects(projData);
       }
     } catch (e) {
-      showToast('Failed to load data', 'error');
+      showToast(tr("Failed to load data"), 'error');
     } finally {
       setLoading(false);
     }
@@ -80,7 +81,7 @@ export default function AttendanceModule() {
 
   const verifyLocation = async () => {
     if (!selectedProject || !selectedProject.siteLocation) {
-      Alert.alert('Error', 'Selected project does not have a valid site location setup.');
+      Alert.alert(tr("Error"), tr("Selected project does not have a valid site location setup."));
       return;
     }
     
@@ -88,7 +89,7 @@ export default function AttendanceModule() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required for attendance.');
+        Alert.alert(tr("Permission Denied"), tr("Location permission is required for attendance."));
         setLoading(false);
         return;
       }
@@ -106,7 +107,7 @@ export default function AttendanceModule() {
       setWithinRadius(dist <= radius);
       
     } catch (e) {
-      Alert.alert('Error', 'Failed to fetch location. Please try again.');
+      Alert.alert(tr("Error"), tr("Failed to fetch location. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -115,7 +116,7 @@ export default function AttendanceModule() {
   const takeSelfie = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Camera permission is required.');
+      Alert.alert(tr("Permission Denied"), tr("Camera permission is required."));
       return;
     }
 
@@ -137,7 +138,7 @@ export default function AttendanceModule() {
       return secureUrl;
     } catch (err) {
       console.error("Cloudinary upload failed:", err);
-      showToast('Failed to upload photo', 'error');
+      showToast(tr("Failed to upload photo"), 'error');
       return null;
     }
   };
@@ -173,14 +174,14 @@ export default function AttendanceModule() {
       });
       
       if (res.ok) {
-        showToast('Checked In Successfully!', 'success');
+        showToast(tr("Checked In Successfully!"), 'success');
         router.replace('/(tabs)/dashboard');
       } else {
         const err = await res.json();
-        showToast(err.message || 'Check In Failed', 'error');
+        showToast(err.message || tr("Check In Failed"), 'error');
       }
     } catch (e) {
-      showToast('Network Error', 'error');
+      showToast(tr("Network Error"), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -209,14 +210,14 @@ export default function AttendanceModule() {
       
       if (res.ok) {
         const data = await res.json();
-        showToast(`Checked out! Total hours: ${data.attendance.totalWorkHours}`, 'success');
+        showToast(tr("Checked out! Total hours: {{totalWorkHours}}", { totalWorkHours: data.attendance.totalWorkHours }), 'success');
         router.replace('/(tabs)/dashboard');
       } else {
         const err = await res.json();
-        showToast(err.message || 'Check Out Failed', 'error');
+        showToast(err.message || tr("Check Out Failed"), 'error');
       }
     } catch (e) {
-      showToast('Network Error', 'error');
+      showToast(tr("Network Error"), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -238,13 +239,13 @@ export default function AttendanceModule() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>{isCheckingOut ? 'Check Out' : 'Check In'}</Text>
+        <Text style={s.headerTitle}>{isCheckingOut ? tr("Check Out") : tr("Check In")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView style={s.content} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <View style={s.stepBox}>
-          <Text style={s.label}>1. Select Project Site</Text>
+          <Text style={s.label}>{tr("1. Select Project Site")}</Text>
           <View style={s.projectList}>
             {projects.map(p => {
               const isSelected = selectedProject?._id === (p._id || p.id);
@@ -255,7 +256,7 @@ export default function AttendanceModule() {
                   onPress={() => handleSelectProject(p)}
                   disabled={isCheckingOut}
                 >
-                  <Text style={[s.projectName, isSelected && s.projectNameSelected]}>{p.name}</Text>
+                  <Text style={[s.projectName, isSelected && s.projectNameSelected]}>{tr(p.name)}</Text>
                 </TouchableOpacity>
               )
             })}
@@ -264,7 +265,7 @@ export default function AttendanceModule() {
 
         {selectedProject && (
           <View style={s.stepBox}>
-            <Text style={s.label}>2. Verify GPS Location</Text>
+            <Text style={s.label}>{tr("2. Verify GPS Location")}</Text>
             
             <View style={{ marginBottom: 16 }}>
               <LocationMapViewer 
@@ -279,14 +280,14 @@ export default function AttendanceModule() {
 
             <TouchableOpacity style={s.verifyBtn} onPress={verifyLocation}>
               <Ionicons name="location-outline" size={20} color="#fff" />
-              <Text style={s.verifyBtnText}>Get Current Location</Text>
+              <Text style={s.verifyBtnText}>{tr("Get Current Location")}</Text>
             </TouchableOpacity>
             
             {distance !== null && (
               <View style={[s.statusBox, withinRadius ? s.statusSuccess : s.statusError]}>
                 <Ionicons name={withinRadius ? "checkmark-circle" : "warning"} size={20} color={withinRadius ? "#16A34A" : "#DC2626"} />
                 <Text style={s.statusText}>
-                  You are {distance}m away. {withinRadius ? '(Valid)' : `(Max allowed: ${selectedProject.attendanceRadius || 100}m)`}
+                  {tr("You are ")}{tr(distance)}{tr("m away. ")}{withinRadius ? tr("(Valid)") : tr("(Max allowed: {{value}}m)", { value: selectedProject.attendanceRadius || 100 })}
                 </Text>
               </View>
             )}
@@ -297,23 +298,23 @@ export default function AttendanceModule() {
           <View style={s.stepBox}>
             {isCheckingOut ? (
               <>
-                <Text style={s.label}>3. Complete Check Out</Text>
+                <Text style={s.label}>{tr("3. Complete Check Out")}</Text>
                 <TouchableOpacity 
                   style={[s.submitBtn, (!withinRadius || submitting) && s.btnDisabled]} 
                   onPress={submitCheckOut}
                   disabled={!withinRadius || submitting}
                 >
-                  {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.submitBtnText}>Confirm Check Out</Text>}
+                  {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.submitBtnText}>{tr("Confirm Check Out")}</Text>}
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                <Text style={s.label}>3. Take Selfie & Check In</Text>
+                <Text style={s.label}>{tr("3. Take Selfie & Check In")}</Text>
                 {photo ? (
                   <View style={s.photoPreviewContainer}>
                     <Image source={{ uri: photo }} style={s.photoPreview} />
                     <TouchableOpacity style={s.retakeBtn} onPress={takeSelfie}>
-                      <Text style={s.retakeText}>Retake Photo</Text>
+                      <Text style={s.retakeText}>{tr("Retake Photo")}</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -323,13 +324,13 @@ export default function AttendanceModule() {
                     disabled={!withinRadius}
                   >
                     <Ionicons name="camera" size={24} color={withinRadius ? "#2563EB" : "#94A3B8"} />
-                    <Text style={[s.cameraBtnText, !withinRadius && {color: "#94A3B8"}]}>Open Camera</Text>
+                    <Text style={[s.cameraBtnText, !withinRadius && {color: "#94A3B8"}]}>{tr("Open Camera")}</Text>
                   </TouchableOpacity>
                 )}
 
                 {photo && withinRadius && (
                   <TouchableOpacity style={s.submitBtn} onPress={submitCheckIn} disabled={submitting}>
-                    {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.submitBtnText}>Confirm Check In</Text>}
+                    {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.submitBtnText}>{tr("Confirm Check In")}</Text>}
                   </TouchableOpacity>
                 )}
               </>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, Modal, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -75,7 +76,7 @@ export default function VendorManagementDashboard() {
 
   const saveVendor = async () => {
     if (!newVendorName.trim()) {
-        showToast("Vendor name is required", "error");
+        showToast(tr("Vendor name is required"), "error");
         return;
     }
 
@@ -108,14 +109,14 @@ export default function VendorManagementDashboard() {
       if (response.ok) {
         if (isEditingVendor) {
           setVendors(prev => prev.map(v => v._id === editingVendorId ? data : v));
-          showToast('Vendor updated successfully', 'success');
+          showToast(tr("Vendor updated successfully"), 'success');
         } else {
           setVendors(prev => [data, ...prev]);
-          showToast('Vendor created successfully', 'success');
+          showToast(tr("Vendor created successfully"), 'success');
         }
         closeVendorModal();
       } else {
-        showToast(data.message || 'Operation failed', 'error');
+        showToast(data.message || tr("Operation failed"), 'error');
       }
     } catch (e) {
       showToast(t('networkErrorTryAgain'), 'error');
@@ -141,7 +142,7 @@ export default function VendorManagementDashboard() {
 
   const handleEditVendor = (vendor) => {
     if (!hasPermission('vendors', 'update')) {
-      showToast("You don't have permission to update vendors.", "error");
+      showToast(tr("You don't have permission to update vendors."), "error");
       return;
     }
     setIsEditingVendor(true);
@@ -160,16 +161,16 @@ export default function VendorManagementDashboard() {
 
   const handleDeleteVendor = (vendor) => {
     if (!hasPermission('vendors', 'delete')) {
-      showToast("You don't have permission to delete vendors.", "error");
+      showToast(tr("You don't have permission to delete vendors."), "error");
       return;
     }
     Alert.alert(
-      'Delete Vendor',
-      `Are you sure you want to delete "${vendor.name}"? This cannot be undone.`,
+      tr("Delete Vendor"),
+      tr("Are you sure you want to delete \"{{name}}\"? This cannot be undone.", { name: vendor.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Delete',
+          text: tr("Delete"),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -179,13 +180,13 @@ export default function VendorManagementDashboard() {
               });
               if (response.ok) {
                 setVendors(prev => prev.filter(v => v._id !== vendor._id));
-                showToast('Vendor deleted successfully.', 'delete');
+                showToast(tr("Vendor deleted successfully."), 'delete');
               } else {
                 const data = await response.json();
-                showToast(data.message || 'Deletion failed', 'error');
+                showToast(data.message || tr("Deletion failed"), 'error');
               }
             } catch (e) {
-              showToast('Network request failed', 'error');
+              showToast(tr("Network request failed"), 'error');
             }
           }
         }
@@ -242,7 +243,7 @@ export default function VendorManagementDashboard() {
             <Ionicons name="search" size={20} color="#94A3B8" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search vendors..."
+              placeholder={tr("Search vendors...")}
               placeholderTextColor="#94A3B8"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -256,8 +257,8 @@ export default function VendorManagementDashboard() {
           contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         >
           <View style={styles.listHeader}>
-            <Text style={styles.listTitle}>All Vendors</Text>
-            <Text style={styles.listCount}>{processedVendors.length} Vendors</Text>
+            <Text style={styles.listTitle}>{tr("All Vendors")}</Text>
+            <Text style={styles.listCount}>{processedVendors.length}{tr(" Vendors")}</Text>
           </View>
 
           {isLoading ? (
@@ -265,7 +266,7 @@ export default function VendorManagementDashboard() {
           ) : processedVendors.length === 0 ? (
             <View style={{ padding: 40, alignItems: 'center' }}>
                 <Ionicons name="briefcase-outline" size={48} color="#CBD5E1" />
-                <Text style={{ marginTop: 12, color: '#94A3B8', fontFamily: 'Inter-SemiBold', textAlign: 'center' }}>No vendors found. Add your first vendor to get started.</Text>
+                <Text style={{ marginTop: 12, color: '#94A3B8', fontFamily: 'Inter-SemiBold', textAlign: 'center' }}>{tr("No vendors found. Add your first vendor to get started.")}</Text>
             </View>
           ) : (
             processedVendors.map((vendor) => (
@@ -274,15 +275,15 @@ export default function VendorManagementDashboard() {
                   <View style={styles.vendorInfo}>
                     <View style={styles.textContainer}>
                       <View style={styles.vendorTitleRow}>
-                        <Text style={styles.vendorTitle}>{vendor.name}</Text>
+                        <Text style={styles.vendorTitle}>{tr(vendor.name)}</Text>
                         {vendor.status === 'Active' ? 
-                            <View style={styles.statusBadgeActive}><Text style={styles.statusTextActive}>Active</Text></View> : 
-                            <View style={styles.statusBadgeInactive}><Text style={styles.statusTextInactive}>Inactive</Text></View>
+                            <View style={styles.statusBadgeActive}><Text style={styles.statusTextActive}>{tr("Active")}</Text></View> : 
+                            <View style={styles.statusBadgeInactive}><Text style={styles.statusTextInactive}>{tr("Inactive")}</Text></View>
                         }
                       </View>
-                      {vendor.contactPerson && <Text style={styles.vendorSubtitle}><Ionicons name="person-outline" size={12} color="#94A3B8" /> {vendor.contactPerson}</Text>}
+                      {vendor.contactPerson && <Text style={styles.vendorSubtitle}><Ionicons name="person-outline" size={12} color="#94A3B8" /> {tr(vendor.contactPerson)}</Text>}
                       {vendor.email && <Text style={styles.vendorSubtitle}><Ionicons name="mail-outline" size={12} color="#94A3B8" /> {vendor.email}</Text>}
-                      {vendor.phoneNumber && <Text style={styles.vendorSubtitle}><Ionicons name="call-outline" size={12} color="#94A3B8" /> {vendor.phoneNumber}</Text>}
+                      {vendor.phoneNumber && <Text style={styles.vendorSubtitle}><Ionicons name="call-outline" size={12} color="#94A3B8" /> {tr(vendor.phoneNumber)}</Text>}
                     </View>
                   </View>
 
@@ -311,7 +312,7 @@ export default function VendorManagementDashboard() {
           style={[styles.fab, { bottom: insets.bottom + 24 }]}
           onPress={() => { 
             if (!hasPermission('vendors', 'create')) {
-              showToast("You don't have permission to add vendors.", "error");
+              showToast(tr("You don't have permission to add vendors."), "error");
               return;
             }
             setIsEditingVendor(false); setIsAddVendorVisible(true); 
@@ -320,7 +321,7 @@ export default function VendorManagementDashboard() {
         >
           <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.fabGradient}>
             <Ionicons name="add" size={30} color="#FFFFFF" />
-            <Text style={styles.fabText}>Add Vendor</Text>
+            <Text style={styles.fabText}>{tr("Add Vendor")}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -336,55 +337,55 @@ export default function VendorManagementDashboard() {
             <AdaptiveGlass intensity={60} tint="light" style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
-                  {isEditingVendor ? 'Update Vendor' : 'Add Vendor'}
+                  {isEditingVendor ? tr("Update Vendor") : tr("Add Vendor")}
                 </Text>
                 <TouchableOpacity onPress={closeVendorModal}><Ionicons name="close" size={24} color="#64748B" /></TouchableOpacity>
               </View>
               
               <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.inputLabel}>Vendor Name *</Text>
+                <Text style={styles.inputLabel}>{tr("Vendor Name *")}</Text>
                 <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
-                    <TextInput style={styles.textInput} placeholder="e.g. Acme Corp" placeholderTextColor="#94A3B8" value={newVendorName} onChangeText={setNewVendorName} />
+                    <TextInput style={styles.textInput} placeholder={tr("e.g. Acme Corp")} placeholderTextColor="#94A3B8" value={newVendorName} onChangeText={setNewVendorName} />
                 </AdaptiveGlass>
 
-                <Text style={styles.inputLabel}>Contact Person</Text>
+                <Text style={styles.inputLabel}>{tr("Contact Person")}</Text>
                 <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
-                    <TextInput style={styles.textInput} placeholder="e.g. John Doe" placeholderTextColor="#94A3B8" value={newVendorContact} onChangeText={setNewVendorContact} />
+                    <TextInput style={styles.textInput} placeholder={tr("e.g. John Doe")} placeholderTextColor="#94A3B8" value={newVendorContact} onChangeText={setNewVendorContact} />
                 </AdaptiveGlass>
 
-                <Text style={styles.inputLabel}>Email Address</Text>
+                <Text style={styles.inputLabel}>{tr("Email Address")}</Text>
                 <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
-                    <TextInput style={styles.textInput} placeholder="e.g. john@acme.com" keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#94A3B8" value={newVendorEmail} onChangeText={setNewVendorEmail} />
+                    <TextInput style={styles.textInput} placeholder={tr("e.g. john@acme.com")} keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#94A3B8" value={newVendorEmail} onChangeText={setNewVendorEmail} />
                 </AdaptiveGlass>
                 
-                <Text style={styles.inputLabel}>Phone Number</Text>
+                <Text style={styles.inputLabel}>{tr("Phone Number")}</Text>
                 <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
                     <TextInput style={styles.textInput} placeholder="e.g. +1 234 567 8900" keyboardType="phone-pad" placeholderTextColor="#94A3B8" value={newVendorPhone} onChangeText={setNewVendorPhone} />
                 </AdaptiveGlass>
 
-                <Text style={styles.inputLabel}>Tax ID / VAT / GST No.</Text>
+                <Text style={styles.inputLabel}>{tr("Tax ID / VAT / GST No.")}</Text>
                 <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
-                    <TextInput style={styles.textInput} placeholder="e.g. TAX-ID-992810 / 27AAAAA0000A1Z5" autoCapitalize="characters" placeholderTextColor="#94A3B8" value={newVendorGst} onChangeText={setNewVendorGst} />
+                    <TextInput style={styles.textInput} placeholder={tr("e.g. TAX-ID-992810 / 27AAAAA0000A1Z5")} autoCapitalize="characters" placeholderTextColor="#94A3B8" value={newVendorGst} onChangeText={setNewVendorGst} />
                 </AdaptiveGlass>
 
-                <Text style={styles.inputLabel}>Payment Terms</Text>
+                <Text style={styles.inputLabel}>{tr("Payment Terms")}</Text>
                 <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
-                    <TextInput style={styles.textInput} placeholder="e.g. Net 30 Days, 50% Advance" placeholderTextColor="#94A3B8" value={newVendorPaymentTerms} onChangeText={setNewVendorPaymentTerms} />
+                    <TextInput style={styles.textInput} placeholder={tr("e.g. Net 30 Days, 50% Advance")} placeholderTextColor="#94A3B8" value={newVendorPaymentTerms} onChangeText={setNewVendorPaymentTerms} />
                 </AdaptiveGlass>
 
-                <Text style={styles.inputLabel}>Bank Name</Text>
+                <Text style={styles.inputLabel}>{tr("Bank Name")}</Text>
                 <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
-                    <TextInput style={styles.textInput} placeholder="e.g. HDFC Bank / Chase" placeholderTextColor="#94A3B8" value={newVendorBankName} onChangeText={setNewVendorBankName} />
+                    <TextInput style={styles.textInput} placeholder={tr("e.g. HDFC Bank / Chase")} placeholderTextColor="#94A3B8" value={newVendorBankName} onChangeText={setNewVendorBankName} />
                 </AdaptiveGlass>
 
-                <Text style={styles.inputLabel}>Account Number</Text>
+                <Text style={styles.inputLabel}>{tr("Account Number")}</Text>
                 <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
                     <TextInput style={styles.textInput} placeholder="e.g. 50200012345678" keyboardType="numeric" placeholderTextColor="#94A3B8" value={newVendorAccountNumber} onChangeText={setNewVendorAccountNumber} />
                 </AdaptiveGlass>
 
-                <Text style={styles.inputLabel}>IFSC / Branch Code</Text>
+                <Text style={styles.inputLabel}>{tr("IFSC / Branch Code")}</Text>
                 <AdaptiveGlass intensity={10} tint="light" style={styles.inputBox}>
-                    <TextInput style={styles.textInput} placeholder="e.g. HDFC0001234" autoCapitalize="characters" placeholderTextColor="#94A3B8" value={newVendorIfscCode} onChangeText={setNewVendorIfscCode} />
+                    <TextInput style={styles.textInput} placeholder={tr("e.g. HDFC0001234")} autoCapitalize="characters" placeholderTextColor="#94A3B8" value={newVendorIfscCode} onChangeText={setNewVendorIfscCode} />
                 </AdaptiveGlass>
 
                 <TouchableOpacity
@@ -398,7 +399,7 @@ export default function VendorManagementDashboard() {
                         <ActivityIndicator color="#FFFFFF" size="small" />
                     ) : (
                         <Text style={styles.createBtnText}>
-                        {isEditingVendor ? 'Save Changes' : 'Add Vendor'}
+                        {isEditingVendor ? tr("Save Changes") : tr("Add Vendor")}
                         </Text>
                     )}
                     </LinearGradient>

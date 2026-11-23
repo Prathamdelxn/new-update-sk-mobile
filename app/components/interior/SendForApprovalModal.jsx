@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // "Send for Approval" sheet shared by project Drawings and BOQ
 // (web: InteriorProjectSendDrawingForApprovalModal / InteriorProjectSendBoqForApprovalModal).
 // Pick a reviewer from the project team, add notes, and hand them to onSubmit. All wording is
@@ -45,11 +46,11 @@ export default function SendForApprovalModal({
 
   const handleSubmit = async () => {
     if (!reviewer) {
-      setError('Please select an approver/manager from the team.');
+      setError(tr("Please select an approver/manager from the team."));
       return;
     }
     if (notesMaxLength && notes.trim().length > notesMaxLength) {
-      setError(`Submission remarks cannot exceed ${notesMaxLength} characters.`);
+      setError(tr("Submission remarks cannot exceed {{notesMaxLength}} characters.", { notesMaxLength: notesMaxLength }));
       return;
     }
     const picked = users.find((u) => u.id === reviewer);
@@ -59,7 +60,7 @@ export default function SendForApprovalModal({
       await onSubmit({ reviewerId: reviewer, reviewerName: picked?.name || 'Project Manager', notes: notes.trim() });
       onClose();
     } catch (e) {
-      setError(e?.message || 'Failed to send for approval');
+      setError(e?.message || tr("Failed to send for approval"));
     } finally {
       setSubmitting(false);
     }
@@ -74,8 +75,8 @@ export default function SendForApprovalModal({
               <Ionicons name="paper-plane-outline" size={18} color="#2563EB" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>{title}</Text>
-              {!!subtitle && <Text style={s.subtitle} numberOfLines={2}>{subtitle}</Text>}
+              <Text style={s.title}>{tr(title)}</Text>
+              {!!subtitle && <Text style={s.subtitle} numberOfLines={2}>{tr(subtitle)}</Text>}
             </View>
             <TouchableOpacity onPress={onClose} style={s.closeBtn} disabled={submitting}>
               <Ionicons name="close" size={20} color="#64748B" />
@@ -83,28 +84,28 @@ export default function SendForApprovalModal({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {summary}
+            {tr(summary)}
 
             <View style={s.labelRow}>
               <Ionicons name="person-outline" size={13} color="#2563EB" />
-              <Text style={s.label}>{reviewerLabel} <Text style={{ color: '#F43F5E' }}>*</Text></Text>
+              <Text style={s.label}>{tr(reviewerLabel)} <Text style={{ color: '#F43F5E' }}>*</Text></Text>
             </View>
             {users.length === 0 ? (
-              <Text style={s.hintWarn}>No team members found. Add members to this project first.</Text>
+              <Text style={s.hintWarn}>{tr("No team members found. Add members to this project first.")}</Text>
             ) : (
               <SelectField
                 value={reviewer}
                 onChange={(v) => { setReviewer(v); setError(''); }}
                 options={reviewerOptions(users)}
-                placeholder="-- Choose Reviewer --"
+                placeholder={tr("-- Choose Reviewer --")}
               />
             )}
-            {!!reviewerHint && <Text style={s.hint}>{reviewerHint}</Text>}
+            {!!reviewerHint && <Text style={s.hint}>{tr(reviewerHint)}</Text>}
 
             <View style={s.labelRow}>
               <Ionicons name="chatbox-ellipses-outline" size={13} color="#2563EB" />
-              <Text style={[s.label, { flex: 1 }]}>{notesLabel}</Text>
-              {!!notesMaxLength && <Text style={s.counter}>{notes.length}/{notesMaxLength}</Text>}
+              <Text style={[s.label, { flex: 1 }]}>{tr(notesLabel)}</Text>
+              {!!notesMaxLength && <Text style={s.counter}>{notes.length}/{tr(notesMaxLength)}</Text>}
             </View>
             <TextInput
               style={s.textarea}
@@ -119,13 +120,13 @@ export default function SendForApprovalModal({
             {!!error && (
               <View style={s.errorBox}>
                 <Ionicons name="alert-circle-outline" size={14} color="#DC2626" />
-                <Text style={s.errorText}>{error}</Text>
+                <Text style={s.errorText}>{tr(error)}</Text>
               </View>
             )}
 
             <View style={s.footer}>
               <TouchableOpacity style={s.cancelBtn} onPress={onClose} disabled={submitting}>
-                <Text style={s.cancelText}>Cancel</Text>
+                <Text style={s.cancelText}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.submitBtn, (submitting || !reviewer) && { opacity: 0.6 }]}
@@ -135,12 +136,12 @@ export default function SendForApprovalModal({
                 {submitting ? (
                   <>
                     <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={s.submitText}>{submittingLabel}</Text>
+                    <Text style={s.submitText}>{tr(submittingLabel)}</Text>
                   </>
                 ) : (
                   <>
                     <Ionicons name="paper-plane" size={14} color="#FFFFFF" />
-                    <Text style={s.submitText}>{submitLabel}</Text>
+                    <Text style={s.submitText}>{tr(submitLabel)}</Text>
                   </>
                 )}
               </TouchableOpacity>

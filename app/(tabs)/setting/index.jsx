@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Switch, Dimensions, StatusBar, Modal } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -29,8 +30,8 @@ const SettingItem = ({ icon, title, subtitle, type = 'chevron', value, onPress, 
         <Ionicons name={icon} size={20} color="#2563EB" />
       </View>
       <View style={styles.itemText}>
-        <Text style={styles.itemTitle} numberOfLines={2}>{title}</Text>
-        {!!subtitle && <Text style={styles.itemSubtitle} numberOfLines={1}>{subtitle}</Text>}
+        <Text style={styles.itemTitle} numberOfLines={2}>{tr(title)}</Text>
+        {!!subtitle && <Text style={styles.itemSubtitle} numberOfLines={1}>{tr(subtitle)}</Text>}
       </View>
     </View>
     {type === 'chevron' && <Ionicons name="chevron-forward" size={18} color="#94A3B8" />}
@@ -80,7 +81,7 @@ export default function SettingScreen() {
           }
         } catch (error) {
           console.warn("Failed to reload app:", error);
-          showToast("Language changed. Please restart the app for layout changes to take effect.", "info");
+          showToast(tr("Language changed. Please restart the app for layout changes to take effect."), "info");
         }
       }, 500);
     }
@@ -131,12 +132,12 @@ export default function SettingScreen() {
               </View>
               <View style={styles.profileInfo}>
                 <View style={styles.nameRow}>
-                  <Text style={styles.profileName} numberOfLines={1}>{user?.name || 'User'}</Text>
+                  <Text style={styles.profileName} numberOfLines={1}>{user?.name || tr("User")}</Text>
                   <View style={styles.badge}>
-                    <Text style={styles.badgeLabel}>{user?.role?.name || 'MEMBER'}</Text>
+                    <Text style={styles.badgeLabel}>{user?.role?.name || tr("MEMBER")}</Text>
                   </View>
                 </View>
-                <Text style={styles.profileEmail} numberOfLines={1}>{user?.email || 'No email provided'}</Text>
+                <Text style={styles.profileEmail} numberOfLines={1}>{user?.email || tr("No email provided")}</Text>
               </View>
             </View>
           </AdaptiveGlass>
@@ -218,7 +219,7 @@ export default function SettingScreen() {
               <SettingItem 
                 icon="information-circle" 
                 title={t('appInfo')} 
-                subtitle="v2.1.0 Arctic" 
+                subtitle={tr("v2.1.0 Arctic")} 
                 type="none" 
                 onPress={() => setIsAppInfoVisible(true)}
               />
@@ -372,8 +373,8 @@ export default function SettingScreen() {
                 <View style={styles.appInfoIcon}>
                   <Ionicons name="information-circle" size={48} color="#3B82F6" />
                 </View>
-                <Text style={styles.appInfoTitle}>Sky Lite</Text>
-                <Text style={styles.appInfoVersion}>Version 2.1.0 (Arctic)</Text>
+                <Text style={styles.appInfoTitle}>{tr("Sky Lite")}</Text>
+                <Text style={styles.appInfoVersion}>{tr("Version 2.1.0 (Arctic)")}</Text>
                 
                 <Text style={styles.appInfoDesc}>
                   {t('skyLiteDesc')}

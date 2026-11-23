@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList,
@@ -137,7 +138,7 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
   const pickFromGallery = async () => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { showToast('Allow photo access in settings.', 'error'); return; }
+      if (!perm.granted) { showToast(tr("Allow photo access in settings."), 'error'); return; }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
@@ -145,19 +146,19 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
         selectionLimit: 5 - localUris.length,
       });
       await handlePhotoResult(result);
-    } catch { showToast('Could not pick photo', 'error'); }
+    } catch { showToast(tr("Could not pick photo"), 'error'); }
   };
 
   const pickFromCamera = async () => {
     try {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) { showToast('Allow camera access in settings.', 'error'); return; }
+      if (!perm.granted) { showToast(tr("Allow camera access in settings."), 'error'); return; }
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
       });
       await handlePhotoResult(result);
-    } catch { showToast('Could not capture photo', 'error'); }
+    } catch { showToast(tr("Could not capture photo"), 'error'); }
   };
 
   const pickPhoto = () => {
@@ -170,8 +171,8 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
   };
 
   const handleSubmit = () => {
-    if (!description.trim()) { showToast('Add a description.', 'error'); return; }
-    if (photos.length === 0) { showToast('Add at least one site photo.', 'error'); return; }
+    if (!description.trim()) { showToast(tr("Add a description."), 'error'); return; }
+    if (photos.length === 0) { showToast(tr("Add at least one site photo."), 'error'); return; }
     onSubmit({ milestoneId, milestoneName: milestoneName || 'General', description, photos });
   };
 
@@ -183,7 +184,7 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
           <AdaptiveGlass intensity={20} style={[styles.formSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.formHeader}>
-              <Text style={styles.formTitle}>Record Site Progress</Text>
+              <Text style={styles.formTitle}>{tr("Record Site Progress")}</Text>
               <TouchableOpacity style={styles.formCloseBtn} onPress={onClose}>
                 <Ionicons name="close" size={20} color={C.slate} />
               </TouchableOpacity>
@@ -192,7 +193,7 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {/* Milestone picker */}
               <View style={styles.inputGroup}>
-                <Text style={styles.fieldLabel}>Linked Milestone</Text>
+                <Text style={styles.fieldLabel}>{tr("Linked Milestone")}</Text>
                 <TouchableOpacity
                   style={styles.pickerBtn}
                   onPress={() => {
@@ -202,7 +203,7 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
                 >
                   <Feather name="flag" size={16} color={milestoneId ? C.blue : C.textSoft} />
                   <Text style={[styles.pickerBtnText, milestoneId && { color: C.text }]}>
-                    {milestoneName || 'General Update'}
+                    {milestoneName || tr("General Update")}
                   </Text>
                   <Ionicons name={showPicker ? 'chevron-up' : 'chevron-down'} size={14} color={C.textSoft} />
                 </TouchableOpacity>
@@ -214,7 +215,7 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
                       onPress={() => { setMilestoneId(''); setMilestoneName(''); setShowPicker(false); }}
                     >
                       <MaterialCommunityIcons name="layers-outline" size={16} color={C.textSoft} />
-                      <Text style={styles.pickerOptionText}>General</Text>
+                      <Text style={styles.pickerOptionText}>{tr("General")}</Text>
                     </TouchableOpacity>
                     {milestones.map((m) => {
                       const { pct } = getMilestoneProgress(m);
@@ -227,9 +228,9 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
                         >
                           <View style={[styles.pickerOptionDot, { backgroundColor: sm.color }]} />
                           <Text style={[styles.pickerOptionText, milestoneId === m._id && { color: C.blue }]} numberOfLines={1}>
-                            {m.name}
+                            {tr(m.name)}
                           </Text>
-                          <Text style={styles.pickerOptionPct}>{pct}%</Text>
+                          <Text style={styles.pickerOptionPct}>{tr(pct)}%</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -239,13 +240,13 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
 
               {/* Description */}
               <View style={styles.inputGroup}>
-                <Text style={styles.fieldLabel}>Site Activities / Notes</Text>
+                <Text style={styles.fieldLabel}>{tr("Site Activities / Notes")}</Text>
                 <View style={styles.textAreaWrapper}>
                   <TextInput
                     style={styles.descInput}
                     multiline
                     numberOfLines={4}
-                    placeholder="Describe today's activities, observations, or blockers..."
+                    placeholder={tr("Describe today's activities, observations, or blockers...")}
                     placeholderTextColor={C.textSoft}
                     value={description}
                     onChangeText={(t) => setDescription(t.slice(0, 300))}
@@ -256,7 +257,7 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
 
               {/* Photos */}
               <View style={styles.inputGroup}>
-                <Text style={styles.fieldLabel}>Progress Evidence (Photos)</Text>
+                <Text style={styles.fieldLabel}>{tr("Progress Evidence (Photos)")}</Text>
                 <View style={styles.photoGrid}>
                   {localUris.map((uri, i) => (
                     <View key={i} style={styles.photoItem}>
@@ -273,7 +274,7 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
                       ) : (
                         <View style={styles.photoAddInner}>
                           <Feather name="camera" size={24} color={C.blue} />
-                          <Text style={styles.photoAddText}>Add Photo</Text>
+                          <Text style={styles.photoAddText}>{tr("Add Photo")}</Text>
                         </View>
                       )}
                     </TouchableOpacity>
@@ -294,7 +295,7 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
                 >
                   {submitting ? <ActivityIndicator color="#FFF" /> : (
                     <>
-                      <Text style={styles.submitBtnText}>Submit Site Update</Text>
+                      <Text style={styles.submitBtnText}>{tr("Submit Site Update")}</Text>
                       <Feather name="arrow-right" size={18} color="#FFF" style={{ marginLeft: 8 }} />
                     </>
                   )}
@@ -309,8 +310,8 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
           <View style={styles.photoOptionsOverlay}>
             <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowPhotoOptions(false)} />
             <View style={styles.photoOptionsSheet}>
-              <Text style={styles.photoOptionsTitle}>Add Photo</Text>
-              <Text style={styles.photoOptionsSub}>Select a source for your evidence</Text>
+              <Text style={styles.photoOptionsTitle}>{tr("Add Photo")}</Text>
+              <Text style={styles.photoOptionsSub}>{tr("Select a source for your evidence")}</Text>
 
               <View style={styles.photoOptionList}>
                 <TouchableOpacity 
@@ -320,7 +321,7 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
                   <View style={[styles.photoOptionIcon, { backgroundColor: C.bluePale }]}>
                     <Feather name="camera" size={24} color={C.blue} />
                   </View>
-                  <Text style={styles.photoOptionText}>Take Photo</Text>
+                  <Text style={styles.photoOptionText}>{tr("Take Photo")}</Text>
                   <Ionicons name="chevron-forward" size={16} color={C.border} />
                 </TouchableOpacity>
 
@@ -331,13 +332,13 @@ function LogForm({ visible, milestones, preselectedMilestone, onClose, onSubmit,
                   <View style={[styles.photoOptionIcon, { backgroundColor: C.greenPale }]}>
                     <Feather name="image" size={24} color={C.green} />
                   </View>
-                  <Text style={styles.photoOptionText}>Choose from Gallery</Text>
+                  <Text style={styles.photoOptionText}>{tr("Choose from Gallery")}</Text>
                   <Ionicons name="chevron-forward" size={16} color={C.border} />
                 </TouchableOpacity>
               </View>
 
               <TouchableOpacity style={styles.photoOptionCancel} onPress={() => setShowPhotoOptions(false)}>
-                <Text style={styles.photoOptionCancelText}>Cancel</Text>
+                <Text style={styles.photoOptionCancelText}>{tr("Cancel")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -362,7 +363,7 @@ function LogCard({ log, canDelete, onDelete }) {
         <View style={styles.logCardTop}>
           <View style={styles.logMsTag}>
             <Feather name="flag" size={10} color={C.blue} />
-            <Text style={styles.logMsTagText} numberOfLines={1}>{log.milestoneName}</Text>
+            <Text style={styles.logMsTagText} numberOfLines={1}>{tr(log.milestoneName)}</Text>
           </View>
           <Text style={styles.logTime}>{fmtTime(log.createdAt)}</Text>
           {canDelete && (
@@ -372,7 +373,7 @@ function LogCard({ log, canDelete, onDelete }) {
           )}
         </View>
         
-        <Text style={styles.logDesc} numberOfLines={expanded ? undefined : 3}>{log.description}</Text>
+        <Text style={styles.logDesc} numberOfLines={expanded ? undefined : 3}>{tr(log.description)}</Text>
         
         {log.photos?.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.logPhotoScroll}>
@@ -389,7 +390,7 @@ function LogCard({ log, canDelete, onDelete }) {
             <View style={styles.authorAvatar}>
               <Text style={styles.authorAvatarText}>{log.loggedByName?.charAt(0)}</Text>
             </View>
-            <Text style={styles.logFooterText} numberOfLines={1}>{log.loggedByName}</Text>
+            <Text style={styles.logFooterText} numberOfLines={1}>{tr(log.loggedByName)}</Text>
           </View>
           <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={C.textSoft} />
         </View>
@@ -444,7 +445,7 @@ export default function ProjectProgressTab() {
         setProjectObj(projRes);
         if (projRes.members) setProjectMembers(projRes.members);
       }
-    } catch { showToast('Failed to load data', 'error'); }
+    } catch { showToast(tr("Failed to load data"), 'error'); }
     finally { setIsLoading(false); setRefreshing(false); }
   }, [projectId, token, logPeriod]);
 
@@ -473,8 +474,8 @@ export default function ProjectProgressTab() {
     try {
       setSubmitting(true);
       const { ok, data: json } = await workProgressService.createLog(projectId, token, { ...data, date: todayStr() });
-      if (!ok) { showToast(json.message || 'Failed', 'error'); return; }
-      showToast('Site note saved!', 'success');
+      if (!ok) { showToast(json.message || tr("Failed"), 'error'); return; }
+      showToast(tr("Site note saved!"), 'success');
       setShowForm(false);
       setPreselected(null);
       fetchAll(true);
@@ -483,13 +484,13 @@ export default function ProjectProgressTab() {
 
   // ── Delete log ───────────────────────────────────────────────────────────
   const handleDelete = (logId) => {
-    Alert.alert('Delete', 'Remove this site note?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete"), tr("Remove this site note?"), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive',
+        text: tr("Delete"), style: 'destructive',
         onPress: async () => {
           await workProgressService.deleteLog(projectId, logId, token);
-          showToast('Deleted', 'success');
+          showToast(tr("Deleted"), 'success');
           fetchAll(true);
         },
       },
@@ -519,8 +520,8 @@ export default function ProjectProgressTab() {
     return (
       <View style={styles.centered}>
         <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
-        <Text style={styles.emptyTitle}>Access Restricted</Text>
-        <Text style={styles.emptySub}>You don't have permission to view work progress.</Text>
+        <Text style={styles.emptyTitle}>{tr("Access Restricted")}</Text>
+        <Text style={styles.emptySub}>{tr("You don't have permission to view work progress.")}</Text>
       </View>
     );
   }
@@ -537,13 +538,13 @@ export default function ProjectProgressTab() {
       <>
           <View style={styles.logsHeader}>
             <View>
-              <Text style={styles.bentoTitle}>Progress</Text>
-              <Text style={styles.bentoSub}>Track daily site updates</Text>
+              <Text style={styles.bentoTitle}>{tr("Progress")}</Text>
+              <Text style={styles.bentoSub}>{tr("Track daily site updates")}</Text>
             </View>
             {canCreate && (
               <TouchableOpacity style={styles.uploadPill} onPress={() => { setPreselected(null); setShowForm(true); }}>
                 <Feather name="plus" size={14} color="#FFF" />
-                <Text style={styles.uploadPillText}>Record</Text>
+                <Text style={styles.uploadPillText}>{tr("Record")}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -556,7 +557,7 @@ export default function ProjectProgressTab() {
                 style={[styles.periodChip, logPeriod === k && styles.periodChipActive]}
                 onPress={() => setLogPeriod(k)}
               >
-                <Text style={[styles.periodChipText, logPeriod === k && styles.periodChipTextActive]}>{lbl}</Text>
+                <Text style={[styles.periodChipText, logPeriod === k && styles.periodChipTextActive]}>{tr(lbl)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -564,8 +565,8 @@ export default function ProjectProgressTab() {
           {groupedLogs.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="journal-outline" size={48} color="#CBD5E1" />
-              <Text style={styles.emptyTitle}>No site notes</Text>
-              <Text style={styles.emptySub}>Document daily activities with notes and photos</Text>
+              <Text style={styles.emptyTitle}>{tr("No site notes")}</Text>
+              <Text style={styles.emptySub}>{tr("Document daily activities with notes and photos")}</Text>
             </View>
           ) : (
             <ScrollView

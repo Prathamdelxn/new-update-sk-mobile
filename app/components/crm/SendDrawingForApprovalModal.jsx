@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, ScrollView,
@@ -30,7 +31,7 @@ export default function SendDrawingForApprovalModal({ isOpen, onClose, customerI
 
   const handleSubmit = async () => {
     if (!assignedReviewer) {
-      Alert.alert('Reviewer Required', 'Please select a team member to review this drawing.');
+      Alert.alert(tr("Reviewer Required"), tr("Please select a team member to review this drawing."));
       return;
     }
     const reviewer = users.find((u) => (u._id || u.id) === assignedReviewer);
@@ -44,7 +45,7 @@ export default function SendDrawingForApprovalModal({ isOpen, onClose, customerI
       onSuccess();
       onClose();
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to send drawing for approval.');
+      Alert.alert(tr("Error"), e.message || tr("Failed to send drawing for approval."));
     } finally {
       setSubmitting(false);
     }
@@ -56,8 +57,8 @@ export default function SendDrawingForApprovalModal({ isOpen, onClose, customerI
         <View style={s.card}>
           <View style={s.header}>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>Send Drawing for Approval</Text>
-              <Text style={s.subtitle}>Assign an internal reviewer before it can be published to the client.</Text>
+              <Text style={s.title}>{tr("Send Drawing for Approval")}</Text>
+              <Text style={s.subtitle}>{tr("Assign an internal reviewer before it can be published to the client.")}</Text>
             </View>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={22} color="#64748B" />
@@ -69,14 +70,14 @@ export default function SendDrawingForApprovalModal({ isOpen, onClose, customerI
               <Ionicons name="document-text-outline" size={18} color="#0284C7" />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={s.previewTitle} numberOfLines={1}>{drawing.title || drawing.name}</Text>
-                <Text style={s.previewSub}>{drawing.category || '2D'} • v{drawing.currentVersion || 1} • {drawing.roomTag || 'General / Not Specified'}</Text>
+                <Text style={s.previewSub}>{drawing.category || '2D'} • v{drawing.currentVersion || 1} • {drawing.roomTag || tr("General / Not Specified")}</Text>
               </View>
             </View>
 
-            <Text style={s.label}>Select Approver / Reviewer *</Text>
+            <Text style={s.label}>{tr("Select Approver / Reviewer *")}</Text>
             <TouchableOpacity style={s.dropdownBtn} onPress={() => setShowDropdown((v) => !v)}>
               <Text style={[s.dropdownBtnText, !assignedReviewer && { color: '#94A3B8' }]} numberOfLines={1}>
-                {assignedReviewer ? userLabel(users.find((u) => (u._id || u.id) === assignedReviewer) || {}) : 'Select reviewer'}
+                {assignedReviewer ? userLabel(users.find((u) => (u._id || u.id) === assignedReviewer) || {}) : tr("Select reviewer")}
               </Text>
               <Ionicons name={showDropdown ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
             </TouchableOpacity>
@@ -98,7 +99,7 @@ export default function SendDrawingForApprovalModal({ isOpen, onClose, customerI
             )}
 
             <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmit} disabled={submitting}>
-              {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Send for Approval</Text>}
+              {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Send for Approval")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>

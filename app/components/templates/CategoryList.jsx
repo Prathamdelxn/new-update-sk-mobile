@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // Construction Templates → Categories tab (same as the web construction-dashboard CategoryList):
 // search, add, inline rename and delete of template categories.
 
@@ -76,7 +77,7 @@ export default function CategoryList({ categories, templates, loading, onChanged
       setTimeout(() => setLastAdded(null), 3000);
       onChanged?.();
     } catch (e) {
-      showToast(e.message || 'Failed to create category', 'error');
+      showToast(e.message || tr("Failed to create category"), 'error');
     } finally {
       setIsCreating(false);
     }
@@ -87,30 +88,30 @@ export default function CategoryList({ categories, templates, loading, onChanged
     setIsUpdating(true);
     try {
       await call(`/template-categories/${id}`, 'PATCH', { name: editingName.trim() });
-      showToast('Category updated', 'success');
+      showToast(tr("Category updated"), 'success');
       setEditingId(null);
       Keyboard.dismiss();
       onChanged?.();
     } catch (e) {
-      showToast(e.message || 'Failed to update', 'error');
+      showToast(e.message || tr("Failed to update"), 'error');
     } finally {
       setIsUpdating(false);
     }
   };
 
   const handleDelete = (cat) => {
-    Alert.alert('Delete Category', 'Are you sure? This will delete all templates associated with this category.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete Category"), tr("Are you sure? This will delete all templates associated with this category."), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete Category',
+        text: tr("Delete Category"),
         style: 'destructive',
         onPress: async () => {
           try {
             await call(`/template-categories/${cat._id}`, 'DELETE');
-            showToast('Category deleted', 'success');
+            showToast(tr("Category deleted"), 'success');
             onChanged?.({ templatesToo: true, deletedId: cat._id });
           } catch (e) {
-            showToast(e.message || 'Failed to delete category', 'error');
+            showToast(e.message || tr("Failed to delete category"), 'error');
           }
         },
       },
@@ -147,9 +148,9 @@ export default function CategoryList({ categories, templates, loading, onChanged
               onSubmitEditing={() => handleUpdate(cat._id)}
             />
           ) : (
-            <Text style={s.rowName} numberOfLines={2}>{cat.name}</Text>
+            <Text style={s.rowName} numberOfLines={2}>{tr(cat.name)}</Text>
           )}
-          <Text style={s.rowMeta}>{count} {count === 1 ? 'Template' : 'Templates'}</Text>
+          <Text style={s.rowMeta}>{count} {count === 1 ? tr("Template") : tr("Templates")}</Text>
         </View>
 
         {isEditing ? (
@@ -164,12 +165,12 @@ export default function CategoryList({ categories, templates, loading, onChanged
         ) : (
           <View style={s.actions}>
             {canUpdate && (
-              <TouchableOpacity style={s.iconBtn} onPress={() => startEditing(cat)} accessibilityLabel="Edit Category">
+              <TouchableOpacity style={s.iconBtn} onPress={() => startEditing(cat)} accessibilityLabel={tr("Edit Category")}>
                 <Ionicons name="create-outline" size={16} color="#2563EB" />
               </TouchableOpacity>
             )}
             {canDelete && (
-              <TouchableOpacity style={[s.iconBtn, s.iconBtnDanger]} onPress={() => handleDelete(cat)} accessibilityLabel="Delete Category">
+              <TouchableOpacity style={[s.iconBtn, s.iconBtnDanger]} onPress={() => handleDelete(cat)} accessibilityLabel={tr("Delete Category")}>
                 <Ionicons name="trash-outline" size={16} color="#E11D48" />
               </TouchableOpacity>
             )}
@@ -186,7 +187,7 @@ export default function CategoryList({ categories, templates, loading, onChanged
           <Ionicons name="search" size={16} color="#94A3B8" />
           <TextInput
             style={s.searchInput}
-            placeholder="Search categories by name..."
+            placeholder={tr("Search categories by name...")}
             placeholderTextColor="#94A3B8"
             value={search}
             onChangeText={setSearch}
@@ -200,7 +201,7 @@ export default function CategoryList({ categories, templates, loading, onChanged
         {canCreate && (
           <TouchableOpacity style={s.newBtn} onPress={() => { setShowCreate(true); setNewName(''); }} activeOpacity={0.85}>
             <Ionicons name="add" size={16} color="#FFFFFF" />
-            <Text style={s.newBtnText}>New Category</Text>
+            <Text style={s.newBtnText}>{tr("New Category")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -209,7 +210,7 @@ export default function CategoryList({ categories, templates, loading, onChanged
         <View style={s.createCard}>
           <TextInput
             style={s.createInput}
-            placeholder="Enter category name (e.g. Residential Villa, Commercial Fit-Out)..."
+            placeholder={tr("Enter category name (e.g. Residential Villa, Commercial Fit-Out)...")}
             placeholderTextColor="#94A3B8"
             value={newName}
             onChangeText={setNewName}
@@ -221,7 +222,7 @@ export default function CategoryList({ categories, templates, loading, onChanged
           {!!newNameTrimmed && alreadyExists && (
             <View style={s.warnRow}>
               <Ionicons name="warning-outline" size={14} color="#D97706" />
-              <Text style={s.warnText}>Category already exists</Text>
+              <Text style={s.warnText}>{tr("Category already exists")}</Text>
             </View>
           )}
           <View style={s.createActions}>
@@ -231,7 +232,7 @@ export default function CategoryList({ categories, templates, loading, onChanged
               disabled={isCreating || !newNameTrimmed || alreadyExists}
             >
               {isCreating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="checkmark" size={15} color="#FFFFFF" />}
-              <Text style={s.saveBtnText}>Save</Text>
+              <Text style={s.saveBtnText}>{tr("Save")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.cancelBtn} onPress={() => { setShowCreate(false); setNewName(''); }}>
               <Ionicons name="close" size={15} color="#64748B" />
@@ -244,7 +245,7 @@ export default function CategoryList({ categories, templates, loading, onChanged
         <View style={s.addedBanner}>
           <Ionicons name="checkmark-circle" size={15} color="#059669" />
           <Text style={s.addedText}>
-            Category <Text style={{ fontFamily: 'Inter-Bold', color: '#065F46' }}>&quot;{lastAdded}&quot;</Text> added successfully
+            {tr("Category ")}<Text style={{ fontFamily: 'Inter-Bold', color: '#065F46' }}>&quot;{tr(lastAdded)}&quot;</Text>{tr(" added successfully")}
           </Text>
         </View>
       )}
@@ -266,11 +267,11 @@ export default function CategoryList({ categories, templates, loading, onChanged
               <View style={s.emptyIcon}>
                 <Ionicons name="folder-open-outline" size={24} color="#94A3B8" />
               </View>
-              <Text style={s.emptyTitle}>{search ? 'No categories found' : 'No categories created yet'}</Text>
+              <Text style={s.emptyTitle}>{search ? tr("No categories found") : tr("No categories created yet")}</Text>
               <Text style={s.emptySub}>
                 {search
-                  ? `No categories match "${search}". Try searching for another keyword.`
-                  : 'Organize your templates by creating your first template category.'}
+                  ? tr("No categories match \"{{search}}\". Try searching for another keyword.", { search: search })
+                  : tr("Organize your templates by creating your first template category.")}
               </Text>
             </View>
           }

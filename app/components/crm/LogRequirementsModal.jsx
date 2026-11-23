@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import {
   Modal,
@@ -110,7 +111,7 @@ export default function LogRequirementsModal({
 
   const removeRoom = (index) => {
     if (requirements.length === 1) {
-      Alert.alert('Error', 'You need at least one room requirement.');
+      Alert.alert(tr("Error"), tr("You need at least one room requirement."));
       return;
     }
     setRequirements(requirements.filter((_, i) => i !== index));
@@ -129,15 +130,15 @@ export default function LogRequirementsModal({
 
   const handleSubmit = async () => {
     if (isReadOnly) {
-      Alert.alert('Locked', 'This lead is read-only and cannot be edited.');
+      Alert.alert(tr("Locked"), tr("This lead is read-only and cannot be edited."));
       return;
     }
     if (requirements.length === 0) {
-      Alert.alert('Error', 'Please add at least one room requirement.');
+      Alert.alert(tr("Error"), tr("Please add at least one room requirement."));
       return;
     }
     if (requirements.some(r => !r.roomName || !r.roomName.trim())) {
-      Alert.alert('Error', 'Please specify a name for each room/space.');
+      Alert.alert(tr("Error"), tr("Please specify a name for each room/space."));
       return;
     }
 
@@ -191,7 +192,7 @@ export default function LogRequirementsModal({
       onClose();
     } catch (error) {
       console.error('Error saving requirements:', error);
-      Alert.alert('Error', 'Failed to save requirements. Please try again.');
+      Alert.alert(tr("Error"), tr("Failed to save requirements. Please try again."));
     } finally {
       setIsSubmitting(false);
     }
@@ -203,8 +204,8 @@ export default function LogRequirementsModal({
         <View style={s.modalContent}>
           <View style={s.modalHeader}>
             <View>
-              <Text style={s.modalTitle}>Detailed Requirements</Text>
-              <Text style={s.modalSubtitle}>Functional, Aesthetic & Observations</Text>
+              <Text style={s.modalTitle}>{tr("Detailed Requirements")}</Text>
+              <Text style={s.modalSubtitle}>{tr("Functional, Aesthetic & Observations")}</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
               <Ionicons name="close" size={24} color="#64748B" />
@@ -217,9 +218,9 @@ export default function LogRequirementsModal({
               <View style={s.prefillBox}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Ionicons name="sparkles-outline" size={16} color="#7C3AED" />
-                  <Text style={s.prefillTitle}>Client submitted {clientRequirements.length} space(s) through the online intake link</Text>
+                  <Text style={s.prefillTitle}>{tr("Client submitted ")}{clientRequirements.length}{tr(" space(s) through the online intake link")}</Text>
                 </View>
-                <Text style={s.prefillSub}>Load the client's requested rooms and aesthetic wishes into your technical specifications.</Text>
+                <Text style={s.prefillSub}>{tr("Load the client's requested rooms and aesthetic wishes into your technical specifications.")}</Text>
                 <TouchableOpacity
                   style={s.prefillBtn}
                   onPress={() => {
@@ -244,9 +245,9 @@ export default function LogRequirementsModal({
                     };
                     const hasTyped = requirements.some((r) => r.roomName || r.roomUsage || r.description);
                     if (hasTyped) {
-                      Alert.alert('Replace current rooms?', 'This replaces the rooms in this form with the client\'s wishlist.', [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Pre-fill', onPress: apply },
+                      Alert.alert(tr("Replace current rooms?"), tr("This replaces the rooms in this form with the client's wishlist."), [
+                        { text: tr("Cancel"), style: 'cancel' },
+                        { text: tr("Pre-fill"), onPress: apply },
                       ]);
                     } else {
                       apply();
@@ -254,12 +255,12 @@ export default function LogRequirementsModal({
                   }}
                 >
                   <Ionicons name="copy-outline" size={13} color="#FFFFFF" />
-                  <Text style={s.prefillBtnText}>Pre-fill from Client Wishlist</Text>
+                  <Text style={s.prefillBtnText}>{tr("Pre-fill from Client Wishlist")}</Text>
                 </TouchableOpacity>
               </View>
             )}
             <View style={s.overallBox}>
-              <Text style={s.label}>Overall Budget Range ({cur})</Text>
+              <Text style={s.label}>{tr("Overall Budget Range (")}{tr(cur)})</Text>
               <TextInput
                 style={s.input}
                 value={budgetRange}
@@ -272,7 +273,7 @@ export default function LogRequirementsModal({
             {requirements.map((room, idx) => (
               <View key={idx} style={s.roomCard}>
                 <View style={s.roomHeader}>
-                  <Text style={s.roomTitle}>Room {idx + 1}</Text>
+                  <Text style={s.roomTitle}>{tr("Room ")}{idx + 1}</Text>
                   <View style={s.roomActions}>
                     <TouchableOpacity onPress={() => duplicateRoom(idx)} style={{ marginRight: 12 }}>
                       <Ionicons name="copy-outline" size={18} color="#4F46E5" />
@@ -284,19 +285,19 @@ export default function LogRequirementsModal({
                 </View>
 
                 <View style={{ marginBottom: 12 }}>
-                  <Text style={s.label}>Room Name *</Text>
+                  <Text style={s.label}>{tr("Room Name *")}</Text>
                   <TextInput
                     style={s.input}
                     value={room.roomName}
                     onChangeText={(v) => updateRoom(idx, 'roomName', v)}
-                    placeholder="e.g. Master Bedroom, Living Room, Kitchen"
+                    placeholder={tr("e.g. Master Bedroom, Living Room, Kitchen")}
                     placeholderTextColor="#94A3B8"
                   />
                 </View>
 
                 {/* Type of Interior Selector */}
                 <View style={{ marginBottom: 14 }}>
-                  <Text style={s.label}>Type of Interior</Text>
+                  <Text style={s.label}>{tr("Type of Interior")}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
                     {INTERIOR_TYPES.map((type) => {
                       const isSel = (room.interiorType || 'Residential') === type;
@@ -306,7 +307,7 @@ export default function LogRequirementsModal({
                           style={[s.typeChip, isSel && s.typeChipActive]}
                           onPress={() => updateRoom(idx, 'interiorType', type)}
                         >
-                          <Text style={[s.typeChipText, isSel && s.typeChipTextActive]}>{type}</Text>
+                          <Text style={[s.typeChipText, isSel && s.typeChipTextActive]}>{tr(type)}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -320,88 +321,88 @@ export default function LogRequirementsModal({
                     onPress={() => setActiveSubTabs({ ...activeSubTabs, [idx]: 'functional' })}
                   >
                     <Ionicons name="options-outline" size={13} color={(activeSubTabs[idx] || 'functional') === 'functional' ? '#2563EB' : '#64748B'} style={{ marginRight: 4 }} />
-                    <Text style={[s.subTabText, (activeSubTabs[idx] || 'functional') === 'functional' && s.subTabTextActive]}>Functional</Text>
+                    <Text style={[s.subTabText, (activeSubTabs[idx] || 'functional') === 'functional' && s.subTabTextActive]}>{tr("Functional")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[s.subTab, activeSubTabs[idx] === 'aesthetic' && s.subTabActive]}
                     onPress={() => setActiveSubTabs({ ...activeSubTabs, [idx]: 'aesthetic' })}
                   >
                     <Ionicons name="color-palette-outline" size={13} color={activeSubTabs[idx] === 'aesthetic' ? '#2563EB' : '#64748B'} style={{ marginRight: 4 }} />
-                    <Text style={[s.subTabText, activeSubTabs[idx] === 'aesthetic' && s.subTabTextActive]}>Aesthetic</Text>
+                    <Text style={[s.subTabText, activeSubTabs[idx] === 'aesthetic' && s.subTabTextActive]}>{tr("Aesthetic")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[s.subTab, activeSubTabs[idx] === 'notes' && s.subTabActive]}
                     onPress={() => setActiveSubTabs({ ...activeSubTabs, [idx]: 'notes' })}
                   >
                     <Ionicons name="document-text-outline" size={13} color={activeSubTabs[idx] === 'notes' ? '#2563EB' : '#64748B'} style={{ marginRight: 4 }} />
-                    <Text style={[s.subTabText, activeSubTabs[idx] === 'notes' && s.subTabTextActive]}>Notes</Text>
+                    <Text style={[s.subTabText, activeSubTabs[idx] === 'notes' && s.subTabTextActive]}>{tr("Notes")}</Text>
                   </TouchableOpacity>
                 </View>
 
                 {/* 1. Functional Tab */}
                 {(activeSubTabs[idx] || 'functional') === 'functional' && (
                   <View style={s.tabContent}>
-                    <Text style={s.label}>Room Usage & Primary Purpose</Text>
+                    <Text style={s.label}>{tr("Room Usage & Primary Purpose")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.roomUsage}
                       onChangeText={v => updateRoom(idx, 'roomUsage', v)}
-                      placeholder="e.g. Master sleeping & dressing, Formal entertaining"
+                      placeholder={tr("e.g. Master sleeping & dressing, Formal entertaining")}
                       placeholderTextColor="#94A3B8"
                     />
                     
-                    <Text style={s.label}>Furniture Requirements</Text>
+                    <Text style={s.label}>{tr("Furniture Requirements")}</Text>
                     <TextInput
                       style={[s.input, { height: 60 }]}
                       multiline
                       value={room.furnitureRequirements}
                       onChangeText={v => updateRoom(idx, 'furnitureRequirements', v)}
-                      placeholder="e.g. King bed with hydraulic storage, 6-seater dining table, study desk"
+                      placeholder={tr("e.g. King bed with hydraulic storage, 6-seater dining table, study desk")}
                       placeholderTextColor="#94A3B8"
                     />
                     
-                    <Text style={s.label}>Storage</Text>
+                    <Text style={s.label}>{tr("Storage")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.storage}
                       onChangeText={v => updateRoom(idx, 'storage', v)}
-                      placeholder="e.g. Full-height wardrobe with loft, shoe rack, dresser"
+                      placeholder={tr("e.g. Full-height wardrobe with loft, shoe rack, dresser")}
                       placeholderTextColor="#94A3B8"
                     />
                     
-                    <Text style={s.label}>Electrical Points & Automation</Text>
+                    <Text style={s.label}>{tr("Electrical Points & Automation")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.electricalPoints}
                       onChangeText={v => updateRoom(idx, 'electricalPoints', v)}
-                      placeholder="e.g. 2-way bedside switches, TV console points, EV/invertor"
+                      placeholder={tr("e.g. 2-way bedside switches, TV console points, EV/invertor")}
                       placeholderTextColor="#94A3B8"
                     />
 
-                    <Text style={s.label}>Lighting Requirements</Text>
+                    <Text style={s.label}>{tr("Lighting Requirements")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.lightingRequirements}
                       onChangeText={v => updateRoom(idx, 'lightingRequirements', v)}
-                      placeholder="e.g. Profile lights, cove LED strip, pendant lights"
+                      placeholder={tr("e.g. Profile lights, cove LED strip, pendant lights")}
                       placeholderTextColor="#94A3B8"
                     />
 
-                    <Text style={s.label}>Plumbing Requirements</Text>
+                    <Text style={s.label}>{tr("Plumbing Requirements")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.plumbingRequirements}
                       onChangeText={v => updateRoom(idx, 'plumbingRequirements', v)}
-                      placeholder="e.g. Basin mixer, geyser provision, RO point"
+                      placeholder={tr("e.g. Basin mixer, geyser provision, RO point")}
                       placeholderTextColor="#94A3B8"
                     />
 
-                    <Text style={s.label}>Circulation & Space Clearance</Text>
+                    <Text style={s.label}>{tr("Circulation & Space Clearance")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.circulation}
                       onChangeText={v => updateRoom(idx, 'circulation', v)}
-                      placeholder="e.g. 3ft walkway around bed, wheelchair accessibility"
+                      placeholder={tr("e.g. 3ft walkway around bed, wheelchair accessibility")}
                       placeholderTextColor="#94A3B8"
                     />
                   </View>
@@ -410,7 +411,7 @@ export default function LogRequirementsModal({
                 {/* 2. Aesthetic Tab */}
                 {activeSubTabs[idx] === 'aesthetic' && (
                   <View style={s.tabContent}>
-                    <Text style={s.label}>Quick Style Presets</Text>
+                    <Text style={s.label}>{tr("Quick Style Presets")}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 12 }}>
                       {POPULAR_STYLES.map((style) => (
                         <TouchableOpacity
@@ -418,71 +419,71 @@ export default function LogRequirementsModal({
                           style={[s.typeChip, room.designStyle === style && s.typeChipActive]}
                           onPress={() => updateRoom(idx, 'designStyle', style)}
                         >
-                          <Text style={[s.typeChipText, room.designStyle === style && s.typeChipTextActive]}>{style}</Text>
+                          <Text style={[s.typeChipText, room.designStyle === style && s.typeChipTextActive]}>{tr(style)}</Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
 
-                    <Text style={s.label}>Design Style / Theme</Text>
+                    <Text style={s.label}>{tr("Design Style / Theme")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.designStyle}
                       onChangeText={v => updateRoom(idx, 'designStyle', v)}
-                      placeholder="e.g. Modern Minimalist, Japandi, Industrial"
+                      placeholder={tr("e.g. Modern Minimalist, Japandi, Industrial")}
                       placeholderTextColor="#94A3B8"
                     />
                     
-                    <Text style={s.label}>Colors & Palette</Text>
+                    <Text style={s.label}>{tr("Colors & Palette")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.colours}
                       onChangeText={v => updateRoom(idx, 'colours', v)}
-                      placeholder="e.g. Warm beige, Olive green accent, Charcoal grey"
+                      placeholder={tr("e.g. Warm beige, Olive green accent, Charcoal grey")}
                       placeholderTextColor="#94A3B8"
                     />
                     
-                    <Text style={s.label}>Materials & Finishes</Text>
+                    <Text style={s.label}>{tr("Materials & Finishes")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.materials}
                       onChangeText={v => updateRoom(idx, 'materials', v)}
-                      placeholder="e.g. Teak veneer, Fluted glass, Brushed brass, Matte PU"
+                      placeholder={tr("e.g. Teak veneer, Fluted glass, Brushed brass, Matte PU")}
                       placeholderTextColor="#94A3B8"
                     />
 
-                    <Text style={s.label}>Flooring Preferences</Text>
+                    <Text style={s.label}>{tr("Flooring Preferences")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.flooring}
                       onChangeText={v => updateRoom(idx, 'flooring', v)}
-                      placeholder="e.g. 4x2 Vitrified matte tiles, Hardwood laminate"
+                      placeholder={tr("e.g. 4x2 Vitrified matte tiles, Hardwood laminate")}
                       placeholderTextColor="#94A3B8"
                     />
                     
-                    <Text style={s.label}>Ceiling & False Ceiling</Text>
+                    <Text style={s.label}>{tr("Ceiling & False Ceiling")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.ceiling}
                       onChangeText={v => updateRoom(idx, 'ceiling', v)}
-                      placeholder="e.g. Gypsum ceiling with shadow gap, wooden rafters"
+                      placeholder={tr("e.g. Gypsum ceiling with shadow gap, wooden rafters")}
                       placeholderTextColor="#94A3B8"
                     />
 
-                    <Text style={s.label}>Wall Finishes</Text>
+                    <Text style={s.label}>{tr("Wall Finishes")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.wallFinishes}
                       onChangeText={v => updateRoom(idx, 'wallFinishes', v)}
-                      placeholder="e.g. Limewash texture, Charcoal louvers, Wallpaper accent"
+                      placeholder={tr("e.g. Limewash texture, Charcoal louvers, Wallpaper accent")}
                       placeholderTextColor="#94A3B8"
                     />
 
-                    <Text style={s.label}>Furniture Style</Text>
+                    <Text style={s.label}>{tr("Furniture Style")}</Text>
                     <TextInput
                       style={s.input}
                       value={room.furnitureStyle}
                       onChangeText={v => updateRoom(idx, 'furnitureStyle', v)}
-                      placeholder="e.g. Low-profile modular frame, Curved Scandinavian"
+                      placeholder={tr("e.g. Low-profile modular frame, Curved Scandinavian")}
                       placeholderTextColor="#94A3B8"
                     />
                   </View>
@@ -491,14 +492,14 @@ export default function LogRequirementsModal({
                 {/* 3. Observations & Notes Tab */}
                 {activeSubTabs[idx] === 'notes' && (
                   <View style={s.tabContent}>
-                    <Text style={s.label}>Observations & Notes</Text>
-                    <Text style={s.helpText}>Custom requests, specific client instructions, or existing site constraints</Text>
+                    <Text style={s.label}>{tr("Observations & Notes")}</Text>
+                    <Text style={s.helpText}>{tr("Custom requests, specific client instructions, or existing site constraints")}</Text>
                     <TextInput
                       style={[s.input, { height: 120, textAlignVertical: 'top' }]}
                       multiline
                       value={room.description}
                       onChangeText={v => updateRoom(idx, 'description', v)}
-                      placeholder="Enter custom requests, specific dimensions, appliances to fit, client observations..."
+                      placeholder={tr("Enter custom requests, specific dimensions, appliances to fit, client observations...")}
                       placeholderTextColor="#94A3B8"
                     />
                   </View>
@@ -508,7 +509,7 @@ export default function LogRequirementsModal({
 
             <TouchableOpacity style={s.addBtn} onPress={addRoom}>
               <Ionicons name="add-circle-outline" size={20} color="#4F46E5" />
-              <Text style={s.addBtnText}>Add Another Room</Text>
+              <Text style={s.addBtnText}>{tr("Add Another Room")}</Text>
             </TouchableOpacity>
 
             <View style={{ height: 40 }} />
@@ -516,11 +517,11 @@ export default function LogRequirementsModal({
 
           <View style={s.footer}>
             <TouchableOpacity style={isReadOnly ? s.saveBtn : s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={isReadOnly ? s.saveBtnText : s.cancelBtnText}>{isReadOnly ? 'Close' : 'Cancel'}</Text>
+              <Text style={isReadOnly ? s.saveBtnText : s.cancelBtnText}>{isReadOnly ? tr("Close") : tr("Cancel")}</Text>
             </TouchableOpacity>
             {!isReadOnly && (
               <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Save Requirements</Text>}
+                {isSubmitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>{tr("Save Requirements")}</Text>}
               </TouchableOpacity>
             )}
           </View>

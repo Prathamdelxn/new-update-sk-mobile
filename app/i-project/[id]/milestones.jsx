@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -138,11 +139,11 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleCreate = async () => {
     if (!form.name.trim()) {
-      showToast('Milestone name is required', 'error');
+      showToast(tr("Milestone name is required"), 'error');
       return;
     }
     if (!form.dueDate.trim()) {
-      showToast('Target due date is required', 'error');
+      showToast(tr("Target due date is required"), 'error');
       return;
     }
     setCreating(true);
@@ -152,13 +153,13 @@ const { can: canDo } = useProjectPermissions(projectId);
         dueDate: form.dueDate,
         linkedTasks: selectedTaskIds,
       });
-      showToast('Milestone created successfully!', 'success');
+      showToast(tr("Milestone created successfully!"), 'success');
       setIsCreateOpen(false);
       setForm(emptyForm);
       setSelectedTaskIds([]);
       load();
     } catch (e) {
-      showToast(e.message || 'Failed to create milestone', 'error');
+      showToast(e.message || tr("Failed to create milestone"), 'error');
     } finally {
       setCreating(false);
     }
@@ -166,11 +167,11 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const confirmDelete = (milestone) => {
     Alert.alert(
-      'Delete Milestone',
-      'Are you sure you want to delete this milestone? Any delay logs associated with it will be permanently deleted.',
+      tr("Delete Milestone"),
+      tr("Are you sure you want to delete this milestone? Any delay logs associated with it will be permanently deleted."),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => handleDelete(milestone) },
+        { text: tr("Cancel"), style: 'cancel' },
+        { text: tr("Delete"), style: 'destructive', onPress: () => handleDelete(milestone) },
       ]
     );
   };
@@ -178,10 +179,10 @@ const { can: canDo } = useProjectPermissions(projectId);
   const handleDelete = async (milestone) => {
     try {
       await interiorApiClient.delete(`/projects/${projectId}/milestones/${milestone._id}`);
-      showToast('Milestone deleted successfully', 'delete');
+      showToast(tr("Milestone deleted successfully"), 'delete');
       load();
     } catch (e) {
-      showToast(e.message || 'Failed to delete milestone', 'error');
+      showToast(e.message || tr("Failed to delete milestone"), 'error');
     }
   };
 
@@ -195,7 +196,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.headerTitle} numberOfLines={1}>Milestones</Text>
+            <Text style={s.headerTitle} numberOfLines={1}>{tr("Milestones")}</Text>
           </View>
         </View>
 
@@ -212,7 +213,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               <View style={s.ganttCard}>
                 <View style={s.ganttHeader}>
                   <Ionicons name="git-commit-outline" size={16} color="#2563EB" />
-                  <Text style={s.ganttTitle}>Visual Timeline Gantt</Text>
+                  <Text style={s.ganttTitle}>{tr("Visual Timeline Gantt")}</Text>
                 </View>
                 <View style={s.ganttLine}>
                   {milestones.map((m, idx) => {
@@ -228,7 +229,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                           }
                         ]} />
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={s.ganttName} numberOfLines={1}>{m.name}</Text>
+                          <Text style={s.ganttName} numberOfLines={1}>{tr(m.name)}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 }}>
                             <Ionicons name="calendar-outline" size={11} color="#64748B" />
                             <Text style={s.ganttDate}>{formatDate(m.dueDate)}</Text>
@@ -247,12 +248,12 @@ const { can: canDo } = useProjectPermissions(projectId);
                 <View style={s.emptyIconCircle}>
                   <Ionicons name="flag-outline" size={36} color="#94A3B8" />
                 </View>
-                <Text style={s.emptyTitle}>No milestones yet</Text>
-                <Text style={s.emptySub}>Set critical project milestones to track completion and trace delays.</Text>
+                <Text style={s.emptyTitle}>{tr("No milestones yet")}</Text>
+                <Text style={s.emptySub}>{tr("Set critical project milestones to track completion and trace delays.")}</Text>
                 {canDo('milestones', 'create') && (
                   <TouchableOpacity style={s.emptyAddBtn} onPress={openCreate} activeOpacity={0.85}>
                     <Ionicons name="add" size={18} color="#FFFFFF" />
-                    <Text style={s.emptyAddBtnText}>Add Milestone</Text>
+                    <Text style={s.emptyAddBtnText}>{tr("Add Milestone")}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -275,10 +276,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                         <Ionicons name="flag" size={15} color="#2563EB" />
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={s.msName}>{m.name}</Text>
+                        <Text style={s.msName}>{tr(m.name)}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
                           <Ionicons name="calendar-outline" size={12} color="#2563EB" />
-                          <Text style={s.msDate}>Target: {formatDate(m.dueDate)}</Text>
+                          <Text style={s.msDate}>{tr("Target: ")}{formatDate(m.dueDate)}</Text>
                         </View>
                       </View>
                       {canDo('milestones', 'delete') && (
@@ -297,9 +298,9 @@ const { can: canDo } = useProjectPermissions(projectId);
                       <View style={s.linkedTasksBox}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                           <Text style={s.linkedTasksLabel}>
-                            LINKED TASKS ({completedCount}/{linkedTasks.length})
+                            {tr("LINKED TASKS (")}{tr(completedCount)}/{linkedTasks.length})
                           </Text>
-                          <Text style={s.linkedTasksPct}>{progressPct}%</Text>
+                          <Text style={s.linkedTasksPct}>{tr(progressPct)}%</Text>
                         </View>
 
                         <View style={s.progressTrack}>
@@ -327,7 +328,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                                   style={[s.linkedTaskName, isCompleted && s.linkedTaskNameDone]}
                                   numberOfLines={1}
                                 >
-                                  {taskObj.name}
+                                  {tr(taskObj.name)}
                                 </Text>
                                 <View
                                   style={[
@@ -360,15 +361,15 @@ const { can: canDo } = useProjectPermissions(projectId);
                       <View style={s.delayBox}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                           <Ionicons name="time" size={13} color="#DC2626" />
-                          <Text style={s.delayBoxTitle}>Delay Incident Logged</Text>
+                          <Text style={s.delayBoxTitle}>{tr("Delay Incident Logged")}</Text>
                         </View>
                         {m.delays.map((delay, i) => (
                           <View key={delay._id || i} style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
                             <Ionicons name="alert-circle-outline" size={13} color="#F87171" style={{ marginTop: 1 }} />
                             <View style={{ flex: 1 }}>
-                              <Text style={s.delayReason}>{delay.reason}</Text>
+                              <Text style={s.delayReason}>{tr(delay.reason)}</Text>
                               <Text style={s.delayImpact}>
-                                Pushed by <Text style={{ color: '#DC2626', fontFamily: 'Inter-Bold' }}>+{delay.impactDays} days</Text> from {formatDate(delay.originalDate)}
+                                {tr("Pushed by ")}<Text style={{ color: '#DC2626', fontFamily: 'Inter-Bold' }}>+{tr(delay.impactDays)}{tr(" days")}</Text>{tr(" from ")}{formatDate(delay.originalDate)}
                               </Text>
                             </View>
                           </View>
@@ -380,7 +381,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     <View style={s.msBottomRow}>
                       <View style={[s.statusBadge, { backgroundColor: meta.bg, borderColor: meta.border }]}>
                         <Ionicons name={meta.icon} size={13} color={meta.color} />
-                        <Text style={[s.statusBadgeText, { color: meta.color }]}>{meta.label}</Text>
+                        <Text style={[s.statusBadgeText, { color: meta.color }]}>{tr(meta.label)}</Text>
                       </View>
                     </View>
                   </View>
@@ -405,8 +406,8 @@ const { can: canDo } = useProjectPermissions(projectId);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>Add Key Project Milestone</Text>
-                <Text style={s.modalSub}>Define a key delivery goal and connect linked tasks.</Text>
+                <Text style={s.modalTitle}>{tr("Add Key Project Milestone")}</Text>
+                <Text style={s.modalSub}>{tr("Define a key delivery goal and connect linked tasks.")}</Text>
               </View>
               <TouchableOpacity onPress={() => setIsCreateOpen(false)} style={s.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -414,21 +415,21 @@ const { can: canDo } = useProjectPermissions(projectId);
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-              <Text style={s.label}>Milestone Name *</Text>
+              <Text style={s.label}>{tr("Milestone Name *")}</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. Mechanical Inspection Checkoff"
+                placeholder={tr("e.g. Mechanical Inspection Checkoff")}
                 placeholderTextColor="#94A3B8"
                 value={form.name}
                 onChangeText={(v) => setForm({ ...form, name: v })}
               />
 
-              <Text style={s.label}>Target Due Date *</Text>
+              <Text style={s.label}>{tr("Target Due Date *")}</Text>
               <DateField value={form.dueDate} onChange={(v) => setForm({ ...form, dueDate: v })} inputStyle={s.input} />
 
-              <Text style={s.label}>Link Tasks (All must be completed to achieve milestone)</Text>
+              <Text style={s.label}>{tr("Link Tasks (All must be completed to achieve milestone)")}</Text>
               {tasks.length === 0 ? (
-                <Text style={s.noTasksText}>No tasks found in this project. Create some tasks first.</Text>
+                <Text style={s.noTasksText}>{tr("No tasks found in this project. Create some tasks first.")}</Text>
               ) : (
                 <ScrollView style={s.taskListBox} nestedScrollEnabled={true} showsVerticalScrollIndicator={true}>
                   {tasks.map((task) => {
@@ -450,7 +451,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                         />
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <Text style={[s.taskCheckName, isCompleted && s.linkedTaskNameDone]} numberOfLines={1}>
-                            {task.name}
+                            {tr(task.name)}
                           </Text>
                           <View
                             style={[
@@ -481,7 +482,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               {/* Action Buttons matching web: Cancel & Add */}
               <View style={s.modalBtnRow}>
                 <TouchableOpacity style={s.cancelBtn} onPress={() => setIsCreateOpen(false)} activeOpacity={0.7}>
-                  <Text style={s.cancelBtnText}>Cancel</Text>
+                  <Text style={s.cancelBtnText}>{tr("Cancel")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[s.saveBtn, creating && { opacity: 0.7 }]}
@@ -492,7 +493,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                   {creating ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Text style={s.saveBtnText}>Add Milestone</Text>
+                    <Text style={s.saveBtnText}>{tr("Add Milestone")}</Text>
                   )}
                 </TouchableOpacity>
               </View>

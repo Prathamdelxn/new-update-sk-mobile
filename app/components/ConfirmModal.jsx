@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,8 +34,8 @@ const ConfirmModal = ({
               }
             />
           </View>
-          <Text style={styles.confirmTitle}>{title}</Text>
-          <Text style={styles.confirmMessage}>{message}</Text>
+          <Text style={styles.confirmTitle}>{tr(title)}</Text>
+          <Text style={styles.confirmMessage}>{tr(message)}</Text>
           <View style={styles.confirmActions}>
             {onCancel && (
               <TouchableOpacity
@@ -42,7 +43,7 @@ const ConfirmModal = ({
                 onPress={onCancel}
                 disabled={isSubmitting}
               >
-                <Text style={styles.confirmCancelText}>Cancel</Text>
+                <Text style={styles.confirmCancelText}>{tr("Cancel")}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -58,7 +59,7 @@ const ConfirmModal = ({
               {isSubmitting ? (
                 <ActivityIndicator color="#FFF" size="small" />
               ) : (
-                <Text style={styles.confirmConfirmText}>{confirmText}</Text>
+                <Text style={styles.confirmConfirmText}>{tr(confirmText)}</Text>
               )}
             </TouchableOpacity>
           </View>

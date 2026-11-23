@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -54,7 +55,7 @@ export default function AddMemberScreen() {
       }
     } catch (e) {
       console.log('Error fetching add member data', e);
-      showToast('Error fetching data', 'error');
+      showToast(tr("Error fetching data"), 'error');
     } finally {
       setIsFetchingData(false);
     }
@@ -62,7 +63,7 @@ export default function AddMemberScreen() {
 
   const handleAddMemberSubmit = async () => {
     if (selectedNewMembers.length === 0 || !selectedMemberRole) {
-      showToast('Please select at least one user and a role', 'error');
+      showToast(tr("Please select at least one user and a role"), 'error');
       return;
     }
     try {
@@ -76,14 +77,14 @@ export default function AddMemberScreen() {
         body: JSON.stringify({ userIds: selectedNewMembers, roleId: selectedMemberRole })
       });
       if (res.ok) {
-        showToast('Members added successfully', 'success');
+        showToast(tr("Members added successfully"), 'success');
         router.back();
       } else {
         const err = await res.json();
-        showToast(err.message || 'Failed to add member', 'error');
+        showToast(err.message || tr("Failed to add member"), 'error');
       }
     } catch (error) {
-      showToast('Network error', 'error');
+      showToast(tr("Network error"), 'error');
     } finally {
       setIsAddingMember(false);
     }
@@ -101,9 +102,9 @@ export default function AddMemberScreen() {
           activeOpacity={0.7}
         >
           <View style={{ flex: 1 }}>
-            <Text style={[styles.roleCardTitle, isSelected && styles.roleCardTitleSelected]}>{r.name}</Text>
+            <Text style={[styles.roleCardTitle, isSelected && styles.roleCardTitleSelected]}>{tr(r.name)}</Text>
             <Text style={styles.roleCardDesc} numberOfLines={isExpanded ? undefined : 1}>
-              {r.description || 'No description available.'}
+              {r.description || tr("No description available.")}
             </Text>
           </View>
           <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color="#64748B" />
@@ -125,14 +126,14 @@ export default function AddMemberScreen() {
                   });
                   return Object.keys(grouped).map((mod, idx) => (
                     <View key={idx} style={styles.permissionBadge}>
-                      <Text style={styles.permissionBadgeTitle}>{mod}</Text>
+                      <Text style={styles.permissionBadgeTitle}>{tr(mod)}</Text>
                       <Text style={styles.permissionBadgeDetails}>{grouped[mod].join(', ')}</Text>
                     </View>
                   ));
                 })()}
               </View>
             ) : (
-              <Text style={styles.noPermissionsText}>No specific permissions defined.</Text>
+              <Text style={styles.noPermissionsText}>{tr("No specific permissions defined.")}</Text>
             )}
             
             <TouchableOpacity 
@@ -142,7 +143,7 @@ export default function AddMemberScreen() {
                 setWizardStep(2);
               }}
             >
-              <Text style={styles.selectRoleBtnText}>Choose {r.name}</Text>
+              <Text style={styles.selectRoleBtnText}>{tr("Choose ")}{tr(r.name)}</Text>
               <Ionicons name="arrow-forward" size={16} color="#FFF" />
             </TouchableOpacity>
           </View>
@@ -174,7 +175,7 @@ export default function AddMemberScreen() {
           <Text style={styles.userItemAvatarText}>{u.name.charAt(0).toUpperCase()}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.selectionItemTitle, isSelected && styles.selectionItemTitleActive]}>{u.name}</Text>
+          <Text style={[styles.selectionItemTitle, isSelected && styles.selectionItemTitleActive]}>{tr(u.name)}</Text>
           <Text style={[styles.selectionItemSub, isSelected && styles.selectionItemTitleActive]}>{u.email}</Text>
         </View>
         <View style={[styles.checkbox, isSelected && styles.checkboxActive]}>
@@ -200,7 +201,7 @@ export default function AddMemberScreen() {
           }} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Team Member</Text>
+          <Text style={styles.headerTitle}>{tr("Add Team Member")}</Text>
           <View style={{ width: 24 }} />
         </View>
 
@@ -210,7 +211,7 @@ export default function AddMemberScreen() {
           <View style={styles.content}>
             {wizardStep === 1 && (
               <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Step 1: Select Role</Text>
+                <Text style={styles.inputLabel}>{tr("Step 1: Select Role")}</Text>
                 <FlatList
                   data={availableRoles}
                   keyExtractor={item => item._id}
@@ -224,14 +225,14 @@ export default function AddMemberScreen() {
             {wizardStep === 2 && (
               <View style={{ flex: 1 }}>
                 <Text style={styles.inputLabel}>
-                  Step 2: Assign Users to '{availableRoles.find(r => r._id === selectedMemberRole)?.name}'
+                  {tr("Step 2: Assign Users to '")}{tr(availableRoles.find(r => r._id === selectedMemberRole)?.name)}'
                 </Text>
                 
                 <View style={styles.searchBox}>
                   <Ionicons name="search" size={18} color="#94A3B8" />
                   <TextInput
                     style={styles.searchInput}
-                    placeholder="Search users..."
+                    placeholder={tr("Search users...")}
                     value={userSearch}
                     onChangeText={setUserSearch}
                     placeholderTextColor="#94A3B8"
@@ -246,7 +247,7 @@ export default function AddMemberScreen() {
                   contentContainerStyle={{ paddingBottom: 100 }}
                   showsVerticalScrollIndicator={false}
                   ListEmptyComponent={
-                    <Text style={styles.emptyText}>No users found</Text>
+                    <Text style={styles.emptyText}>{tr("No users found")}</Text>
                   }
                 />
                 
@@ -260,7 +261,7 @@ export default function AddMemberScreen() {
                       <ActivityIndicator size="small" color="#FFF" />
                     ) : (
                       <Text style={styles.submitBtnText}>
-                        Assign {selectedNewMembers.length > 0 ? selectedNewMembers.length : ''} {selectedNewMembers.length === 1 ? 'User' : 'Users'}
+                        {tr("Assign ")}{selectedNewMembers.length > 0 ? selectedNewMembers.length : ''} {selectedNewMembers.length === 1 ? tr("User") : tr("Users")}
                       </Text>
                     )}
                   </TouchableOpacity>

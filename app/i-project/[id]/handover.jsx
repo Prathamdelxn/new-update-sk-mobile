@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -47,8 +48,8 @@ function HandoverReadyRing({ percentage = 0 }) {
         />
       </Svg>
       <View style={{ position: 'absolute', alignItems: 'center' }}>
-        <Text style={{ fontSize: 26, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{clamped}%</Text>
-        <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.5, marginTop: 2 }}>HANDOVER READY</Text>
+        <Text style={{ fontSize: 26, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr(clamped)}%</Text>
+        <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.5, marginTop: 2 }}>{tr("HANDOVER READY")}</Text>
       </View>
     </View>
   );
@@ -181,7 +182,7 @@ export default function InteriorHandoverScreen() {
       if (ok(handoverRes)) setHandover(ok(handoverRes));
     } catch (err) {
       console.error('Failed to load handover data', err);
-      if (showLoading) showToast('Failed to load handover details', 'error');
+      if (showLoading) showToast(tr("Failed to load handover details"), 'error');
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -320,7 +321,7 @@ export default function InteriorHandoverScreen() {
 
   const handleItemPress = (section) => {
     if (!canOpenSection(section)) {
-      showToast("You don't have permission to open this section", 'error');
+      showToast(tr("You don't have permission to open this section"), 'error');
       return;
     }
     if (section === '#closeout-docs') {
@@ -347,8 +348,8 @@ export default function InteriorHandoverScreen() {
   };
 
   const handleUploadDocument = async () => {
-    if (!docName.trim()) return showToast('Please enter document title', 'error');
-    if (!selectedFile) return showToast('Please select a file', 'error');
+    if (!docName.trim()) return showToast(tr("Please enter document title"), 'error');
+    if (!selectedFile) return showToast(tr("Please select a file"), 'error');
     setUpdating(true);
     try {
       const mimeType = selectedFile.mimeType || 'application/octet-stream';
@@ -370,32 +371,32 @@ export default function InteriorHandoverScreen() {
         documentType: docType,
       });
       if (res?.success) {
-        showToast('Document uploaded!', 'success');
+        showToast(tr("Document uploaded!"), 'success');
         closeModal();
         fetchAllData(false);
       }
     } catch (e) {
-      showToast(e.message || 'Failed to upload document', 'error');
+      showToast(e.message || tr("Failed to upload document"), 'error');
     } finally {
       setUpdating(false);
     }
   };
 
   const handleDeleteDocument = (doc) => {
-    Alert.alert('Delete Document', 'Are you sure you want to delete this closeout document?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete Document"), tr("Are you sure you want to delete this closeout document?"), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete',
+        text: tr("Delete"),
         style: 'destructive',
         onPress: async () => {
           try {
             const res = await interiorApiClient.post(`/projects/${projectId}/handover`, { deleteDocumentId: doc._id });
             if (res?.success) {
-              showToast('Document deleted', 'success');
+              showToast(tr("Document deleted"), 'success');
               fetchAllData(false);
             }
           } catch {
-            showToast('Failed to delete document', 'error');
+            showToast(tr("Failed to delete document"), 'error');
           }
         },
       },
@@ -406,7 +407,7 @@ export default function InteriorHandoverScreen() {
     try {
       await Print.printAsync({ html: buildCertificateHtml({ project, readinessPercentage, checklistItems }) });
     } catch (e) {
-      if (!String(e?.message || '').toLowerCase().includes('cancel')) showToast('Failed to print certificate', 'error');
+      if (!String(e?.message || '').toLowerCase().includes('cancel')) showToast(tr("Failed to print certificate"), 'error');
     }
   };
 
@@ -418,7 +419,7 @@ export default function InteriorHandoverScreen() {
           <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={{ flex: 1, fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' }}>Handover</Text>
+          <Text style={{ flex: 1, fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr("Handover")}</Text>
         </View>
         <SkeletonList />
       </View>
@@ -434,22 +435,22 @@ export default function InteriorHandoverScreen() {
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Handover & Closeout Management</Text>
+            <Text style={s.headerTitle}>{tr("Handover & Closeout Management")}</Text>
           </View>
         </View>
 
-        <CategoryNav projectId={projectId} activeItem="Project Handover" comingSoon={(label) => showToast(`${label} — coming soon.`, 'success')} />
+        <CategoryNav projectId={projectId} activeItem="Project Handover" comingSoon={(label) => showToast(tr("{{label}} — coming soon.", { label: label }), 'success')} />
 
         <ScrollView ref={scrollRef} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
           <View style={s.actionRow}>
             <TouchableOpacity style={s.outlineBtn} onPress={() => setIsCertModalOpen(true)}>
               <Ionicons name="ribbon-outline" size={15} color="#D97706" />
-              <Text style={s.outlineBtnText}>Certificate</Text>
+              <Text style={s.outlineBtnText}>{tr("Certificate")}</Text>
             </TouchableOpacity>
             {canDo('handover', 'create') && (
               <TouchableOpacity style={s.primaryBtn} onPress={() => setIsModalOpen(true)}>
                 <Ionicons name="add" size={15} color="#FFFFFF" />
-                <Text style={s.primaryBtnText}>Add Document</Text>
+                <Text style={s.primaryBtnText}>{tr("Add Document")}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -457,7 +458,7 @@ export default function InteriorHandoverScreen() {
           {/* Readiness ring */}
           <View style={s.readyCard}>
             <HandoverReadyRing percentage={readinessPercentage} />
-            <Text style={s.readyMet}>{completedCount} of {totalCount} Requirements Met</Text>
+            <Text style={s.readyMet}>{tr(completedCount)}{tr(" of ")}{tr(totalCount)}{tr(" Requirements Met")}</Text>
           </View>
 
           {/* Auto-calculated checklist */}
@@ -465,9 +466,9 @@ export default function InteriorHandoverScreen() {
             <View style={s.cardHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                 <Ionicons name="cube-outline" size={15} color="#2563EB" />
-                <Text style={s.cardTitle}>Project Handover Checklist</Text>
+                <Text style={s.cardTitle}>{tr("Project Handover Checklist")}</Text>
               </View>
-              <Text style={s.cardHeaderMeta}>{completedCount}/{totalCount} Completed</Text>
+              <Text style={s.cardHeaderMeta}>{tr(completedCount)}/{tr(totalCount)}{tr(" Completed")}</Text>
             </View>
             <View style={{ padding: 12, gap: 8 }}>
               {checklistItems.map((item) => {
@@ -483,11 +484,11 @@ export default function InteriorHandoverScreen() {
                       {item.passed && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={s.checkTitle} numberOfLines={1}>{item.title}</Text>
-                      <Text style={s.checkSub}>{item.subtitle}</Text>
+                      <Text style={s.checkTitle} numberOfLines={1}>{tr(item.title)}</Text>
+                      <Text style={s.checkSub}>{tr(item.subtitle)}</Text>
                     </View>
                     <View style={[s.tag, item.passed && s.tagPassed]}>
-                      <Text style={[s.tagText, item.passed && s.tagTextPassed]}>{item.tag}</Text>
+                      <Text style={[s.tagText, item.passed && s.tagTextPassed]}>{tr(item.tag)}</Text>
                     </View>
                     <Ionicons name="arrow-up-outline" size={13} color="#94A3B8" style={{ transform: [{ rotate: '45deg' }] }} />
                   </TouchableOpacity>
@@ -499,12 +500,12 @@ export default function InteriorHandoverScreen() {
           {/* Close-out document register */}
           <View style={[s.card, { marginTop: 16, padding: 0, overflow: 'hidden' }]} onLayout={(e) => { docsY.current = e.nativeEvent.layout.y; }}>
             <View style={[s.cardHeader, { flexDirection: 'column', alignItems: 'stretch', gap: 10 }]}>
-              <Text style={s.cardTitle}>Closeout Document Register (Warranties, Care & Appliance Manuals)</Text>
+              <Text style={s.cardTitle}>{tr("Closeout Document Register (Warranties, Care & Appliance Manuals)")}</Text>
               <View style={s.searchBox}>
                 <Ionicons name="search" size={14} color="#94A3B8" />
                 <TextInput
                   style={s.searchInput}
-                  placeholder="Search..."
+                  placeholder={tr("Search...")}
                   placeholderTextColor="#94A3B8"
                   value={docSearch}
                   onChangeText={setDocSearch}
@@ -513,7 +514,7 @@ export default function InteriorHandoverScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
                 {DOC_FILTERS.map((f) => (
                   <TouchableOpacity key={f.value} style={[s.filterChip, docFilterType === f.value && s.filterChipActive]} onPress={() => setDocFilterType(f.value)}>
-                    <Text style={[s.filterChipText, docFilterType === f.value && s.filterChipTextActive]}>{f.label}</Text>
+                    <Text style={[s.filterChipText, docFilterType === f.value && s.filterChipTextActive]}>{tr(f.label)}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -521,7 +522,7 @@ export default function InteriorHandoverScreen() {
 
             <View style={{ padding: 12, gap: 8 }}>
               {filteredDocuments.length === 0 ? (
-                <Text style={s.emptyLine}>No closeout manuals or certificates uploaded yet. Tap "Add Document" above to add one.</Text>
+                <Text style={s.emptyLine}>{tr("No closeout manuals or certificates uploaded yet. Tap \"Add Document\" above to add one.")}</Text>
               ) : (
                 filteredDocuments.map((doc, i) => (
                   <View key={doc._id || i} style={s.docRow}>
@@ -529,8 +530,8 @@ export default function InteriorHandoverScreen() {
                       <Ionicons name="document-text-outline" size={16} color="#2563EB" />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={s.docName} numberOfLines={1}>{doc.name}</Text>
-                      <Text style={s.docType}>{doc.type}</Text>
+                      <Text style={s.docName} numberOfLines={1}>{tr(doc.name)}</Text>
+                      <Text style={s.docType}>{tr(doc.type)}</Text>
                     </View>
                     <TouchableOpacity style={s.docBtn} onPress={() => doc.url && Linking.openURL(doc.url)}>
                       <Ionicons name="download-outline" size={15} color="#334155" />
@@ -557,7 +558,7 @@ export default function InteriorHandoverScreen() {
             <View style={s.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="document-text-outline" size={16} color="#2563EB" />
-                <Text style={s.modalTitle}>Log Closeout Document</Text>
+                <Text style={s.modalTitle}>{tr("Log Closeout Document")}</Text>
               </View>
               <TouchableOpacity onPress={closeModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
@@ -565,37 +566,37 @@ export default function InteriorHandoverScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={s.label}>Document Title</Text>
+              <Text style={s.label}>{tr("Document Title")}</Text>
               <TextInput
                 style={s.input}
-                placeholder="e.g. Modular Kitchen Care Guide or Chimney Warranty"
+                placeholder={tr("e.g. Modular Kitchen Care Guide or Chimney Warranty")}
                 placeholderTextColor="#94A3B8"
                 value={docName}
                 onChangeText={setDocName}
               />
 
-              <Text style={s.label}>Category</Text>
+              <Text style={s.label}>{tr("Category")}</Text>
               <View style={{ gap: 6, marginBottom: 8 }}>
                 {DOC_TYPES.map((opt) => (
                   <TouchableOpacity key={opt.value} style={[s.catOption, docType === opt.value && s.catOptionActive]} onPress={() => setDocType(opt.value)}>
-                    <Text style={[s.catOptionText, docType === opt.value && s.catOptionTextActive]}>{opt.label}</Text>
+                    <Text style={[s.catOptionText, docType === opt.value && s.catOptionTextActive]}>{tr(opt.label)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.label}>Select File</Text>
+              <Text style={s.label}>{tr("Select File")}</Text>
               <TouchableOpacity style={s.uploadBox} onPress={pickFile}>
                 <Ionicons name="download-outline" size={24} color="#94A3B8" />
-                <Text style={s.uploadBoxText} numberOfLines={1}>{selectedFile ? selectedFile.name : 'Tap to select file'}</Text>
+                <Text style={s.uploadBoxText} numberOfLines={1}>{selectedFile ? selectedFile.name : tr("Tap to select file")}</Text>
               </TouchableOpacity>
 
               <View style={s.modalFooter}>
                 <TouchableOpacity style={s.cancelBtn} onPress={closeModal}>
-                  <Text style={s.cancelBtnText}>Cancel</Text>
+                  <Text style={s.cancelBtnText}>{tr("Cancel")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[s.saveBtn, updating && { opacity: 0.7 }]} onPress={handleUploadDocument} disabled={updating}>
                   {updating && <ActivityIndicator size="small" color="#FFFFFF" />}
-                  <Text style={s.saveBtnText}>Save Document</Text>
+                  <Text style={s.saveBtnText}>{tr("Save Document")}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -608,11 +609,11 @@ export default function InteriorHandoverScreen() {
         <View style={s.certOverlay}>
           <View style={s.certCard}>
             <View style={s.certHeader}>
-              <Text style={s.certHeaderTitle}>Certificate of Practical Completion</Text>
+              <Text style={s.certHeaderTitle}>{tr("Certificate of Practical Completion")}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <TouchableOpacity style={s.outlineBtnSm} onPress={printCertificate}>
                   <Ionicons name="print-outline" size={13} color="#334155" />
-                  <Text style={s.outlineBtnSmText}>Print</Text>
+                  <Text style={s.outlineBtnSmText}>{tr("Print")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setIsCertModalOpen(false)}>
                   <Ionicons name="close" size={20} color="#64748B" />
@@ -622,9 +623,9 @@ export default function InteriorHandoverScreen() {
 
             <ScrollView contentContainerStyle={{ padding: 18, gap: 16 }} showsVerticalScrollIndicator={false}>
               <View style={s.certTitleBlock}>
-                <Text style={s.certTitle}>HANDOVER & PRACTICAL COMPLETION CERTIFICATE</Text>
+                <Text style={s.certTitle}>{tr("HANDOVER & PRACTICAL COMPLETION CERTIFICATE")}</Text>
                 <Text style={s.certSub}>
-                  Project: <Text style={{ fontFamily: 'Inter-Bold', color: '#1E293B' }}>{project?.name || 'Project'}</Text> ({project?.code || project?.projectNumber || 'PRJ'})
+                  {tr("Project: ")}<Text style={{ fontFamily: 'Inter-Bold', color: '#1E293B' }}>{project?.name || tr("Project")}</Text> ({project?.code || project?.projectNumber || tr("PRJ")})
                 </Text>
               </View>
 
@@ -636,22 +637,22 @@ export default function InteriorHandoverScreen() {
                   ['Status:', readinessPercentage === 100 ? 'Ready' : 'In Progress'],
                 ].map(([k, v, color]) => (
                   <Text key={k} style={s.certMetaItem}>
-                    <Text style={{ color: '#94A3B8' }}>{k} </Text>
-                    <Text style={{ fontFamily: 'Inter-Bold', color: color || '#0F172A' }}>{v}</Text>
+                    <Text style={{ color: '#94A3B8' }}>{tr(k)} </Text>
+                    <Text style={{ fontFamily: 'Inter-Bold', color: color || '#0F172A' }}>{tr(v)}</Text>
                   </Text>
                 ))}
               </View>
 
               <View style={{ gap: 6 }}>
-                <Text style={s.certSection}>Project Audit Checklist</Text>
+                <Text style={s.certSection}>{tr("Project Audit Checklist")}</Text>
                 <View style={s.certTable}>
                   {checklistItems.map((c, i) => (
                     <View key={c.id} style={[s.certRow, i > 0 && { borderTopWidth: 1, borderTopColor: '#E2E8F0' }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                         <Ionicons name={c.passed ? 'checkmark-circle-outline' : 'close-circle-outline'} size={14} color={c.passed ? '#059669' : '#94A3B8'} />
-                        <Text style={s.certRowText}>{c.title}</Text>
+                        <Text style={s.certRowText}>{tr(c.title)}</Text>
                       </View>
-                      <Text style={s.certRowSub}>{c.subtitle}</Text>
+                      <Text style={s.certRowSub}>{tr(c.subtitle)}</Text>
                     </View>
                   ))}
                 </View>
@@ -661,7 +662,7 @@ export default function InteriorHandoverScreen() {
                 {['Project Manager', 'Client Representative'].map((role) => (
                   <View key={role} style={{ flex: 1, alignItems: 'center', gap: 8 }}>
                     <View style={s.certSignLine} />
-                    <Text style={s.certSignText}>{role}</Text>
+                    <Text style={s.certSignText}>{tr(role)}</Text>
                   </View>
                 ))}
               </View>

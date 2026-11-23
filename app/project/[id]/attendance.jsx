@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Platform, Image, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,7 +62,7 @@ export default function ProjectAttendanceTab({ project }) {
       }
     } catch (e) {
       console.error(e);
-      showToast('Failed to load attendance', 'error');
+      showToast(tr("Failed to load attendance"), 'error');
     } finally {
       setLoading(false);
     }
@@ -93,12 +94,12 @@ export default function ProjectAttendanceTab({ project }) {
           dialogTitle: 'Share Attendance Excel'
         });
       } else {
-        showToast('Sharing is not available on this device', 'error');
+        showToast(tr("Sharing is not available on this device"), 'error');
       }
       setExportModalVisible(false);
     } catch (e) {
       console.error(e);
-      showToast('Error exporting Excel file', 'error');
+      showToast(tr("Error exporting Excel file"), 'error');
     } finally {
       setExporting(false);
     }
@@ -118,7 +119,7 @@ export default function ProjectAttendanceTab({ project }) {
 
   const handleManualOverride = async () => {
     if (!manualUserId) return;
-    if (isProjectLocked(project)) { showToast('This project is locked and can no longer be modified.', 'error'); return; }
+    if (isProjectLocked(project)) { showToast(tr("This project is locked and can no longer be modified."), 'error'); return; }
     setSubmittingManual(true);
     try {
       const res = await fetch(`${API_BASE_URL}/attendance/manual`, {
@@ -134,16 +135,16 @@ export default function ProjectAttendanceTab({ project }) {
         })
       });
       if (res.ok) {
-        showToast('Attendance marked manually!', 'success');
+        showToast(tr("Attendance marked manually!"), 'success');
         setManualModalVisible(false);
         setManualUserId(null);
         fetchAttendanceData(displayedMonth);
       } else {
         const err = await res.json();
-        showToast(err.message || 'Failed to mark attendance', 'error');
+        showToast(err.message || tr("Failed to mark attendance"), 'error');
       }
     } catch (e) {
-      showToast('Network error', 'error');
+      showToast(tr("Network error"), 'error');
     } finally {
       setSubmittingManual(false);
     }
@@ -230,13 +231,13 @@ export default function ProjectAttendanceTab({ project }) {
               style={[s.tabBtn, activeTab === 'Team' && s.tabBtnActive]} 
               onPress={() => setActiveTab('Team')}
             >
-              <Text style={[s.tabText, activeTab === 'Team' && s.tabTextActive]}>Team</Text>
+              <Text style={[s.tabText, activeTab === 'Team' && s.tabTextActive]}>{tr("Team")}</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[s.tabBtn, activeTab === 'Labour' && s.tabBtnActive]} 
               onPress={() => setActiveTab('Labour')}
             >
-              <Text style={[s.tabText, activeTab === 'Labour' && s.tabTextActive]}>Labour</Text>
+              <Text style={[s.tabText, activeTab === 'Labour' && s.tabTextActive]}>{tr("Labour")}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -246,16 +247,16 @@ export default function ProjectAttendanceTab({ project }) {
             <>
               <View style={s.teamHeaderRow}>
                 <View style={s.teamHeaderText}>
-                  <Text style={s.sectionTitle} numberOfLines={1}>Check-ins</Text>
+                  <Text style={s.sectionTitle} numberOfLines={1}>{tr("Check-ins")}</Text>
                   <Text style={s.sectionSubtitle} numberOfLines={1}>
-                    {filteredRecords.length} present
+                    {filteredRecords.length}{tr(" present")}
                     {project?.members?.length ? ` of ${project.members.length}` : ''}
                   </Text>
                 </View>
                 {!isProjectLocked(project) && (
                   <TouchableOpacity style={s.overrideBtn} onPress={() => setManualModalVisible(true)}>
                     <Ionicons name="add" size={16} color="#2563EB" />
-                    <Text style={s.overrideBtnText} numberOfLines={1}>Manual Override</Text>
+                    <Text style={s.overrideBtnText} numberOfLines={1}>{tr("Manual Override")}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -263,7 +264,7 @@ export default function ProjectAttendanceTab({ project }) {
               {filteredRecords.length === 0 ? (
               <View style={s.emptyBox}>
                 <Ionicons name="people-outline" size={40} color="#94A3B8" />
-                <Text style={s.emptyText}>No attendance records for this date.</Text>
+                <Text style={s.emptyText}>{tr("No attendance records for this date.")}</Text>
               </View>
             ) : (
               <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
@@ -280,7 +281,7 @@ export default function ProjectAttendanceTab({ project }) {
                         </Text>
                       </View>
                       <View style={s.historyInfo}>
-                        <Text style={s.historyDate} numberOfLines={1}>{rec.user?.name || rec.user?.email || 'Unknown User'}</Text>
+                        <Text style={s.historyDate} numberOfLines={1}>{rec.user?.name || rec.user?.email || tr("Unknown User")}</Text>
                         <View style={s.timeRow}>
                           <Ionicons name="log-in-outline" size={13} color="#64748B" />
                           <Text style={s.historyTime}>
@@ -298,7 +299,7 @@ export default function ProjectAttendanceTab({ project }) {
                       </View>
                       <View style={s.badge}>
                         <View style={s.badgeDot} />
-                        <Text style={s.badgeText}>Present</Text>
+                        <Text style={s.badgeText}>{tr("Present")}</Text>
                       </View>
                       <Ionicons
                         name={expandedRecordId === rec._id ? 'chevron-up' : 'chevron-down'}
@@ -312,16 +313,16 @@ export default function ProjectAttendanceTab({ project }) {
                       <View style={s.expandedBox}>
                         {rec.checkInPhoto ? (
                           <>
-                            <Text style={s.label}>Check-in Photo Verification:</Text>
+                            <Text style={s.label}>{tr("Check-in Photo Verification:")}</Text>
                             <Image source={{ uri: rec.checkInPhoto }} style={s.expandedPhoto} resizeMode="cover" />
                           </>
                         ) : (
-                          <Text style={s.emptyText}>No photo uploaded for this session.</Text>
+                          <Text style={s.emptyText}>{tr("No photo uploaded for this session.")}</Text>
                         )}
                         {rec.totalWorkHours && (
                           <View style={[s.row, {marginTop: 10}]}>
-                            <Text style={s.label}>Total Logged Hours:</Text>
-                            <Text style={s.value}>{rec.totalWorkHours}</Text>
+                            <Text style={s.label}>{tr("Total Logged Hours:")}</Text>
+                            <Text style={s.value}>{tr(rec.totalWorkHours)}</Text>
                           </View>
                         )}
                       </View>
@@ -336,27 +337,27 @@ export default function ProjectAttendanceTab({ project }) {
           )
         ) : (
           <>
-            <Text style={s.sectionTitle}>Your Attendance</Text>
+            <Text style={s.sectionTitle}>{tr("Your Attendance")}</Text>
             {filteredRecords.length > 0 ? (
               <View style={s.recordBox}>
                 <View style={s.row}>
-                  <Text style={s.label}>Date:</Text>
+                  <Text style={s.label}>{tr("Date:")}</Text>
                   <Text style={s.value}>{new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
                 </View>
                 <View style={s.row}>
-                  <Text style={s.label}>Check-In Time:</Text>
+                  <Text style={s.label}>{tr("Check-In Time:")}</Text>
                   <Text style={s.value}>{new Date(filteredRecords[0].checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
                 </View>
                 {filteredRecords[0].checkOutTime && (
                   <>
                     <View style={s.row}>
-                      <Text style={s.label}>Check-Out Time:</Text>
+                      <Text style={s.label}>{tr("Check-Out Time:")}</Text>
                       <Text style={s.value}>{new Date(filteredRecords[0].checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
                     </View>
                     {filteredRecords[0].totalWorkHours && (
                       <View style={s.row}>
-                        <Text style={s.label}>Total Hours:</Text>
-                        <Text style={s.value}>{filteredRecords[0].totalWorkHours}</Text>
+                        <Text style={s.label}>{tr("Total Hours:")}</Text>
+                        <Text style={s.value}>{tr(filteredRecords[0].totalWorkHours)}</Text>
                       </View>
                     )}
                   </>
@@ -365,7 +366,7 @@ export default function ProjectAttendanceTab({ project }) {
             ) : (
               <View style={s.emptyBox}>
                 <Ionicons name="time-outline" size={40} color="#94A3B8" />
-                <Text style={s.emptyText}>You haven't checked in on this date.</Text>
+                <Text style={s.emptyText}>{tr("You haven't checked in on this date.")}</Text>
               </View>
             )}
           </>
@@ -376,14 +377,14 @@ export default function ProjectAttendanceTab({ project }) {
       <Modal visible={exportModalVisible} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>Export to Excel</Text>
+            <Text style={s.modalTitle}>{tr("Export to Excel")}</Text>
             
             {isAdmin && uniqueMembers.length > 0 && (
               <View style={[s.pickerContainer, { maxHeight: 220 }]}>
-                <Text style={s.label}>Select Member</Text>
+                <Text style={s.label}>{tr("Select Member")}</Text>
                 <TextInput
                   style={s.searchInput}
-                  placeholder="Search member by name..."
+                  placeholder={tr("Search member by name...")}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   placeholderTextColor="#94A3B8"
@@ -393,7 +394,7 @@ export default function ProjectAttendanceTab({ project }) {
                     style={[s.memberListItem, exportUserId === null && s.memberListItemActive]}
                     onPress={() => setExportUserId(null)}
                   >
-                    <Text style={[s.memberListItemText, exportUserId === null && s.memberListItemTextActive]}>All Team Members</Text>
+                    <Text style={[s.memberListItemText, exportUserId === null && s.memberListItemTextActive]}>{tr("All Team Members")}</Text>
                   </TouchableOpacity>
                   {searchedMembers.map(member => (
                     <TouchableOpacity 
@@ -409,7 +410,7 @@ export default function ProjectAttendanceTab({ project }) {
             )}
 
             <View style={s.pickerContainer}>
-              <Text style={s.label}>Start Date</Text>
+              <Text style={s.label}>{tr("Start Date")}</Text>
               <TouchableOpacity style={s.dateInput} onPress={() => setShowPickerFor('start')}>
                 <Text style={s.dateInputText}>{exportStartDate.toLocaleDateString()}</Text>
                 <Ionicons name="calendar-outline" size={18} color="#64748B" />
@@ -417,7 +418,7 @@ export default function ProjectAttendanceTab({ project }) {
             </View>
 
             <View style={s.pickerContainer}>
-              <Text style={s.label}>End Date</Text>
+              <Text style={s.label}>{tr("End Date")}</Text>
               <TouchableOpacity style={s.dateInput} onPress={() => setShowPickerFor('end')}>
                 <Text style={s.dateInputText}>{exportEndDate.toLocaleDateString()}</Text>
                 <Ionicons name="calendar-outline" size={18} color="#64748B" />
@@ -435,16 +436,16 @@ export default function ProjectAttendanceTab({ project }) {
             
             {Platform.OS === 'ios' && showPickerFor && (
                <TouchableOpacity style={s.iosDoneBtn} onPress={() => setShowPickerFor(null)}>
-                 <Text style={s.iosDoneText}>Done</Text>
+                 <Text style={s.iosDoneText}>{tr("Done")}</Text>
                </TouchableOpacity>
             )}
 
             <View style={s.modalActions}>
               <TouchableOpacity style={s.cancelBtn} onPress={() => {setExportModalVisible(false); setShowPickerFor(null);}}>
-                <Text style={s.cancelText}>Cancel</Text>
+                <Text style={s.cancelText}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.exportBtn} onPress={handleExport} disabled={exporting}>
-                {exporting ? <ActivityIndicator color="#fff" /> : <Text style={s.exportText}>Download Excel</Text>}
+                {exporting ? <ActivityIndicator color="#fff" /> : <Text style={s.exportText}>{tr("Download Excel")}</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -455,11 +456,11 @@ export default function ProjectAttendanceTab({ project }) {
       <Modal visible={manualModalVisible} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>Manual Override</Text>
-            <Text style={s.label}>Select a member who hasn't checked in today ({new Date(selectedDate).toLocaleDateString()}):</Text>
+            <Text style={s.modalTitle}>{tr("Manual Override")}</Text>
+            <Text style={s.label}>{tr("Select a member who hasn't checked in today (")}{new Date(selectedDate).toLocaleDateString()}):</Text>
             
             {eligibleTeamMembers.length === 0 ? (
-              <Text style={[s.emptyText, { marginVertical: 20 }]}>All team members are already present!</Text>
+              <Text style={[s.emptyText, { marginVertical: 20 }]}>{tr("All team members are already present!")}</Text>
             ) : (
               <ScrollView style={{ maxHeight: 220, marginTop: 12, marginBottom: 16 }} showsVerticalScrollIndicator={true}>
                 {eligibleTeamMembers.map(member => (
@@ -478,11 +479,11 @@ export default function ProjectAttendanceTab({ project }) {
 
             <View style={s.modalActions}>
               <TouchableOpacity style={s.cancelBtn} onPress={() => {setManualModalVisible(false); setManualUserId(null);}}>
-                <Text style={s.cancelText}>Cancel</Text>
+                <Text style={s.cancelText}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               {eligibleTeamMembers.length > 0 && (
                 <TouchableOpacity style={s.exportBtn} onPress={handleManualOverride} disabled={!manualUserId || submittingManual}>
-                  {submittingManual ? <ActivityIndicator color="#fff" /> : <Text style={s.exportText}>Mark Present</Text>}
+                  {submittingManual ? <ActivityIndicator color="#fff" /> : <Text style={s.exportText}>{tr("Mark Present")}</Text>}
                 </TouchableOpacity>
               )}
             </View>

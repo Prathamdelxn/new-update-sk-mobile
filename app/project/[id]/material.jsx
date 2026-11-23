@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
@@ -312,7 +313,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
       }));
 
     if (itemsArray.length === 0) {
-      showToast('Please provide a material and valid quantity for at least one item', 'error');
+      showToast(tr("Please provide a material and valid quantity for at least one item"), 'error');
       return;
     }
 
@@ -414,10 +415,10 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
         } else {
           fetchMaterials();
         }
-        showToast(`${bulkType} recorded successfully.`, 'success');
+        showToast(tr("{{bulkType}} recorded successfully.", { bulkType: bulkType }), 'success');
       } else {
         const errorData = await response.json();
-        showToast(errorData.message || 'Failed to submit action', 'error');
+        showToast(errorData.message || tr("Failed to submit action"), 'error');
       }
     } catch (error) {
       console.error('Bulk submit error:', error);
@@ -553,7 +554,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
         if (status === 'Fulfilled') fetchMaterials();
       } else {
         const err = await response.json();
-        showToast(err.message || 'Update failed', 'error');
+        showToast(err.message || tr("Update failed"), 'error');
       }
     } catch (error) {
       console.error('Error updating request:', error);
@@ -575,7 +576,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
         if (status === 'Verified') fetchMaterials();
       } else {
         const err = await response.json();
-        showToast(err.message || 'Update failed', 'error');
+        showToast(err.message || tr("Update failed"), 'error');
       }
     } catch (error) {
       console.error('Error updating receipt:', error);
@@ -596,7 +597,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
         fetchMaterialPurchases();
       } else {
         const err = await response.json();
-        showToast(err.message || 'Update failed', 'error');
+        showToast(err.message || tr("Update failed"), 'error');
       }
     } catch (error) {
       console.error('Error updating purchase:', error);
@@ -639,7 +640,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           });
           if (response.ok) {
             fetchMaterialReceipts();
-            showToast('Receipt deleted successfully', 'delete');
+            showToast(tr("Receipt deleted successfully"), 'delete');
           }
         } catch (error) {
           console.error('Error deleting receipt:', error);
@@ -662,21 +663,21 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
         uriToShare = downloadRes.uri;
       } else {
         // Generate on-the-fly for old records
-        showToast('Generating document...', 'info');
+        showToast(tr("Generating document..."), 'info');
         const html = itemType === 'Purchase' ? generatePurchaseHTML(item) : generateReceiptHTML(item);
         const { uri } = await Print.printToFileAsync({ html });
         uriToShare = uri;
       }
       
       if (await Sharing.isAvailableAsync()) {
-        showToast('Document ready, opening options...', 'success');
+        showToast(tr("Document ready, opening options..."), 'success');
         await Sharing.shareAsync(uriToShare);
       } else {
-        showToast('Sharing not available', 'error');
+        showToast(tr("Sharing not available"), 'error');
       }
     } catch (error) {
       console.error('Download error:', error);
-      showToast('Failed to process document', 'error');
+      showToast(tr("Failed to process document"), 'error');
     }
   };
 
@@ -695,7 +696,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           if (response.ok) {
             fetchMaterialUsages();
             fetchMaterials();
-            showToast('Usage log deleted and stock restored', 'delete');
+            showToast(tr("Usage log deleted and stock restored"), 'delete');
           }
         } catch (error) {
           console.error('Error deleting usage:', error);
@@ -720,7 +721,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           });
           if (response.ok) {
             fetchMaterialPurchases();
-            showToast('Purchase log deleted successfully', 'delete');
+            showToast(tr("Purchase log deleted successfully"), 'delete');
           }
         } catch (error) {
           console.error('Error deleting purchase:', error);
@@ -733,7 +734,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
 
   const handleAddMaterial = async () => {
     if (!newMaterial.name.trim() || !newMaterial.unit.trim()) {
-      showToast('Please provide a name and unit', 'error');
+      showToast(tr("Please provide a name and unit"), 'error');
       return;
     }
 
@@ -769,10 +770,10 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
         fetchMaterialUsages();
         fetchMaterialPurchases();
         
-        showToast(`Material ${isEditing ? 'updated' : 'added'} successfully`, 'success');
+        showToast(tr("Material {{value}} successfully", { value: isEditing ? 'updated' : 'added' }), 'success');
       } else {
         const errorData = await response.json();
-        showToast(errorData.message || `Failed to ${isEditing ? 'update' : 'add'} material`, 'error');
+        showToast(errorData.message || tr("Failed to {{value}} material", { value: isEditing ? 'update' : 'add' }), 'error');
       }
     } catch (error) {
       console.error('Error adding/editing material:', error);
@@ -784,7 +785,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
 
   const handleUpdateStock = async () => {
     if (!stockUpdate.quantity || parseFloat(stockUpdate.quantity) <= 0) {
-      showToast('Please provide a valid quantity', 'error');
+      showToast(tr("Please provide a valid quantity"), 'error');
       return;
     }
 
@@ -829,7 +830,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           });
           if (response.ok) {
             fetchMaterials();
-            showToast('Material deleted successfully', 'delete');
+            showToast(tr("Material deleted successfully"), 'delete');
           }
         } catch (error) {
           console.error('Error deleting material:', error);
@@ -896,9 +897,9 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
     return (
       <View style={{ height: screenHeight - 250, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
         <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
-        <Text style={{ fontSize: 20, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 16 }}>Access Restricted</Text>
+        <Text style={{ fontSize: 20, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 16 }}>{tr("Access Restricted")}</Text>
         <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', marginTop: 8 }}>
-          You don't have permission to view the Material Management module.
+          {tr("You don't have permission to view the Material Management module.")}
         </Text>
       </View>
     );
@@ -907,14 +908,14 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.sectionLabel}>Material Management</Text>
+        <Text style={styles.sectionLabel}>{tr("Material Management")}</Text>
         {canCreate && (
           <TouchableOpacity
             style={styles.smallAddBtn}
             onPress={() => setIsAddModalVisible(true)}
           >
             <Feather name="plus" size={16} color="#FFFFFF" />
-            <Text style={styles.smallAddBtnText}>Add</Text>
+            <Text style={styles.smallAddBtnText}>{tr("Add")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -923,7 +924,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           <Ionicons name="search" size={18} color="#94A3B8" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search materials..."
+            placeholder={tr("Search materials...")}
             placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -946,7 +947,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
             onPress={() => setActiveFilter(filter)}
             style={[styles.filterChip, activeFilter === filter && styles.filterChipActive]}
           >
-            <Text style={[styles.filterText, activeFilter === filter && styles.filterTextActive]}>{filter}</Text>
+            <Text style={[styles.filterText, activeFilter === filter && styles.filterTextActive]}>{tr(filter)}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -956,7 +957,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           {materialRequests.length === 0 ? (
             <View style={styles.emptyBox}>
               <Feather name="inbox" size={40} color="#CBD5E1" />
-              <Text style={styles.emptyText}>No material requests found</Text>
+              <Text style={styles.emptyText}>{tr("No material requests found")}</Text>
             </View>
           ) : (
             materialRequests.map(req => (
@@ -966,14 +967,14 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     <Feather name="file-text" size={20} color={req.status === 'Pending' ? '#CA8A04' : req.status === 'Approved' ? '#0284C7' : req.status === 'Fulfilled' ? '#059669' : '#E11D48'} />
                   </View>
                   <View style={styles.historyTitleBox}>
-                    <Text style={styles.historyType}>Request #{req._id.slice(-6).toUpperCase()}</Text>
+                    <Text style={styles.historyType}>{tr("Request #")}{req._id.slice(-6).toUpperCase()}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={styles.historyDate}>{new Date(req.createdAt).toLocaleDateString()}</Text>
                       {req.invoiceUrl && <Feather name="image" size={12} color="#3B82F6" />}
                     </View>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: req.status === 'Pending' ? '#FEF08A' : req.status === 'Approved' ? '#BAE6FD' : req.status === 'Fulfilled' ? '#D1FAE5' : '#FECDD3' }]}>
-                    <Text style={[styles.statusText, { color: req.status === 'Pending' ? '#CA8A04' : req.status === 'Approved' ? '#0284C7' : req.status === 'Fulfilled' ? '#059669' : '#E11D48' }]}>{req.status}</Text>
+                    <Text style={[styles.statusText, { color: req.status === 'Pending' ? '#CA8A04' : req.status === 'Approved' ? '#0284C7' : req.status === 'Fulfilled' ? '#059669' : '#E11D48' }]}>{tr(req.status)}</Text>
                   </View>
                   {(canUpdate || canDelete) && (
                     <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
@@ -994,16 +995,16 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                 <View style={styles.historyContent}>
                   {req.items.map((item, idx) => (
                     <View key={idx} style={styles.reqItemRow}>
-                      <Text style={styles.reqItemName}>{item.materialId?.name || 'Unknown'}</Text>
-                      <Text style={styles.reqItemQty}>{item.quantity} {item.unit}</Text>
+                      <Text style={styles.reqItemName}>{item.materialId?.name || tr("Unknown")}</Text>
+                      <Text style={styles.reqItemQty}>{item.quantity} {tr(item.unit)}</Text>
                     </View>
                   ))}
-                  {req.commonNote ? <Text style={styles.historyNote}>{req.commonNote}</Text> : null}
+                  {req.commonNote ? <Text style={styles.historyNote}>{tr(req.commonNote)}</Text> : null}
                   <View style={styles.historyUserBox}>
                     <View style={styles.historyUserIcon}>
                       <Feather name="user" size={10} color="#64748B" />
                     </View>
-                    <Text style={styles.historyUserText}>Requested by {req.requestedByName}</Text>
+                    <Text style={styles.historyUserText}>{tr("Requested by ")}{tr(req.requestedByName)}</Text>
                   </View>
                   
                   {/* Action Buttons — require the actual granted permission, not a hardcoded role name */}
@@ -1012,16 +1013,16 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                       {req.status === 'Pending' && canApprove && (
                         <>
                           <TouchableOpacity style={[styles.reqBtn, { backgroundColor: '#10B981' }]} onPress={() => handleRequestAction(req._id, 'Approved')}>
-                            <Text style={styles.reqBtnText}>Approve</Text>
+                            <Text style={styles.reqBtnText}>{tr("Approve")}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={[styles.reqBtn, { backgroundColor: '#EF4444' }]} onPress={() => handleRequestAction(req._id, 'Rejected')}>
-                            <Text style={styles.reqBtnText}>Reject</Text>
+                            <Text style={styles.reqBtnText}>{tr("Reject")}</Text>
                           </TouchableOpacity>
                         </>
                       )}
                       {req.status === 'Approved' && canUpdate && (
                         <TouchableOpacity style={[styles.reqBtn, { backgroundColor: '#3B82F6', width: '100%' }]} onPress={() => handleRequestAction(req._id, 'Fulfilled')}>
-                          <Text style={styles.reqBtnText}>Mark Fulfilled</Text>
+                          <Text style={styles.reqBtnText}>{tr("Mark Fulfilled")}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -1036,7 +1037,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           {materialReceipts.length === 0 ? (
             <View style={styles.emptyBox}>
               <Feather name="truck" size={40} color="#CBD5E1" />
-              <Text style={styles.emptyText}>No material receipts found</Text>
+              <Text style={styles.emptyText}>{tr("No material receipts found")}</Text>
             </View>
           ) : (
             materialReceipts.map(rec => (
@@ -1046,7 +1047,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     <Feather name="truck" size={20} color={rec.status === 'Pending Verification' ? '#CA8A04' : rec.status === 'Verified' ? '#059669' : '#E11D48'} />
                   </View>
                   <View style={styles.historyTitleBox}>
-                    <Text style={styles.historyType}>Receipt #{rec._id.slice(-6).toUpperCase()}</Text>
+                    <Text style={styles.historyType}>{tr("Receipt #")}{rec._id.slice(-6).toUpperCase()}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={styles.historyDate}>{new Date(rec.createdAt).toLocaleDateString()}</Text>
                       <TouchableOpacity onPress={() => handleDownloadInvoice(rec, 'Receipt')} style={styles.txDownloadIconBtn}>
@@ -1055,7 +1056,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     </View>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: rec.status === 'Pending Verification' ? '#FEF08A' : rec.status === 'Verified' ? '#D1FAE5' : '#FECDD3' }]}>
-                    <Text style={[styles.statusText, { color: rec.status === 'Pending Verification' ? '#CA8A04' : rec.status === 'Verified' ? '#059669' : '#E11D48' }]}>{rec.status}</Text>
+                    <Text style={[styles.statusText, { color: rec.status === 'Pending Verification' ? '#CA8A04' : rec.status === 'Verified' ? '#059669' : '#E11D48' }]}>{tr(rec.status)}</Text>
                   </View>
                   {canDelete && (
                     <TouchableOpacity onPress={() => handleDeleteReceipt(rec._id)} style={{ marginLeft: 8 }}>
@@ -1069,13 +1070,13 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     {rec.vendorName ? (
                       <View style={styles.historyMetaRow}>
                         <Feather name="truck" size={12} color="#64748B" />
-                        <Text style={styles.historyMetaText}>{rec.vendorName}</Text>
+                        <Text style={styles.historyMetaText}>{tr(rec.vendorName)}</Text>
                       </View>
                     ) : null}
                     {rec.challanNumber ? (
                       <View style={styles.historyMetaRow}>
                         <Feather name="hash" size={12} color="#64748B" />
-                        <Text style={styles.historyMetaText}>Challan: {rec.challanNumber}</Text>
+                        <Text style={styles.historyMetaText}>{tr("Challan: ")}{tr(rec.challanNumber)}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -1083,18 +1084,18 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                   <View style={{ marginTop: 8 }}>
                     {rec.items.map((item, idx) => (
                       <View key={idx} style={styles.reqItemRow}>
-                        <Text style={styles.reqItemName}>{item.materialId?.name || 'Unknown'}</Text>
-                        <Text style={styles.reqItemQty}>{item.quantity} {item.unit}</Text>
+                        <Text style={styles.reqItemName}>{item.materialId?.name || tr("Unknown")}</Text>
+                        <Text style={styles.reqItemQty}>{item.quantity} {tr(item.unit)}</Text>
                       </View>
                     ))}
                   </View>
 
-                  {rec.commonNote ? <Text style={styles.historyNote}>{rec.commonNote}</Text> : null}
+                  {rec.commonNote ? <Text style={styles.historyNote}>{tr(rec.commonNote)}</Text> : null}
                   <View style={styles.historyUserBox}>
                     <View style={styles.historyUserIcon}>
                       <Feather name="user" size={10} color="#64748B" />
                     </View>
-                    <Text style={styles.historyUserText}>Received by {rec.receivedByName}</Text>
+                    <Text style={styles.historyUserText}>{tr("Received by ")}{tr(rec.receivedByName)}</Text>
                   </View>
                   
                   {/* Action Buttons */}
@@ -1103,10 +1104,10 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                       {rec.status === 'Pending Verification' && (
                         <>
                           <TouchableOpacity style={[styles.reqBtn, { backgroundColor: '#10B981' }]} onPress={() => handleReceiptAction(rec._id, 'Verified')}>
-                            <Text style={styles.reqBtnText}>Verify</Text>
+                            <Text style={styles.reqBtnText}>{tr("Verify")}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={[styles.reqBtn, { backgroundColor: '#EF4444' }]} onPress={() => handleReceiptAction(rec._id, 'Rejected')}>
-                            <Text style={styles.reqBtnText}>Reject</Text>
+                            <Text style={styles.reqBtnText}>{tr("Reject")}</Text>
                           </TouchableOpacity>
                         </>
                       )}
@@ -1122,7 +1123,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           {materialPurchases.length === 0 ? (
             <View style={styles.emptyBox}>
               <Feather name="shopping-cart" size={40} color="#CBD5E1" />
-              <Text style={styles.emptyText}>No material purchases found</Text>
+              <Text style={styles.emptyText}>{tr("No material purchases found")}</Text>
             </View>
           ) : (
             materialPurchases.map(purchase => (
@@ -1132,7 +1133,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     <Feather name="shopping-cart" size={20} color={purchase.status === 'Pending Approval' ? '#CA8A04' : purchase.status === 'Approved' ? '#059669' : '#E11D48'} />
                   </View>
                   <View style={styles.historyTitleBox}>
-                    <Text style={styles.historyType}>Purchase #{purchase._id.slice(-6).toUpperCase()}</Text>
+                    <Text style={styles.historyType}>{tr("Purchase #")}{purchase._id.slice(-6).toUpperCase()}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={styles.historyDate}>{new Date(purchase.createdAt).toLocaleDateString()}</Text>
                       <TouchableOpacity onPress={() => handleDownloadInvoice(purchase, 'Purchase')} style={styles.txDownloadIconBtn}>
@@ -1141,7 +1142,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     </View>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: purchase.status === 'Pending Approval' ? '#FEF08A' : purchase.status === 'Approved' ? '#D1FAE5' : '#FECDD3' }]}>
-                    <Text style={[styles.statusText, { color: purchase.status === 'Pending Approval' ? '#CA8A04' : purchase.status === 'Approved' ? '#059669' : '#E11D48' }]}>{purchase.status}</Text>
+                    <Text style={[styles.statusText, { color: purchase.status === 'Pending Approval' ? '#CA8A04' : purchase.status === 'Approved' ? '#059669' : '#E11D48' }]}>{tr(purchase.status)}</Text>
                   </View>
                   {canDelete && (
                     <TouchableOpacity style={[styles.actionIconBtn, { marginLeft: 8 }]} onPress={() => handleDeletePurchase(purchase._id)}>
@@ -1155,13 +1156,13 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     {purchase.vendorName ? (
                       <View style={styles.historyMetaRow}>
                         <Feather name="truck" size={12} color="#64748B" />
-                        <Text style={styles.historyMetaText}>{purchase.vendorName}</Text>
+                        <Text style={styles.historyMetaText}>{tr(purchase.vendorName)}</Text>
                       </View>
                     ) : null}
                     {purchase.poNumber ? (
                       <View style={styles.historyMetaRow}>
                         <Feather name="hash" size={12} color="#64748B" />
-                        <Text style={styles.historyMetaText}>PO: {purchase.poNumber}</Text>
+                        <Text style={styles.historyMetaText}>{tr("PO: ")}{tr(purchase.poNumber)}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -1169,34 +1170,34 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                   <View style={{ marginTop: 4 }}>
                     {purchase.items.map((item, idx) => (
                       <View key={idx} style={styles.reqItemRow}>
-                        <Text style={styles.reqItemName}>{item.materialId?.name || 'Unknown'}</Text>
-                        <Text style={styles.reqItemQty}>{item.quantity} {item.unit} @ ${item.unitPrice}</Text>
+                        <Text style={styles.reqItemName}>{item.materialId?.name || tr("Unknown")}</Text>
+                        <Text style={styles.reqItemQty}>{item.quantity} {tr(item.unit)} @ ${tr(item.unitPrice)}</Text>
                       </View>
                     ))}
                   </View>
                   
                   <View style={styles.financialSummaryBox}>
                     <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Total Cost</Text>
-                      <Text style={styles.summaryValueTotal}>{project?.currency || '$'} {purchase.grandTotal}</Text>
+                      <Text style={styles.summaryLabel}>{tr("Total Cost")}</Text>
+                      <Text style={styles.summaryValueTotal}>{project?.currency || '$'} {tr(purchase.grandTotal)}</Text>
                     </View>
                     <View style={styles.summaryRowDivider} />
                     <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Advance Paid</Text>
-                      <Text style={styles.summaryValueAdvance}>{project?.currency || '$'} {purchase.advancePayment}</Text>
+                      <Text style={styles.summaryLabel}>{tr("Advance Paid")}</Text>
+                      <Text style={styles.summaryValueAdvance}>{project?.currency || '$'} {tr(purchase.advancePayment)}</Text>
                     </View>
                     <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Remaining</Text>
-                      <Text style={styles.summaryValueRemaining}>{project?.currency || '$'} {purchase.remainingBalance}</Text>
+                      <Text style={styles.summaryLabel}>{tr("Remaining")}</Text>
+                      <Text style={styles.summaryValueRemaining}>{project?.currency || '$'} {tr(purchase.remainingBalance)}</Text>
                     </View>
                   </View>
 
-                  {purchase.commonNote ? <Text style={styles.historyNote}>{purchase.commonNote}</Text> : null}
+                  {purchase.commonNote ? <Text style={styles.historyNote}>{tr(purchase.commonNote)}</Text> : null}
                   <View style={styles.historyUserBox}>
                     <View style={styles.historyUserIcon}>
                       <Feather name="user" size={10} color="#64748B" />
                     </View>
-                    <Text style={styles.historyUserText}>Purchased by {purchase.purchasedByName}</Text>
+                    <Text style={styles.historyUserText}>{tr("Purchased by ")}{tr(purchase.purchasedByName)}</Text>
                   </View>
                   
                   {canApprove ? (
@@ -1204,10 +1205,10 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                       {purchase.status === 'Pending Approval' && (
                         <>
                           <TouchableOpacity style={[styles.reqBtn, { backgroundColor: '#10B981' }]} onPress={() => handlePurchaseAction(purchase._id, 'Approved')}>
-                            <Text style={styles.reqBtnText}>Approve</Text>
+                            <Text style={styles.reqBtnText}>{tr("Approve")}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={[styles.reqBtn, { backgroundColor: '#EF4444' }]} onPress={() => handlePurchaseAction(purchase._id, 'Rejected')}>
-                            <Text style={styles.reqBtnText}>Reject</Text>
+                            <Text style={styles.reqBtnText}>{tr("Reject")}</Text>
                           </TouchableOpacity>
                         </>
                       )}
@@ -1223,7 +1224,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           {materialUsages.length === 0 ? (
             <View style={styles.emptyBox}>
               <Feather name="activity" size={40} color="#CBD5E1" />
-              <Text style={styles.emptyText}>No material usage logs found</Text>
+              <Text style={styles.emptyText}>{tr("No material usage logs found")}</Text>
             </View>
           ) : (
             materialUsages.map(usage => (
@@ -1233,17 +1234,17 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     <Feather name="upload" size={20} color="#F97316" />
                   </View>
                   <View style={styles.historyTitleBox}>
-                    <Text style={styles.historyType}>Usage #{usage._id.slice(-6).toUpperCase()}</Text>
+                    <Text style={styles.historyType}>{tr("Usage #")}{usage._id.slice(-6).toUpperCase()}</Text>
                     <Text style={styles.historyDate}>{new Date(usage.createdAt).toLocaleDateString()}</Text>
                   </View>
                   {/* Logs created by a milestone task submission belong to that task — no delete here */}
                   {usage.source === 'task' ? (
                     <View style={[styles.statusBadge, { backgroundColor: '#F1F5F9' }]}>
-                      <Text style={[styles.statusText, { color: '#64748B' }]}>From Task</Text>
+                      <Text style={[styles.statusText, { color: '#64748B' }]}>{tr("From Task")}</Text>
                     </View>
                   ) : (
                     <View style={[styles.statusBadge, { backgroundColor: '#D1FAE5' }]}>
-                      <Text style={[styles.statusText, { color: '#059669' }]}>Logged</Text>
+                      <Text style={[styles.statusText, { color: '#059669' }]}>{tr("Logged")}</Text>
                     </View>
                   )}
                   {canDelete && usage.source !== 'task' && (
@@ -1254,21 +1255,21 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                 </View>
                 
                 <View style={styles.historyContent}>
-                  {usage.locationOrTask ? <Text style={styles.receiptVendorText}>Task/Location: {usage.locationOrTask}</Text> : null}
+                  {usage.locationOrTask ? <Text style={styles.receiptVendorText}>{tr("Task/Location: ")}{tr(usage.locationOrTask)}</Text> : null}
                   
                   <View style={{ marginTop: 8 }}>
                     {usage.items.map((item, idx) => (
                       <View key={idx} style={styles.reqItemRow}>
-                        <Text style={styles.reqItemName}>{item.materialId?.name || 'Unknown'}</Text>
-                        <Text style={styles.reqItemQty}>{item.quantity} {item.unit}</Text>
+                        <Text style={styles.reqItemName}>{item.materialId?.name || tr("Unknown")}</Text>
+                        <Text style={styles.reqItemQty}>{item.quantity} {tr(item.unit)}</Text>
                       </View>
                     ))}
                   </View>
 
-                  {usage.commonNote ? <Text style={styles.historyNote}>{usage.commonNote}</Text> : null}
+                  {usage.commonNote ? <Text style={styles.historyNote}>{tr(usage.commonNote)}</Text> : null}
                   <View style={styles.historyUserBox}>
                     <Feather name="user" size={12} color="#94A3B8" />
-                    <Text style={styles.historyUserText}>Logged by {usage.usedByName}</Text>
+                    <Text style={styles.historyUserText}>{tr("Logged by ")}{tr(usage.usedByName)}</Text>
                   </View>
                 </View>
               </View>
@@ -1280,7 +1281,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           {getHistoryLogs().length === 0 ? (
             <View style={styles.emptyBox}>
               <Feather name="clock" size={40} color="#CBD5E1" />
-              <Text style={styles.emptyText}>No material history found</Text>
+              <Text style={styles.emptyText}>{tr("No material history found")}</Text>
             </View>
           ) : (
             getHistoryLogs().map((log, index) => (
@@ -1290,23 +1291,23 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                 </View>
                 
                 <View style={styles.logInfo}>
-                  <Text style={styles.logMaterial} numberOfLines={1}>{log.materialName}</Text>
+                  <Text style={styles.logMaterial} numberOfLines={1}>{tr(log.materialName)}</Text>
                   <View style={styles.logMetaRow}>
-                    <Text style={[styles.logType, { color: getLogColor(log.type) }]}>{log.type}</Text>
+                    <Text style={[styles.logType, { color: getLogColor(log.type) }]}>{tr(log.type)}</Text>
                     <Text style={styles.logDot}>•</Text>
                     <Text style={styles.logDate}>{new Date(log.date).toLocaleDateString()}</Text>
                   </View>
-                  {log.note ? <Text style={styles.logNote} numberOfLines={1}>{log.note}</Text> : null}
+                  {log.note ? <Text style={styles.logNote} numberOfLines={1}>{tr(log.note)}</Text> : null}
                 </View>
                 
                 <View style={styles.logRightSide}>
                   <Text style={[styles.logQty, { color: getLogColor(log.type) }]}>
-                    {log.type === 'Used' ? '-' : '+'}{log.quantity} {log.materialUnit}
+                    {log.type === 'Used' ? '-' : '+'}{log.quantity} {tr(log.materialUnit)}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Feather name="user" size={10} color="#94A3B8" />
                     <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#94A3B8', marginLeft: 4 }}>
-                      {log.updatedByName?.split(' ')[0] || 'System'}
+                      {log.updatedByName?.split(' ')[0] || tr("System")}
                     </Text>
                   </View>
                 </View>
@@ -1337,18 +1338,18 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                 </View>
                 
                 <View style={styles.materialInfo}>
-                  <Text style={styles.materialName} numberOfLines={1}>{material.name}</Text>
+                  <Text style={styles.materialName} numberOfLines={1}>{tr(material.name)}</Text>
                   <View style={styles.materialMetaRow}>
-                    <Text style={styles.materialMetaText}>In: {material.totalReceived}</Text>
+                    <Text style={styles.materialMetaText}>{tr("In: ")}{tr(material.totalReceived)}</Text>
                     <Text style={styles.materialMetaDot}>•</Text>
-                    <Text style={styles.materialMetaText}>Used: {material.totalConsumed}</Text>
+                    <Text style={styles.materialMetaText}>{tr("Used: ")}{tr(material.totalConsumed)}</Text>
                   </View>
                 </View>
 
                 <View style={styles.materialRightSide}>
                   <View style={[styles.balancePill, { backgroundColor: balance <= 0 ? '#FEF2F2' : '#F0FDF4' }]}>
                     <Text style={[styles.balancePillText, { color: balance <= 0 ? '#EF4444' : '#16A34A' }]}>
-                      {balance} {material.unit}
+                      {tr(balance)} {tr(material.unit)}
                     </Text>
                   </View>
                   
@@ -1389,7 +1390,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
         {filteredMaterials.length === 0 && (
           <View style={styles.emptyBox}>
             <Feather name="box" size={40} color="#CBD5E1" />
-            <Text style={styles.emptyText}>No materials found</Text>
+            <Text style={styles.emptyText}>{tr("No materials found")}</Text>
           </View>
         )}
       </View>
@@ -1405,8 +1406,8 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           <AdaptiveGlass intensity={95} tint="light" style={styles.actionSheetContent}>
             <View style={styles.actionSheetHeader}>
               <View style={styles.dragHandle} />
-              <Text style={styles.actionSheetTitle}>Project Stock Actions</Text>
-              <Text style={styles.actionSheetSub}>Update multiple materials at once</Text>
+              <Text style={styles.actionSheetTitle}>{tr("Project Stock Actions")}</Text>
+              <Text style={styles.actionSheetSub}>{tr("Update multiple materials at once")}</Text>
             </View>
 
             <View style={styles.actionOptions}>
@@ -1428,8 +1429,8 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     <Feather name={item.icon} size={22} color={item.color} />
                   </View>
                   <View style={styles.actionTextCol}>
-                    <Text style={styles.actionOptionTitle}>{item.title}</Text>
-                    <Text style={styles.actionOptionSub}>{item.sub}</Text>
+                    <Text style={styles.actionOptionTitle}>{tr(item.title)}</Text>
+                    <Text style={styles.actionOptionSub}>{tr(item.sub)}</Text>
                   </View>
                   <Feather name="chevron-right" size={18} color="#CBD5E1" />
                 </TouchableOpacity>
@@ -1440,7 +1441,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
               style={styles.cancelBtn} 
               onPress={() => setIsBulkActionSheetVisible(false)}
             >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>{tr("Cancel")}</Text>
             </TouchableOpacity>
           </AdaptiveGlass>
         </View>
@@ -1452,8 +1453,8 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           <View style={[styles.modalContent, { height: '85%' }]}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>{bulkType} Materials</Text>
-                <Text style={styles.modalSub}>Add items and enter details below</Text>
+                <Text style={styles.modalTitle}>{tr(bulkType)}{tr(" Materials")}</Text>
+                <Text style={styles.modalSub}>{tr("Add items and enter details below")}</Text>
               </View>
               <TouchableOpacity onPress={() => setIsBulkModalVisible(false)} style={styles.closeBtn}>
                 <Feather name="x" size={20} color="#64748B" />
@@ -1466,7 +1467,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                 return (
                   <View key={item.id} style={styles.formRowCard}>
                     <View style={styles.formRowHeader}>
-                      <Text style={styles.formRowTitle}>Item {index + 1}</Text>
+                      <Text style={styles.formRowTitle}>{tr("Item ")}{index + 1}</Text>
                       {formItems.length > 1 && (
                         <TouchableOpacity onPress={() => removeFormRow(item.id)}>
                           <Feather name="trash-2" size={16} color="#EF4444" />
@@ -1474,7 +1475,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                       )}
                     </View>
 
-                    <Text style={styles.label}>Select Material</Text>
+                    <Text style={styles.label}>{tr("Select Material")}</Text>
                     <TouchableOpacity 
                       style={styles.pickerButton} 
                       onPress={() => {
@@ -1483,14 +1484,14 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                       }}
                     >
                       <Text style={[styles.pickerButtonText, !selectedMat && { color: '#94A3B8' }]}>
-                        {selectedMat ? `${selectedMat.name} (${selectedMat.unit})` : 'Choose a material...'}
+                        {selectedMat ? `${selectedMat.name} (${selectedMat.unit})` : tr("Choose a material...")}
                       </Text>
                       <Feather name="chevron-down" size={18} color="#64748B" />
                     </TouchableOpacity>
 
                     <View style={{ flexDirection: 'row', gap: 12 }}>
                       <View style={[styles.inputGroup, { flex: 1, marginBottom: 0 }]}>
-                        <Text style={styles.label}>Quantity</Text>
+                        <Text style={styles.label}>{tr("Quantity")}</Text>
                         <TextInput
                           style={[styles.input, { height: 48 }]}
                           placeholder="0"
@@ -1501,7 +1502,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                       </View>
                       {bulkType === 'Purchase' && (
                         <View style={[styles.inputGroup, { flex: 1, marginBottom: 0 }]}>
-                          <Text style={styles.label}>Unit Price </Text>
+                          <Text style={styles.label}>{tr("Unit Price ")}</Text>
                           <TextInput
                             style={[styles.input, { height: 48 }]}
                             placeholder="0.00"
@@ -1518,15 +1519,15 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
               
               <TouchableOpacity style={styles.addRowBtn} onPress={addFormRow}>
                 <Feather name="plus" size={18} color="#3B82F6" />
-                <Text style={styles.addRowBtnText}>Add Another Item</Text>
+                <Text style={styles.addRowBtnText}>{tr("Add Another Item")}</Text>
               </TouchableOpacity>
 
               {bulkType === 'Used' && (
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Location / Task Name (Optional)</Text>
+                  <Text style={styles.label}>{tr("Location / Task Name (Optional)")}</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="e.g., 1st Floor Slab Casting"
+                    placeholder={tr("e.g., 1st Floor Slab Casting")}
                     value={locationOrTask}
                     onChangeText={setLocationOrTask}
                   />
@@ -1536,29 +1537,29 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
               {bulkType === 'Purchase' && (
                 <>
                   <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Vendor Name</Text>
+                    <Text style={styles.label}>{tr("Vendor Name")}</Text>
                     <TouchableOpacity 
                       style={styles.pickerButton} 
                       onPress={() => setIsVendorPickerVisible(true)}
                     >
                       <Text style={[styles.pickerButtonText, !vendorName && { color: '#94A3B8' }]}>
-                        {vendorName || 'Choose a vendor...'}
+                        {vendorName || tr("Choose a vendor...")}
                       </Text>
                       <Feather name="chevron-down" size={18} color="#64748B" />
                     </TouchableOpacity>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 12 }}>
                     <View style={[styles.inputGroup, { flex: 1 }]}>
-                      <Text style={styles.label}>PO Number (Optional)</Text>
+                      <Text style={styles.label}>{tr("PO Number (Optional)")}</Text>
                       <TextInput
                         style={styles.input}
-                        placeholder="PO-1029"
+                        placeholder={tr("PO-1029")}
                         value={poNumber}
                         onChangeText={setPoNumber}
                       />
                     </View>
                     <View style={[styles.inputGroup, { flex: 1 }]}>
-                      <Text style={styles.label}>Advance Paid </Text>
+                      <Text style={styles.label}>{tr("Advance Paid ")}</Text>
                       <TextInput
                         style={styles.input}
                         placeholder="0.00"
@@ -1571,25 +1572,25 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
 
                   <View style={styles.financialSummaryBox}>
                     <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Total Estimated Cost:</Text>
+                      <Text style={styles.summaryLabel}>{tr("Total Estimated Cost:")}</Text>
                       <Text style={styles.summaryValueTotal}>{project?.currency || '$'} {calculatePurchaseSummary().totalCost.toFixed(2)}</Text>
                     </View>
                     <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Advance Paid:</Text>
+                      <Text style={styles.summaryLabel}>{tr("Advance Paid:")}</Text>
                       <Text style={styles.summaryValueAdvance}>{project?.currency || '$'} {calculatePurchaseSummary().advance.toFixed(2)}</Text>
                     </View>
                     <View style={styles.summaryRowDivider} />
                     <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabelBold}>Remaining Balance:</Text>
+                      <Text style={styles.summaryLabelBold}>{tr("Remaining Balance:")}</Text>
                       <Text style={styles.summaryValueRemaining}>{project?.currency || '$'} {calculatePurchaseSummary().remaining.toFixed(2)}</Text>
                     </View>
                   </View>
 
                   <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Bill / Invoice Number</Text>
+                    <Text style={styles.label}>{tr("Bill / Invoice Number")}</Text>
                     <TextInput
                       style={styles.input}
-                      placeholder="e.g., BILL-789"
+                      placeholder={tr("e.g., BILL-789")}
                       value={billNumber}
                       onChangeText={setBillNumber}
                     />
@@ -1600,32 +1601,32 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
               {bulkType === 'Received' && (
                 <>
                   <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Vendor Name (Optional)</Text>
+                    <Text style={styles.label}>{tr("Vendor Name (Optional)")}</Text>
                     <TouchableOpacity 
                       style={styles.pickerButton} 
                       onPress={() => setIsVendorPickerVisible(true)}
                     >
                       <Text style={[styles.pickerButtonText, !vendorName && { color: '#94A3B8' }]}>
-                        {vendorName || 'Choose a vendor...'}
+                        {vendorName || tr("Choose a vendor...")}
                       </Text>
                       <Feather name="chevron-down" size={18} color="#64748B" />
                     </TouchableOpacity>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 12 }}>
                     <View style={[styles.inputGroup, { flex: 1 }]}>
-                      <Text style={styles.label}>Challan Number</Text>
+                      <Text style={styles.label}>{tr("Challan Number")}</Text>
                       <TextInput
                         style={styles.input}
-                        placeholder="e.g., CHL-102"
+                        placeholder={tr("e.g., CHL-102")}
                         value={challanNumber}
                         onChangeText={setChallanNumber}
                       />
                     </View>
                     <View style={[styles.inputGroup, { flex: 1 }]}>
-                      <Text style={styles.label}>Invoice Number</Text>
+                      <Text style={styles.label}>{tr("Invoice Number")}</Text>
                       <TextInput
                         style={styles.input}
-                        placeholder="e.g., INV-456"
+                        placeholder={tr("e.g., INV-456")}
                         value={invoiceNumber}
                         onChangeText={setInvoiceNumber}
                       />
@@ -1637,15 +1638,15 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
               {(bulkType === 'Purchase' || bulkType === 'Received') && (
                 <View style={styles.autoGenBanner}>
                   <Feather name="file-text" size={20} color="#3B82F6" />
-                  <Text style={styles.autoGenText}>A digital {bulkType === 'Purchase' ? 'Invoice' : 'Receipt'} will be automatically generated</Text>
+                  <Text style={styles.autoGenText}>{tr("A digital ")}{bulkType === 'Purchase' ? tr("Invoice") : tr("Receipt")}{tr(" will be automatically generated")}</Text>
                 </View>
               )}
               
               <View style={[styles.inputGroup, { marginBottom: 30 }]}>
-                <Text style={styles.label}>Common Note / Description</Text>
+                <Text style={styles.label}>{tr("Common Note / Description")}</Text>
                 <TextInput
                   style={[styles.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
-                  placeholder="Enter a description for all requested items..."
+                  placeholder={tr("Enter a description for all requested items...")}
                   multiline
                   value={commonNote}
                   onChangeText={setCommonNote}
@@ -1658,7 +1659,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
               onPress={handleBulkSubmit}
               disabled={isSubmitting}
             >
-              {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Submit {bulkType}</Text>}
+              {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>{tr("Submit ")}{tr(bulkType)}</Text>}
             </TouchableOpacity>
           </View>
 
@@ -1667,7 +1668,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
             <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'flex-end' }]}>
               <View style={[styles.modalContent, { height: '60%' }]}>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Select Material</Text>
+                  <Text style={styles.modalTitle}>{tr("Select Material")}</Text>
                   <TouchableOpacity onPress={() => setIsMaterialPickerVisible(false)} style={styles.closeBtn}>
                     <Feather name="x" size={20} color="#64748B" />
                   </TouchableOpacity>
@@ -1682,8 +1683,8 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                         setIsMaterialPickerVisible(false);
                       }}
                     >
-                      <Text style={styles.pickerOptionText}>{mat.name}</Text>
-                      <Text style={styles.pickerOptionSub}>{mat.unit}</Text>
+                      <Text style={styles.pickerOptionText}>{tr(mat.name)}</Text>
+                      <Text style={styles.pickerOptionSub}>{tr(mat.unit)}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -1696,7 +1697,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
             <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'flex-end' }]}>
               <View style={[styles.modalContent, { height: '60%' }]}>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Select Vendor</Text>
+                  <Text style={styles.modalTitle}>{tr("Select Vendor")}</Text>
                   <TouchableOpacity onPress={() => setIsVendorPickerVisible(false)} style={styles.closeBtn}>
                     <Feather name="x" size={20} color="#64748B" />
                   </TouchableOpacity>
@@ -1711,13 +1712,13 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                         setIsVendorPickerVisible(false);
                       }}
                     >
-                      <Text style={styles.pickerOptionText}>{vendor.name}</Text>
-                      {vendor.contactPerson ? <Text style={styles.pickerOptionSub}>{vendor.contactPerson}</Text> : null}
+                      <Text style={styles.pickerOptionText}>{tr(vendor.name)}</Text>
+                      {vendor.contactPerson ? <Text style={styles.pickerOptionSub}>{tr(vendor.contactPerson)}</Text> : null}
                     </TouchableOpacity>
                   ))}
                   {vendors.length === 0 && (
                     <View style={styles.emptyBox}>
-                      <Text style={styles.emptyText}>No vendors found. Please add vendors in Vendor Management.</Text>
+                      <Text style={styles.emptyText}>{tr("No vendors found. Please add vendors in Vendor Management.")}</Text>
                     </View>
                   )}
                 </ScrollView>
@@ -1738,8 +1739,8 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
           <AdaptiveGlass intensity={95} tint="light" style={styles.actionSheetContent}>
             <View style={styles.actionSheetHeader}>
               <View style={styles.dragHandle} />
-              <Text style={styles.actionSheetTitle}>Inventory Actions</Text>
-              <Text style={styles.actionSheetSub}>{selectedMaterial?.name}</Text>
+              <Text style={styles.actionSheetTitle}>{tr("Inventory Actions")}</Text>
+              <Text style={styles.actionSheetSub}>{tr(selectedMaterial?.name)}</Text>
             </View>
 
             <View style={styles.actionOptions}>
@@ -1779,8 +1780,8 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     <Feather name={item.icon} size={22} color={item.color} />
                   </View>
                   <View style={styles.actionTextCol}>
-                    <Text style={styles.actionOptionTitle}>{item.title}</Text>
-                    <Text style={styles.actionOptionSub}>{item.sub}</Text>
+                    <Text style={styles.actionOptionTitle}>{tr(item.title)}</Text>
+                    <Text style={styles.actionOptionSub}>{tr(item.sub)}</Text>
                   </View>
                   <Feather name="chevron-right" size={18} color="#CBD5E1" />
                 </TouchableOpacity>
@@ -1791,7 +1792,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
               style={styles.cancelBtn} 
               onPress={() => setIsActionSheetVisible(false)}
             >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>{tr("Cancel")}</Text>
             </TouchableOpacity>
           </AdaptiveGlass>
         </View>
@@ -1802,7 +1803,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{isEditing ? 'Edit Material' : 'Add New Material'}</Text>
+              <Text style={styles.modalTitle}>{isEditing ? tr("Edit Material") : tr("Add New Material")}</Text>
               <TouchableOpacity onPress={() => {
                 setIsAddModalVisible(false);
                 setIsEditing(false);
@@ -1813,17 +1814,17 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Material Name</Text>
+              <Text style={styles.label}>{tr("Material Name")}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g., UltraTech Cement"
+                placeholder={tr("e.g., UltraTech Cement")}
                 value={newMaterial.name}
                 onChangeText={(t) => setNewMaterial({ ...newMaterial, name: t })}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Select Unit</Text>
+              <Text style={styles.label}>{tr("Select Unit")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.unitScroll}>
                 {['Bags', 'kg', 'Tons', 'Nos', 'Sq.Ft', 'Cu.Ft', 'Liters', 'Meters'].map(u => (
                   <TouchableOpacity
@@ -1831,7 +1832,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
                     onPress={() => setNewMaterial({ ...newMaterial, unit: u })}
                     style={[styles.unitChip, newMaterial.unit === u && styles.unitChipActive]}
                   >
-                    <Text style={[styles.unitText, newMaterial.unit === u && styles.unitTextActive]}>{u}</Text>
+                    <Text style={[styles.unitText, newMaterial.unit === u && styles.unitTextActive]}>{tr(u)}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -1839,7 +1840,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
 
             {!isEditing && (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Initial Stock</Text>
+                <Text style={styles.label}>{tr("Initial Stock")}</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="0"
@@ -1855,7 +1856,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
               onPress={handleAddMaterial}
               disabled={isSubmitting}
             >
-              {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>{isEditing ? 'Update Material' : 'Create Material'}</Text>}
+              {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>{isEditing ? tr("Update Material") : tr("Create Material")}</Text>}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -1866,19 +1867,19 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Record Stock {stockType}</Text>
+              <Text style={styles.modalTitle}>{tr("Record Stock ")}{tr(stockType)}</Text>
               <TouchableOpacity onPress={() => setIsStockModalVisible(false)} style={styles.closeBtn}>
                 <Feather name="x" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
             
-            <Text style={styles.targetMaterial}>{selectedMaterial?.name}</Text>
+            <Text style={styles.targetMaterial}>{tr(selectedMaterial?.name)}</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Quantity ({selectedMaterial?.unit})</Text>
+              <Text style={styles.label}>{tr("Quantity (")}{tr(selectedMaterial?.unit)})</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter quantity"
+                placeholder={tr("Enter quantity")}
                 keyboardType="numeric"
                 value={stockUpdate.quantity}
                 onChangeText={(t) => setStockUpdate({ ...stockUpdate, quantity: t })}
@@ -1886,10 +1887,10 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Note (Optional)</Text>
+              <Text style={styles.label}>{tr("Note (Optional)")}</Text>
               <TextInput
                 style={[styles.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
-                placeholder="e.g., Received from warehouse"
+                placeholder={tr("e.g., Received from warehouse")}
                 multiline
                 value={stockUpdate.note}
                 onChangeText={(t) => setStockUpdate({ ...stockUpdate, note: t })}
@@ -1901,7 +1902,7 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
               onPress={handleUpdateStock}
               disabled={isSubmitting}
             >
-              {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Confirm {stockType}</Text>}
+              {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>{tr("Confirm ")}{tr(stockType)}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -1909,10 +1910,10 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
 
       <ConfirmModal
         visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={tr(confirmModal.title)}
+        message={tr(confirmModal.message)}
         type={confirmModal.type}
-        confirmText="Delete"
+        confirmText={tr("Delete")}
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
       />

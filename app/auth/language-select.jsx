@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, I18nManager } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -53,9 +54,9 @@ export default function LanguageSelectScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       <View style={styles.header}>
-        <Text style={styles.title}>Choose Language</Text>
+        <Text style={styles.title}>{tr("Choose Language")}</Text>
         <Text style={styles.titleAr}>اختر اللغة</Text>
-        <Text style={styles.subtitle}>Please select your preferred language to continue</Text>
+        <Text style={styles.subtitle}>{tr("Please select your preferred language to continue")}</Text>
         <Text style={styles.subtitleAr}>يرجى تحديد لغتك المفضلة للمتابعة</Text>
       </View>
 
@@ -63,8 +64,8 @@ export default function LanguageSelectScreen() {
         <TouchableOpacity style={styles.optionBtn} onPress={() => handleLanguageSelect('en')} activeOpacity={0.8}>
           <Text style={styles.optionEmoji}>🇺🇸</Text>
           <View style={styles.optionTextContainer}>
-            <Text style={styles.optionTitle}>English</Text>
-            <Text style={styles.optionSubtitle}>US English</Text>
+            <Text style={styles.optionTitle}>{tr("English")}</Text>
+            <Text style={styles.optionSubtitle}>{tr("US English")}</Text>
           </View>
         </TouchableOpacity>
 
@@ -72,7 +73,7 @@ export default function LanguageSelectScreen() {
           <Text style={styles.optionEmoji}>🇦🇪</Text>
           <View style={styles.optionTextContainerAr}>
             <Text style={styles.optionTitle}>العربية</Text>
-            <Text style={styles.optionSubtitle}>Arabic</Text>
+            <Text style={styles.optionSubtitle}>{tr("Arabic")}</Text>
           </View>
         </TouchableOpacity>
       </View>

@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import { useState, useEffect } from 'react';
 import {
   View,
@@ -80,10 +81,10 @@ export default function ResetPasswordScreen() {
     setIsLoading(false);
 
     if (result.success) {
-      showToast('Password has been successfully reset!', 'success');
+      showToast(tr("Password has been successfully reset!"), 'success');
       router.replace('/auth/login');
     } else {
-      setError(result.message || 'Failed to reset password. Please verify your OTP.');
+      setError(result.message || tr("Failed to reset password. Please verify your OTP."));
     }
   };
 
@@ -124,7 +125,7 @@ export default function ResetPasswordScreen() {
                 style={styles.brandLogo}
                 contentFit="contain"
               />
-              <Text style={styles.brandTitle}>Skystruct</Text>
+              <Text style={styles.brandTitle}>{tr("Skystruct")}</Text>
             </View>
 
             <View style={{ width: 36 }} />
@@ -135,7 +136,7 @@ export default function ResetPasswordScreen() {
             {/* Header info */}
             <View style={styles.cardHeader}>
               <View style={styles.headerTitleRow}>
-                <Text style={styles.cardHeading}>Reset Password</Text>
+                <Text style={styles.cardHeading}>{tr("Reset Password")}</Text>
                 <View
                   style={[
                     styles.modeBadge,
@@ -148,12 +149,12 @@ export default function ResetPasswordScreen() {
                       industryType === 'interior' ? styles.modeBadgeTextInterior : styles.modeBadgeTextConstruction,
                     ]}
                   >
-                    {industryType === 'interior' ? '🎨 Interior' : '🏗️ Construction'}
+                    {industryType === 'interior' ? tr("🎨 Interior") : tr("🏗️ Construction")}
                   </Text>
                 </View>
               </View>
               <Text style={styles.cardSubheading}>
-                Enter the 6-digit OTP code and choose your new password.
+                {tr("Enter the 6-digit OTP code and choose your new password.")}
               </Text>
             </View>
 
@@ -162,19 +163,19 @@ export default function ResetPasswordScreen() {
               <View style={styles.errorContainer}>
                 <Ionicons name="alert-circle" size={16} color="#DC2626" style={{ marginRight: 6 }} />
                 <Text style={styles.errorText} numberOfLines={2}>
-                  {error}
+                  {tr(error)}
                 </Text>
               </View>
             ) : null}
 
             {/* Email Field */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Email Address</Text>
+              <Text style={styles.fieldLabel}>{tr("Email Address")}</Text>
               <View style={[styles.inputWrapper, !!emailParam && styles.inputWrapperDisabled]}>
                 <Ionicons name="mail-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                 <TextInput
                   style={[styles.input, !!emailParam && styles.inputDisabled]}
-                  placeholder="name@company.com"
+                  placeholder={tr("name@company.com")}
                   placeholderTextColor="#94A3B8"
                   value={email}
                   onChangeText={(val) => {
@@ -190,7 +191,7 @@ export default function ResetPasswordScreen() {
 
             {/* 6-Digit OTP Field (Monospace, Web Parity) */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Verification Code (OTP)</Text>
+              <Text style={styles.fieldLabel}>{tr("Verification Code (OTP)")}</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="key-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                 <TextInput
@@ -210,12 +211,12 @@ export default function ResetPasswordScreen() {
 
             {/* New Password Field */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>New Password</Text>
+              <Text style={styles.fieldLabel}>{tr("New Password")}</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="lock-closed-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Min. 6 characters"
+                  placeholder={tr("Min. 6 characters")}
                   placeholderTextColor="#94A3B8"
                   value={newPassword}
                   onChangeText={(val) => {
@@ -241,12 +242,12 @@ export default function ResetPasswordScreen() {
 
             {/* Confirm Password Field */}
             <View style={[styles.fieldGroup, { marginBottom: 12 }]}>
-              <Text style={styles.fieldLabel}>Confirm Password</Text>
+              <Text style={styles.fieldLabel}>{tr("Confirm Password")}</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="lock-closed-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Re-enter new password"
+                  placeholder={tr("Re-enter new password")}
                   placeholderTextColor="#94A3B8"
                   value={confirmPassword}
                   onChangeText={(val) => {
@@ -283,10 +284,10 @@ export default function ResetPasswordScreen() {
               {isLoading ? (
                 <View style={styles.loadingRow}>
                   <ActivityIndicator color="#FFFFFF" size="small" />
-                  <Text style={styles.primaryBtnText}>Resetting password...</Text>
+                  <Text style={styles.primaryBtnText}>{tr("Resetting password...")}</Text>
                 </View>
               ) : (
-                <Text style={styles.primaryBtnText}>Reset Password</Text>
+                <Text style={styles.primaryBtnText}>{tr("Reset Password")}</Text>
               )}
             </TouchableOpacity>
 
@@ -297,14 +298,14 @@ export default function ResetPasswordScreen() {
               onPress={() => router.replace('/auth/login')}
             >
               <Ionicons name="arrow-back" size={14} color="#64748B" />
-              <Text style={styles.backToLoginText}>Back to login</Text>
+              <Text style={styles.backToLoginText}>{tr("Back to login")}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Trust Footer */}
           <View style={styles.trustFooter}>
             <Ionicons name="shield-checkmark" size={13} color="#94A3B8" />
-            <Text style={styles.trustFooterText}>Encrypted and authenticated session</Text>
+            <Text style={styles.trustFooterText}>{tr("Encrypted and authenticated session")}</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

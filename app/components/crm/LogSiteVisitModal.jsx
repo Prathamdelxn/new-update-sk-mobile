@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import {
   Modal,
@@ -22,7 +23,7 @@ function SectionHeader({ iconName, iconColor, title }) {
   return (
     <View style={s.sectionHeaderRow}>
       <Ionicons name={iconName} size={16} color={iconColor} />
-      <Text style={s.sectionHeaderText}>{title}</Text>
+      <Text style={s.sectionHeaderText}>{tr(title)}</Text>
     </View>
   );
 }
@@ -32,7 +33,7 @@ function InputField({ label, value, onChangeText, placeholder, required = false,
     <View style={s.inputContainer}>
       <View style={s.labelRow}>
         {icon && <Ionicons name={icon} size={13} color={iconColor} style={{ marginRight: 4 }} />}
-        <Text style={s.label}>{label}</Text>
+        <Text style={s.label}>{tr(label)}</Text>
         {required && <Text style={s.requiredAsterisk}> *</Text>}
       </View>
       <TextInput
@@ -144,7 +145,7 @@ export default function LogSiteVisitModal({
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Camera roll permissions are required to upload site photos.');
+        Alert.alert(tr("Permission Denied"), tr("Camera roll permissions are required to upload site photos."));
         return;
       }
 
@@ -170,20 +171,20 @@ export default function LogSiteVisitModal({
 
   const handleSubmit = async () => {
     if (isReadOnly) {
-      Alert.alert('Locked', 'This lead is read-only and cannot be edited.');
+      Alert.alert(tr("Locked"), tr("This lead is read-only and cannot be edited."));
       return;
     }
     // --- Required field validation ---
     if (!measurements.ceilingHeight || !measurements.ceilingHeight.trim()) {
-      Alert.alert('Required Field', 'Please enter the Ceiling Height before saving.');
+      Alert.alert(tr("Required Field"), tr("Please enter the Ceiling Height before saving."));
       return;
     }
     if (!measurements.carpetArea || !measurements.carpetArea.trim()) {
-      Alert.alert('Required Field', 'Please enter the Carpet Area before saving.');
+      Alert.alert(tr("Required Field"), tr("Please enter the Carpet Area before saving."));
       return;
     }
     if (!measurements.rooms || !measurements.rooms.trim()) {
-      Alert.alert('Required Field', 'Please enter the Rooms to Design (e.g. 3BHK) before saving.');
+      Alert.alert(tr("Required Field"), tr("Please enter the Rooms to Design (e.g. 3BHK) before saving."));
       return;
     }
 
@@ -228,7 +229,7 @@ export default function LogSiteVisitModal({
       onClose();
     } catch (error) {
       console.error('Error saving site measurements:', error);
-      Alert.alert('Error', error?.message || 'Failed to save site visit details. Please try again.');
+      Alert.alert(tr("Error"), error?.message || tr("Failed to save site visit details. Please try again."));
     } finally {
       setIsSubmitting(false);
     }
@@ -245,8 +246,8 @@ export default function LogSiteVisitModal({
                 <Ionicons name="location-outline" size={20} color="#7C3AED" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.modalTitle} numberOfLines={1}>Log Site Visit & Measurements</Text>
-                <Text style={s.modalSub}>Record spatial dimensions, openings, MEP points, and site photos.</Text>
+                <Text style={s.modalTitle} numberOfLines={1}>{tr("Log Site Visit & Measurements")}</Text>
+                <Text style={s.modalSub}>{tr("Record spatial dimensions, openings, MEP points, and site photos.")}</Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
@@ -264,7 +265,7 @@ export default function LogSiteVisitModal({
                   onPress={() => setActiveSection(sec.id)}
                 >
                   <Text style={[s.secTabText, activeSection === sec.id && s.secTabTextActive]}>
-                    {sec.id === 'Photos' ? `Photos (${photos.length})` : sec.label}
+                    {sec.id === 'Photos' ? tr("Photos ({{photosCount}})", { photosCount: photos.length }) : tr(sec.label)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -280,27 +281,27 @@ export default function LogSiteVisitModal({
                   <Ionicons name="document-text-outline" size={16} color="#7C3AED" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.briefingLabel}>SITE VISIT INSTRUCTIONS / BRIEFING NOTE</Text>
-                  <Text style={s.briefingText}>{instructions}</Text>
+                  <Text style={s.briefingLabel}>{tr("SITE VISIT INSTRUCTIONS / BRIEFING NOTE")}</Text>
+                  <Text style={s.briefingText}>{tr(instructions)}</Text>
                 </View>
               </View>
             ) : null}
             {/* 1. ROOM & SPATIAL DIMENSIONS */}
             {(activeSection === 'All' || activeSection === 'Dimensions') && (
               <View style={s.sectionCard}>
-                <SectionHeader iconName="pencil-outline" iconColor="#7C3AED" title="ROOM & SPATIAL DIMENSIONS" />
+                <SectionHeader iconName="pencil-outline" iconColor="#7C3AED" title={tr("ROOM & SPATIAL DIMENSIONS")} />
                 
                 <InputField
-                  label="Room Length × Width"
+                  label={tr("Room Length × Width")}
                   value={measurements.roomDimensions}
                   onChangeText={(val) => updateField('roomDimensions', val)}
-                  placeholder="e.g. Living: 18'x12', Bed: 14'x11'"
+                  placeholder={tr("e.g. Living: 18'x12', Bed: 14'x11'")}
                   icon="expand-outline"
                   iconColor="#7C3AED"
                 />
 
                 <InputField
-                  label="Ceiling Height (Ft)"
+                  label={tr("Ceiling Height (Ft)")}
                   value={measurements.ceilingHeight}
                   onChangeText={(val) => updateField('ceilingHeight', val)}
                   placeholder="e.g. 10.5"
@@ -311,16 +312,16 @@ export default function LogSiteVisitModal({
                 />
 
                 <InputField
-                  label="Floor-to-Ceiling Height"
+                  label={tr("Floor-to-Ceiling Height")}
                   value={measurements.floorToCeilingHeight}
                   onChangeText={(val) => updateField('floorToCeilingHeight', val)}
-                  placeholder="e.g. 9.8 ft finish to slab"
+                  placeholder={tr("e.g. 9.8 ft finish to slab")}
                   icon="layers-outline"
                   iconColor="#7C3AED"
                 />
 
                 <InputField
-                  label="Carpet Area (Sq.Ft)"
+                  label={tr("Carpet Area (Sq.Ft)")}
                   value={measurements.carpetArea}
                   onChangeText={(val) => updateField('carpetArea', val)}
                   placeholder="e.g. 1200"
@@ -331,10 +332,10 @@ export default function LogSiteVisitModal({
                 />
 
                 <InputField
-                  label="Rooms to Design (e.g. 3BHK)"
+                  label={tr("Rooms to Design (e.g. 3BHK)")}
                   value={measurements.rooms}
                   onChangeText={(val) => updateField('rooms', val)}
-                  placeholder="e.g. Living, Foyer, Kitchen, Master Bedroom, Kids Bedroom"
+                  placeholder={tr("e.g. Living, Foyer, Kitchen, Master Bedroom, Kids Bedroom")}
                   required
                   icon="grid-outline"
                   iconColor="#2563EB"
@@ -345,40 +346,40 @@ export default function LogSiteVisitModal({
             {/* 2. OPENINGS & STRUCTURAL ELEMENTS */}
             {(activeSection === 'All' || activeSection === 'Openings') && (
               <View style={s.sectionCard}>
-                <SectionHeader iconName="construct-outline" iconColor="#4F46E5" title="OPENINGS & STRUCTURAL ELEMENTS" />
+                <SectionHeader iconName="construct-outline" iconColor="#4F46E5" title={tr("OPENINGS & STRUCTURAL ELEMENTS")} />
                 
                 <InputField
-                  label="Door Dimensions"
+                  label={tr("Door Dimensions")}
                   value={measurements.doorDimensions}
                   onChangeText={(val) => updateField('doorDimensions', val)}
-                  placeholder="e.g. Main 4'x7', Bedroom 3'x7'"
+                  placeholder={tr("e.g. Main 4'x7', Bedroom 3'x7'")}
                   icon="exit-outline"
                   iconColor="#4F46E5"
                 />
 
                 <InputField
-                  label="Window Dimensions"
+                  label={tr("Window Dimensions")}
                   value={measurements.windowDimensions}
                   onChangeText={(val) => updateField('windowDimensions', val)}
-                  placeholder="e.g. Living 6'x5', Bed 4'x5'"
+                  placeholder={tr("e.g. Living 6'x5', Bed 4'x5'")}
                   icon="browsers-outline"
                   iconColor="#4F46E5"
                 />
 
                 <InputField
-                  label="Wall Thickness"
+                  label={tr("Wall Thickness")}
                   value={measurements.wallThickness}
                   onChangeText={(val) => updateField('wallThickness', val)}
-                  placeholder="e.g. Outer 9 inch, Inner 4 inch"
+                  placeholder={tr("e.g. Outer 9 inch, Inner 4 inch")}
                   icon="reorder-two-outline"
                   iconColor="#4F46E5"
                 />
 
                 <InputField
-                  label="Column & Beam Dimensions"
+                  label={tr("Column & Beam Dimensions")}
                   value={measurements.columnBeamDimensions}
                   onChangeText={(val) => updateField('columnBeamDimensions', val)}
-                  placeholder="e.g. Beam drop 18 inch in living room, Column 12x12 near dining"
+                  placeholder={tr("e.g. Beam drop 18 inch in living room, Column 12x12 near dining")}
                   multiline
                   icon="cube-outline"
                   iconColor="#4F46E5"
@@ -389,33 +390,33 @@ export default function LogSiteVisitModal({
             {/* 3. MEP & SERVICES (ELECTRICAL, PLUMBING, AC) */}
             {(activeSection === 'All' || activeSection === 'MEP') && (
               <View style={s.sectionCard}>
-                <SectionHeader iconName="flash-outline" iconColor="#D97706" title="MEP & SERVICES (ELECTRICAL, PLUMBING, AC)" />
+                <SectionHeader iconName="flash-outline" iconColor="#D97706" title={tr("MEP & SERVICES (ELECTRICAL, PLUMBING, AC)")} />
                 
                 <InputField
-                  label="Existing Electrical Points"
+                  label={tr("Existing Electrical Points")}
                   value={measurements.electricalPoints}
                   onChangeText={(val) => updateField('electricalPoints', val)}
-                  placeholder="e.g. DB near entrance, 6A/16A points on TV wall, bedside 2-way switches"
+                  placeholder={tr("e.g. DB near entrance, 6A/16A points on TV wall, bedside 2-way switches")}
                   multiline
                   icon="flash-outline"
                   iconColor="#D97706"
                 />
 
                 <InputField
-                  label="Plumbing Points"
+                  label={tr("Plumbing Points")}
                   value={measurements.plumbingPoints}
                   onChangeText={(val) => updateField('plumbingPoints', val)}
-                  placeholder="e.g. Kitchen sink inlet/drain, RO water point, washbasin trap locations"
+                  placeholder={tr("e.g. Kitchen sink inlet/drain, RO water point, washbasin trap locations")}
                   multiline
                   icon="water-outline"
                   iconColor="#0284C7"
                 />
 
                 <InputField
-                  label="AC Locations & Piping"
+                  label={tr("AC Locations & Piping")}
                   value={measurements.acLocations}
                   onChangeText={(val) => updateField('acLocations', val)}
-                  placeholder="e.g. Split AC provision on north wall, copper piping route, outdoor unit in utility"
+                  placeholder={tr("e.g. Split AC provision on north wall, copper piping route, outdoor unit in utility")}
                   multiline
                   icon="snow-outline"
                   iconColor="#0D9488"
@@ -426,33 +427,33 @@ export default function LogSiteVisitModal({
             {/* 4. EXISTING FURNITURE & SITE CONSTRAINTS */}
             {(activeSection === 'All' || activeSection === 'Constraints') && (
               <View style={s.sectionCard}>
-                <SectionHeader iconName="cube-outline" iconColor="#059669" title="EXISTING FURNITURE & SITE CONSTRAINTS" />
+                <SectionHeader iconName="cube-outline" iconColor="#059669" title={tr("EXISTING FURNITURE & SITE CONSTRAINTS")} />
                 
                 <InputField
-                  label="Existing Furniture Dimensions"
+                  label={tr("Existing Furniture Dimensions")}
                   value={measurements.furnitureDimensions}
                   onChangeText={(val) => updateField('furnitureDimensions', val)}
-                  placeholder="e.g. Client retaining king bed 6'x6.5', 6-seater dining table 5'x3'"
+                  placeholder={tr("e.g. Client retaining king bed 6'x6.5', 6-seater dining table 5'x3'")}
                   multiline
                   icon="cube-outline"
                   iconColor="#059669"
                 />
 
                 <InputField
-                  label="Any Site Constraints"
+                  label={tr("Any Site Constraints")}
                   value={measurements.siteConstraints}
                   onChangeText={(val) => updateField('siteConstraints', val)}
-                  placeholder="e.g. No heavy drilling allowed after 6 PM, 4th floor staircase only, dampness on east wall"
+                  placeholder={tr("e.g. No heavy drilling allowed after 6 PM, 4th floor staircase only, dampness on east wall")}
                   multiline
                   icon="warning-outline"
                   iconColor="#DC2626"
                 />
 
                 <InputField
-                  label="Additional Site Notes / Observations"
+                  label={tr("Additional Site Notes / Observations")}
                   value={measurements.notes}
                   onChangeText={(val) => updateField('notes', val)}
-                  placeholder="Enter any additional remarks, client preferences observed on site..."
+                  placeholder={tr("Enter any additional remarks, client preferences observed on site...")}
                   multiline
                   icon="document-text-outline"
                   iconColor="#64748B"
@@ -463,12 +464,12 @@ export default function LogSiteVisitModal({
             {/* 5. SITE PHOTOS */}
             {(activeSection === 'All' || activeSection === 'Photos') && (
               <View style={s.sectionCard}>
-                <SectionHeader iconName="images-outline" iconColor="#059669" title={`SITE PHOTOS (${photos.length})`} />
+                <SectionHeader iconName="images-outline" iconColor="#059669" title={tr("SITE PHOTOS ({{photosCount}})", { photosCount: photos.length })} />
                 
                 <TouchableOpacity style={s.addPhotoBtn} onPress={handlePickPhoto}>
                   <Ionicons name="cloud-upload-outline" size={28} color="#2563EB" />
-                  <Text style={s.addPhotoTitle}>Click or tap to upload photos</Text>
-                  <Text style={s.addPhotoSub}>High resolution images of rooms, walls, electrical boards, windows & site condition</Text>
+                  <Text style={s.addPhotoTitle}>{tr("Click or tap to upload photos")}</Text>
+                  <Text style={s.addPhotoSub}>{tr("High resolution images of rooms, walls, electrical boards, windows & site condition")}</Text>
                 </TouchableOpacity>
 
                 {photos.length > 0 ? (
@@ -483,7 +484,7 @@ export default function LogSiteVisitModal({
                     ))}
                   </View>
                 ) : (
-                  <Text style={s.noPhotosText}>No site photos attached yet.</Text>
+                  <Text style={s.noPhotosText}>{tr("No site photos attached yet.")}</Text>
                 )}
               </View>
             )}
@@ -494,14 +495,14 @@ export default function LogSiteVisitModal({
           {/* Footer Actions */}
           <View style={s.footer}>
             <TouchableOpacity style={isReadOnly ? s.saveBtn : s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={isReadOnly ? s.saveBtnText : s.cancelBtnText}>{isReadOnly ? 'Close' : 'Cancel'}</Text>
+              <Text style={isReadOnly ? s.saveBtnText : s.cancelBtnText}>{isReadOnly ? tr("Close") : tr("Cancel")}</Text>
             </TouchableOpacity>
             {!isReadOnly && (
               <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Text style={s.saveBtnText}>Save Site Visit Measurements</Text>
+                  <Text style={s.saveBtnText}>{tr("Save Site Visit Measurements")}</Text>
                 )}
               </TouchableOpacity>
             )}

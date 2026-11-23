@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import { useState, useEffect } from 'react';
 import {
   View,
@@ -66,9 +67,9 @@ export default function ForgotPasswordScreen() {
 
     if (result.success) {
       setFpSent(true);
-      showToast('Reset verification code sent to your email', 'success');
+      showToast(tr("Reset verification code sent to your email"), 'success');
     } else {
-      setError(result.message || 'Failed to send reset code');
+      setError(result.message || tr("Failed to send reset code"));
     }
   };
 
@@ -109,7 +110,7 @@ export default function ForgotPasswordScreen() {
                 style={styles.brandLogo}
                 contentFit="contain"
               />
-              <Text style={styles.brandTitle}>Skystruct</Text>
+              <Text style={styles.brandTitle}>{tr("Skystruct")}</Text>
             </View>
 
             <View style={{ width: 36 }} />
@@ -124,9 +125,9 @@ export default function ForgotPasswordScreen() {
                   <Ionicons name="checkmark-circle" size={42} color="#059669" />
                 </View>
 
-                <Text style={styles.sentTitle}>OTP Sent</Text>
+                <Text style={styles.sentTitle}>{tr("OTP Sent")}</Text>
                 <Text style={styles.sentSubtitle}>
-                  A reset verification code has been sent to{' '}
+                  {tr("A reset verification code has been sent to")}{' '}
                   <Text style={styles.sentEmailHighlight}>{email.trim()}</Text>.
                 </Text>
 
@@ -145,7 +146,7 @@ export default function ForgotPasswordScreen() {
                     });
                   }}
                 >
-                  <Text style={styles.primaryBtnText}>Enter OTP & Reset Password</Text>
+                  <Text style={styles.primaryBtnText}>{tr("Enter OTP & Reset Password")}</Text>
                 </TouchableOpacity>
 
                 {/* Secondary Button: Resend Email */}
@@ -157,7 +158,7 @@ export default function ForgotPasswordScreen() {
                     setError('');
                   }}
                 >
-                  <Text style={styles.resendBtnText}>Resend Email / Change Address</Text>
+                  <Text style={styles.resendBtnText}>{tr("Resend Email / Change Address")}</Text>
                 </TouchableOpacity>
 
                 {/* Back to Login link */}
@@ -167,16 +168,16 @@ export default function ForgotPasswordScreen() {
                   onPress={() => router.replace('/auth/login')}
                 >
                   <Ionicons name="arrow-back" size={14} color="#64748B" />
-                  <Text style={styles.backToLoginText}>Back to login</Text>
+                  <Text style={styles.backToLoginText}>{tr("Back to login")}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               /* Phase 1: Request Password Reset View */
               <>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.cardHeading}>Reset Password</Text>
+                  <Text style={styles.cardHeading}>{tr("Reset Password")}</Text>
                   <Text style={styles.cardSubheading}>
-                    Enter your email and we’ll send a verification code to recover your account.
+                    {tr("Enter your email and we’ll send a verification code to recover your account.")}
                   </Text>
                 </View>
 
@@ -185,14 +186,14 @@ export default function ForgotPasswordScreen() {
                   <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={16} color="#DC2626" style={{ marginRight: 6 }} />
                     <Text style={styles.errorText} numberOfLines={2}>
-                      {error}
+                      {tr(error)}
                     </Text>
                   </View>
                 ) : null}
 
                 {/* Mode Segmented Switcher (Construction vs Interior) */}
                 <View style={styles.modeSection}>
-                  <Text style={styles.fieldLabel}>Workspace Mode</Text>
+                  <Text style={styles.fieldLabel}>{tr("Workspace Mode")}</Text>
                   <View style={styles.industrySegment}>
                     <TouchableOpacity
                       activeOpacity={0.8}
@@ -213,7 +214,7 @@ export default function ForgotPasswordScreen() {
                         ]}
                         numberOfLines={1}
                       >
-                        Construction
+                        {tr("Construction")}
                       </Text>
                     </TouchableOpacity>
 
@@ -236,7 +237,7 @@ export default function ForgotPasswordScreen() {
                         ]}
                         numberOfLines={1}
                       >
-                        Interior Design
+                        {tr("Interior Design")}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -244,12 +245,12 @@ export default function ForgotPasswordScreen() {
 
                 {/* Email Input */}
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Email Address</Text>
+                  <Text style={styles.fieldLabel}>{tr("Email Address")}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="mail-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="name@company.com"
+                      placeholder={tr("name@company.com")}
                       placeholderTextColor="#94A3B8"
                       value={email}
                       onChangeText={(val) => {
@@ -273,10 +274,10 @@ export default function ForgotPasswordScreen() {
                   {isLoading ? (
                     <View style={styles.loadingRow}>
                       <ActivityIndicator color="#FFFFFF" size="small" />
-                      <Text style={styles.primaryBtnText}>Sending reset code...</Text>
+                      <Text style={styles.primaryBtnText}>{tr("Sending reset code...")}</Text>
                     </View>
                   ) : (
-                    <Text style={styles.primaryBtnText}>Send Reset Code</Text>
+                    <Text style={styles.primaryBtnText}>{tr("Send Reset Code")}</Text>
                   )}
                 </TouchableOpacity>
 
@@ -287,7 +288,7 @@ export default function ForgotPasswordScreen() {
                   onPress={() => router.replace('/auth/login')}
                 >
                   <Ionicons name="arrow-back" size={14} color="#64748B" />
-                  <Text style={styles.backToLoginText}>Back to login</Text>
+                  <Text style={styles.backToLoginText}>{tr("Back to login")}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -296,7 +297,7 @@ export default function ForgotPasswordScreen() {
           {/* Trust Footer */}
           <View style={styles.trustFooter}>
             <Ionicons name="shield-checkmark" size={13} color="#94A3B8" />
-            <Text style={styles.trustFooterText}>Secure password recovery with encrypted OTP</Text>
+            <Text style={styles.trustFooterText}>{tr("Secure password recovery with encrypted OTP")}</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

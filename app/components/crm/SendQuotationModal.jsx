@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import {
   Modal,
@@ -68,12 +69,12 @@ export default function SendQuotationModal({
         setRecipientName(customerName || 'Client');
         setCustomSubject(`Interior Design Quotation — ${title} for ${customerName}`);
         setCustomMessage(
-          `Dear ${customerName},\n\nPlease find attached the detailed interior quotation (${title}) for your project. We have structured the scope of works as discussed.\n\nKindly review and let us know if you would like any revisions.`
+          tr("Dear {{customerName}},\n\nPlease find attached the detailed interior quotation ({{title}}) for your project. We have structured the scope of works as discussed.\n\nKindly review and let us know if you would like any revisions.", { customerName: customerName, title: title })
         );
       } else {
         setCustomSubject(`Quotation Reference (${title}) - ${customerName}`);
         setCustomMessage(
-          `Dear Vendor Partner,\n\nPlease find attached the quotation line items and material specifications (${title}) for project "${customerName}".\n\nKindly review the itemized quantities and specifications in the attached document. Please share your availability, lead time, and best proposal at the earliest.`
+          tr("Dear Vendor Partner,\n\nPlease find attached the quotation line items and material specifications ({{title}}) for project \"{{customerName}}\".\n\nKindly review the itemized quantities and specifications in the attached document. Please share your availability, lead time, and best proposal at the earliest.", { title: title, customerName: customerName })
         );
       }
       setAdditionalNote('');
@@ -99,17 +100,17 @@ export default function SendQuotationModal({
 
   const handleSend = async () => {
     if (!recipientEmail.trim()) {
-      Alert.alert('Email Required', 'Please enter a valid recipient email address.');
+      Alert.alert(tr("Email Required"), tr("Please enter a valid recipient email address."));
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(recipientEmail.trim())) {
-      Alert.alert('Invalid Email', 'Please enter a valid email format.');
+      Alert.alert(tr("Invalid Email"), tr("Please enter a valid email format."));
       return;
     }
 
     if (sendTarget === 'vendor' && !recipientName.trim()) {
-      Alert.alert('Vendor Required', 'Please select a vendor or enter the vendor name.');
+      Alert.alert(tr("Vendor Required"), tr("Please select a vendor or enter the vendor name."));
       return;
     }
 
@@ -134,12 +135,12 @@ export default function SendQuotationModal({
         quotationIndex: typeof quotationIndex === 'number' ? quotationIndex : undefined,
       });
 
-      Alert.alert('Success', `Quotation dispatched to ${emailToSend}!`);
+      Alert.alert(tr("Success"), tr("Quotation dispatched to {{emailToSend}}!", { emailToSend: emailToSend }));
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
       console.warn('Failed to send quotation:', err);
-      Alert.alert('Failed to Send', err.message || 'Error occurred while emailing quotation.');
+      Alert.alert(tr("Failed to Send"), err.message || tr("Error occurred while emailing quotation."));
     } finally {
       setSending(false);
     }
@@ -154,9 +155,9 @@ export default function SendQuotationModal({
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Ionicons name="mail" size={17} color="#2563EB" />
-                <Text style={s.headerTitle}>Send Quotation</Text>
+                <Text style={s.headerTitle}>{tr("Send Quotation")}</Text>
               </View>
-              <Text style={s.headerSub}>Dispatch itemized quote proposal via email</Text>
+              <Text style={s.headerSub}>{tr("Dispatch itemized quote proposal via email")}</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
               <Ionicons name="close" size={20} color="#64748B" />
@@ -165,7 +166,7 @@ export default function SendQuotationModal({
 
           <ScrollView style={s.body} showsVerticalScrollIndicator={false}>
             {/* Target Selector */}
-            <Text style={s.label}>Send Recipient Target</Text>
+            <Text style={s.label}>{tr("Send Recipient Target")}</Text>
             <View style={s.targetTabs}>
               <TouchableOpacity
                 style={[s.targetTab, sendTarget === 'customer' && s.targetTabActive]}
@@ -181,7 +182,7 @@ export default function SendQuotationModal({
                   color={sendTarget === 'customer' ? '#2563EB' : '#64748B'}
                 />
                 <Text style={[s.targetTabText, sendTarget === 'customer' && s.targetTabTextActive]}>
-                  Client ({customerName})
+                  {tr("Client (")}{tr(customerName)})
                 </Text>
               </TouchableOpacity>
 
@@ -200,14 +201,14 @@ export default function SendQuotationModal({
                   color={sendTarget === 'vendor' ? '#2563EB' : '#64748B'}
                 />
                 <Text style={[s.targetTabText, sendTarget === 'vendor' && s.targetTabTextActive]}>
-                  Vendor
+                  {tr("Vendor")}
                 </Text>
               </TouchableOpacity>
             </View>
 
             {sendTarget === 'vendor' && (
               <>
-                <Text style={s.label}>Vendor *</Text>
+                <Text style={s.label}>{tr("Vendor *")}</Text>
                 <SelectField
                   value={selectedVendorId}
                   onChange={pickVendor}
@@ -215,47 +216,47 @@ export default function SendQuotationModal({
                     ...vendors.map((v) => ({ value: v._id, label: v.vendorCategory ? `${v.name} (${v.vendorCategory})` : v.name })),
                     { value: OTHER_VENDOR, label: 'Other vendor — enter details' },
                   ]}
-                  placeholder={vendors.length ? 'Select a vendor' : 'No vendors yet — choose "Other vendor"'}
+                  placeholder={vendors.length ? tr("Select a vendor") : tr("No vendors yet — choose \"Other vendor\"")}
                 />
-                <Text style={s.label}>Vendor / Contact Name</Text>
+                <Text style={s.label}>{tr("Vendor / Contact Name")}</Text>
                 <TextInput
                   style={s.input}
                   value={recipientName}
                   onChangeText={setRecipientName}
-                  placeholder="e.g. Greenply Industries"
+                  placeholder={tr("e.g. Greenply Industries")}
                   placeholderTextColor="#94A3B8"
                 />
               </>
             )}
 
             {/* Recipient Details */}
-            <Text style={s.label}>Recipient Email *</Text>
+            <Text style={s.label}>{tr("Recipient Email *")}</Text>
             <TextInput
               style={s.input}
               value={recipientEmail}
               onChangeText={setRecipientEmail}
-              placeholder={sendTarget === 'vendor' ? 'e.g. sales@vendor.com' : 'e.g. client@example.com'}
+              placeholder={sendTarget === 'vendor' ? tr("e.g. sales@vendor.com") : tr("e.g. client@example.com")}
               keyboardType="email-address"
               autoCapitalize="none"
               placeholderTextColor="#94A3B8"
             />
 
-            <Text style={s.label}>Subject</Text>
+            <Text style={s.label}>{tr("Subject")}</Text>
             <TextInput
               style={s.input}
               value={customSubject}
               onChangeText={setCustomSubject}
-              placeholder="Quotation email subject"
+              placeholder={tr("Quotation email subject")}
               placeholderTextColor="#94A3B8"
             />
 
-            <Text style={s.label}>Message Body</Text>
+            <Text style={s.label}>{tr("Message Body")}</Text>
             <TextInput
               style={[s.input, s.textArea]}
               value={customMessage}
               onChangeText={setCustomMessage}
               multiline
-              placeholder="Email content..."
+              placeholder={tr("Email content...")}
               placeholderTextColor="#94A3B8"
             />
 
@@ -264,25 +265,25 @@ export default function SendQuotationModal({
               <View style={s.summaryHeader}>
                 <Ionicons name="document-text" size={15} color="#2563EB" />
                 <Text style={s.summaryTitle}>
-                  {quotation.title || `Quotation v${quotation.version || 1}`}
+                  {quotation.title || tr("Quotation v{{value}}", { value: quotation.version || 1 })}
                 </Text>
               </View>
 
               <View style={s.summaryRow}>
-                <Text style={s.summaryLabel}>Line Items:</Text>
-                <Text style={s.summaryVal}>{itemsCount} items</Text>
+                <Text style={s.summaryLabel}>{tr("Line Items:")}</Text>
+                <Text style={s.summaryVal}>{tr(itemsCount)}{tr(" items")}</Text>
               </View>
 
               {quotation.taxPercentage > 0 && (
                 <View style={s.summaryRow}>
-                  <Text style={s.summaryLabel}>Tax (GST {quotation.taxPercentage}%):</Text>
+                  <Text style={s.summaryLabel}>{tr("Tax (GST ")}{tr(quotation.taxPercentage)}%):</Text>
                   <Text style={s.summaryVal}>{formatExactCurrency(quotation.tax || 0)}</Text>
                 </View>
               )}
 
               {quotation.discount > 0 && (
                 <View style={s.summaryRow}>
-                  <Text style={s.summaryLabel}>Discount:</Text>
+                  <Text style={s.summaryLabel}>{tr("Discount:")}</Text>
                   <Text style={[s.summaryVal, { color: '#059669' }]}>
                     - {formatExactCurrency(quotation.discount || 0)}
                   </Text>
@@ -290,7 +291,7 @@ export default function SendQuotationModal({
               )}
 
               <View style={s.summaryTotalRow}>
-                <Text style={s.summaryTotalLabel}>Grand Total Value:</Text>
+                <Text style={s.summaryTotalLabel}>{tr("Grand Total Value:")}</Text>
                 <Text style={s.summaryTotalVal}>{formatExactCurrency(totalAmount)}</Text>
               </View>
             </View>
@@ -301,7 +302,7 @@ export default function SendQuotationModal({
           {/* Footer */}
           <View style={s.footer}>
             <TouchableOpacity style={s.cancelBtn} onPress={onClose} disabled={sending}>
-              <Text style={s.cancelBtnText}>Cancel</Text>
+              <Text style={s.cancelBtnText}>{tr("Cancel")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -314,7 +315,7 @@ export default function SendQuotationModal({
               ) : (
                 <>
                   <Ionicons name="send" size={15} color="#FFFFFF" />
-                  <Text style={s.sendBtnText}>Send Quotation</Text>
+                  <Text style={s.sendBtnText}>{tr("Send Quotation")}</Text>
                 </>
               )}
             </TouchableOpacity>

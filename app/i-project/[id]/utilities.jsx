@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -63,7 +64,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setSystems(res?.success && res?.data ? res.data : []);
     } catch (e) {
       console.error('Failed to load utilities', e);
-      showToast('Failed to fetch Utilities checklists', 'error');
+      showToast(tr("Failed to fetch Utilities checklists"), 'error');
     } finally {
       setLoading(false);
     }
@@ -89,11 +90,11 @@ const { can: canDo } = useProjectPermissions(projectId);
         readings: checkpointReadings,
         actualProgress: parseInt(systemProgress, 10) || 0,
       });
-      showToast('Utility commissioning checkpoint updated!', 'success');
+      showToast(tr("Utility commissioning checkpoint updated!"), 'success');
       setSelectedCheckpoint(null);
       fetchUtilities();
     } catch (e) {
-      showToast(e.message || 'Failed to save checkpoint update', 'error');
+      showToast(e.message || tr("Failed to save checkpoint update"), 'error');
     } finally {
       setUpdating(false);
     }
@@ -108,7 +109,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Systems Commissioning</Text>
+            <Text style={s.headerTitle}>{tr("Systems Commissioning")}</Text>
           </View>
         </View>
 
@@ -119,7 +120,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             {systems.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="flash-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No utility systems yet</Text>
+                <Text style={s.emptyTitle}>{tr("No utility systems yet")}</Text>
               </View>
             ) : (
               systems.map((sys) => {
@@ -136,7 +137,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={s.sysTitle}>{systemName(sys.system)}</Text>
                         <Text style={[s.sysSub, failed > 0 && { color: '#DC2626' }]}>
-                          {passed} of {checks.length} checks passed{failed > 0 ? ` · ${failed} failed` : ''}
+                          {tr(passed)}{tr(" of ")}{checks.length}{tr(" checks passed")}{failed > 0 ? tr(" · {{failed}} failed", { failed: failed }) : ''}
                         </Text>
                       </View>
                       <Text style={s.sysProgress}>{sys.actualProgress || 0}%</Text>
@@ -156,12 +157,12 @@ const { can: canDo } = useProjectPermissions(projectId);
                             activeOpacity={0.7}
                           >
                             <View style={{ flex: 1, minWidth: 0 }}>
-                              <Text style={s.cpName}>{cp.name}</Text>
-                              {!!cp.readings && <Text style={s.cpReadings} numberOfLines={2}>{cp.readings}</Text>}
+                              <Text style={s.cpName}>{tr(cp.name)}</Text>
+                              {!!cp.readings && <Text style={s.cpReadings} numberOfLines={2}>{tr(cp.readings)}</Text>}
                             </View>
                             <View style={s.cpStatus}>
                               <Ionicons name={st.icon} size={16} color={st.color} />
-                              <Text style={[s.cpStatusText, { color: st.color }]}>{st.label}</Text>
+                              <Text style={[s.cpStatusText, { color: st.color }]}>{tr(st.label)}</Text>
                             </View>
                           </TouchableOpacity>
                         );
@@ -182,29 +183,29 @@ const { can: canDo } = useProjectPermissions(projectId);
             {selectedCheckpoint && (
               <>
                 <View style={s.modalHeader}>
-                  <Text style={s.modalTitle} numberOfLines={1}>Update: {selectedCheckpoint.name}</Text>
+                  <Text style={s.modalTitle} numberOfLines={1}>{tr("Update: ")}{tr(selectedCheckpoint.name)}</Text>
                   <TouchableOpacity onPress={() => setSelectedCheckpoint(null)}>
                     <Ionicons name="close" size={22} color="#64748B" />
                   </TouchableOpacity>
                 </View>
 
-                <Text style={s.label}>Test Audit Status</Text>
+                <Text style={s.label}>{tr("Test Audit Status")}</Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                   {STATUS_OPTIONS.map((opt) => (
                     <TouchableOpacity key={opt.value} style={[s.chip, checkpointStatus === opt.value && s.chipActive]} onPress={() => setCheckpointStatus(opt.value)}>
-                      <Text style={[s.chipText, checkpointStatus === opt.value && s.chipTextActive]}>{opt.label}</Text>
+                      <Text style={[s.chipText, checkpointStatus === opt.value && s.chipTextActive]}>{tr(opt.label)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
-                <Text style={s.label}>Logged Readings / Notes</Text>
-                <TextInput style={s.input} placeholder="e.g. Pressure 10.2 Bar for 2 hours" placeholderTextColor="#94A3B8" value={checkpointReadings} onChangeText={setCheckpointReadings} />
+                <Text style={s.label}>{tr("Logged Readings / Notes")}</Text>
+                <TextInput style={s.input} placeholder={tr("e.g. Pressure 10.2 Bar for 2 hours")} placeholderTextColor="#94A3B8" value={checkpointReadings} onChangeText={setCheckpointReadings} />
 
-                <Text style={s.label}>Overall System Progress (%)</Text>
+                <Text style={s.label}>{tr("Overall System Progress (%)")}</Text>
                 <TextInput style={s.input} keyboardType="numeric" value={systemProgress} onChangeText={setSystemProgress} />
 
                 <TouchableOpacity style={[s.saveBtn, updating && { opacity: 0.7 }]} onPress={handleSave} disabled={updating}>
-                  {updating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Save Changes</Text>}
+                  {updating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Save Changes")}</Text>}
                 </TouchableOpacity>
               </>
             )}

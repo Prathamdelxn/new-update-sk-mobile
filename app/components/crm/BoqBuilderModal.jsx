@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
@@ -204,13 +205,13 @@ export default function BoqBuilderModal({
 
   const handleRemoveSection = (secId) => {
     if (sections.length <= 1) {
-      Alert.alert('Notice', 'A BOQ must have at least one section.');
+      Alert.alert(tr("Notice"), tr("A BOQ must have at least one section."));
       return;
     }
-    Alert.alert('Remove Section', 'Are you sure you want to remove this section and all its line items?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Remove Section"), tr("Are you sure you want to remove this section and all its line items?"), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete',
+        text: tr("Delete"),
         style: 'destructive',
         onPress: () => {
           setSections((prev) => prev.filter((s) => s.id !== secId));
@@ -243,7 +244,7 @@ export default function BoqBuilderModal({
 
   const handleRemoveItem = (itemId) => {
     if (items.length <= 1) {
-      Alert.alert('Notice', 'BOQ must contain at least one item.');
+      Alert.alert(tr("Notice"), tr("BOQ must contain at least one item."));
       return;
     }
     setItems((prev) => prev.filter((it) => it.id !== itemId));
@@ -268,7 +269,7 @@ export default function BoqBuilderModal({
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission Denied', 'Camera roll access is required to upload blueprint images.');
+        Alert.alert(tr("Permission Denied"), tr("Camera roll access is required to upload blueprint images."));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -296,7 +297,7 @@ export default function BoqBuilderModal({
       }
     } catch (err) {
       console.warn('Upload error:', err);
-      Alert.alert('Upload Failed', err.message || 'Failed to upload image.');
+      Alert.alert(tr("Upload Failed"), err.message || tr("Failed to upload image."));
     } finally {
       setUploadingDrawing(false);
     }
@@ -321,69 +322,69 @@ export default function BoqBuilderModal({
   // Save BOQ
   const handleSubmit = async () => {
     if (isReadOnly) {
-      Alert.alert('Locked', 'BOQ cannot be edited because quotation is already approved.');
+      Alert.alert(tr("Locked"), tr("BOQ cannot be edited because quotation is already approved."));
       return;
     }
     if (items.length === 0) {
-      Alert.alert('Error', 'Please add at least one line item.');
+      Alert.alert(tr("Error"), tr("Please add at least one line item."));
       return;
     }
     for (const sec of sections) {
       const t = String(sec.sectionTitle || '').trim();
       if (!t) {
-        Alert.alert('Error', 'Please provide a category/section name for all sections.');
+        Alert.alert(tr("Error"), tr("Please provide a category/section name for all sections."));
         return;
       }
       if (t.length > 80) {
-        Alert.alert('Error', `Section name "${t.slice(0, 25)}..." exceeds maximum allowed length of 80 characters.`);
+        Alert.alert(tr("Error"), tr("Section name \"{{t}}...\" exceeds maximum allowed length of 80 characters.", { t: t.slice(0, 25) }));
         return;
       }
       if (sec.scopeDescription && sec.scopeDescription.trim().length > 1000) {
-        Alert.alert('Error', `Section Scope Note in "${t.slice(0, 25)}" exceeds maximum allowed length of 1000 characters.`);
+        Alert.alert(tr("Error"), tr("Section Scope Note in \"{{t}}\" exceeds maximum allowed length of 1000 characters.", { t: t.slice(0, 25) }));
         return;
       }
     }
     for (const i of items) {
       const name = String(i.itemName || '').trim();
       if (!name) {
-        Alert.alert('Error', 'Please provide an Item Short Description for all line items.');
+        Alert.alert(tr("Error"), tr("Please provide an Item Short Description for all line items."));
         return;
       }
       if (name.length > 120) {
-        Alert.alert('Error', `Item title "${name.slice(0, 25)}..." exceeds maximum allowed length of 120 characters.`);
+        Alert.alert(tr("Error"), tr("Item title \"{{name}}...\" exceeds maximum allowed length of 120 characters.", { name: name.slice(0, 25) }));
         return;
       }
       if (i.description && i.description.trim().length > 1000) {
-        Alert.alert('Error', `Item description for "${name.slice(0, 25)}" exceeds maximum allowed length of 1000 characters.`);
+        Alert.alert(tr("Error"), tr("Item description for \"{{name}}\" exceeds maximum allowed length of 1000 characters.", { name: name.slice(0, 25) }));
         return;
       }
       if (i.unit && i.unit.trim().length > 15) {
-        Alert.alert('Error', `Unit "${i.unit}" exceeds maximum allowed length of 15 characters.`);
+        Alert.alert(tr("Error"), tr("Unit \"{{unit}}\" exceeds maximum allowed length of 15 characters.", { unit: i.unit }));
         return;
       }
       if (!i.quantity || parseFloat(i.quantity) <= 0) {
-        Alert.alert('Error', `Quantity must be greater than 0 for "${name.slice(0, 25)}".`);
+        Alert.alert(tr("Error"), tr("Quantity must be greater than 0 for \"{{name}}\".", { name: name.slice(0, 25) }));
         return;
       }
       if (parseFloat(i.quantity) > 999999999) {
-        Alert.alert('Error', `Quantity is too large for "${name.slice(0, 25)}" (maximum 999,999,999).`);
+        Alert.alert(tr("Error"), tr("Quantity is too large for \"{{name}}\" (maximum 999,999,999).", { name: name.slice(0, 25) }));
         return;
       }
       if (parseFloat(i.rate) > 999999999) {
-        Alert.alert('Error', `Rate is too large for "${name.slice(0, 25)}" (maximum 999,999,999).`);
+        Alert.alert(tr("Error"), tr("Rate is too large for \"{{name}}\" (maximum 999,999,999).", { name: name.slice(0, 25) }));
         return;
       }
     }
     if (notes && notes.trim().length > 2000) {
-      Alert.alert('Error', 'Overall BOQ terms/notes cannot exceed 2000 characters.');
+      Alert.alert(tr("Error"), tr("Overall BOQ terms/notes cannot exceed 2000 characters."));
       return;
     }
     if (items.some((i) => i.rate === undefined || i.rate === null || parseFloat(i.rate) <= 0)) {
-      Alert.alert('Error', `Unit rate must be greater than ${cur} 0 for all items.`);
+      Alert.alert(tr("Error"), tr("Unit rate must be greater than {{cur}} 0 for all items.", { cur: cur }));
       return;
     }
     if (totalAmount <= 0) {
-      Alert.alert('Error', `Total BOQ amount must be greater than ${cur} 0.`);
+      Alert.alert(tr("Error"), tr("Total BOQ amount must be greater than {{cur}} 0.", { cur: cur }));
       return;
     }
 
@@ -474,7 +475,7 @@ export default function BoqBuilderModal({
       onClose();
     } catch (error) {
       console.error('Error saving BOQ:', error);
-      Alert.alert('Error', error.message || 'Failed to save BOQ. Please try again.');
+      Alert.alert(tr("Error"), error.message || tr("Failed to save BOQ. Please try again."));
     } finally {
       setIsSubmitting(false);
     }
@@ -490,15 +491,15 @@ export default function BoqBuilderModal({
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <Text style={s.modalTitle}>
                   {isReadOnly
-                    ? `View BOQ (v${targetBoq?.version || editingBoqIndex + 1})`
+                    ? tr("View BOQ (v{{value}})", { value: targetBoq?.version || editingBoqIndex + 1 })
                     : isEditing
-                    ? `Edit BOQ (v${targetBoq?.version || editingBoqIndex + 1})`
-                    : `New BOQ Version (v${existingBoqs.length + 1})`}
+                    ? tr("Edit BOQ (v{{value}})", { value: targetBoq?.version || editingBoqIndex + 1 })
+                    : tr("New BOQ Version (v{{value}})", { value: existingBoqs.length + 1 })}
                 </Text>
                 {isReadOnly && (
                   <View style={s.lockedBadge}>
                     <Ionicons name="lock-closed" size={11} color="#059669" />
-                    <Text style={s.lockedBadgeText}>Locked</Text>
+                    <Text style={s.lockedBadgeText}>{tr("Locked")}</Text>
                   </View>
                 )}
               </View>
@@ -506,8 +507,8 @@ export default function BoqBuilderModal({
                 {isReadOnly
                   ? `Created ${targetBoq?.createdAt ? new Date(targetBoq.createdAt).toLocaleDateString() : ''} ${targetBoq?.createdByName ? `by ${targetBoq.createdByName}` : ''}`
                   : isEditing
-                  ? `Editing • Originally created by ${targetBoq?.createdByName || currentUserName}`
-                  : `Creating as ${currentUserName} • Today, ${new Date().toLocaleDateString()}`}
+                  ? tr("Editing • Originally created by {{value}}", { value: targetBoq?.createdByName || currentUserName })
+                  : tr("Creating as {{currentUserName}} • Today, {{value}}", { currentUserName: currentUserName, value: new Date().toLocaleDateString() })}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
@@ -544,12 +545,12 @@ export default function BoqBuilderModal({
                             value={section.sectionTitle}
                             maxLength={80}
                             onChangeText={(val) => handleUpdateSection(section.id, 'sectionTitle', val)}
-                            placeholder={`Section ${secIdx + 1} Name (e.g. Living Room)`}
+                            placeholder={tr("Section {{value}} Name (e.g. Living Room)", { value: secIdx + 1 })}
                             placeholderTextColor="#94A3B8"
                           />
                         )}
                         <Text style={s.sectionItemCountText}>
-                          {secItems.length} items • Section Total: {formatExactCurrency(secTotal)}
+                          {secItems.length}{tr(" items • Section Total: ")}{formatExactCurrency(secTotal)}
                         </Text>
                       </View>
                     </TouchableOpacity>
@@ -569,7 +570,7 @@ export default function BoqBuilderModal({
                         value={section.scopeDescription}
                         maxLength={1000}
                         onChangeText={(val) => handleUpdateSection(section.id, 'scopeDescription', val)}
-                        placeholder="Scope description / technical specs for this zone (Optional)"
+                        placeholder={tr("Scope description / technical specs for this zone (Optional)")}
                         placeholderTextColor="#94A3B8"
                         multiline
                         editable={!isReadOnly}
@@ -579,7 +580,7 @@ export default function BoqBuilderModal({
                       <View style={s.attachmentsRow}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                           <Ionicons name="document-attach" size={14} color="#2563EB" />
-                          <Text style={s.attachmentsTitle}>Linked Drawings & Blueprints</Text>
+                          <Text style={s.attachmentsTitle}>{tr("Linked Drawings & Blueprints")}</Text>
                         </View>
 
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.attachmentsScroll}>
@@ -597,7 +598,7 @@ export default function BoqBuilderModal({
                               >
                                 <Ionicons name="image" size={18} color="#2563EB" />
                                 <Text style={s.attThumbName} numberOfLines={1}>
-                                  {att.name}
+                                  {tr(att.name)}
                                 </Text>
                               </TouchableOpacity>
                               {!isReadOnly && (
@@ -617,7 +618,7 @@ export default function BoqBuilderModal({
                               onPress={() => setActiveDrawingPickerSecId(section.id)}
                             >
                               <Ionicons name="add" size={15} color="#2563EB" />
-                              <Text style={s.addAttBtnText}>Attach Drawing</Text>
+                              <Text style={s.addAttBtnText}>{tr("Attach Drawing")}</Text>
                             </TouchableOpacity>
                           )}
                         </ScrollView>
@@ -637,13 +638,13 @@ export default function BoqBuilderModal({
                             </View>
 
                             {/* Item Name */}
-                            <Text style={s.fieldLabel}>Item Title *</Text>
+                            <Text style={s.fieldLabel}>{tr("Item Title *")}</Text>
                             <TextInput
                               style={[s.input, isReadOnly && s.inputDisabled]}
                               value={item.itemName}
                               maxLength={120}
                               onChangeText={(val) => handleUpdateItemField(item.id, 'itemName', val)}
-                              placeholder="e.g. 18mm BWP Marine Plywood Wardrobe"
+                              placeholder={tr("e.g. 18mm BWP Marine Plywood Wardrobe")}
                               placeholderTextColor="#94A3B8"
                               editable={!isReadOnly}
                             />
@@ -651,23 +652,23 @@ export default function BoqBuilderModal({
                             {/* Brand / Make & Category Row */}
                             <View style={s.twoColRow}>
                               <View style={{ flex: 1 }}>
-                                <Text style={s.fieldLabel}>Brand / Make</Text>
+                                <Text style={s.fieldLabel}>{tr("Brand / Make")}</Text>
                                 <TextInput
                                   style={[s.input, isReadOnly && s.inputDisabled]}
                                   value={item.brand}
                                   onChangeText={(val) => handleUpdateItemField(item.id, 'brand', val)}
-                                  placeholder="e.g. CenturyPly / Hafele"
+                                  placeholder={tr("e.g. CenturyPly / Hafele")}
                                   placeholderTextColor="#94A3B8"
                                   editable={!isReadOnly}
                                 />
                               </View>
                               <View style={{ flex: 1 }}>
-                                <Text style={s.fieldLabel}>Trade / Category</Text>
+                                <Text style={s.fieldLabel}>{tr("Trade / Category")}</Text>
                                 <TextInput
                                   style={[s.input, isReadOnly && s.inputDisabled]}
                                   value={item.category}
                                   onChangeText={(val) => handleUpdateItemField(item.id, 'category', val)}
-                                  placeholder="e.g. Carpentry"
+                                  placeholder={tr("e.g. Carpentry")}
                                   placeholderTextColor="#94A3B8"
                                   editable={!isReadOnly}
                                 />
@@ -675,13 +676,13 @@ export default function BoqBuilderModal({
                             </View>
 
                             {/* Detailed Description / Technical Specs */}
-                            <Text style={s.fieldLabel}>Technical Specifications</Text>
+                            <Text style={s.fieldLabel}>{tr("Technical Specifications")}</Text>
                             <TextInput
                               style={[s.specInput, isReadOnly && s.inputDisabled]}
                               value={item.description}
                               maxLength={1000}
                               onChangeText={(val) => handleUpdateItemField(item.id, 'description', val)}
-                              placeholder="Finish specifications, laminate thickness, edge-banding, hardware make..."
+                              placeholder={tr("Finish specifications, laminate thickness, edge-banding, hardware make...")}
                               placeholderTextColor="#94A3B8"
                               multiline
                               editable={!isReadOnly}
@@ -690,7 +691,7 @@ export default function BoqBuilderModal({
                             {/* Qty, Unit, Rate Row */}
                             <View style={s.qtyRateRow}>
                               <View style={{ flex: 1 }}>
-                                <Text style={s.fieldLabel}>Qty *</Text>
+                                <Text style={s.fieldLabel}>{tr("Qty *")}</Text>
                                 <TextInput
                                   style={[s.input, isReadOnly && s.inputDisabled]}
                                   value={String(item.quantity)}
@@ -704,20 +705,20 @@ export default function BoqBuilderModal({
                               </View>
 
                               <View style={{ flex: 1.2 }}>
-                                <Text style={s.fieldLabel}>Unit</Text>
+                                <Text style={s.fieldLabel}>{tr("Unit")}</Text>
                                 <TextInput
                                   style={[s.input, isReadOnly && s.inputDisabled]}
                                   value={item.unit}
                                   maxLength={15}
                                   onChangeText={(val) => handleUpdateItemField(item.id, 'unit', val)}
-                                  placeholder="sqft"
+                                  placeholder={tr("sqft")}
                                   placeholderTextColor="#94A3B8"
                                   editable={!isReadOnly}
                                 />
                               </View>
 
                               <View style={{ flex: 1.4 }}>
-                                <Text style={s.fieldLabel}>Rate ({cur}) *</Text>
+                                <Text style={s.fieldLabel}>{tr("Rate (")}{tr(cur)}) *</Text>
                                 <TextInput
                                   style={[s.input, isReadOnly && s.inputDisabled]}
                                   value={String(item.rate)}
@@ -741,7 +742,7 @@ export default function BoqBuilderModal({
                                     onPress={() => handleUpdateItemField(item.id, 'unit', u.value)}
                                   >
                                     <Text style={[s.uomPillText, item.unit?.toLowerCase() === u.value.toLowerCase() && s.uomPillTextActive]}>
-                                      {u.label}
+                                      {tr(u.label)}
                                     </Text>
                                   </TouchableOpacity>
                                 ))}
@@ -750,7 +751,7 @@ export default function BoqBuilderModal({
 
                             {/* Line Total */}
                             <View style={s.lineTotalRow}>
-                              <Text style={s.lineTotalLabel}>Subtotal:</Text>
+                              <Text style={s.lineTotalLabel}>{tr("Subtotal:")}</Text>
                               <Text style={s.lineTotalValue}>{formatExactCurrency(item.amount || 0)}</Text>
                             </View>
                           </View>
@@ -762,7 +763,7 @@ export default function BoqBuilderModal({
                             onPress={() => handleAddItemToSection(section.id)}
                           >
                             <Ionicons name="add-circle" size={18} color="#2563EB" />
-                            <Text style={s.addItemBtnText}>Add Item to {section.sectionTitle || 'Section'}</Text>
+                            <Text style={s.addItemBtnText}>{tr("Add Item to ")}{section.sectionTitle || tr("Section")}</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -775,7 +776,7 @@ export default function BoqBuilderModal({
             {!isReadOnly && (
               <TouchableOpacity style={s.addSectionBtn} onPress={handleAddSection}>
                 <Ionicons name="duplicate-outline" size={18} color="#2563EB" />
-                <Text style={s.addSectionBtnText}>+ Add New Section / Zone</Text>
+                <Text style={s.addSectionBtnText}>{tr("+ Add New Section / Zone")}</Text>
               </TouchableOpacity>
             )}
 
@@ -785,8 +786,8 @@ export default function BoqBuilderModal({
                 <Ionicons name="warning" size={18} color="#E11D48" style={{ marginTop: 1 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.overBudgetText}>
-                    <Text style={{ fontFamily: 'Inter-Bold' }}>Target Budget Exceeded: </Text>
-                    Est. budget ({budgetRange}) exceeded by{' '}
+                    <Text style={{ fontFamily: 'Inter-Bold' }}>{tr("Target Budget Exceeded: ")}</Text>
+                    {tr("Est. budget (")}{tr(budgetRange)}{tr(") exceeded by")}{' '}
                     <Text style={{ fontFamily: 'Inter-Bold', color: '#E11D48' }}>
                       {formatExactCurrency(budgetExcess)}
                     </Text>
@@ -801,9 +802,9 @@ export default function BoqBuilderModal({
             {/* Grand Total Card */}
             <View style={s.grandTotalCard}>
               <View>
-                <Text style={s.grandTotalLabel}>TOTAL ESTIMATED BOQ AMOUNT</Text>
+                <Text style={s.grandTotalLabel}>{tr("TOTAL ESTIMATED BOQ AMOUNT")}</Text>
                 <Text style={s.grandTotalSub}>
-                  {items.length} items across {sections.length} sections
+                  {items.length}{tr(" items across ")}{sections.length}{tr(" sections")}
                 </Text>
               </View>
               <Text style={[s.grandTotalValue, isOverBudget && { color: '#E11D48' }]}>
@@ -814,7 +815,7 @@ export default function BoqBuilderModal({
             {/* Notes / Terms */}
             <View style={{ marginTop: 4 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={s.fieldLabel}>Notes & Scope Conditions (Optional)</Text>
+                <Text style={s.fieldLabel}>{tr("Notes & Scope Conditions (Optional)")}</Text>
                 {!isReadOnly && (
                   <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: notes.length >= 2000 ? '#E11D48' : '#94A3B8' }}>{notes.length}/2000</Text>
                 )}
@@ -824,7 +825,7 @@ export default function BoqBuilderModal({
                 maxLength={2000}
                 value={notes}
                 onChangeText={setNotes}
-                placeholder="Exclusions, payment terms, or client stipulations for this BOQ..."
+                placeholder={tr("Exclusions, payment terms, or client stipulations for this BOQ...")}
                 placeholderTextColor="#94A3B8"
                 multiline
                 editable={!isReadOnly}
@@ -837,7 +838,7 @@ export default function BoqBuilderModal({
           {/* Footer */}
           <View style={s.footer}>
             <TouchableOpacity style={isReadOnly ? s.saveBtn : s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={isReadOnly ? s.saveBtnText : s.cancelBtnText}>{isReadOnly ? 'Close' : 'Cancel'}</Text>
+              <Text style={isReadOnly ? s.saveBtnText : s.cancelBtnText}>{isReadOnly ? tr("Close") : tr("Cancel")}</Text>
             </TouchableOpacity>
             {!isReadOnly && (
               <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
@@ -846,7 +847,7 @@ export default function BoqBuilderModal({
                 ) : (
                   <>
                     <Ionicons name="save-outline" size={16} color="#FFFFFF" />
-                    <Text style={s.saveBtnText}>{isEditing ? 'Update BOQ' : 'Save BOQ'}</Text>
+                    <Text style={s.saveBtnText}>{isEditing ? tr("Update BOQ") : tr("Save BOQ")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -865,16 +866,16 @@ export default function BoqBuilderModal({
         <View style={s.pickerOverlay}>
           <View style={s.pickerCard}>
             <View style={s.pickerHeader}>
-              <Text style={s.pickerTitle}>Attach Drawing / Blueprint</Text>
+              <Text style={s.pickerTitle}>{tr("Attach Drawing / Blueprint")}</Text>
               <TouchableOpacity onPress={() => setActiveDrawingPickerSecId(null)}>
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={{ maxHeight: 300, marginVertical: 10 }}>
-              <Text style={s.pickerSectionLabel}>Project Approved / Uploaded Drawings</Text>
+              <Text style={s.pickerSectionLabel}>{tr("Project Approved / Uploaded Drawings")}</Text>
               {drawings.length === 0 ? (
-                <Text style={s.pickerEmptyText}>No drawings uploaded in this lead yet.</Text>
+                <Text style={s.pickerEmptyText}>{tr("No drawings uploaded in this lead yet.")}</Text>
               ) : (
                 drawings.map((dw) => (
                   <TouchableOpacity
@@ -885,10 +886,10 @@ export default function BoqBuilderModal({
                     <Ionicons name="document-attach" size={18} color="#2563EB" />
                     <View style={{ flex: 1, marginLeft: 8 }}>
                       <Text style={s.drawingPickTitle} numberOfLines={1}>
-                        {dw.title || dw.name || 'Drawing'}
+                        {dw.title || dw.name || tr("Drawing")}
                       </Text>
                       <Text style={s.drawingPickSub}>
-                        {dw.category || 'General'} • v{dw.version || 1}
+                        {dw.category || tr("General")} • v{dw.version || 1}
                       </Text>
                     </View>
                     <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
@@ -907,7 +908,7 @@ export default function BoqBuilderModal({
               ) : (
                 <>
                   <Ionicons name="cloud-upload-outline" size={18} color="#2563EB" />
-                  <Text style={s.uploadPickBtnText}>Upload New Image / Blueprint</Text>
+                  <Text style={s.uploadPickBtnText}>{tr("Upload New Image / Blueprint")}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -920,7 +921,7 @@ export default function BoqBuilderModal({
         visible={Boolean(viewingAttachment)}
         onClose={() => setViewingAttachment(null)}
         attachment={viewingAttachment}
-        title="BOQ Specification Drawing"
+        title={tr("BOQ Specification Drawing")}
         leadName={customerName}
         sectionTitle={viewingAttachment?.sectionTitle}
       />

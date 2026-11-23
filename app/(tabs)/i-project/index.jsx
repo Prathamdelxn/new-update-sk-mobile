@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity,
@@ -15,6 +16,7 @@ import { queryKeys, invalidateProjectQueries, useRefreshOnFocus } from '../../co
 import interiorApiClient from '../../services/interiorApiClient';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
 import { formatCompactCurrency } from '../../utils/common/format';
+import { useOrgCurrency } from '../../utils/interior/orgCurrency';
 import SelectField from '../../components/common/SelectField';
 import SkeletonList from '../../components/common/SkeletonList';
 
@@ -58,16 +60,17 @@ function getProjectBudget(project) {
   return isNaN(parsed) ? 0 : parsed;
 }
 
-// Same short form as the web (e.g. ₹10.85M)
-function formatBudget(amount) {
+// Same short form as the web (e.g. QAR 10.85M), in the organisation's currency
+function formatBudget(amount, currency) {
   const num = typeof amount === 'number' ? amount : Number(amount) || 0;
-  return formatCompactCurrency(num > 0 ? num : 0);
+  return formatCompactCurrency(num > 0 ? num : 0, currency);
 }
 
 const NO_PROJECTS = [];
 const ProjectGap = () => <View style={{ height: 10 }} />;
 
 export default function InteriorProjectsScreen() {
+  const orgCurrency = useOrgCurrency();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { showToast } = useToast();
@@ -190,21 +193,21 @@ const { hasPermission: canDo } = useInteriorPermissions();
   const handleDeleteProject = (project) => {
     const id = project.id || project._id;
     Alert.alert(
-      'Delete Project',
-      `Are you sure you want to delete "${project.name}"? All linked tasks, milestones, and reports will be soft-deleted.`,
+      tr("Delete Project"),
+      tr("Are you sure you want to delete \"{{name}}\"? All linked tasks, milestones, and reports will be soft-deleted.", { name: project.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Delete',
+          text: tr("Delete"),
           style: 'destructive',
           onPress: async () => {
             setDeletingId(id);
             try {
               await interiorApiClient.delete(`/projects/${id}`);
-              showToast('Project deleted successfully', 'success');
+              showToast(tr("Project deleted successfully"), 'success');
               loadProjects();
             } catch (e) {
-              showToast(e.message || 'Failed to delete project', 'error');
+              showToast(e.message || tr("Failed to delete project"), 'error');
             } finally {
               setDeletingId(null);
             }
@@ -216,7 +219,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
 
   const handleCreateProject = async () => {
     if (!form.name || !form.client || !form.startDate || !form.endDate || !form.budgetAmount) {
-      showToast('Please fill in project name, client, dates and budget.', 'error');
+      showToast(tr("Please fill in project name, client, dates and budget."), 'error');
       return;
     }
     setCreateLoading(true);
@@ -227,23 +230,23 @@ const { hasPermission: canDo } = useInteriorPermissions();
         type: form.type,
         startDate: form.startDate.toISOString(),
         endDate: form.endDate.toISOString(),
-        budget: { amount: parseFloat(form.budgetAmount) || 0, currency: 'INR' },
+        budget: { amount: parseFloat(form.budgetAmount) || 0, currency: orgCurrency.code },
         location: { city: form.city, address: form.address },
         description: form.description,
       };
       if (editingProjectId) {
         await interiorApiClient.put(`/projects/${editingProjectId}`, payload);
-        showToast('Project updated successfully!', 'success');
+        showToast(tr("Project updated successfully!"), 'success');
       } else {
         await interiorApiClient.post('/projects', payload);
-        showToast('Project created successfully!', 'success');
+        showToast(tr("Project created successfully!"), 'success');
       }
       setIsModalVisible(false);
       setEditingProjectId(null);
       setForm(emptyForm);
       loadProjects();
     } catch (e) {
-      showToast(e.message || 'Failed to save project', 'error');
+      showToast(e.message || tr("Failed to save project"), 'error');
     } finally {
       setCreateLoading(false);
     }
@@ -252,7 +255,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
   const openProject = (project) => {
     const id = project.id || project._id;
     if (!id) {
-      showToast('This project has no id and cannot be opened.', 'error');
+      showToast(tr("This project has no id and cannot be opened."), 'error');
       return;
     }
     router.push(`/i-project/${id}`);
@@ -265,11 +268,11 @@ const { hasPermission: canDo } = useInteriorPermissions();
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerGreeting}>Workspace</Text>
+            <Text style={s.headerGreeting}>{tr("Workspace")}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={s.pageTitle}>Interior Projects</Text>
+              <Text style={s.pageTitle}>{tr("Interior Projects")}</Text>
               <View style={s.totalBadge}>
-                <Text style={s.totalBadgeText}>{projects.length} Total</Text>
+                <Text style={s.totalBadgeText}>{projects.length}{tr(" Total")}</Text>
               </View>
             </View>
             {/* <Text style={s.headerSubtitle}>Executive overview, tracking progress & delivery schedules.</Text> */}
@@ -298,7 +301,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
               <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
               <TextInput
                 style={s.searchInput}
-                placeholder="Search project, code, client, city..."
+                placeholder={tr("Search project, code, client, city...")}
                 placeholderTextColor="#94A3B8"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -313,7 +316,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                   onPress={() => setStatusFilter(f.key)}
                 >
                   <Text style={[s.filterChipText, statusFilter === f.key && s.filterChipTextActive]}>
-                    {f.label} <Text style={statusFilter === f.key ? s.filterChipCountActive : s.filterChipCount}>{statCounts[f.key]}</Text>
+                    {tr(f.label)} <Text style={statusFilter === f.key ? s.filterChipCountActive : s.filterChipCount}>{tr(statCounts[f.key])}</Text>
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -323,11 +326,11 @@ const { hasPermission: canDo } = useInteriorPermissions();
             ListEmptyComponent={
                 <View style={s.empty}>
                   <Ionicons name="folder-open-outline" size={44} color="#94A3B8" />
-                  <Text style={s.emptyTitle}>No projects found</Text>
+                  <Text style={s.emptyTitle}>{tr("No projects found")}</Text>
                   {canDo('projects', 'create') && (
                     <TouchableOpacity style={s.emptyBtn} onPress={openCreate}>
                       <Ionicons name="add" size={16} color="#FFFFFF" />
-                      <Text style={s.emptyBtnText}>New Project</Text>
+                      <Text style={s.emptyBtnText}>{tr("New Project")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -340,9 +343,9 @@ const { hasPermission: canDo } = useInteriorPermissions();
                     // One headline (name + status), one key number (budget + progress), the rest small
                     <TouchableOpacity style={s.projectCard} onPress={() => openProject(project)} activeOpacity={0.85}>
                       <View style={s.projectTopRow}>
-                        <Text style={s.projectName} numberOfLines={2}>{project.name}</Text>
+                        <Text style={s.projectName} numberOfLines={2}>{tr(project.name)}</Text>
                         <View style={[s.statusBadge, { backgroundColor: health.bg }]}>
-                          <Text style={[s.statusBadgeText, { color: health.color }]}>{health.label}</Text>
+                          <Text style={[s.statusBadgeText, { color: health.color }]}>{tr(health.label)}</Text>
                         </View>
                       </View>
                       <Text style={s.projectSub} numberOfLines={1}>
@@ -350,8 +353,8 @@ const { hasPermission: canDo } = useInteriorPermissions();
                       </Text>
 
                       <View style={s.statsRow}>
-                        <Text style={s.statBudgetVal}>{formatBudget(getProjectBudget(project))}</Text>
-                        <Text style={s.statProgressVal}>{project.progress || 0}% complete</Text>
+                        <Text style={s.statBudgetVal}>{formatBudget(getProjectBudget(project), orgCurrency.code)}</Text>
+                        <Text style={s.statProgressVal}>{project.progress || 0}{tr("% complete")}</Text>
                       </View>
                       <View style={s.progressTrack}>
                         <View style={[s.progressFill, { width: `${project.progress || 0}%`, backgroundColor: health.color }]} />
@@ -403,8 +406,8 @@ const { hasPermission: canDo } = useInteriorPermissions();
             <View style={s.modalContent}>
               <View style={s.modalHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.modalTitle}>{editingProjectId ? 'Edit Project' : 'Create New Project'}</Text>
-                  <Text style={s.modalSubtitle}>{editingProjectId ? 'Update project parameters' : 'Define your project parameters'}</Text>
+                  <Text style={s.modalTitle}>{editingProjectId ? tr("Edit Project") : tr("Create New Project")}</Text>
+                  <Text style={s.modalSubtitle}>{editingProjectId ? tr("Update project parameters") : tr("Define your project parameters")}</Text>
                 </View>
                 <TouchableOpacity onPress={() => { setIsModalVisible(false); setEditingProjectId(null); }} style={s.modalBackBtn}>
                   <Ionicons name="close" size={22} color="#0F172A" />
@@ -412,21 +415,21 @@ const { hasPermission: canDo } = useInteriorPermissions();
               </View>
 
               <ScrollView contentContainerStyle={s.modalScroll} showsVerticalScrollIndicator={false}>
-                <FormField label="Project Name *" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholder="e.g. DLF Cyber Park Tower C" />
-                <FormField label="Client Name *" value={form.client} onChangeText={(v) => setForm({ ...form, client: v })} placeholder="e.g. DLF Limited" />
+                <FormField label={tr("Project Name *")} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholder={tr("e.g. DLF Cyber Park Tower C")} />
+                <FormField label={tr("Client Name *")} value={form.client} onChangeText={(v) => setForm({ ...form, client: v })} placeholder={tr("e.g. DLF Limited")} />
 
-                <Text style={s.fieldLabel}>Project Category / Type</Text>
+                <Text style={s.fieldLabel}>{tr("Project Category / Type")}</Text>
                 <SelectField
                   value={form.type}
                   onChange={(t) => setForm({ ...form, type: t })}
                   options={PROJECT_TYPES}
-                  placeholder="Select project type"
+                  placeholder={tr("Select project type")}
                   style={{ marginBottom: 14 }}
                 />
 
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <View style={{ flex: 1, marginBottom: 14 }}>
-                    <Text style={s.fieldLabel}>Start Date *</Text>
+                    <Text style={s.fieldLabel}>{tr("Start Date *")}</Text>
                     <TouchableOpacity style={s.dateInput} onPress={openStartPicker}>
                       <Text style={[s.dateInputText, !form.startDate && { color: '#CBD5E1' }]}>{formatDate(form.startDate)}</Text>
                       <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
@@ -444,7 +447,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                     )}
                   </View>
                   <View style={{ flex: 1, marginBottom: 14 }}>
-                    <Text style={s.fieldLabel}>End Date *</Text>
+                    <Text style={s.fieldLabel}>{tr("End Date *")}</Text>
                     <TouchableOpacity style={s.dateInput} onPress={openEndPicker}>
                       <Text style={[s.dateInputText, !form.endDate && { color: '#CBD5E1' }]}>{formatDate(form.endDate)}</Text>
                       <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
@@ -466,18 +469,18 @@ const { hasPermission: canDo } = useInteriorPermissions();
 
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    <FormField label="Budget (INR) *" value={form.budgetAmount} onChangeText={(v) => setForm({ ...form, budgetAmount: v })} placeholder="e.g. 15000000" keyboardType="numeric" />
+                    <FormField label={tr("Budget ({{code}}) *", { code: orgCurrency.code })} value={form.budgetAmount} onChangeText={(v) => setForm({ ...form, budgetAmount: v })} placeholder="e.g. 15000000" keyboardType="numeric" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <FormField label="City" value={form.city} onChangeText={(v) => setForm({ ...form, city: v })} placeholder="e.g. Gurugram" />
+                    <FormField label={tr("City")} value={form.city} onChangeText={(v) => setForm({ ...form, city: v })} placeholder={tr("e.g. Gurugram")} />
                   </View>
                 </View>
 
-                <FormField label="Site Address" value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} placeholder="e.g. Phase 3, Sector 24" />
-                <FormField label="Description" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} placeholder="Specify fit-out details..." multiline />
+                <FormField label={tr("Site Address")} value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} placeholder={tr("e.g. Phase 3, Sector 24")} />
+                <FormField label={tr("Description")} value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} placeholder={tr("Specify fit-out details...")} multiline />
 
                 <TouchableOpacity style={[s.createCatBtn, createLoading && { opacity: 0.6 }]} onPress={handleCreateProject} disabled={createLoading} activeOpacity={0.85}>
-                  {createLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.createCatBtnText}>{editingProjectId ? 'Save Changes' : 'Create Project'}</Text>}
+                  {createLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.createCatBtnText}>{editingProjectId ? tr("Save Changes") : tr("Create Project")}</Text>}
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -491,7 +494,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
 function FormField({ label, ...props }) {
   return (
     <View style={{ marginBottom: 14 }}>
-      <Text style={s.fieldLabel}>{label}</Text>
+      <Text style={s.fieldLabel}>{tr(label)}</Text>
       <TextInput
         style={[s.fieldInput, props.multiline && { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
         placeholderTextColor="#CBD5E1"

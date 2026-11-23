@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -35,15 +36,15 @@ function ListSection({ meta, items, emptyText }) {
     <View style={{ marginBottom: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
         <Ionicons name={meta.icon} size={13} color={meta.color} />
-        <Text style={[s.sectionTitle, { color: meta.color }]}>{meta.title} ({items?.length || 0})</Text>
+        <Text style={[s.sectionTitle, { color: meta.color }]}>{tr(meta.title)} ({items?.length || 0})</Text>
       </View>
       {(!items || items.length === 0) ? (
-        <Text style={s.emptyLine}>{emptyText}</Text>
+        <Text style={s.emptyLine}>{tr(emptyText)}</Text>
       ) : (
         items.map((item, i) => (
           <View key={i} style={s.bulletRow}>
             <Text style={s.bulletDot}>•</Text>
-            <Text style={s.bulletText}>{item}</Text>
+            <Text style={s.bulletText}>{tr(item)}</Text>
           </View>
         ))
       )}
@@ -56,19 +57,19 @@ function ReportStats({ report }) {
     <View style={s.statRow}>
       <View style={[s.statTile, { backgroundColor: '#F0FDF4' }]}>
         <Text style={[s.statNum, { color: '#059669' }]}>{report.completedActivities?.length || 0}</Text>
-        <Text style={s.statLbl}>Completed</Text>
+        <Text style={s.statLbl}>{tr("Completed")}</Text>
       </View>
       <View style={[s.statTile, { backgroundColor: '#FEF2F2' }]}>
         <Text style={[s.statNum, { color: '#DC2626' }]}>{report.delayedActivities?.length || 0}</Text>
-        <Text style={s.statLbl}>Delays</Text>
+        <Text style={s.statLbl}>{tr("Delays")}</Text>
       </View>
       <View style={[s.statTile, { backgroundColor: '#FFFBEB' }]}>
         <Text style={[s.statNum, { color: '#D97706' }]}>{report.risks?.length || 0}</Text>
-        <Text style={s.statLbl}>Risks</Text>
+        <Text style={s.statLbl}>{tr("Risks")}</Text>
       </View>
       <View style={[s.statTile, { backgroundColor: '#EFF6FF' }]}>
         <Text style={[s.statNum, { color: '#2563EB' }]}>{report.nextWeekPlan?.length || 0}</Text>
-        <Text style={s.statLbl}>Next week</Text>
+        <Text style={s.statLbl}>{tr("Next week")}</Text>
       </View>
     </View>
   );
@@ -119,7 +120,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       if (riskRes.status === 'fulfilled' && riskRes.value?.success) setRisks(riskRes.value.data || []);
     } catch (e) {
       console.error('Failed to load weekly reports', e);
-      showToast('Failed to load Weekly Progress Reports', 'error');
+      showToast(tr("Failed to load Weekly Progress Reports"), 'error');
     } finally {
       setLoading(false);
     }
@@ -191,7 +192,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleGenerate = async () => {
     if (!startDate.trim() || !endDate.trim()) {
-      showToast('Please specify both start and end dates', 'error');
+      showToast(tr("Please specify both start and end dates"), 'error');
       return;
     }
     setGenerating(true);
@@ -204,11 +205,11 @@ const { can: canDo } = useProjectPermissions(projectId);
         risks: reportRisks.filter(Boolean),
         nextWeekPlan: nextWeekPlan.filter(Boolean),
       });
-      showToast('Weekly Progress Report compiled & saved successfully', 'success');
+      showToast(tr("Weekly Progress Report compiled & saved successfully"), 'success');
       setIsModalOpen(false);
       loadData();
     } catch (e) {
-      showToast(e.message || 'Failed to compile report', 'error');
+      showToast(e.message || tr("Failed to compile report"), 'error');
     } finally {
       setGenerating(false);
     }
@@ -216,21 +217,21 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleDelete = (report) => {
     Alert.alert(
-      'Delete Weekly Progress Report',
-      `Delete the report for ${fmt(report.weekStart)} - ${fmtLong(report.weekEnd)}? This cannot be undone.`,
+      tr("Delete Weekly Progress Report"),
+      tr("Delete the report for {{fmt}} - {{fmtLong}}? This cannot be undone.", { fmt: fmt(report.weekStart), fmtLong: fmtLong(report.weekEnd) }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Delete',
+          text: tr("Delete"),
           style: 'destructive',
           onPress: async () => {
             setDeletingId(report._id);
             try {
               await interiorApiClient.delete(`/projects/${projectId}/weekly-reports/${report._id}`);
-              showToast('Weekly Report deleted successfully', 'success');
+              showToast(tr("Weekly Report deleted successfully"), 'success');
               setReports((prev) => prev.filter((r) => r._id !== report._id));
             } catch (e) {
-              showToast(e.message || 'Failed to delete report', 'error');
+              showToast(e.message || tr("Failed to delete report"), 'error');
             } finally {
               setDeletingId(null);
             }
@@ -310,7 +311,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Weekly Progress Reports</Text>
+            <Text style={s.headerTitle}>{tr("Weekly Progress Reports")}</Text>
           </View>
         </View>
 
@@ -321,8 +322,8 @@ const { can: canDo } = useProjectPermissions(projectId);
             {reports.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="document-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No weekly reports generated yet</Text>
-                <Text style={s.emptySub}>Auto-aggregate this week's tasks, delays, risks & next-week plan.</Text>
+                <Text style={s.emptyTitle}>{tr("No weekly reports generated yet")}</Text>
+                <Text style={s.emptySub}>{tr("Auto-aggregate this week's tasks, delays, risks & next-week plan.")}</Text>
               </View>
             ) : (
               reports.map((report) => {
@@ -345,14 +346,14 @@ const { can: canDo } = useProjectPermissions(projectId);
                         {preview.map((item, i) => (
                           <View key={i} style={s.bulletRow}>
                             <Text style={[s.bulletDot, { color: '#16A34A' }]}>✓</Text>
-                            <Text style={s.bulletText} numberOfLines={1}>{item}</Text>
+                            <Text style={s.bulletText} numberOfLines={1}>{tr(item)}</Text>
                           </View>
                         ))}
-                        {more > 0 && <Text style={s.emptyLine}>+{more} more completed</Text>}
+                        {more > 0 && <Text style={s.emptyLine}>+{tr(more)}{tr(" more completed")}</Text>}
                       </View>
                     )}
 
-                    <Text style={s.viewFullText}>View Full Report ›</Text>
+                    <Text style={s.viewFullText}>{tr("View Full Report ›")}</Text>
                   </TouchableOpacity>
                 );
               })
@@ -375,7 +376,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <>
               <View style={s.detailHeader}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={s.detailTitle}>Weekly Progress Report</Text>
+                  <Text style={s.detailTitle}>{tr("Weekly Progress Report")}</Text>
                   <Text style={s.detailSub}>{fmt(detailReport.weekStart)} – {fmtLong(detailReport.weekEnd)}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setDetailReport(null)} style={s.detailClose}>
@@ -385,10 +386,10 @@ const { can: canDo } = useProjectPermissions(projectId);
               <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} showsVerticalScrollIndicator={false}>
                 <ReportStats report={detailReport} />
                 <View style={s.reportCard}>
-                  <ListSection meta={LIST_META.completed} items={detailReport.completedActivities} emptyText="No activities completed this period." />
-                  <ListSection meta={LIST_META.delayed} items={detailReport.delayedActivities} emptyText="Zero delays logged. On track!" />
-                  <ListSection meta={LIST_META.risks} items={detailReport.risks} emptyText="No critical risks flagged." />
-                  <ListSection meta={LIST_META.plan} items={detailReport.nextWeekPlan} emptyText="No plan defined." />
+                  <ListSection meta={LIST_META.completed} items={detailReport.completedActivities} emptyText={tr("No activities completed this period.")} />
+                  <ListSection meta={LIST_META.delayed} items={detailReport.delayedActivities} emptyText={tr("Zero delays logged. On track!")} />
+                  <ListSection meta={LIST_META.risks} items={detailReport.risks} emptyText={tr("No critical risks flagged.")} />
+                  <ListSection meta={LIST_META.plan} items={detailReport.nextWeekPlan} emptyText={tr("No plan defined.")} />
                 </View>
               </ScrollView>
               {(canDo('weekly_reports', 'export') || canDo('weekly_reports', 'delete')) && (
@@ -396,7 +397,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                   {canDo('weekly_reports', 'export') && (
                     <TouchableOpacity style={[s.actionBtn, { flex: 1, justifyContent: 'center' }]} onPress={() => handlePrint(detailReport)}>
                       <Ionicons name="print-outline" size={14} color="#334155" />
-                      <Text style={s.actionBtnText}>Print</Text>
+                      <Text style={s.actionBtnText}>{tr("Print")}</Text>
                     </TouchableOpacity>
                   )}
                   {canDo('weekly_reports', 'export') && (
@@ -406,7 +407,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                       disabled={downloadingId === detailReport._id}
                     >
                       {downloadingId === detailReport._id ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="download-outline" size={14} color="#FFFFFF" />}
-                      <Text style={[s.actionBtnText, { color: '#FFFFFF' }]}>Export PDF</Text>
+                      <Text style={[s.actionBtnText, { color: '#FFFFFF' }]}>{tr("Export PDF")}</Text>
                     </TouchableOpacity>
                   )}
                   {canDo('weekly_reports', 'delete') && (
@@ -429,7 +430,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Compile Weekly Report</Text>
+              <Text style={s.modalTitle}>{tr("Compile Weekly Report")}</Text>
               <TouchableOpacity onPress={() => setIsModalOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
@@ -438,40 +439,40 @@ const { can: canDo } = useProjectPermissions(projectId);
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={s.presetRow}>
                 <TouchableOpacity style={s.presetChip} onPress={() => setQuickDatePreset('this_week')}>
-                  <Text style={s.presetChipText}>This Week</Text>
+                  <Text style={s.presetChipText}>{tr("This Week")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.presetChip} onPress={() => setQuickDatePreset('last_week')}>
-                  <Text style={s.presetChipText}>Last Week</Text>
+                  <Text style={s.presetChipText}>{tr("Last Week")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.presetChip} onPress={() => setQuickDatePreset('last_7_days')}>
-                  <Text style={s.presetChipText}>Last 7 Days</Text>
+                  <Text style={s.presetChipText}>{tr("Last 7 Days")}</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Week Start *</Text>
-                  <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={startDate} onChangeText={setStartDate} />
+                  <Text style={s.label}>{tr("Week Start *")}</Text>
+                  <TextInput style={s.input} placeholder={tr("YYYY-MM-DD")} placeholderTextColor="#94A3B8" value={startDate} onChangeText={setStartDate} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Week End *</Text>
-                  <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" value={endDate} onChangeText={setEndDate} />
+                  <Text style={s.label}>{tr("Week End *")}</Text>
+                  <TextInput style={s.input} placeholder={tr("YYYY-MM-DD")} placeholderTextColor="#94A3B8" value={endDate} onChangeText={setEndDate} />
                 </View>
               </View>
 
               <TouchableOpacity style={s.rescanBtn} onPress={() => autoScanTimeline()}>
                 <Ionicons name="sparkles-outline" size={13} color="#2563EB" />
-                <Text style={s.rescanBtnText}>Re-scan Live Project</Text>
+                <Text style={s.rescanBtnText}>{tr("Re-scan Live Project")}</Text>
               </TouchableOpacity>
 
               {/* Live Auto-Generation Scope — read-only, same as the web (no manual add) */}
               <View style={s.scopeBox}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="sparkles-outline" size={14} color="#2563EB" />
-                  <Text style={s.scopeTitle}>LIVE AUTO-GENERATION SCOPE</Text>
+                  <Text style={s.scopeTitle}>{tr("LIVE AUTO-GENERATION SCOPE")}</Text>
                 </View>
                 <Text style={s.scopeSub}>
-                  The system compiles the report directly from your live project WBS, completed tasks, overdue items, active risks and upcoming work.
+                  {tr("The system compiles the report directly from your live project WBS, completed tasks, overdue items, active risks and upcoming work.")}
                 </Text>
                 <View style={s.scopeGrid}>
                   {[
@@ -482,14 +483,14 @@ const { can: canDo } = useProjectPermissions(projectId);
                   ].map((c) => (
                     <View key={c.label} style={[s.scopeCard, { backgroundColor: c.bg, borderColor: c.border }]}>
                       <Text style={[s.scopeCardLabel, { color: c.color }]}>{c.label.toUpperCase()}</Text>
-                      <Text style={s.scopeCardValue}>{c.value}</Text>
+                      <Text style={s.scopeCardValue}>{tr(c.value)}</Text>
                     </View>
                   ))}
                 </View>
               </View>
 
               <TouchableOpacity style={[s.saveBtn, generating && { opacity: 0.7 }]} onPress={handleGenerate} disabled={generating}>
-                {generating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Save & Compile Report</Text>}
+                {generating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Save & Compile Report")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

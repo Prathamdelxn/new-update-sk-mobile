@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import { useState, useCallback, useMemo } from 'react';
 import {
   View,
@@ -114,10 +115,10 @@ const { hasPermission: canDo } = useInteriorPermissions();
         status: 'Completed',
         completedDate: new Date(),
       });
-      showToast('Follow-up marked as completed! You can now send to Site Visit.', 'success');
+      showToast(tr("Follow-up marked as completed! You can now send to Site Visit."), 'success');
       loadFollowUps();
     } catch (e) {
-      showToast(e.message || 'Failed to complete follow-up', 'error');
+      showToast(e.message || tr("Failed to complete follow-up"), 'error');
       loadFollowUps();
     } finally {
       setCompletingId(null);
@@ -129,10 +130,10 @@ const { hasPermission: canDo } = useInteriorPermissions();
     try {
       setActionLoadingId(leadId);
       await interiorCrmService.updateCustomer(leadId, { status: 'Meeting Scheduled' });
-      showToast('Lead moved to Site Visit', 'success');
+      showToast(tr("Lead moved to Site Visit"), 'success');
       loadFollowUps();
     } catch (e) {
-      showToast(e.message || 'Failed to update lead', 'error');
+      showToast(e.message || tr("Failed to update lead"), 'error');
     } finally {
       setActionLoadingId(null);
     }
@@ -141,7 +142,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
   const handleCall = (phoneNumber) => {
     if (!phoneNumber) return;
     Linking.openURL(`tel:${phoneNumber}`).catch(() => {
-      showToast('Cannot make phone calls on this device', 'error');
+      showToast(tr("Cannot make phone calls on this device"), 'error');
     });
   };
 
@@ -149,7 +150,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
     if (!phoneNumber) return;
     const cleanNumber = phoneNumber.replace(/\D/g, '');
     Linking.openURL(`https://wa.me/${cleanNumber}`).catch(() => {
-      showToast('Cannot open WhatsApp', 'error');
+      showToast(tr("Cannot open WhatsApp"), 'error');
     });
   };
 
@@ -196,9 +197,9 @@ const { hasPermission: canDo } = useInteriorPermissions();
             <Ionicons name="chevron-back" size={18} color="#1E293B" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerGreeting}>CRM Workspace / Pipeline</Text>
-            <Text style={s.headerTitle}>Follow-up Touchpoints</Text>
-            <Text style={s.headerSub}>1 active follow-up per customer until marked done.</Text>
+            <Text style={s.headerGreeting}>{tr("CRM Workspace / Pipeline")}</Text>
+            <Text style={s.headerTitle}>{tr("Follow-up Touchpoints")}</Text>
+            <Text style={s.headerSub}>{tr("1 active follow-up per customer until marked done.")}</Text>
           </View>
         </View>
 
@@ -211,7 +212,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
               activeOpacity={0.7}
             >
               <Text style={[s.tabButtonText, activeTab === 'all' && s.tabButtonTextActive]}>
-                All ({allActivities.length})
+                {tr("All (")}{allActivities.length})
               </Text>
             </TouchableOpacity>
 
@@ -222,7 +223,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
             >
               <View style={[s.dotIndicator, { backgroundColor: activeTab === 'pending' ? '#FFFFFF' : '#D97706' }]} />
               <Text style={[s.tabButtonText, activeTab === 'pending' && s.tabButtonPendingTextActive]}>
-                Pending ({pendingCount})
+                {tr("Pending (")}{tr(pendingCount)})
               </Text>
             </TouchableOpacity>
 
@@ -233,7 +234,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
             >
               <View style={[s.dotIndicator, { backgroundColor: activeTab === 'completed' ? '#FFFFFF' : '#16A34A' }]} />
               <Text style={[s.tabButtonText, activeTab === 'completed' && s.tabButtonCompletedTextActive]}>
-                Completed ({completedCount})
+                {tr("Completed (")}{tr(completedCount)})
               </Text>
             </TouchableOpacity>
           </View>
@@ -243,7 +244,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
             <Ionicons name="search" size={15} color="#94A3B8" style={{ marginRight: 8 }} />
             <TextInput
               style={s.searchInput}
-              placeholder="Search follow-ups by lead, phone or note..."
+              placeholder={tr("Search follow-ups by lead, phone or note...")}
               placeholderTextColor="#94A3B8"
               value={searchTerm}
               onChangeText={setSearchTerm}
@@ -286,17 +287,17 @@ const { hasPermission: canDo } = useInteriorPermissions();
                 </View>
                 <Text style={s.emptyTitle}>
                   {searchTerm
-                    ? 'No matching follow-ups'
+                    ? tr("No matching follow-ups")
                     : activeTab === 'completed'
-                    ? 'No Completed Follow-ups Yet'
-                    : 'All Clear!'}
+                    ? tr("No Completed Follow-ups Yet")
+                    : tr("All Clear!")}
                 </Text>
                 <Text style={s.emptySub}>
                   {searchTerm
-                    ? 'Try adjusting your search terms or filters.'
+                    ? tr("Try adjusting your search terms or filters.")
                     : activeTab === 'completed'
-                    ? 'Completed follow-up calls and meetings appear here with a direct option to send to Site Visit.'
-                    : 'You have no pending follow-up touchpoints. Open any lead profile to schedule one.'}
+                    ? tr("Completed follow-up calls and meetings appear here with a direct option to send to Site Visit.")
+                    : tr("You have no pending follow-up touchpoints. Open any lead profile to schedule one.")}
                 </Text>
               </View>
             ) : (
@@ -335,12 +336,12 @@ const { hasPermission: canDo } = useInteriorPermissions();
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                               <Text style={s.leadName} numberOfLines={1}>
-                                {act.customer?.name || 'Unknown Lead'}
+                                {act.customer?.name || tr("Unknown Lead")}
                               </Text>
-                              <Text style={s.leadNumber}>{act.customer?.leadNumber || 'LD-XXXX'}</Text>
+                              <Text style={s.leadNumber}>{act.customer?.leadNumber || tr("LD-XXXX")}</Text>
                             </View>
                             <Text style={s.leadPhone} numberOfLines={1}>
-                              {act.customer?.mobileNumber || 'No phone'}
+                              {act.customer?.mobileNumber || tr("No phone")}
                               {act.customer?.propertyType ? ` · ${act.customer.propertyType}` : ''}
                             </Text>
                           </View>
@@ -370,7 +371,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                                   : { color: '#D97706' },
                               ]}
                             >
-                              {isCompleted ? 'COMPLETED' : isOverdue ? 'OVERDUE' : 'PENDING'}
+                              {isCompleted ? tr("COMPLETED") : isOverdue ? tr("OVERDUE") : tr("PENDING")}
                             </Text>
                           </View>
                         </View>
@@ -379,7 +380,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                     <View style={s.metaRow}>
                       <View style={s.typeBadge}>
                         <Ionicons name="chatbox-ellipses-outline" size={11} color="#2563EB" />
-                        <Text style={s.typeBadgeText}>{act.type || 'Follow-up'}</Text>
+                        <Text style={s.typeBadgeText}>{act.type || tr("Follow-up")}</Text>
                       </View>
 
                       <View style={s.dateBadge}>
@@ -415,7 +416,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                     {!!act.remarks && (
                       <View style={s.remarksBox}>
                         <Text style={s.remarksText} numberOfLines={2}>
-                          &quot;{act.remarks}&quot;
+                          &quot;{tr(act.remarks)}&quot;
                         </Text>
                       </View>
                     )}
@@ -468,7 +469,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                               ) : (
                                 <>
                                   <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
-                                  <Text style={s.doneBtnText}>Done</Text>
+                                  <Text style={s.doneBtnText}>{tr("Done")}</Text>
                                 </>
                               )}
                             </TouchableOpacity>
@@ -489,7 +490,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                               ) : (
                                 <>
                                   <Ionicons name="location" size={12} color="#FFFFFF" />
-                                  <Text style={s.passSiteBtnText}>Pass to Site Visit</Text>
+                                  <Text style={s.passSiteBtnText}>{tr("Pass to Site Visit")}</Text>
                                 </>
                               )}
                             </TouchableOpacity>
@@ -497,7 +498,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                         ) : (
                           <View style={s.completedPill}>
                             <Ionicons name="checkmark" size={12} color="#16A34A" />
-                            <Text style={s.completedPillText}>Completed</Text>
+                            <Text style={s.completedPillText}>{tr("Completed")}</Text>
                           </View>
                         )}
                       </View>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // =============================================================================
 // Requirements — client intake link + room specifications
 // Mobile port of the web InteriorComparativeRequirementsView. Four states:
@@ -45,8 +46,8 @@ function Spec({ label, value, color, strong }) {
   if (!value) return null;
   return (
     <View style={{ gap: 1 }}>
-      <Text style={[s.specLabel, color && { color }]}>{label}</Text>
-      <Text style={[s.specValue, strong && { fontFamily: 'Inter-Bold', color: '#6D28D9' }]}>{value}</Text>
+      <Text style={[s.specLabel, color && { color }]}>{tr(label)}</Text>
+      <Text style={[s.specValue, strong && { fontFamily: 'Inter-Bold', color: '#6D28D9' }]}>{tr(value)}</Text>
     </View>
   );
 }
@@ -141,17 +142,17 @@ export default function ClientRequirementsCompare({
     if (!c.length) return t;
     const byName = new Map(c.map((r) => [r.roomName.toLowerCase(), r]));
     const used = new Set();
-    const merged = t.map((tr) => {
-      const key = tr.roomName.toLowerCase();
+    const merged = t.map((teamReq) => {
+      const key = teamReq.roomName.toLowerCase();
       const cr = byName.get(key);
-      if (!cr) return tr;
+      if (!cr) return teamReq;
       used.add(key);
-      const out = { ...tr, source: 'merged' };
-      Object.keys(tr).forEach((k) => {
-        if (k !== 'source' && k !== 'description' && !tr[k]) out[k] = cr[k];
+      const out = { ...teamReq, source: 'merged' };
+      Object.keys(teamReq).forEach((k) => {
+        if (k !== 'source' && k !== 'description' && !teamReq[k]) out[k] = cr[k];
       });
-      out.description = tr.description
-        ? cr.description && cr.description !== tr.description ? `${tr.description} (Client: ${cr.description})` : tr.description
+      out.description = teamReq.description
+        ? cr.description && cr.description !== teamReq.description ? `${teamReq.description} (Client: ${cr.description})` : teamReq.description
         : cr.description;
       return out;
     });
@@ -181,7 +182,7 @@ export default function ClientRequirementsCompare({
       onRefresh?.();
       return formUrlFor(token);
     } catch (e) {
-      showToast(e.message || 'Failed to create share link', 'error');
+      showToast(e.message || tr("Failed to create share link"), 'error');
       return null;
     } finally {
       setBusy('');
@@ -192,7 +193,7 @@ export default function ClientRequirementsCompare({
     const url = await getOrCreateUrl();
     if (!url) return;
     await Clipboard.setStringAsync(url);
-    showToast('Client Requirements Link copied to clipboard!', 'success');
+    showToast(tr("Client Requirements Link copied to clipboard!"), 'success');
   };
 
   const whatsApp = async () => {
@@ -209,7 +210,7 @@ export default function ClientRequirementsCompare({
     setBusy('sync');
     try {
       await onRefresh();
-      showToast('Requirements status updated', 'success');
+      showToast(tr("Requirements status updated"), 'success');
     } finally {
       setBusy('');
     }
@@ -222,27 +223,27 @@ export default function ClientRequirementsCompare({
         mode: 'requirements', includeRequirements: true, allowDownload: false,
         expiresHours: value === 'never' ? null : Number(value),
       });
-      showToast(successMsg || `Link expiry set to ${EXPIRY_OPTIONS.find((o) => o.value === value)?.label || value}.`, 'success');
+      showToast(successMsg || tr("Link expiry set to {{value}}.", { value: EXPIRY_OPTIONS.find((o) => o.value === value)?.label || value }), 'success');
       onRefresh?.();
     } catch (e) {
-      showToast(e.message || 'Failed to update link expiry', 'error');
+      showToast(e.message || tr("Failed to update link expiry"), 'error');
     } finally {
       setBusy('');
     }
   };
 
   const stopLink = () => {
-    Alert.alert('Stop Client Intake Link?', 'The link will be deactivated immediately. The client will no longer be able to open the form or submit.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Stop Client Intake Link?"), tr("The link will be deactivated immediately. The client will no longer be able to open the form or submit."), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Stop Link', style: 'destructive', onPress: async () => {
+        text: tr("Stop Link"), style: 'destructive', onPress: async () => {
           setBusy('stop');
           try {
             await interiorCrmService.revokeShareLink(lead._id);
-            showToast('Client intake link stopped.', 'success');
+            showToast(tr("Client intake link stopped."), 'success');
             onRefresh?.();
           } catch (e) {
-            showToast(e.message || 'Failed to stop link', 'error');
+            showToast(e.message || tr("Failed to stop link"), 'error');
           } finally {
             setBusy('');
           }
@@ -253,23 +254,23 @@ export default function ClientRequirementsCompare({
 
   const discard = () => {
     if (hasPassedToSiteVisit) {
-      showToast('Cannot discard requirements after the lead has been passed to Site Visit.', 'error');
+      showToast(tr("Cannot discard requirements after the lead has been passed to Site Visit."), 'error');
       return;
     }
-    Alert.alert('Discard Requirements', 'Discard all logged requirements for this lead? All room specifications will be cleared.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Discard Requirements"), tr("Discard all logged requirements for this lead? All room specifications will be cleared."), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Discard', style: 'destructive', onPress: async () => {
+        text: tr("Discard"), style: 'destructive', onPress: async () => {
           setBusy('discard');
           try {
             await interiorCrmService.updateCustomer(lead._id, {
               requirements: [], clientRequirements: null, clientWishlist: null, clientRequirementsSubmittedAt: null,
             });
             await interiorCrmService.createActivity({ customer: lead._id, type: 'Requirement Gathering', status: 'Completed', remarks: 'Discarded/reset all room requirements.' });
-            showToast('Requirements discarded.', 'success');
+            showToast(tr("Requirements discarded."), 'success');
             onRefresh?.();
           } catch (e) {
-            showToast(e.message || 'Failed to discard requirements', 'error');
+            showToast(e.message || tr("Failed to discard requirements"), 'error');
           } finally {
             setBusy('');
           }
@@ -295,7 +296,7 @@ export default function ClientRequirementsCompare({
         activeOpacity={0.8}
       >
         {loading ? <ActivityIndicator size="small" color={tones.fg} /> : <Ionicons name={icon} size={13} color={tones.fg} />}
-        <Text style={[s.btnText, { color: tones.fg }]}>{label}</Text>
+        <Text style={[s.btnText, { color: tones.fg }]}>{tr(label)}</Text>
       </TouchableOpacity>
     );
   };
@@ -303,7 +304,7 @@ export default function ClientRequirementsCompare({
   const ExpiryPill = () => (
     <View style={[s.pill, expiry.warn ? { backgroundColor: '#FFF1F2', borderColor: '#FECDD3' } : { backgroundColor: '#F0FDFA', borderColor: '#99F6E4' }]}>
       <Ionicons name="time-outline" size={11} color={expiry.warn ? '#E11D48' : '#0F766E'} />
-      <Text style={[s.pillText, { color: expiry.warn ? '#BE123C' : '#0F766E' }]}>{expiry.label}</Text>
+      <Text style={[s.pillText, { color: expiry.warn ? '#BE123C' : '#0F766E' }]}>{tr(expiry.label)}</Text>
     </View>
   );
 
@@ -316,38 +317,38 @@ export default function ClientRequirementsCompare({
         </View>
         <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
           <View style={[s.pill, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
-            <Text style={[s.pillText, { color: '#B45309' }]}>AWAITING CLIENT SUBMISSION</Text>
+            <Text style={[s.pillText, { color: '#B45309' }]}>{tr("AWAITING CLIENT SUBMISSION")}</Text>
           </View>
           <ExpiryPill />
         </View>
-        <Text style={s.title}>Waiting for Client Input</Text>
-        <Text style={s.sub}>The public intake link is active. Waiting for {lead?.name || 'the client'} to submit room preferences online.</Text>
+        <Text style={s.title}>{tr("Waiting for Client Input")}</Text>
+        <Text style={s.sub}>{tr("The public intake link is active. Waiting for ")}{lead?.name || tr("the client")}{tr(" to submit room preferences online.")}</Text>
         <View style={s.btnRow}>
-          <Btn icon="refresh" label={busy === 'sync' ? 'Checking...' : 'Check Status / Refresh'} tone="amber" onPress={refreshNow} loading={busy === 'sync'} />
-          <Btn icon="copy-outline" label="Copy Intake Link" onPress={copyLink} loading={busy === 'link'} />
-          {!!lead?.mobileNumber && <Btn icon="logo-whatsapp" label="Send via WhatsApp" tone="whatsapp" onPress={whatsApp} />}
+          <Btn icon="refresh" label={busy === 'sync' ? tr("Checking...") : tr("Check Status / Refresh")} tone="amber" onPress={refreshNow} loading={busy === 'sync'} />
+          <Btn icon="copy-outline" label={tr("Copy Intake Link")} onPress={copyLink} loading={busy === 'link'} />
+          {!!lead?.mobileNumber && <Btn icon="logo-whatsapp" label={tr("Send via WhatsApp")} tone="whatsapp" onPress={whatsApp} />}
         </View>
         <View style={{ alignSelf: 'stretch', marginTop: 10 }}>
-          <Text style={[s.specLabel, { marginBottom: 4 }]}>SCHEDULE EXPIRY</Text>
+          <Text style={[s.specLabel, { marginBottom: 4 }]}>{tr("SCHEDULE EXPIRY")}</Text>
           <SelectField
             value={expiryOptionFor(share.expiresAt)}
             onChange={(v) => setExpiry(v)}
             options={EXPIRY_OPTIONS}
-            placeholder="Custom"
+            placeholder={tr("Custom")}
             disabled={busy === 'expiry'}
           />
         </View>
         {editable && (
           <View style={[s.btnRow, { marginTop: 10 }]}>
-            <Btn icon="power-outline" label={busy === 'stop' ? 'Stopping...' : 'Stop Link'} tone="danger" onPress={stopLink} loading={busy === 'stop'} />
-            {!!onOpenShare && <Btn icon="settings-outline" label="Link Settings" onPress={onOpenShare} />}
+            <Btn icon="power-outline" label={busy === 'stop' ? tr("Stopping...") : tr("Stop Link")} tone="danger" onPress={stopLink} loading={busy === 'stop'} />
+            {!!onOpenShare && <Btn icon="settings-outline" label={tr("Link Settings")} onPress={onOpenShare} />}
           </View>
         )}
         {editable && (
           <View style={s.footerLine}>
-            <Text style={s.sub}>Want to take specs now?</Text>
+            <Text style={s.sub}>{tr("Want to take specs now?")}</Text>
             <TouchableOpacity onPress={onEditSpecs}>
-              <Text style={s.link}>Enter Requirements Manually</Text>
+              <Text style={s.link}>{tr("Enter Requirements Manually")}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -363,19 +364,19 @@ export default function ClientRequirementsCompare({
           <Ionicons name="power-outline" size={24} color="#E11D48" />
         </View>
         <View style={[s.pill, { backgroundColor: '#FFF1F2', borderColor: '#FECDD3' }]}>
-          <Text style={[s.pillText, { color: '#BE123C' }]}>{isLinkStopped ? '● LINK STOPPED / DISABLED' : '● LINK EXPIRED'}</Text>
+          <Text style={[s.pillText, { color: '#BE123C' }]}>{isLinkStopped ? tr("● LINK STOPPED / DISABLED") : tr("● LINK EXPIRED")}</Text>
         </View>
-        <Text style={s.title}>{isLinkStopped ? 'Client Intake Link is Stopped' : 'Client Intake Link has Expired'}</Text>
+        <Text style={s.title}>{isLinkStopped ? tr("Client Intake Link is Stopped") : tr("Client Intake Link has Expired")}</Text>
         <Text style={s.sub}>
           {isLinkStopped
-            ? 'The public requirements link is deactivated. Clients opening it will see that it has been disabled.'
-            : 'The scheduled expiry has passed. Reactivate the link or enter requirements directly.'}
+            ? tr("The public requirements link is deactivated. Clients opening it will see that it has been disabled.")
+            : tr("The scheduled expiry has passed. Reactivate the link or enter requirements directly.")}
         </Text>
         {editable && (
           <View style={s.btnRow}>
-            <Btn icon="refresh" label="Reactivate Link (7 Days)" tone="green" onPress={() => setExpiry('168', 'Client intake link reactivated!')} loading={busy === 'expiry'} />
-            <Btn icon="create-outline" label="Enter Requirements Manually" onPress={onEditSpecs} />
-            {!!onOpenShare && <Btn icon="settings-outline" label="Link Settings" onPress={onOpenShare} />}
+            <Btn icon="refresh" label={tr("Reactivate Link (7 Days)")} tone="green" onPress={() => setExpiry('168', 'Client intake link reactivated!')} loading={busy === 'expiry'} />
+            <Btn icon="create-outline" label={tr("Enter Requirements Manually")} onPress={onEditSpecs} />
+            {!!onOpenShare && <Btn icon="settings-outline" label={tr("Link Settings")} onPress={onOpenShare} />}
           </View>
         )}
       </View>
@@ -389,13 +390,13 @@ export default function ClientRequirementsCompare({
         <View style={[s.bigIcon, { backgroundColor: '#EEF2FF' }]}>
           <Ionicons name="home-outline" size={26} color="#4F46E5" />
         </View>
-        <Text style={s.title}>No Requirements Logged Yet</Text>
-        <Text style={s.sub}>Add project specifications directly or generate an online intake link for the client.</Text>
+        <Text style={s.title}>{tr("No Requirements Logged Yet")}</Text>
+        <Text style={s.sub}>{tr("Add project specifications directly or generate an online intake link for the client.")}</Text>
         {editable && (
           <View style={s.btnRow}>
-            <Btn icon="add" label="Create Requirements" tone="green" onPress={onEditSpecs} />
-            <Btn icon="share-social-outline" label="Generate & Copy Client Link" onPress={copyLink} loading={busy === 'link'} />
-            {!!onOpenShare && <Btn icon="settings-outline" label="Link Settings" onPress={onOpenShare} />}
+            <Btn icon="add" label={tr("Create Requirements")} tone="green" onPress={onEditSpecs} />
+            <Btn icon="share-social-outline" label={tr("Generate & Copy Client Link")} onPress={copyLink} loading={busy === 'link'} />
+            {!!onOpenShare && <Btn icon="settings-outline" label={tr("Link Settings")} onPress={onOpenShare} />}
           </View>
         )}
       </View>
@@ -411,20 +412,20 @@ export default function ClientRequirementsCompare({
             <Ionicons name="home-outline" size={16} color="#059669" />
           </View>
           <View style={{ flex: 1, gap: 4 }}>
-            <Text style={s.headTitle}>Room Specifications ({rooms.length} {rooms.length === 1 ? 'Area' : 'Areas'})</Text>
+            <Text style={s.headTitle}>{tr("Room Specifications (")}{rooms.length} {rooms.length === 1 ? tr("Area") : tr("Areas")})</Text>
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
               {clientSubmittedAt ? (
                 <View style={[s.pill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-                  <Text style={[s.pillText, { color: '#047857' }]}>✓ Client Submitted</Text>
+                  <Text style={[s.pillText, { color: '#047857' }]}>{tr("✓ Client Submitted")}</Text>
                 </View>
               ) : (
                 <View style={[s.pill, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-                  <Text style={[s.pillText, { color: '#1D4ED8' }]}>Team Recorded</Text>
+                  <Text style={[s.pillText, { color: '#1D4ED8' }]}>{tr("Team Recorded")}</Text>
                 </View>
               )}
               {!!clientSubmittedAt && isLinkActive && (
                 <View style={[s.pill, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-                  <Text style={[s.pillText, { color: '#B45309' }]}>Link Reactivated (Client Can Edit)</Text>
+                  <Text style={[s.pillText, { color: '#B45309' }]}>{tr("Link Reactivated (Client Can Edit)")}</Text>
                 </View>
               )}
             </View>
@@ -433,36 +434,36 @@ export default function ClientRequirementsCompare({
         <View style={[s.btnRow, { justifyContent: 'flex-start', marginTop: 10 }]}>
           {isLinkActive && (
             <>
-              <Btn icon="copy-outline" label="Share Link" onPress={copyLink} loading={busy === 'link'} />
+              <Btn icon="copy-outline" label={tr("Share Link")} onPress={copyLink} loading={busy === 'link'} />
               <ExpiryPill />
-              {editable && <Btn icon="power-outline" label={busy === 'stop' ? 'Stopping...' : 'Stop Link'} tone="danger" onPress={stopLink} loading={busy === 'stop'} />}
+              {editable && <Btn icon="power-outline" label={busy === 'stop' ? tr("Stopping...") : tr("Stop Link")} tone="danger" onPress={stopLink} loading={busy === 'stop'} />}
             </>
           )}
           {!!share.shareToken && (isLinkStopped || isLinkExpired) && (
             <>
               <View style={[s.pill, { backgroundColor: '#FFF1F2', borderColor: '#FECDD3' }]}>
-                <Text style={[s.pillText, { color: '#BE123C' }]}>{isLinkStopped ? 'Link Disabled (Submitted)' : 'Link Expired'}</Text>
+                <Text style={[s.pillText, { color: '#BE123C' }]}>{isLinkStopped ? tr("Link Disabled (Submitted)") : tr("Link Expired")}</Text>
               </View>
-              {editable && <Btn icon="refresh" label="Reactivate Link" tone="successSoft" onPress={() => setExpiry('168', 'Client intake link reactivated!')} loading={busy === 'expiry'} />}
+              {editable && <Btn icon="refresh" label={tr("Reactivate Link")} tone="successSoft" onPress={() => setExpiry('168', 'Client intake link reactivated!')} loading={busy === 'expiry'} />}
             </>
           )}
-          {!!onOpenShare && editable && <Btn icon="settings-outline" label="Settings" onPress={onOpenShare} />}
+          {!!onOpenShare && editable && <Btn icon="settings-outline" label={tr("Settings")} onPress={onOpenShare} />}
           {editable && !hasPassedToSiteVisit && (
-            <Btn icon="trash-outline" label={busy === 'discard' ? 'Discarding...' : 'Discard'} tone="danger" onPress={discard} loading={busy === 'discard'} />
+            <Btn icon="trash-outline" label={busy === 'discard' ? tr("Discarding...") : tr("Discard")} tone="danger" onPress={discard} loading={busy === 'discard'} />
           )}
         </View>
       </View>
 
       {!!clientNotes && (
         <View style={[s.card, { backgroundColor: '#FAF5FF', borderColor: '#E9D5FF' }]}>
-          <Text style={[s.specLabel, { color: '#7E22CE' }]}>CLIENT STATED DIRECTIVES & VISION</Text>
-          <Text style={[s.specValue, { fontStyle: 'italic' }]}>“{clientNotes}”</Text>
+          <Text style={[s.specLabel, { color: '#7E22CE' }]}>{tr("CLIENT STATED DIRECTIVES & VISION")}</Text>
+          <Text style={[s.specValue, { fontStyle: 'italic' }]}>“{tr(clientNotes)}”</Text>
         </View>
       )}
 
       {inspirationImages.length > 0 && (
         <View style={s.card}>
-          <Text style={s.specLabel}>CLIENT INSPIRATION MOODBOARD ({inspirationImages.length} PHOTOS)</Text>
+          <Text style={s.specLabel}>{tr("CLIENT INSPIRATION MOODBOARD (")}{inspirationImages.length}{tr(" PHOTOS)")}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
             {inspirationImages.map((img, i) => (
               <TouchableOpacity key={i} onPress={() => setPhoto(img)}>
@@ -480,58 +481,58 @@ export default function ClientRequirementsCompare({
           <View key={idx} style={[s.card, { padding: 0, overflow: 'hidden' }]}>
             <View style={s.roomHead}>
               <View style={s.roomIndex}><Text style={s.roomIndexText}>{idx + 1}</Text></View>
-              <Text style={s.roomName}>{room.roomName}</Text>
-              {!!room.interiorType && <Text style={s.sub}>({room.interiorType})</Text>}
+              <Text style={s.roomName}>{tr(room.roomName)}</Text>
+              {!!room.interiorType && <Text style={s.sub}>({tr(room.interiorType)})</Text>}
               {room.source === 'client' && (
-                <View style={[s.pill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}><Text style={[s.pillText, { color: '#047857' }]}>Client Intake</Text></View>
+                <View style={[s.pill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}><Text style={[s.pillText, { color: '#047857' }]}>{tr("Client Intake")}</Text></View>
               )}
               {room.source === 'merged' && (
-                <View style={[s.pill, { backgroundColor: '#FAF5FF', borderColor: '#E9D5FF' }]}><Text style={[s.pillText, { color: '#7E22CE' }]}>Merged</Text></View>
+                <View style={[s.pill, { backgroundColor: '#FAF5FF', borderColor: '#E9D5FF' }]}><Text style={[s.pillText, { color: '#7E22CE' }]}>{tr("Merged")}</Text></View>
               )}
               {!!(room.designStyle || room.theme) && (
                 <View style={[s.pill, { backgroundColor: '#FAF5FF', borderColor: '#E9D5FF' }]}><Text style={[s.pillText, { color: '#6D28D9' }]}>{room.designStyle || room.theme}</Text></View>
               )}
               {!!room.dimensions && (
-                <View style={[s.pill, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}><Text style={[s.pillText, { color: '#1D4ED8' }]}>{room.dimensions}</Text></View>
+                <View style={[s.pill, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}><Text style={[s.pillText, { color: '#1D4ED8' }]}>{tr(room.dimensions)}</Text></View>
               )}
               {!!room.budget && (
-                <View style={[s.pill, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}><Text style={[s.pillText, { color: '#B45309' }]}>{currencySymbol} {room.budget}</Text></View>
+                <View style={[s.pill, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}><Text style={[s.pillText, { color: '#B45309' }]}>{tr(currencySymbol)} {tr(room.budget)}</Text></View>
               )}
             </View>
             <View style={{ padding: 12, gap: 10 }}>
               <View style={s.section}>
                 <View style={s.sectionHead}>
-                  <Text style={[s.sectionTitle, { color: '#059669' }]}>FUNCTIONAL REQUIREMENTS</Text>
-                  <Text style={[s.sectionState, hasFunctional && { color: '#059669' }]}>{hasFunctional ? 'Specified' : 'Not specified'}</Text>
+                  <Text style={[s.sectionTitle, { color: '#059669' }]}>{tr("FUNCTIONAL REQUIREMENTS")}</Text>
+                  <Text style={[s.sectionState, hasFunctional && { color: '#059669' }]}>{hasFunctional ? tr("Specified") : tr("Not specified")}</Text>
                 </View>
-                <Spec label="USAGE / PRIMARY PURPOSE" value={room.roomUsage} />
-                <Spec label="FURNITURE & FIXTURES REQUIRED" value={room.furnitureRequirements} />
-                <Spec label="STORAGE UNITS" value={room.storage} />
-                <Spec label="ELECTRICAL / MEP POINTS" value={room.electricalPoints} color="#D97706" />
-                <Spec label="LIGHTING REQUIREMENTS" value={room.lightingRequirements} color="#D97706" />
-                <Spec label="PLUMBING REQUIREMENTS" value={room.plumbingRequirements} color="#0891B2" />
-                <Spec label="CIRCULATION & CLEARANCE" value={room.circulation} />
-                {!hasFunctional && <Text style={s.emptyText}>No functional specifications recorded for this space.</Text>}
+                <Spec label={tr("USAGE / PRIMARY PURPOSE")} value={room.roomUsage} />
+                <Spec label={tr("FURNITURE & FIXTURES REQUIRED")} value={room.furnitureRequirements} />
+                <Spec label={tr("STORAGE UNITS")} value={room.storage} />
+                <Spec label={tr("ELECTRICAL / MEP POINTS")} value={room.electricalPoints} color="#D97706" />
+                <Spec label={tr("LIGHTING REQUIREMENTS")} value={room.lightingRequirements} color="#D97706" />
+                <Spec label={tr("PLUMBING REQUIREMENTS")} value={room.plumbingRequirements} color="#0891B2" />
+                <Spec label={tr("CIRCULATION & CLEARANCE")} value={room.circulation} />
+                {!hasFunctional && <Text style={s.emptyText}>{tr("No functional specifications recorded for this space.")}</Text>}
               </View>
               <View style={s.section}>
                 <View style={s.sectionHead}>
-                  <Text style={[s.sectionTitle, { color: '#7C3AED' }]}>AESTHETIC REQUIREMENTS</Text>
-                  <Text style={[s.sectionState, hasAesthetic && { color: '#7C3AED' }]}>{hasAesthetic ? 'Specified' : 'Not specified'}</Text>
+                  <Text style={[s.sectionTitle, { color: '#7C3AED' }]}>{tr("AESTHETIC REQUIREMENTS")}</Text>
+                  <Text style={[s.sectionState, hasAesthetic && { color: '#7C3AED' }]}>{hasAesthetic ? tr("Specified") : tr("Not specified")}</Text>
                 </View>
-                <Spec label="DESIGN STYLE" value={room.designStyle || room.theme} strong />
-                {!!room.theme && !!room.designStyle && room.theme !== room.designStyle && <Spec label="THEME / MOOD" value={room.theme} />}
-                <Spec label="COLOURS & PALETTE" value={room.colours} />
-                <Spec label="MATERIALS & FINISHES" value={room.materials} />
-                <Spec label="FLOORING PREFERENCES" value={room.flooring} />
-                <Spec label="CEILING & FALSE CEILING" value={room.ceiling} />
-                <Spec label="WALL FINISHES & PANELING" value={room.wallFinishes} />
-                <Spec label="FURNITURE STYLE" value={room.furnitureStyle} />
-                {!hasAesthetic && <Text style={s.emptyText}>No aesthetic requirements recorded for this space.</Text>}
+                <Spec label={tr("DESIGN STYLE")} value={room.designStyle || room.theme} strong />
+                {!!room.theme && !!room.designStyle && room.theme !== room.designStyle && <Spec label={tr("THEME / MOOD")} value={room.theme} />}
+                <Spec label={tr("COLOURS & PALETTE")} value={room.colours} />
+                <Spec label={tr("MATERIALS & FINISHES")} value={room.materials} />
+                <Spec label={tr("FLOORING PREFERENCES")} value={room.flooring} />
+                <Spec label={tr("CEILING & FALSE CEILING")} value={room.ceiling} />
+                <Spec label={tr("WALL FINISHES & PANELING")} value={room.wallFinishes} />
+                <Spec label={tr("FURNITURE STYLE")} value={room.furnitureStyle} />
+                {!hasAesthetic && <Text style={s.emptyText}>{tr("No aesthetic requirements recorded for this space.")}</Text>}
               </View>
               {!!room.description && (
                 <View style={[s.section, { backgroundColor: '#F8FAFC' }]}>
-                  <Text style={s.specLabel}>SPACE OBSERVATIONS & PREFERENCES</Text>
-                  <Text style={[s.specValue, { fontStyle: 'italic' }]}>“{room.description}”</Text>
+                  <Text style={s.specLabel}>{tr("SPACE OBSERVATIONS & PREFERENCES")}</Text>
+                  <Text style={[s.specValue, { fontStyle: 'italic' }]}>“{tr(room.description)}”</Text>
                 </View>
               )}
             </View>

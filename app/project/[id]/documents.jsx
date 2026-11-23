@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking, Platform, TextInput, ScrollView, Modal } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -168,7 +169,7 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
 
   const handleSaveDocumentEdit = async () => {
     const name = editName.trim();
-    if (!name) { showToast('Document name cannot be empty', 'error'); return; }
+    if (!name) { showToast(tr("Document name cannot be empty"), 'error'); return; }
     setIsSavingEdit(true);
     try {
       const payload = { name };
@@ -188,15 +189,15 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        showToast(replacementFile ? 'Document updated and sent for approval again' : 'Document updated', 'success');
+        showToast(replacementFile ? tr("Document updated and sent for approval again") : tr("Document updated"), 'success');
         setEditingDoc(null);
         if (fetchProjectData) fetchProjectData();
       } else {
         const err = await res.json().catch(() => ({}));
-        showToast(err.message || 'Failed to update document', 'error');
+        showToast(err.message || tr("Failed to update document"), 'error');
       }
     } catch (error) {
-      showToast('Failed to update document', 'error');
+      showToast(tr("Failed to update document"), 'error');
     } finally {
       setIsSavingEdit(false);
     }
@@ -223,11 +224,11 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
           });
 
           if (res.ok) {
-            showToast(`Document ${action.toLowerCase()} successfully`, 'success');
+            showToast(tr("Document {{action}} successfully", { action: action.toLowerCase() }), 'success');
             if (fetchProjectData) fetchProjectData();
           } else {
             const err = await res.json();
-            showToast(err.message || `Failed to ${action.toLowerCase()} document`, 'error');
+            showToast(err.message || tr("Failed to {{action}} document", { action: action.toLowerCase() }), 'error');
           }
         } catch (error) {
           console.error('Action error:', error);
@@ -259,11 +260,11 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
           });
 
           if (res.ok) {
-            showToast('Document deleted successfully', 'success');
+            showToast(tr("Document deleted successfully"), 'success');
             if (fetchProjectData) await fetchProjectData();
           } else {
             const err = await res.json();
-            showToast(err.message || 'Failed to delete document', 'error');
+            showToast(err.message || tr("Failed to delete document"), 'error');
           }
         } catch (error) {
           showToast(t('errorDeletingDocument'), 'error');
@@ -311,11 +312,11 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
       });
 
       if (res.ok) {
-        showToast('Document uploaded successfully', 'success');
+        showToast(tr("Document uploaded successfully"), 'success');
         if (fetchProjectData) fetchProjectData();
       } else {
         const err = await res.json();
-        showToast(err.message || 'Failed to save document', 'error');
+        showToast(err.message || tr("Failed to save document"), 'error');
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -327,7 +328,7 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
 
   const handleViewDocument = async (url, name, mimeType) => {
     if (!url) {
-      showToast('No source URL found for this document.', 'error');
+      showToast(tr("No source URL found for this document."), 'error');
       return;
     }
     router.push({ pathname: '/project-document-viewer', params: { url, name, mimeType } });
@@ -436,9 +437,9 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
                   <Ionicons name="folder" size={20} color="#0EA5E9" />
                 </View>
                 <View style={styles.docInfo}>
-                  <Text style={styles.docName} numberOfLines={1}>Project Documents</Text>
+                  <Text style={styles.docName} numberOfLines={1}>{tr("Project Documents")}</Text>
                   <View style={styles.docMetaRow}>
-                    <Text style={styles.docDate}>{filteredDocuments.length} Asset{filteredDocuments.length !== 1 ? 's' : ''}</Text>
+                    <Text style={styles.docDate}>{filteredDocuments.length}{tr(" Asset")}{filteredDocuments.length !== 1 ? 's' : ''}</Text>
                   </View>
                 </View>
                 <View style={styles.docRightSide}>
@@ -461,9 +462,9 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
                     <Ionicons name={folder.icon} size={20} color={folder.color} />
                   </View>
                   <View style={styles.docInfo}>
-                    <Text style={styles.docName} numberOfLines={1}>{folder.name}</Text>
+                    <Text style={styles.docName} numberOfLines={1}>{tr(folder.name)}</Text>
                     <View style={styles.docMetaRow}>
-                      <Text style={styles.docDate}>{folder.documents.length} Asset{folder.documents.length !== 1 ? 's' : ''}</Text>
+                      <Text style={styles.docDate}>{folder.documents.length}{tr(" Asset")}{folder.documents.length !== 1 ? 's' : ''}</Text>
                     </View>
                   </View>
                   <View style={styles.docRightSide}>
@@ -481,7 +482,7 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
               onPress={() => setActiveFolderId(null)}
             >
               <Ionicons name="arrow-back" size={20} color="#64748B" />
-              <Text style={{ fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>Back to Folders</Text>
+              <Text style={{ fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>{tr("Back to Folders")}</Text>
             </TouchableOpacity>
 
             {filteredDocuments.length > 0 ? (
@@ -497,19 +498,19 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
                 </View>
                 
                 <View style={styles.docInfo}>
-                  <Text style={styles.docName} numberOfLines={1} ellipsizeMode="tail">{doc.name}</Text>
+                  <Text style={styles.docName} numberOfLines={1} ellipsizeMode="tail">{tr(doc.name)}</Text>
                   <View style={styles.docMetaRow}>
-                    <Text style={styles.docSize}>{(doc.size / 1024).toFixed(1)} KB</Text>
+                    <Text style={styles.docSize}>{(doc.size / 1024).toFixed(1)}{tr(" KB")}</Text>
                     <Text style={styles.docDot}>•</Text>
                     <Text style={styles.docDate}>{new Date(doc.uploadedAt).toLocaleDateString()}</Text>
                     <Text style={styles.docDot}>•</Text>
-                    <Text style={styles.docDate} numberOfLines={1}>{doc.uploadedBy?.name || 'System'}</Text>
+                    <Text style={styles.docDate} numberOfLines={1}>{doc.uploadedBy?.name || tr("System")}</Text>
                   </View>
                 </View>
 
                 <View style={styles.docRightSide}>
                   <View style={[styles.statusBadge, { backgroundColor: doc.status === 'Approved' ? '#DEF7EC' : doc.status === 'Rejected' ? '#FEE2E2' : '#FEF3C7' }]}>
-                    <Text style={[styles.statusBadgeText, { color: doc.status === 'Approved' ? '#059669' : doc.status === 'Rejected' ? '#DC2626' : '#D97706' }]}>{doc.status || 'Pending'}</Text>
+                    <Text style={[styles.statusBadgeText, { color: doc.status === 'Approved' ? '#059669' : doc.status === 'Rejected' ? '#DC2626' : '#D97706' }]}>{doc.status || tr("Pending")}</Text>
                   </View>
 
                   {canUpdate && !isVirtualFolder && (
@@ -545,14 +546,14 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
                     onPress={() => handleDocumentAction(doc._id, 'Rejected')}
                   >
                     <Ionicons name="close" size={14} color="#EF4444" />
-                    <Text style={styles.rejectText}>Reject</Text>
+                    <Text style={styles.rejectText}>{tr("Reject")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.miniBtn, styles.approveBtn]}
                     onPress={() => handleDocumentAction(doc._id, 'Approved')}
                   >
                     <Ionicons name="checkmark" size={14} color="#059669" />
-                    <Text style={styles.approveText}>Approve</Text>
+                    <Text style={styles.approveText}>{tr("Approve")}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -572,29 +573,29 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
       <Modal visible={!!editingDoc} transparent animationType="fade" onRequestClose={() => setEditingDoc(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'center', padding: 24 }}>
           <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20 }}>
-            <Text style={{ fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' }}>Edit Document</Text>
-            <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 }} numberOfLines={1}>{editingDoc?.name}</Text>
+            <Text style={{ fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr("Edit Document")}</Text>
+            <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 2 }} numberOfLines={1}>{tr(editingDoc?.name)}</Text>
 
-            <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginTop: 18, marginBottom: 6, textTransform: 'uppercase' }}>Document name</Text>
+            <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginTop: 18, marginBottom: 6, textTransform: 'uppercase' }}>{tr("Document name")}</Text>
             <TextInput
               value={editName}
               onChangeText={setEditName}
               style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: 'Inter-Medium', color: '#0F172A' }}
             />
 
-            <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginTop: 16, marginBottom: 6, textTransform: 'uppercase' }}>Replace file (optional)</Text>
+            <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginTop: 16, marginBottom: 6, textTransform: 'uppercase' }}>{tr("Replace file (optional)")}</Text>
             <TouchableOpacity
               onPress={pickReplacementFile}
               style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: '#CBD5E1', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}
             >
               <Feather name="upload" size={16} color="#64748B" />
               <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#475569' }} numberOfLines={1}>
-                {replacementFile ? replacementFile.name : 'Choose a new file'}
+                {replacementFile ? replacementFile.name : tr("Choose a new file")}
               </Text>
             </TouchableOpacity>
             {!!replacementFile && (
               <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#B45309', marginTop: 6 }}>
-                Replacing the file sends the document for approval again.
+                {tr("Replacing the file sends the document for approval again.")}
               </Text>
             )}
 
@@ -603,7 +604,7 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
                 onPress={() => setEditingDoc(null)}
                 style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center' }}
               >
-                <Text style={{ fontFamily: 'Inter-Bold', color: '#475569' }}>Cancel</Text>
+                <Text style={{ fontFamily: 'Inter-Bold', color: '#475569' }}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSaveDocumentEdit}
@@ -612,7 +613,7 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
               >
                 {isSavingEdit
                   ? <ActivityIndicator size="small" color="#FFFFFF" />
-                  : <Text style={{ fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>Save Changes</Text>}
+                  : <Text style={{ fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>{tr("Save Changes")}</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -621,8 +622,8 @@ export default function ProjectDocumentsTab({ project, fetchProjectData }) {
 
       <ConfirmModal 
         visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={tr(confirmModal.title)}
+        message={tr(confirmModal.message)}
         confirmText={confirmModal.confirmText}
         type={confirmModal.type}
         isSubmitting={isProcessing}

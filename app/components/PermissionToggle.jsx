@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React from 'react';
 import { View, Text, StyleSheet, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,8 +12,8 @@ const PermissionToggle = ({ icon, title, description, isEnabled, onToggle }) => 
           <Ionicons name={icon} size={20} color="#2563EB" />
         </View>
         <View style={styles.textContent}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.description}>{description}</Text>
+          <Text style={styles.title}>{tr(title)}</Text>
+          <Text style={styles.description}>{tr(description)}</Text>
         </View>
       </View>
       <Switch

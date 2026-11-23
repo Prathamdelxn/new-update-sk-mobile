@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React from 'react';
 import {
   Modal,
@@ -73,13 +74,13 @@ export default function SiteVisitHistoryModal({
               </View>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <Text style={s.title}>Previous Site Visit Schedules</Text>
+                  <Text style={s.title}>{tr("Previous Site Visit Schedules")}</Text>
                   <View style={s.countPill}>
-                    <Text style={s.countPillText}>{siteVisits.length} {siteVisits.length === 1 ? 'Record' : 'Records'}</Text>
+                    <Text style={s.countPillText}>{siteVisits.length} {siteVisits.length === 1 ? tr("Record") : tr("Records")}</Text>
                   </View>
                 </View>
                 <Text style={s.subtitle} numberOfLines={2}>
-                  Full schedule history, assigned site members, and instructions{leadName ? ` for ${leadName}` : ''}
+                  {tr("Full schedule history, assigned site members, and instructions")}{leadName ? ` for ${leadName}` : ''}
                 </Text>
               </View>
             </View>
@@ -92,9 +93,9 @@ export default function SiteVisitHistoryModal({
             {siteVisits.length === 0 ? (
               <View style={s.emptyBox}>
                 <Ionicons name="calendar-outline" size={32} color="#94A3B8" />
-                <Text style={s.emptyTitle}>No Previous Site Visit Records</Text>
+                <Text style={s.emptyTitle}>{tr("No Previous Site Visit Records")}</Text>
                 <Text style={s.emptySub}>
-                  When site visits are scheduled or rescheduled, the full audit trail and previous dates will appear here.
+                  {tr("When site visits are scheduled or rescheduled, the full audit trail and previous dates will appear here.")}
                 </Text>
               </View>
             ) : (
@@ -120,10 +121,10 @@ export default function SiteVisitHistoryModal({
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' }}>
                         <Ionicons name="location-outline" size={13} color={isLatest ? '#7C3AED' : '#64748B'} />
                         <Text style={s.visitCardLabel}>
-                          {isLatest ? 'Current / Latest Schedule' : `Previous Schedule #${siteVisits.length - idx}`}
+                          {isLatest ? tr("Current / Latest Schedule") : tr("Previous Schedule #{{value}}", { value: siteVisits.length - idx })}
                         </Text>
                         <View style={[s.statusBadge, { backgroundColor: badgeBg }]}>
-                          <Text style={[s.statusBadgeText, { color: badgeColor }]}>{badgeText}</Text>
+                          <Text style={[s.statusBadgeText, { color: badgeColor }]}>{tr(badgeText)}</Text>
                         </View>
                       </View>
                     </View>
@@ -140,17 +141,17 @@ export default function SiteVisitHistoryModal({
                     )}
 
                     <View style={s.notesBox}>
-                      <Text style={s.notesLabel}>INSTRUCTIONS / SITE NOTES</Text>
-                      <Text style={s.notesText}>{item.remarks || 'No specific instructions entered.'}</Text>
+                      <Text style={s.notesLabel}>{tr("INSTRUCTIONS / SITE NOTES")}</Text>
+                      <Text style={s.notesText}>{item.remarks || tr("No specific instructions entered.")}</Text>
                     </View>
 
                     <View style={s.footerRow}>
                       <Text style={s.footerText}>
-                        Assigned: <Text style={s.footerTextBold}>{assignedName}</Text>
+                        {tr("Assigned: ")}<Text style={s.footerTextBold}>{tr(assignedName)}</Text>
                       </Text>
                       {!!item.createdAt && (
                         <Text style={s.footerText}>
-                          Logged: {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                          {tr("Logged: ")}{new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                         </Text>
                       )}
                     </View>
@@ -162,7 +163,7 @@ export default function SiteVisitHistoryModal({
 
           <View style={s.footer}>
             <TouchableOpacity style={s.closeFooterBtn} onPress={onClose}>
-              <Text style={s.closeFooterBtnText}>Close</Text>
+              <Text style={s.closeFooterBtnText}>{tr("Close")}</Text>
             </TouchableOpacity>
             {!isReadOnly && !!onReschedule && (
               <TouchableOpacity
@@ -171,7 +172,7 @@ export default function SiteVisitHistoryModal({
                 activeOpacity={0.8}
               >
                 <Ionicons name="calendar-outline" size={14} color="#FFFFFF" />
-                <Text style={s.rescheduleBtnText}>Reschedule Site Visit</Text>
+                <Text style={s.rescheduleBtnText}>{tr("Reschedule Site Visit")}</Text>
               </TouchableOpacity>
             )}
           </View>

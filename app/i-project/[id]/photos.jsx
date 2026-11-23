@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -50,7 +51,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setPhotos(res?.success && res?.data ? res.data : []);
     } catch (e) {
       console.error('Failed to load photos', e);
-      showToast('Failed to fetch site photos history', 'error');
+      showToast(tr("Failed to fetch site photos history"), 'error');
     } finally {
       setLoading(false);
     }
@@ -59,18 +60,18 @@ const { can: canDo } = useProjectPermissions(projectId);
   useFocusEffect(useCallback(() => { fetchPhotos(); }, [fetchPhotos]));
 
   const handleDeletePhoto = (photo) => {
-    Alert.alert('Delete photo', `Delete "${photo.caption || 'this photo'}"? This can't be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete photo"), tr("Delete \"{{value}}\"? This can't be undone.", { value: photo.caption || 'this photo' }), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete',
+        text: tr("Delete"),
         style: 'destructive',
         onPress: async () => {
           try {
             await interiorApiClient.delete(`/projects/${projectId}/photos?photoId=${photo._id}`);
-            showToast('Photo deleted', 'success');
+            showToast(tr("Photo deleted"), 'success');
             fetchPhotos();
           } catch (e) {
-            showToast(e.message || 'Failed to delete photo', 'error');
+            showToast(e.message || tr("Failed to delete photo"), 'error');
           }
         },
       },
@@ -87,7 +88,7 @@ const { can: canDo } = useProjectPermissions(projectId);
   const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      showToast('Photo library permission is required', 'error');
+      showToast(tr("Photo library permission is required"), 'error');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
@@ -98,7 +99,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleUpload = async () => {
     if (!selectedAsset) {
-      showToast('Please select a photo to upload', 'error');
+      showToast(tr("Please select a photo to upload"), 'error');
       return;
     }
     setSubmitting(true);
@@ -109,11 +110,11 @@ const { can: canDo } = useProjectPermissions(projectId);
       if (!uploadRes?.success || !uploadRes?.data?.url) throw new Error('Photo upload failed');
 
       await interiorApiClient.post(`/projects/${projectId}/photos`, { caption, category, url: uploadRes.data.url });
-      showToast('Site photo logged successfully!', 'success');
+      showToast(tr("Site photo logged successfully!"), 'success');
       closeModal();
       fetchPhotos();
     } catch (e) {
-      showToast(e.message || 'Failed to log site photo', 'error');
+      showToast(e.message || tr("Failed to log site photo"), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -130,7 +131,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Site Photos</Text>
+            <Text style={s.headerTitle}>{tr("Site Photos")}</Text>
           </View>
         </View>
 
@@ -150,7 +151,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             {filteredPhotos.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="image-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No photos found</Text>
+                <Text style={s.emptyTitle}>{tr("No photos found")}</Text>
               </View>
             ) : (
               <View style={s.grid}>
@@ -159,7 +160,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     <View style={s.photoImgWrap}>
                       <Image source={{ uri: photo.url }} style={s.photoImg} contentFit="cover" />
                       <View style={s.photoCatTag}>
-                        <Text style={s.photoCatTagText}>{photo.category}</Text>
+                        <Text style={s.photoCatTagText}>{tr(photo.category)}</Text>
                       </View>
                       {canDo('photos', 'delete') && (
                         <TouchableOpacity style={s.photoDeleteBtn} onPress={() => handleDeletePhoto(photo)} hitSlop={6}>
@@ -167,7 +168,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                         </TouchableOpacity>
                       )}
                     </View>
-                    <Text style={s.photoCaption} numberOfLines={1}>{photo.caption || 'No caption added'}</Text>
+                    <Text style={s.photoCaption} numberOfLines={1}>{photo.caption || tr("No caption added")}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Ionicons name="calendar-outline" size={11} color="#94A3B8" />
                       <Text style={s.photoDate}>{formatDate(photo.createdAt)}</Text>
@@ -191,39 +192,39 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Log Progress Photo</Text>
+              <Text style={s.modalTitle}>{tr("Log Progress Photo")}</Text>
               <TouchableOpacity onPress={closeModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Photo Caption / Note</Text>
-              <TextInput style={s.input} placeholder="e.g. Completed partition wall boarding" placeholderTextColor="#94A3B8" value={caption} onChangeText={setCaption} />
+              <Text style={s.label}>{tr("Photo Caption / Note")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Completed partition wall boarding")} placeholderTextColor="#94A3B8" value={caption} onChangeText={setCaption} />
 
-              <Text style={s.label}>Category</Text>
+              <Text style={s.label}>{tr("Category")}</Text>
               <View style={{ gap: 6, marginBottom: 8 }}>
                 {CATEGORY_OPTIONS.map((opt) => (
                   <TouchableOpacity key={opt.value} style={[s.catOption, category === opt.value && s.catOptionActive]} onPress={() => setCategory(opt.value)}>
-                    <Text style={[s.catOptionText, category === opt.value && s.catOptionTextActive]}>{opt.label}</Text>
+                    <Text style={[s.catOptionText, category === opt.value && s.catOptionTextActive]}>{tr(opt.label)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.label}>Site Photo *</Text>
+              <Text style={s.label}>{tr("Site Photo *")}</Text>
               <TouchableOpacity style={s.uploadBox} onPress={pickImage}>
                 {selectedAsset ? (
                   <Image source={{ uri: selectedAsset.uri }} style={s.previewImg} contentFit="cover" />
                 ) : (
                   <>
                     <Ionicons name="image-outline" size={30} color="#94A3B8" />
-                    <Text style={s.uploadBoxText}>Tap to select a site photo</Text>
+                    <Text style={s.uploadBoxText}>{tr("Tap to select a site photo")}</Text>
                   </>
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleUpload} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Save & Upload Photo</Text>}
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Save & Upload Photo")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // =============================================================================
 // Interior — Confirm Order (mobile port of the web InteriorConfirmedOrderStageView)
 // Vendors each quotation was dispatched to, one vendor document per row, and the
@@ -113,7 +114,7 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
     if (viewable) {
       router.push({ pathname: '/document-viewer', params: { url: doc.url, name: doc.name || 'Document', mimeType: type } });
     } else {
-      Linking.openURL(doc.url).catch(() => showToast('Could not open this document', 'error'));
+      Linking.openURL(doc.url).catch(() => showToast(tr("Could not open this document"), 'error'));
     }
   };
 
@@ -156,7 +157,7 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
 
   const uploadAsset = async (asset) => {
     if (asset.size && asset.size > MAX_BYTES) {
-      showToast(`"${asset.name}" is larger than 15 MB`, 'error');
+      showToast(tr("\"{{name}}\" is larger than 15 MB", { name: asset.name }), 'error');
       return null;
     }
     const url = await cloudinaryService.uploadFile(asset.uri, asset.name, asset.mimeType || '');
@@ -174,9 +175,9 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
       const next = { ...vendorMap, [row.quotationIndex]: (vendorMap[row.quotationIndex] || []).map((v) => (v.id === row.id ? { ...v, attachments: [attachment] } : v)) };
       setVendorMap(next);
       await persistVendors(next);
-      showToast('Document uploaded', 'success');
+      showToast(tr("Document uploaded"), 'success');
     } catch (e) {
-      showToast(e?.message || 'Failed to upload the document', 'error');
+      showToast(e?.message || tr("Failed to upload the document"), 'error');
     } finally {
       setUploadingRowId(null);
     }
@@ -187,26 +188,26 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
       const next = { ...vendorMap, [row.quotationIndex]: (vendorMap[row.quotationIndex] || []).map((v) => (v.id === row.id ? { ...v, attachments: [] } : v)) };
       setVendorMap(next);
       await persistVendors(next);
-      showToast('Document removed', 'success');
+      showToast(tr("Document removed"), 'success');
     } catch (e) {
-      showToast(e?.message || 'Failed to remove the document', 'error');
+      showToast(e?.message || tr("Failed to remove the document"), 'error');
     }
   };
 
   const handleRemoveVendor = (row) => {
-    Alert.alert('Remove vendor', `Remove ${row.vendorName} from "${row.quotationTitle}"?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Remove vendor"), tr("Remove {{vendorName}} from \"{{quotationTitle}}\"?", { vendorName: row.vendorName, quotationTitle: row.quotationTitle }), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Remove',
+        text: tr("Remove"),
         style: 'destructive',
         onPress: async () => {
           try {
             const next = { ...vendorMap, [row.quotationIndex]: (vendorMap[row.quotationIndex] || []).filter((v) => v.id !== row.id) };
             setVendorMap(next);
             await persistVendors(next, { qIdx: row.quotationIndex, vendorEmail: row.vendorEmail, vendorName: row.vendorName, vendorId: row.vendorId });
-            showToast('Vendor entry removed', 'success');
+            showToast(tr("Vendor entry removed"), 'success');
           } catch (e) {
-            showToast(e?.message || 'Failed to remove the vendor', 'error');
+            showToast(e?.message || tr("Failed to remove the vendor"), 'error');
           }
         },
       },
@@ -227,28 +228,28 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
       }
       if (!uploaded.length) return;
       await saveUpdates({ confirmedOrder: { ...(lead.confirmedOrder || {}), attachments: [...generalDocs, ...uploaded] } });
-      showToast(`${uploaded.length} file(s) uploaded`, 'success');
+      showToast(tr("{{uploadedCount}} file(s) uploaded", { uploadedCount: uploaded.length }), 'success');
       onRefresh?.();
     } catch (e) {
-      showToast(e?.message || 'Failed to upload files', 'error');
+      showToast(e?.message || tr("Failed to upload files"), 'error');
     } finally {
       setUploadingGeneral(false);
     }
   };
 
   const handleRemoveGeneral = (idx) => {
-    Alert.alert('Remove document', `Remove "${generalDocs[idx]?.name || 'document'}"?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Remove document"), tr("Remove \"{{value}}\"?", { value: generalDocs[idx]?.name || 'document' }), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Remove',
+        text: tr("Remove"),
         style: 'destructive',
         onPress: async () => {
           try {
             await saveUpdates({ confirmedOrder: { ...(lead.confirmedOrder || {}), attachments: generalDocs.filter((_, i) => i !== idx) } });
-            showToast('Document removed', 'success');
+            showToast(tr("Document removed"), 'success');
             onRefresh?.();
           } catch (e) {
-            showToast(e?.message || 'Failed to remove the document', 'error');
+            showToast(e?.message || tr("Failed to remove the document"), 'error');
           }
         },
       },
@@ -282,14 +283,14 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
       <View style={s.card}>
         <View style={s.cardHeader}>
           <Ionicons name="paper-plane-outline" size={16} color="#2563EB" />
-          <Text style={s.cardTitle}>Dispatched Quotations</Text>
+          <Text style={s.cardTitle}>{tr("Dispatched Quotations")}</Text>
           <Text style={s.countText}>{filtered.length}</Text>
         </View>
 
         {rows.length > 0 && (
           <View style={s.searchBox}>
             <Ionicons name="search" size={14} color="#94A3B8" />
-            <TextInput value={search} onChangeText={setSearch} placeholder="Search quote or vendor..." placeholderTextColor="#94A3B8" style={s.searchInput} />
+            <TextInput value={search} onChangeText={setSearch} placeholder={tr("Search quote or vendor...")} placeholderTextColor="#94A3B8" style={s.searchInput} />
             {!!search && (
               <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
                 <Ionicons name="close-circle" size={16} color="#94A3B8" />
@@ -302,7 +303,7 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
           <View style={s.pillRow}>
             {['all', ...quoteIndices].map((k) => (
               <TouchableOpacity key={String(k)} style={[s.pill, quoteFilter === k && s.pillActive]} onPress={() => setQuoteFilter(k)}>
-                <Text style={[s.pillText, quoteFilter === k && s.pillTextActive]}>{k === 'all' ? 'All Quotes' : quotations[k]?.title || `Q${k + 1}`}</Text>
+                <Text style={[s.pillText, quoteFilter === k && s.pillTextActive]}>{k === 'all' ? tr("All Quotes") : quotations[k]?.title || `Q${k + 1}`}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -311,8 +312,8 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
         {filtered.length === 0 ? (
           <View style={s.empty}>
             <Ionicons name="receipt-outline" size={30} color="#CBD5E1" />
-            <Text style={s.emptyTitle}>{rows.length === 0 ? 'No quotations dispatched to vendors yet' : 'No vendors match your search'}</Text>
-            {rows.length === 0 && <Text style={s.emptySub}>Quotations show up here as soon as they are sent to vendor partners.</Text>}
+            <Text style={s.emptyTitle}>{rows.length === 0 ? tr("No quotations dispatched to vendors yet") : tr("No vendors match your search")}</Text>
+            {rows.length === 0 && <Text style={s.emptySub}>{tr("Quotations show up here as soon as they are sent to vendor partners.")}</Text>}
           </View>
         ) : (
           filtered.map((row) => (
@@ -320,24 +321,24 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
               <View style={s.rowTop}>
                 <View style={{ flex: 1, gap: 2 }}>
                   <View style={s.quoteLine}>
-                    <Text style={s.quoteTitle} numberOfLines={1}>{row.quotationTitle}</Text>
-                    <Text style={s.versionTag}>v{row.quotationVersion}</Text>
+                    <Text style={s.quoteTitle} numberOfLines={1}>{tr(row.quotationTitle)}</Text>
+                    <Text style={s.versionTag}>v{tr(row.quotationVersion)}</Text>
                     {row.isPrimary && (
                       <View style={s.primaryTag}>
                         <Ionicons name="checkmark-circle" size={11} color="#047857" />
-                        <Text style={s.primaryText}>Primary</Text>
+                        <Text style={s.primaryText}>{tr("Primary")}</Text>
                       </View>
                     )}
                   </View>
-                  <Text style={s.vendorName}>{row.vendorName}</Text>
-                  {!!row.vendorEmail && <Text style={s.meta} numberOfLines={1}>{row.vendorEmail}</Text>}
-                  <Text style={s.meta}>Sent: {formatDateTime(row.sentAt)}</Text>
+                  <Text style={s.vendorName}>{tr(row.vendorName)}</Text>
+                  {!!row.vendorEmail && <Text style={s.meta} numberOfLines={1}>{tr(row.vendorEmail)}</Text>}
+                  <Text style={s.meta}>{tr("Sent: ")}{formatDateTime(row.sentAt)}</Text>
                 </View>
                 <View style={s.rowActions}>
                   {!!onViewQuotation && (
                     <TouchableOpacity style={s.viewBtn} onPress={() => onViewQuotation(row.quotationIndex)}>
                       <Ionicons name="eye-outline" size={13} color="#1D4ED8" />
-                      <Text style={s.viewText}>View</Text>
+                      <Text style={s.viewText}>{tr("View")}</Text>
                     </TouchableOpacity>
                   )}
                   {editable && (
@@ -353,7 +354,7 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
                   <View key={i} style={s.docChip}>
                     <TouchableOpacity style={s.docChipMain} onPress={() => openDoc(doc)}>
                       <Ionicons name="document-text-outline" size={13} color="#2563EB" />
-                      <Text style={s.docChipText} numberOfLines={1}>{doc.name}</Text>
+                      <Text style={s.docChipText} numberOfLines={1}>{tr(doc.name)}</Text>
                     </TouchableOpacity>
                     {editable && (
                       <TouchableOpacity onPress={() => handleRemoveVendorDoc(row)} hitSlop={6}>
@@ -365,10 +366,10 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
                 {row.attachments.length === 0 && (editable ? (
                   <TouchableOpacity style={s.uploadBtn} onPress={() => handleVendorUpload(row)} disabled={uploadingRowId === row.id}>
                     {uploadingRowId === row.id ? <ActivityIndicator size="small" color="#475569" /> : <Ionicons name="cloud-upload-outline" size={14} color="#475569" />}
-                    <Text style={s.uploadText}>{uploadingRowId === row.id ? 'Uploading...' : 'Upload vendor document'}</Text>
+                    <Text style={s.uploadText}>{uploadingRowId === row.id ? tr("Uploading...") : tr("Upload vendor document")}</Text>
                   </TouchableOpacity>
                 ) : (
-                  <Text style={s.meta}>No vendor document</Text>
+                  <Text style={s.meta}>{tr("No vendor document")}</Text>
                 ))}
               </View>
             </View>
@@ -380,13 +381,13 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
       <View style={s.card}>
         <View style={s.cardHeader}>
           <Ionicons name="attach-outline" size={17} color="#2563EB" />
-          <Text style={s.cardTitle}>Signed Contract & Waste Files</Text>
+          <Text style={s.cardTitle}>{tr("Signed Contract & Waste Files")}</Text>
         </View>
-        <Text style={s.emptySub}>Signed client proposals, execution attachments or waste calculation sheets.</Text>
+        <Text style={s.emptySub}>{tr("Signed client proposals, execution attachments or waste calculation sheets.")}</Text>
 
         {generalDocs.length === 0 ? (
           <View style={s.dashedBox}>
-            <Text style={s.meta}>No signed contract or waste files attached yet.</Text>
+            <Text style={s.meta}>{tr("No signed contract or waste files attached yet.")}</Text>
           </View>
         ) : (
           generalDocs.map((file, idx) => (
@@ -396,8 +397,8 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
                   <Ionicons name="document-text-outline" size={15} color="#2563EB" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.fileName} numberOfLines={1}>{file.name}</Text>
-                  {!!file.size && <Text style={s.meta}>{Math.round(file.size / 1024)} KB</Text>}
+                  <Text style={s.fileName} numberOfLines={1}>{tr(file.name)}</Text>
+                  {!!file.size && <Text style={s.meta}>{Math.round(file.size / 1024)}{tr(" KB")}</Text>}
                 </View>
               </TouchableOpacity>
               {editable && (
@@ -412,7 +413,7 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
         {editable && (
           <TouchableOpacity style={s.primaryBtn} onPress={handleGeneralUpload} disabled={uploadingGeneral}>
             {uploadingGeneral ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="cloud-upload-outline" size={15} color="#FFFFFF" />}
-            <Text style={s.primaryBtnText}>{uploadingGeneral ? 'Uploading...' : 'Upload Documents'}</Text>
+            <Text style={s.primaryBtnText}>{uploadingGeneral ? tr("Uploading...") : tr("Upload Documents")}</Text>
           </TouchableOpacity>
         )}
       </View>

@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,11 +51,11 @@ export default function VerifyRegistrationOtpScreen() {
 
   const handleVerifyOTP = async () => {
     if (!otp) {
-      setError('Please enter the OTP');
+      setError(tr("Please enter the OTP"));
       return;
     }
     if (otp.length !== 6) {
-      setError('OTP must be 6 digits');
+      setError(tr("OTP must be 6 digits"));
       return;
     }
 
@@ -65,13 +66,13 @@ export default function VerifyRegistrationOtpScreen() {
       const result = await verifyRegistrationOtp(email, otp, password, industryType || 'construction');
 
       if (result.success) {
-        showToast(isInterior ? 'Workspace verified and created successfully!' : 'Account verified successfully!', 'success');
+        showToast(isInterior ? tr("Workspace verified and created successfully!") : tr("Account verified successfully!"), 'success');
         router.replace('/(tabs)/dashboard');
       } else {
-        setError(result.message || 'Verification failed. Please check the OTP.');
+        setError(result.message || tr("Verification failed. Please check the OTP."));
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      setError(tr("Network error. Please try again."));
     } finally {
       setIsLoading(false);
     }
@@ -95,22 +96,22 @@ export default function VerifyRegistrationOtpScreen() {
           timezone,
         });
         if (result.success) {
-          showToast('A new OTP has been sent to your email.', 'success');
+          showToast(tr("A new OTP has been sent to your email."), 'success');
           setCountdown(30);
         } else {
-          setError(result.message || 'Failed to resend code');
+          setError(result.message || tr("Failed to resend code"));
         }
       } else {
         const result = await register(params.name || '', email, password, params.phoneNumber || '', 'construction');
         if (result.success) {
-          showToast('A new OTP has been sent to your email.', 'success');
+          showToast(tr("A new OTP has been sent to your email."), 'success');
           setCountdown(30);
         } else {
-          setError(result.message || 'Failed to resend code');
+          setError(result.message || tr("Failed to resend code"));
         }
       }
     } catch (err) {
-      setError('Failed to resend OTP. Check connection.');
+      setError(tr("Failed to resend OTP. Check connection."));
     } finally {
       setResendLoading(false);
     }
@@ -140,25 +141,25 @@ export default function VerifyRegistrationOtpScreen() {
               contentFit="contain"
             />
             <Text style={styles.headerTitle}>
-              {isInterior ? 'Verify your workspace' : 'Verify Email'}
+              {isInterior ? tr("Verify your workspace") : tr("Verify Email")}
             </Text>
             <Text style={styles.subtext}>
               {isInterior
-                ? `We sent a 6-digit code to ${email}. Enter it below to complete setup.`
-                : `Enter the 6-digit OTP sent to ${email}`}
+                ? tr("We sent a 6-digit code to {{email}}. Enter it below to complete setup.", { email: email })
+                : tr("Enter the 6-digit OTP sent to {{email}}", { email: email })}
             </Text>
           </View>
 
           <View style={styles.glassCard}>
             {error ? (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>{tr(error)}</Text>
               </View>
             ) : null}
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>
-                {isInterior ? 'Verification code' : 'OTP Code'}
+                {isInterior ? tr("Verification code") : tr("OTP Code")}
               </Text>
               <View style={styles.inputWrapper}>
                 <TextInput
@@ -184,9 +185,9 @@ export default function VerifyRegistrationOtpScreen() {
                     {isLoading ? (
                       <ActivityIndicator color="#FFFFFF" size="small" />
                     ) : isInterior ? (
-                      'Verify workspace'
+                      tr("Verify workspace")
                     ) : (
-                      'Verify Account'
+                      tr("Verify Account")
                     )}
                   </Text>
                 </View>
@@ -194,14 +195,14 @@ export default function VerifyRegistrationOtpScreen() {
             </TouchableOpacity>
 
             <View style={styles.resendContainer}>
-              <Text style={styles.resendPrompt}>Didn&apos;t receive a code? </Text>
+              <Text style={styles.resendPrompt}>{tr("Didn't receive a code? ")}</Text>
               <TouchableOpacity
                 onPress={handleResendOTP}
                 disabled={countdown > 0 || resendLoading}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.resendLink, (countdown > 0 || resendLoading) && styles.resendDisabled]}>
-                  {resendLoading ? 'Resending...' : countdown > 0 ? `Resend in ${countdown}s` : 'Resend code'}
+                  {resendLoading ? tr("Resending...") : countdown > 0 ? tr("Resend in {{countdown}}s", { countdown: countdown }) : tr("Resend code")}
                 </Text>
               </TouchableOpacity>
             </View>

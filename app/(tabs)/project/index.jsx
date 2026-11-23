@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 
 
 
@@ -206,7 +207,7 @@ export default function ProjectScreen() {
   const handleSendForSiteSurvey = (project) => {
     const projectId = project._id;
     if (!hasProjectPermission(user, project, 'sitesurvey:assign')) {
-      showToast('You do not have permission to assign site surveys.', 'error');
+      showToast(tr("You do not have permission to assign site surveys."), 'error');
       return;
     }
     setMembersList([]);
@@ -241,13 +242,13 @@ export default function ProjectScreen() {
       });
 
       if (response.ok) {
-        showToast('Site survey assigned successfully.', 'success');
+        showToast(tr("Site survey assigned successfully."), 'success');
         setSurveyConfirmModal({ visible: false, member: null });
         setIsSurveyModalVisible(false);
         fetchProjects();
       } else {
         const errorData = await response.json().catch(() => ({ message: 'Server error' }));
-        showToast(errorData.message || 'Failed to assign site survey', 'error');
+        showToast(errorData.message || tr("Failed to assign site survey"), 'error');
       }
     } catch (e) {
       showToast(t('networkError'), 'error');
@@ -282,7 +283,7 @@ export default function ProjectScreen() {
       console.log("calling apis", API_BASE_URL);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Server error' }));
-        showToast(errorData.message || 'Failed to sync projects', 'error');
+        showToast(errorData.message || tr("Failed to sync projects"), 'error');
         return;
       }
 
@@ -331,7 +332,7 @@ export default function ProjectScreen() {
   const handleEditProject = (item) => {
     const hasEditPermission = !isProjectLocked(item) && hasProjectPermission(user, item, 'projects:update');
     if (!hasEditPermission) {
-      showToast('You do not have permission to edit projects.', 'error');
+      showToast(tr("You do not have permission to edit projects."), 'error');
       return;
     }
     router.push({
@@ -357,7 +358,7 @@ export default function ProjectScreen() {
     const project = projectsList.find((p) => p._id === id);
     const hasDeletePermission = hasProjectPermission(user, project, 'projects:delete');
     if (!hasDeletePermission) {
-      showToast('You do not have permission to delete projects.', 'error');
+      showToast(tr("You do not have permission to delete projects."), 'error');
       return;
     }
     setDeleteModal({ visible: true, projectId: id });
@@ -371,12 +372,12 @@ export default function ProjectScreen() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
-        showToast("Project deleted successfully", "delete");
+        showToast(tr("Project deleted successfully"), "delete");
         setDeleteModal({ visible: false, projectId: null });
         fetchProjects(); // Refresh list
       } else {
         const errorData = await response.json().catch(() => ({ message: 'Server error' }));
-        showToast(errorData.message || "Failed to delete project", "error");
+        showToast(errorData.message || tr("Failed to delete project"), "error");
       }
     } catch (error) {
       showToast(t('networkError'), "error");
@@ -401,10 +402,10 @@ export default function ProjectScreen() {
       setNewCategoryName('');
       setSelectedCategory(data);
       setModalStep('template');
-      setInlineSuccessMsg(`Category "${name}" created successfully!`);
+      setInlineSuccessMsg(tr("Category \"{{name}}\" created successfully!", { name: name }));
       setTimeout(() => setInlineSuccessMsg(''), 3500);
     } catch (e) {
-      showToast(e.message, 'error');
+      showToast(tr(e.message), 'error');
     } finally {
       setIsCreatingCategory(false);
     }
@@ -502,9 +503,9 @@ export default function ProjectScreen() {
             </View>
             <View style={styles.cardHeaderInfo}>
               <Text style={styles.cardCategoryLabel} numberOfLines={1}>
-                {item.category?.name || 'General'}
+                {item.category?.name || tr("General")}
               </Text>
-              <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.cardTitle} numberOfLines={1}>{tr(item.name)}</Text>
             </View>
           </View>
           <View style={[styles.statusPill, { backgroundColor: accentColor }]}>
@@ -518,10 +519,10 @@ export default function ProjectScreen() {
           {/* Location + Action Required */}
           <View style={styles.cardMetaRow}>
             <MaterialIcons name="location-on" size={12} color="#94A3B8" />
-            <Text style={styles.cardLocText} numberOfLines={1}>{siteLocation}</Text>
+            <Text style={styles.cardLocText} numberOfLines={1}>{tr(siteLocation)}</Text>
             {item.projectCode ? (
               <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 6 }}>
-                <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#64748B' }}>{item.projectCode}</Text>
+                <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: '#64748B' }}>{tr(item.projectCode)}</Text>
               </View>
             ) : null}
             {!isAdmin && item.hasPendingPlans && (
@@ -531,7 +532,7 @@ export default function ProjectScreen() {
             )}
             {item.projectType === 'Interior' && (
               <View style={[styles.interiorBadge, { backgroundColor: currentStatusStyles.bg }]}>
-                <Text style={[styles.interiorBadgeText, { color: accentColor }]}>INTERIOR</Text>
+                <Text style={[styles.interiorBadgeText, { color: accentColor }]}>{tr("INTERIOR")}</Text>
               </View>
             )}
           </View>
@@ -567,7 +568,7 @@ export default function ProjectScreen() {
             <View style={styles.cardFooterDate}>
               <MaterialIcons name="calendar-today" size={11} color="#197ef1ff" />
               <Text style={styles.cardFooterDateText}>
-                {item.startDate ? new Date(item.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No date'}
+                {item.startDate ? new Date(item.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : tr("No date")}
               </Text>
             </View>
             {/* Send for Site Survey icon button */}
@@ -750,7 +751,7 @@ export default function ProjectScreen() {
                       onPress={() => setSortBy(key)}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.filterChipText, sortBy === key && styles.filterChipTextActive]}>{label}</Text>
+                      <Text style={[styles.filterChipText, sortBy === key && styles.filterChipTextActive]}>{tr(label)}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -891,7 +892,7 @@ export default function ProjectScreen() {
                         <View style={styles.suggestionRow}>
                           {['Villa', 'Apartment', 'Interior', 'Office', 'Commercial', 'Residential'].map(s => (
                             <TouchableOpacity key={s} style={styles.suggestionChip} onPress={() => setNewCategoryName(s)} activeOpacity={0.7}>
-                              <Text style={styles.suggestionChipText}>{s}</Text>
+                              <Text style={styles.suggestionChipText}>{tr(s)}</Text>
                             </TouchableOpacity>
                           ))}
                         </View>
@@ -941,7 +942,7 @@ export default function ProjectScreen() {
                                     <MaterialIcons name="folder-open" size={16} color="#64748B" />
                                   </View>
                                   <View style={styles.categorySelectInfo}>
-                                    <Text style={styles.categorySelectName}>{cat.name}</Text>
+                                    <Text style={styles.categorySelectName}>{tr(cat.name)}</Text>
                                     <Text style={styles.categoryCountText}>
                                       {count} {count === 1 ? t('templateSingular', 'template') : t('templatePlural', 'templates')}
                                     </Text>
@@ -958,7 +959,7 @@ export default function ProjectScreen() {
                         {!!inlineSuccessMsg && (
                           <View style={{ backgroundColor: '#D1FAE5', padding: 12, borderRadius: 12, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                             <MaterialIcons name="check-circle" size={20} color="#059669" />
-                            <Text style={{ color: '#065F46', fontFamily: 'Inter-Medium', fontSize: 13, flex: 1 }}>{inlineSuccessMsg}</Text>
+                            <Text style={{ color: '#065F46', fontFamily: 'Inter-Medium', fontSize: 13, flex: 1 }}>{tr(inlineSuccessMsg)}</Text>
                           </View>
                         )}
                         {/* Custom Requirement first, same as web */}
@@ -1015,10 +1016,10 @@ export default function ProjectScreen() {
                                     <MaterialIcons name="description" size={22} color="#3B82F6" />
                                   </View>
                                   <View style={styles.tplSelectInfo}>
-                                    <Text style={styles.tplSelectName} numberOfLines={1}>{tpl.name}</Text>
+                                    <Text style={styles.tplSelectName} numberOfLines={1}>{tr(tpl.name)}</Text>
                                     <View style={styles.tplMetaRow}>
-                                      {!!tpl.area && <Text style={styles.tplMetaChip}>{tpl.area} {tpl.areaUnit || 'sqft'}</Text>}
-                                      {!!tpl.estimatedDays && <Text style={styles.tplMetaChip}>{tpl.estimatedDays} {t('days', 'days')}</Text>}
+                                      {!!tpl.area && <Text style={styles.tplMetaChip}>{tr(tpl.area)} {tpl.areaUnit || tr("sqft")}</Text>}
+                                      {!!tpl.estimatedDays && <Text style={styles.tplMetaChip}>{tr(tpl.estimatedDays)} {t('days', 'days')}</Text>}
                                       {Array.isArray(tpl.phases) && <Text style={styles.tplMetaChip}>{tpl.phases.length} {t('phasesLabel', 'phases')}</Text>}
                                     </View>
                                   </View>
@@ -1109,7 +1110,7 @@ export default function ProjectScreen() {
                         <Text style={styles.cAvSmallText}>{(member.name || 'U').charAt(0).toUpperCase()}</Text>
                       </View>
                       <View style={styles.listItemTextContainer}>
-                        <Text style={styles.roleListItemText}>{member.name}</Text>
+                        <Text style={styles.roleListItemText}>{tr(member.name)}</Text>
                         <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 2, fontFamily: 'Inter-Medium' }}>
                           {memberRoleLabel(member)} · {member.email}
                         </Text>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Modal, TextInput, Switch, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,7 +59,7 @@ export default function LabourManagement({ project, selectedDate }) {
 
       if (!labourRes.ok) {
         const errData = await labourRes.json().catch(() => ({}));
-        showToast(errData.message || 'Failed to load labourers', 'error');
+        showToast(errData.message || tr("Failed to load labourers"), 'error');
         return;
       }
 
@@ -69,7 +70,7 @@ export default function LabourManagement({ project, selectedDate }) {
       if (attRes.ok) {
         attData = await attRes.json();
       } else {
-        showToast('Failed to load attendance for this date', 'error');
+        showToast(tr("Failed to load attendance for this date"), 'error');
       }
       setIsSavedInDB(attData.length > 0);
 
@@ -113,7 +114,7 @@ export default function LabourManagement({ project, selectedDate }) {
       setAttendanceState(initialState);
       setSavedAttendanceState(initialState);
     } catch (e) {
-      showToast('Failed to load labour data', 'error');
+      showToast(tr("Failed to load labour data"), 'error');
     } finally {
       if (!hideLoader) setLoading(false);
     }
@@ -137,9 +138,9 @@ export default function LabourManagement({ project, selectedDate }) {
   };
 
   const handleSaveLabour = async () => {
-    if (isProjectLocked(project)) { showToast('This project is locked and can no longer be modified.', 'error'); return; }
+    if (isProjectLocked(project)) { showToast(tr("This project is locked and can no longer be modified."), 'error'); return; }
     if (!newLabour.name || !newLabour.wageAmount) {
-      showToast('Please fill name and wage amount', 'error');
+      showToast(tr("Please fill name and wage amount"), 'error');
       return;
     }
     setAddingLabour(true);
@@ -167,15 +168,15 @@ export default function LabourManagement({ project, selectedDate }) {
       }
 
       if (res.ok) {
-        showToast(editingLabourId ? 'Labourer updated' : 'Labourer added successfully', 'success');
+        showToast(editingLabourId ? tr("Labourer updated") : tr("Labourer added successfully"), 'success');
         closeAddModal();
         fetchData(); // Refresh list
       } else {
         const errData = await res.json().catch(() => ({}));
-        showToast(errData.message || 'Failed to save labourer', 'error');
+        showToast(errData.message || tr("Failed to save labourer"), 'error');
       }
     } catch (e) {
-      showToast('Network error', 'error');
+      showToast(tr("Network error"), 'error');
     } finally {
       setAddingLabour(false);
     }
@@ -183,7 +184,7 @@ export default function LabourManagement({ project, selectedDate }) {
 
   const handleDeleteLabour = async () => {
     if (!editingLabourId) return;
-    if (isProjectLocked(project)) { showToast('This project is locked and can no longer be modified.', 'error'); return; }
+    if (isProjectLocked(project)) { showToast(tr("This project is locked and can no longer be modified."), 'error'); return; }
     setIsDeleting(true);
     try {
       const res = await fetch(`${API_BASE_URL}/labour/${editingLabourId}`, {
@@ -191,21 +192,21 @@ export default function LabourManagement({ project, selectedDate }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        showToast('Labourer deleted', 'success');
+        showToast(tr("Labourer deleted"), 'success');
         closeAddModal();
         fetchData();
       } else {
-        showToast('Failed to delete', 'error');
+        showToast(tr("Failed to delete"), 'error');
       }
     } catch (e) {
-      showToast('Network error', 'error');
+      showToast(tr("Network error"), 'error');
     } finally {
       setIsDeleting(false);
     }
   };
 
   const handleSubmitBulk = async () => {
-    if (isProjectLocked(project)) { showToast('This project is locked and can no longer be modified.', 'error'); return; }
+    if (isProjectLocked(project)) { showToast(tr("This project is locked and can no longer be modified."), 'error'); return; }
     setSubmitting(true);
     try {
       // Prepare payload based on current state
@@ -235,13 +236,13 @@ export default function LabourManagement({ project, selectedDate }) {
       });
 
       if (res.ok) {
-        showToast('Attendance saved successfully', 'success');
+        showToast(tr("Attendance saved successfully"), 'success');
         fetchData(true);
       } else {
-        showToast('Failed to save attendance', 'error');
+        showToast(tr("Failed to save attendance"), 'error');
       }
     } catch (e) {
-      showToast('Network error', 'error');
+      showToast(tr("Network error"), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -268,7 +269,7 @@ export default function LabourManagement({ project, selectedDate }) {
 
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) {
-        showToast('Failed to download payroll', 'error');
+        showToast(tr("Failed to download payroll"), 'error');
         return;
       }
 
@@ -282,13 +283,13 @@ export default function LabourManagement({ project, selectedDate }) {
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(fileUri);
         } else {
-          showToast('Sharing is not available on this device', 'error');
+          showToast(tr("Sharing is not available on this device"), 'error');
         }
       };
       reader.readAsDataURL(blob);
       setExportModalVisible(false);
     } catch (e) {
-      showToast('Network error during download', 'error');
+      showToast(tr("Network error during download"), 'error');
     } finally {
       setIsDownloading(false);
     }
@@ -327,7 +328,7 @@ export default function LabourManagement({ project, selectedDate }) {
       <View style={s.headerRow}>
         <TextInput
           style={s.searchInput}
-          placeholder="Search labourer..."
+          placeholder={tr("Search labourer...")}
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholderTextColor="#94A3B8"
@@ -339,7 +340,7 @@ export default function LabourManagement({ project, selectedDate }) {
           {!isProjectLocked(project) && (
             <TouchableOpacity style={s.addBtn} onPress={() => { setEditingLabourId(null); setAddModalVisible(true); }}>
               <Ionicons name="add" size={20} color="#fff" />
-              <Text style={s.addBtnText}>Add</Text>
+              <Text style={s.addBtnText}>{tr("Add")}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -348,14 +349,14 @@ export default function LabourManagement({ project, selectedDate }) {
       {labourers.length === 0 ? (
         <View style={s.emptyBox}>
           <Ionicons name="people-outline" size={40} color="#CBD5E1" />
-          <Text style={s.emptyText}>No labourers added yet.</Text>
+          <Text style={s.emptyText}>{tr("No labourers added yet.")}</Text>
         </View>
       ) : (
         <>
           <View style={s.listHeader}>
-            <Text style={[s.listHeaderText, { width: 40 }]}>Mark</Text>
-            <Text style={[s.listHeaderText, { flex: 1, paddingLeft: 8 }]}>Name</Text>
-            <Text style={[s.listHeaderText, { width: 90, textAlign: 'center' }]}>Day Type</Text>
+            <Text style={[s.listHeaderText, { width: 40 }]}>{tr("Mark")}</Text>
+            <Text style={[s.listHeaderText, { flex: 1, paddingLeft: 8 }]}>{tr("Name")}</Text>
+            <Text style={[s.listHeaderText, { width: 90, textAlign: 'center' }]}>{tr("Day Type")}</Text>
             <Text style={[s.listHeaderText, { width: 40, textAlign: 'center' }]}></Text>
           </View>
 
@@ -375,8 +376,8 @@ export default function LabourManagement({ project, selectedDate }) {
                     />
                   </View>
                   <View style={{ flex: 1, paddingLeft: 8 }}>
-                    <Text style={[s.labourName, !isChecked && s.textDisabled]}>{labour.name}</Text>
-                    <Text style={[s.labourSub, !isChecked && s.textDisabled]}>{labour.type} • Monthly</Text>
+                    <Text style={[s.labourName, !isChecked && s.textDisabled]}>{tr(labour.name)}</Text>
+                    <Text style={[s.labourSub, !isChecked && s.textDisabled]}>{tr(labour.type)}{tr(" • Monthly")}</Text>
                   </View>
 
                   <View style={{ width: 90, alignItems: 'center' }}>
@@ -386,11 +387,11 @@ export default function LabourManagement({ project, selectedDate }) {
                         onPress={() => toggleHalfDay(labour._id, state.status)}
                       >
                         <Text style={[s.typeBadgeText, state.status === 'Half Day' ? s.typeTextHalf : s.typeTextFull]}>
-                          {state.status === 'Half Day' ? 'Half' : 'Full'}
+                          {state.status === 'Half Day' ? tr("Half") : tr("Full")}
                         </Text>
                       </TouchableOpacity>
                     ) : (
-                      <Text style={s.absentText}>Absent</Text>
+                      <Text style={s.absentText}>{tr("Absent")}</Text>
                     )}
                   </View>
                   <View style={{ width: 40, alignItems: 'center', justifyContent: 'center' }}>
@@ -408,7 +409,7 @@ export default function LabourManagement({ project, selectedDate }) {
             onPress={handleSubmitBulk}
             disabled={isSaveDisabled}
           >
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.submitBtnText}>Save Attendance</Text>}
+            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.submitBtnText}>{tr("Save Attendance")}</Text>}
           </TouchableOpacity>
         </>
       )}
@@ -418,7 +419,7 @@ export default function LabourManagement({ project, selectedDate }) {
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text style={s.modalTitle}>{editingLabourId ? 'Edit Labourer' : 'Add New Labourer'}</Text>
+              <Text style={s.modalTitle}>{editingLabourId ? tr("Edit Labourer") : tr("Add New Labourer")}</Text>
               {editingLabourId && (
                 <TouchableOpacity onPress={handleDeleteLabour} disabled={isDeleting} style={s.deleteBtnTop}>
                   {isDeleting ? <ActivityIndicator size="small" color="#EF4444" /> : <Ionicons name="trash" size={22} color="#EF4444" />}
@@ -426,32 +427,32 @@ export default function LabourManagement({ project, selectedDate }) {
               )}
             </View>
 
-            <Text style={s.label}>Full Name</Text>
-            <TextInput style={s.input} value={newLabour.name} onChangeText={t => setNewLabour({...newLabour, name: t})} placeholder="e.g. John Doe" />
+            <Text style={s.label}>{tr("Full Name")}</Text>
+            <TextInput style={s.input} value={newLabour.name} onChangeText={t => setNewLabour({...newLabour, name: t})} placeholder={tr("e.g. John Doe")} />
 
             <View style={s.splitRow}>
               <View style={{ flex: 1 }}>
-                <Text style={s.label}>Type</Text>
+                <Text style={s.label}>{tr("Type")}</Text>
                 <View style={s.toggleGroup}>
                   <TouchableOpacity style={[s.toggleBtn, newLabour.type === 'Skilled' && s.toggleActive]} onPress={() => setNewLabour({...newLabour, type: 'Skilled'})}>
-                    <Text style={[s.toggleText, newLabour.type === 'Skilled' && s.toggleTextActive]}>Skilled</Text>
+                    <Text style={[s.toggleText, newLabour.type === 'Skilled' && s.toggleTextActive]}>{tr("Skilled")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.toggleBtn, newLabour.type === 'Unskilled' && s.toggleActive]} onPress={() => setNewLabour({...newLabour, type: 'Unskilled'})}>
-                    <Text style={[s.toggleText, newLabour.type === 'Unskilled' && s.toggleTextActive]}>Unskilled</Text>
+                    <Text style={[s.toggleText, newLabour.type === 'Unskilled' && s.toggleTextActive]}>{tr("Unskilled")}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
 
-            <Text style={s.label}>Wage Amount (AED)</Text>
+            <Text style={s.label}>{tr("Wage Amount ({{currency}})", { currency: project?.currency || 'AED' })}</Text>
             <TextInput style={s.input} value={newLabour.wageAmount} onChangeText={t => setNewLabour({...newLabour, wageAmount: t})} placeholder="e.g. 150" keyboardType="numeric" />
 
             <View style={s.modalActions}>
               <TouchableOpacity style={s.cancelBtn} onPress={closeAddModal}>
-                <Text style={s.cancelText}>Cancel</Text>
+                <Text style={s.cancelText}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.saveBtn} onPress={handleSaveLabour} disabled={addingLabour}>
-                {addingLabour ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{editingLabourId ? 'Save Changes' : 'Save Labourer'}</Text>}
+                {addingLabour ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{editingLabourId ? tr("Save Changes") : tr("Save Labourer")}</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -462,10 +463,10 @@ export default function LabourManagement({ project, selectedDate }) {
       <Modal visible={exportModalVisible} transparent animationType="fade">
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
-            <Text style={s.modalTitle}>Export Payroll</Text>
+            <Text style={s.modalTitle}>{tr("Export Payroll")}</Text>
 
             <View style={{ marginBottom: 16 }}>
-              <Text style={s.label}>Start Date</Text>
+              <Text style={s.label}>{tr("Start Date")}</Text>
               <TouchableOpacity style={s.dateInput} onPress={() => setShowPickerFor('start')}>
                 <Text style={s.dateInputText}>{exportStartDate.toLocaleDateString()}</Text>
                 <Ionicons name="calendar-outline" size={18} color="#64748B" />
@@ -473,7 +474,7 @@ export default function LabourManagement({ project, selectedDate }) {
             </View>
 
             <View style={{ marginBottom: 16 }}>
-              <Text style={s.label}>End Date</Text>
+              <Text style={s.label}>{tr("End Date")}</Text>
               <TouchableOpacity style={s.dateInput} onPress={() => setShowPickerFor('end')}>
                 <Text style={s.dateInputText}>{exportEndDate.toLocaleDateString()}</Text>
                 <Ionicons name="calendar-outline" size={18} color="#64748B" />
@@ -491,16 +492,16 @@ export default function LabourManagement({ project, selectedDate }) {
 
             {Platform.OS === 'ios' && showPickerFor && (
                <TouchableOpacity style={{ alignSelf: 'flex-end', marginBottom: 16 }} onPress={() => setShowPickerFor(null)}>
-                 <Text style={{ color: '#2563EB', fontFamily: 'Inter-Bold', fontSize: 16 }}>Done</Text>
+                 <Text style={{ color: '#2563EB', fontFamily: 'Inter-Bold', fontSize: 16 }}>{tr("Done")}</Text>
                </TouchableOpacity>
             )}
 
             <View style={s.modalActions}>
               <TouchableOpacity style={s.cancelBtn} onPress={() => {setExportModalVisible(false); setShowPickerFor(null);}}>
-                <Text style={s.cancelText}>Cancel</Text>
+                <Text style={s.cancelText}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.saveBtn, {backgroundColor: '#16A34A'}]} onPress={handleDownloadPayroll} disabled={isDownloading}>
-                {isDownloading ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>Download</Text>}
+                {isDownloading ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{tr("Download")}</Text>}
               </TouchableOpacity>
             </View>
           </View>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // =============================================================================
 // Interior CRM — pick a lead to bring into a stage
 // Leads normally reach a stage from the previous tab. Users who can create in a
@@ -26,8 +27,8 @@ export default function StageLeadPicker({ visible, title, leads, onClose, onPick
         <View style={s.card}>
           <View style={s.header}>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>{title}</Text>
-              <Text style={s.sub}>Choose the lead to bring into this stage</Text>
+              <Text style={s.title}>{tr(title)}</Text>
+              <Text style={s.sub}>{tr("Choose the lead to bring into this stage")}</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={22} color="#64748B" />
@@ -39,7 +40,7 @@ export default function StageLeadPicker({ visible, title, leads, onClose, onPick
             <TextInput
               value={query}
               onChangeText={setQuery}
-              placeholder="Search by name, phone, city…"
+              placeholder={tr("Search by name, phone, city…")}
               placeholderTextColor="#94A3B8"
               style={s.searchInput}
             />
@@ -51,7 +52,7 @@ export default function StageLeadPicker({ visible, title, leads, onClose, onPick
             keyboardShouldPersistTaps="handled"
             ListEmptyComponent={
               <Text style={s.empty}>
-                {leads.length === 0 ? 'No leads are waiting to enter this stage.' : 'No leads match your search.'}
+                {leads.length === 0 ? tr("No leads are waiting to enter this stage.") : tr("No leads match your search.")}
               </Text>
             }
             renderItem={({ item }) => (
@@ -64,13 +65,13 @@ export default function StageLeadPicker({ visible, title, leads, onClose, onPick
                 }}
               >
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={s.name} numberOfLines={1}>{item.name}</Text>
+                  <Text style={s.name} numberOfLines={1}>{tr(item.name)}</Text>
                   <Text style={s.meta} numberOfLines={1}>
                     {[item.mobileNumber, item.city].filter(Boolean).join(' · ') || '—'}
                   </Text>
                 </View>
                 <View style={s.badge}>
-                  <Text style={s.badgeText}>{item.status}</Text>
+                  <Text style={s.badgeText}>{tr(item.status)}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
               </TouchableOpacity>

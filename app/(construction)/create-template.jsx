@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, StatusBar, TextInput, Platform, KeyboardAvoidingView, Image, DeviceEventEmitter, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -97,7 +98,7 @@ export default function CreateTemplateScreen() {
       }
       if (attempt === 1) await new Promise((resolve) => setTimeout(resolve, 800));
     }
-    if (!cached) showToast('Could not load template details. Please go back and try again.', 'error');
+    if (!cached) showToast(tr("Could not load template details. Please go back and try again."), 'error');
   };
 
   useEffect(() => {
@@ -170,12 +171,12 @@ export default function CreateTemplateScreen() {
     const maxB = Number(maxBudget) || 0;
 
     if (minB < 0 || maxB < 0) {
-      showToast('Budget values cannot be negative.', 'error');
+      showToast(tr("Budget values cannot be negative."), 'error');
       return;
     }
 
     if (maxB > 0 && minB > maxB) {
-      showToast('Minimum budget cannot be greater than maximum budget.', 'error');
+      showToast(tr("Minimum budget cannot be greater than maximum budget."), 'error');
       return;
     }
 
@@ -244,15 +245,15 @@ export default function CreateTemplateScreen() {
       const result = await response.json();
 
       if (response.ok) {
-        showToast(isEditing ? 'Template updated' : 'Template created successfully', 'success');
+        showToast(isEditing ? tr("Template updated") : tr("Template created successfully"), 'success');
         DeviceEventEmitter.emit('new_template', result);
         router.back();
       } else {
-        showToast(result.message || 'Failed to save template', 'error');
+        showToast(result.message || tr("Failed to save template"), 'error');
       }
     } catch (error) {
       console.error('HandleCreate Error:', error);
-      showToast('Something went wrong during template creation.', 'error');
+      showToast(tr("Something went wrong during template creation."), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -341,7 +342,7 @@ export default function CreateTemplateScreen() {
                       <Text style={[
                         styles.categoryText,
                         activeCategory === item._id ? styles.activeCategoryText : null
-                      ]}>{item.name}</Text>
+                      ]}>{tr(item.name)}</Text>
                     </TouchableOpacity>
                   ))
                 ) : (
@@ -487,8 +488,8 @@ export default function CreateTemplateScreen() {
                         <Ionicons name="document-text-outline" size={20} color="#3B82F6" />
                       </View>
                       <View style={styles.fileRowTextContainer}>
-                        <Text style={styles.fileRowName} numberOfLines={1}>{file.name}</Text>
-                        {file.size && <Text style={styles.fileRowSize}>{(file.size / 1024 / 1024).toFixed(2)} MB</Text>}
+                        <Text style={styles.fileRowName} numberOfLines={1}>{tr(file.name)}</Text>
+                        {file.size && <Text style={styles.fileRowSize}>{(file.size / 1024 / 1024).toFixed(2)}{tr(" MB")}</Text>}
                       </View>
                       <TouchableOpacity
                         style={styles.removeFileBtn}

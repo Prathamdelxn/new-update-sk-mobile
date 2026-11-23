@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -94,13 +95,13 @@ function BriefNoteBody({ raw, textStyle, metaTextStyle }) {
   const { note, metaLines } = parseBriefNote(raw);
   return (
     <View style={{ gap: 4 }}>
-      {!!note && <Text style={textStyle}>{note}</Text>}
+      {!!note && <Text style={textStyle}>{tr(note)}</Text>}
       {metaLines.length > 0 && (
         <View style={{ gap: 3, marginTop: note ? 2 : 0 }}>
           {metaLines.map((m, i) => (
             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
               <Ionicons name={m.icon} size={11} color="#64748B" />
-              <Text style={metaTextStyle}>{m.text}</Text>
+              <Text style={metaTextStyle}>{tr(m.text)}</Text>
             </View>
           ))}
         </View>
@@ -212,21 +213,21 @@ function StageBrief({ icon, color, title, status, statusColor, meta = [], note, 
           <Ionicons name={icon} size={18} color={color} />
         </View>
         <View style={{ flex: 1, gap: 4 }}>
-          <Text style={s.briefTitle} numberOfLines={1}>{title}</Text>
+          <Text style={s.briefTitle} numberOfLines={1}>{tr(title)}</Text>
           {!!status && (
             <View style={[s.briefPill, { backgroundColor: statusColor + '18' }]}>
-              <Text style={[s.briefPillText, { color: statusColor }]} numberOfLines={1}>{status}</Text>
+              <Text style={[s.briefPillText, { color: statusColor }]} numberOfLines={1}>{tr(status)}</Text>
             </View>
           )}
         </View>
-        {right}
+        {tr(right)}
       </View>
       {items.length > 0 && (
         <View style={s.briefMetaRow}>
           {items.map((m) => (
             <View key={m.icon + m.text} style={s.briefMetaItem}>
               <Ionicons name={m.icon} size={15} color={m.danger ? '#DC2626' : '#64748B'} />
-              <Text style={[s.briefMetaText, m.danger && { color: '#DC2626' }]} numberOfLines={1}>{m.text}</Text>
+              <Text style={[s.briefMetaText, m.danger && { color: '#DC2626' }]} numberOfLines={1}>{tr(m.text)}</Text>
             </View>
           ))}
         </View>
@@ -235,7 +236,7 @@ function StageBrief({ icon, color, title, status, statusColor, meta = [], note, 
         <View style={s.briefNoteWrap}>
           <TouchableOpacity style={s.briefNoteToggle} onPress={() => setShowNote((v) => !v)} activeOpacity={0.7}>
             <Ionicons name="chatbubble-ellipses-outline" size={15} color="#475569" />
-            <Text style={s.briefNoteToggleText}>{noteLabel}</Text>
+            <Text style={s.briefNoteToggleText}>{tr(noteLabel)}</Text>
             <Ionicons name={showNote ? 'chevron-up' : 'chevron-down'} size={16} color="#94A3B8" />
           </TouchableOpacity>
           {showNote && <BriefNoteBody raw={note} textStyle={s.briefNoteText} metaTextStyle={s.actMetaLine} />}
@@ -251,15 +252,15 @@ function InfoRows({ groups }) {
   const shown = groups
     .map((g) => ({ ...g, rows: g.rows.filter(([, v]) => v != null && String(v).trim() !== '') }))
     .filter((g) => g.rows.length > 0);
-  if (shown.length === 0) return <Text style={s.emptySubText}>Nothing recorded yet.</Text>;
+  if (shown.length === 0) return <Text style={s.emptySubText}>{tr("Nothing recorded yet.")}</Text>;
   return (
     <View style={{ gap: 14 }}>
       {shown.map((g) => (
         <View key={g.title || 'rows'} style={{ gap: 8 }}>
-          {!!g.title && <Text style={s.infoGroupTitle}>{g.title}</Text>}
+          {!!g.title && <Text style={s.infoGroupTitle}>{tr(g.title)}</Text>}
           {g.rows.map(([label, value, warn]) => (
             <View key={label} style={s.infoRow}>
-              <Text style={s.infoLabel}>{label}</Text>
+              <Text style={s.infoLabel}>{tr(label)}</Text>
               <Text style={[s.infoValue, warn && { color: '#B91C1C' }]}>{String(value)}</Text>
             </View>
           ))}
@@ -571,7 +572,7 @@ export default function Lead360Screen() {
     openers[action]?.(true);
   }, [lead, action]);
   useEffect(() => {
-    if (loadError) showToast(loadError.message || 'Failed to load lead details', 'error');
+    if (loadError) showToast(loadError.message || tr("Failed to load lead details"), 'error');
   }, [loadError]);
 
   useEffect(() => {
@@ -587,18 +588,18 @@ export default function Lead360Screen() {
     try {
       setLead((prev) => (prev ? { ...prev, status: newStatus } : prev));
       await interiorApiClient.patch(`/crm/customers/${id}`, { status: newStatus });
-      showToast(`Lead moved to ${newStatus}`, 'success');
+      showToast(tr("Lead moved to {{newStatus}}", { newStatus: newStatus }), 'success');
       setShowStatusModal(false);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to update status', 'error');
+      showToast(e.message || tr("Failed to update status"), 'error');
       fetchData();
     }
   };
 
   const handleAddActivity = async () => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
-    if (!activityForm.remarks.trim()) return showToast('Remarks are required', 'error');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
+    if (!activityForm.remarks.trim()) return showToast(tr("Remarks are required"), 'error');
     setSubmittingAct(true);
     try {
       await interiorCrmService.createActivity({
@@ -607,12 +608,12 @@ export default function Lead360Screen() {
         status: 'Completed',
         remarks: activityForm.remarks,
       });
-      showToast('Activity logged!', 'success');
+      showToast(tr("Activity logged!"), 'success');
       setShowActivityModal(false);
       setActivityForm({ type: 'Phone Call', remarks: '' });
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to log activity', 'error');
+      showToast(e.message || tr("Failed to log activity"), 'error');
     } finally {
       setSubmittingAct(false);
     }
@@ -644,22 +645,22 @@ export default function Lead360Screen() {
   };
 
   const handleAssignSalesExecutive = async (userId) => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
     try {
       await interiorApiClient.patch(`/crm/customers/${id}`, {
         assignedSalesExecutive: userId,
         status: lead?.status === 'New Lead' ? 'Contacted' : lead?.status,
       });
-      showToast('Sales executive assigned successfully!', 'success');
+      showToast(tr("Sales executive assigned successfully!"), 'success');
       setShowAssignDropdown(false);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to assign executive', 'error');
+      showToast(e.message || tr("Failed to assign executive"), 'error');
     }
   };
 
   const handleCompleteFollowUp = async (actId) => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
     try {
       // Optimistic update so Done disappears immediately
       setActivities((prev) =>
@@ -669,16 +670,16 @@ export default function Lead360Screen() {
         status: 'Completed',
         completedDate: new Date(),
       });
-      showToast('Follow-up marked as completed!', 'success');
+      showToast(tr("Follow-up marked as completed!"), 'success');
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to update follow-up', 'error');
+      showToast(e.message || tr("Failed to update follow-up"), 'error');
       fetchData();
     }
   };
 
   const openRescheduleSiteVisit = (act) => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
     setSendSiteInitialData({
       scheduledDate: act?.scheduledDate || null,
       assignedSalesExecutive: act?.user?._id || act?.user?.id || act?.user || lead?.assignedSalesExecutive || '',
@@ -688,7 +689,7 @@ export default function Lead360Screen() {
   };
 
   const openRescheduleRequirements = (act) => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
     setSendReqInitialData({
       scheduledDate: act?.scheduledDate || null,
       assignedMember: act?.user?._id || act?.user?.id || act?.user || lead?.designerAssigned || '',
@@ -698,7 +699,7 @@ export default function Lead360Screen() {
   };
 
   const openRescheduleDrawing = (act) => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
     setSendDrawingInitialData({
       scheduledDate: act?.scheduledDate || null,
       assignedDesigner: act?.user?._id || act?.user?.id || act?.user || lead?.designerAssigned || '',
@@ -722,11 +723,11 @@ export default function Lead360Screen() {
   };
 
   const handleRescheduleFollowUp = async () => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
     const rescheduleDateError = validateFutureDate(rescheduleForm.scheduledDate, 'Follow-up date & time');
     if (rescheduleDateError) return showToast(rescheduleDateError, 'error');
-    if (!rescheduleForm.assignedSalesExecutive) return showToast('Please assign a member before rescheduling', 'error');
-    if (!rescheduleForm.remarks.trim()) return showToast('Notes are required', 'error');
+    if (!rescheduleForm.assignedSalesExecutive) return showToast(tr("Please assign a member before rescheduling"), 'error');
+    if (!rescheduleForm.remarks.trim()) return showToast(tr("Notes are required"), 'error');
     if (!reschedulingId) return;
     setSubmittingReschedule(true);
     try {
@@ -745,12 +746,12 @@ export default function Lead360Screen() {
       await interiorApiClient.patch(`/crm/customers/${id}`, {
         assignedSalesExecutive: rescheduleForm.assignedSalesExecutive,
       });
-      showToast('Follow-up rescheduled successfully!', 'success');
+      showToast(tr("Follow-up rescheduled successfully!"), 'success');
       setShowRescheduleModal(false);
       setReschedulingId(null);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to reschedule follow-up', 'error');
+      showToast(e.message || tr("Failed to reschedule follow-up"), 'error');
     } finally {
       setSubmittingReschedule(false);
     }
@@ -782,11 +783,11 @@ export default function Lead360Screen() {
   };
 
   const handleScheduleFollowUp = async () => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
     const followUpDateError = validateFutureDate(followUpForm.scheduledDate, 'Follow-up date & time');
     if (followUpDateError) return showToast(followUpDateError, 'error');
-    if (!followUpForm.assignedSalesExecutive) return showToast('Please assign a member before scheduling', 'error');
-    if (!followUpForm.remarks.trim()) return showToast('Follow-up goal / notes are required', 'error');
+    if (!followUpForm.assignedSalesExecutive) return showToast(tr("Please assign a member before scheduling"), 'error');
+    if (!followUpForm.remarks.trim()) return showToast(tr("Follow-up goal / notes are required"), 'error');
     setSubmittingAct(true);
     try {
       await interiorApiClient.post('/crm/activities', {
@@ -801,12 +802,12 @@ export default function Lead360Screen() {
         assignedSalesExecutive: followUpForm.assignedSalesExecutive,
         status: lead?.status === 'New Lead' ? 'Contacted' : lead?.status,
       });
-      showToast('Follow-up scheduled successfully!', 'success');
+      showToast(tr("Follow-up scheduled successfully!"), 'success');
       setShowFollowUpModal(false);
       setFollowUpForm({ type: 'Phone Call', scheduledDate: null, remarks: '', assignedSalesExecutive: '' });
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to schedule follow-up', 'error');
+      showToast(e.message || tr("Failed to schedule follow-up"), 'error');
     } finally {
       setSubmittingAct(false);
     }
@@ -826,7 +827,7 @@ export default function Lead360Screen() {
   };
 
   const handleSaveSiteVisit = async () => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
     setSubmittingAct(true);
     try {
       await interiorApiClient.patch(`/crm/customers/${id}`, {
@@ -842,19 +843,19 @@ export default function Lead360Screen() {
         remarks: 'Completed site visit and updated measurements & photos.',
       });
 
-      showToast('Site Visit saved!', 'success');
+      showToast(tr("Site Visit saved!"), 'success');
       setShowSiteModal(false);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to save site visit', 'error');
+      showToast(e.message || tr("Failed to save site visit"), 'error');
     } finally {
       setSubmittingAct(false);
     }
   };
 
   const handleSaveRequirements = async () => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
-    if (!reqForm.roomName.trim()) return showToast('Room name is required', 'error');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
+    if (!reqForm.roomName.trim()) return showToast(tr("Room name is required"), 'error');
     setSubmittingAct(true);
     try {
       const existingReqs = lead?.requirements || [];
@@ -865,20 +866,20 @@ export default function Lead360Screen() {
         status: 'Requirement Completed',
       });
 
-      showToast('Requirement logged!', 'success');
+      showToast(tr("Requirement logged!"), 'success');
       setShowReqModal(false);
       setReqForm({ roomName: '', theme: '', description: '' });
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to log requirement', 'error');
+      showToast(e.message || tr("Failed to log requirement"), 'error');
     } finally {
       setSubmittingAct(false);
     }
   };
 
   const handleSaveDesign = async () => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
-    if (!designForm.name.trim() || !designForm.url.trim()) return showToast('Name and URL are required', 'error');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
+    if (!designForm.name.trim() || !designForm.url.trim()) return showToast(tr("Name and URL are required"), 'error');
     setSubmittingAct(true);
     try {
       const existingDesigns = lead?.designFiles || [];
@@ -893,12 +894,12 @@ export default function Lead360Screen() {
         status: 'Design Approved',
       });
 
-      showToast('Design file uploaded!', 'success');
+      showToast(tr("Design file uploaded!"), 'success');
       setShowDesignModal(false);
       setDesignForm({ name: '', fileType: 'image', url: '' });
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to upload design', 'error');
+      showToast(e.message || tr("Failed to upload design"), 'error');
     } finally {
       setSubmittingAct(false);
     }
@@ -948,8 +949,8 @@ export default function Lead360Screen() {
     const boqs = [...(lead?.boqs || [])];
     const target = boqs[activeBoqIdx];
     if (!target || !mode) return;
-    if (mode === 'submit' && !boqReviewer) return showToast('Please select a reviewer', 'error');
-    if (mode === 'reject' && !boqApprovalNote.trim()) return showToast('Please specify the rejection reason and required changes', 'error');
+    if (mode === 'submit' && !boqReviewer) return showToast(tr("Please select a reviewer"), 'error');
+    if (mode === 'reject' && !boqApprovalNote.trim()) return showToast(tr("Please specify the rejection reason and required changes"), 'error');
     const version = target.version || activeBoqIdx + 1;
     const total = Number(target.totalAmount) || 0;
     const me = currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email : '';
@@ -972,11 +973,11 @@ export default function Lead360Screen() {
     try {
       await interiorCrmService.updateCustomer(id, { boqs });
       await interiorCrmService.createActivity({ customer: id, type: 'Status Change', status: 'Completed', remarks });
-      showToast(mode === 'submit' ? 'BOQ sent for approval' : mode === 'approve' ? 'BOQ approved — Quotations unlocked' : 'BOQ rejected — revisions requested', 'success');
+      showToast(mode === 'submit' ? tr("BOQ sent for approval") : mode === 'approve' ? tr("BOQ approved — Quotations unlocked") : tr("BOQ rejected — revisions requested"), 'success');
       setBoqApprovalMode(null);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to update the BOQ approval', 'error');
+      showToast(e.message || tr("Failed to update the BOQ approval"), 'error');
     } finally {
       setSubmittingBoqApproval(false);
     }
@@ -990,10 +991,10 @@ export default function Lead360Screen() {
         action: 'approve',
         versionNumber: drawing.currentVersion || 1,
       });
-      showToast('Drawing approved and published to client portal!', 'success');
+      showToast(tr("Drawing approved and published to client portal!"), 'success');
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to approve drawing', 'error');
+      showToast(e.message || tr("Failed to approve drawing"), 'error');
     } finally {
       setApprovingDrawingId(null);
     }
@@ -1001,20 +1002,20 @@ export default function Lead360Screen() {
 
   const handleDeleteDrawingFile = (drawing) => {
     Alert.alert(
-      'Delete Drawing',
-      `Are you sure you want to delete "${drawing.title || drawing.name}"? This removes all its versions and cannot be undone.`,
+      tr("Delete Drawing"),
+      tr("Are you sure you want to delete \"{{value}}\"? This removes all its versions and cannot be undone.", { value: drawing.title || drawing.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Delete',
+          text: tr("Delete"),
           style: 'destructive',
           onPress: async () => {
             try {
               await interiorCrmService.deleteDrawing(id, drawing._id || drawing.id);
-              showToast('Drawing deleted successfully', 'success');
+              showToast(tr("Drawing deleted successfully"), 'success');
               fetchData();
             } catch (e) {
-              showToast(e.message || 'Failed to delete drawing', 'error');
+              showToast(e.message || tr("Failed to delete drawing"), 'error');
             }
           },
         },
@@ -1023,9 +1024,9 @@ export default function Lead360Screen() {
   };
 
   const handleSaveQuotation = async () => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
     if (quoteItems.length === 0 || !quoteItems[0].description.trim()) {
-      return showToast('At least one item with a description is required', 'error');
+      return showToast(tr("At least one item with a description is required"), 'error');
     }
     setSubmittingAct(true);
     try {
@@ -1072,11 +1073,11 @@ export default function Lead360Screen() {
         remarks: `Quotation v${newQuote.version} created (${cur} ${grandTotal.toLocaleString(numLocale)}).`,
       });
 
-      showToast('Quotation generated successfully!', 'success');
+      showToast(tr("Quotation generated successfully!"), 'success');
       setShowQuoteModal(false);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to create quotation', 'error');
+      showToast(e.message || tr("Failed to create quotation"), 'error');
       fetchData();
     } finally {
       setSubmittingAct(false);
@@ -1084,7 +1085,7 @@ export default function Lead360Screen() {
   };
 
   const handleQuoteStatus = async (quoteIndex, status) => {
-    if (isReadOnly) return showToast('This lead is read-only.', 'info');
+    if (isReadOnly) return showToast(tr("This lead is read-only."), 'info');
     try {
       const updatedQuotations = [...(lead?.quotations || [])];
       if (updatedQuotations[quoteIndex]) {
@@ -1116,10 +1117,10 @@ export default function Lead360Screen() {
         remarks: `Quotation v${updatedQuotations[quoteIndex]?.version || (quoteIndex + 1)} marked as ${status}.`,
       });
 
-      showToast(`Quotation marked as ${status}!`, 'success');
+      showToast(tr("Quotation marked as {{status}}!", { status: status }), 'success');
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to update quote status', 'error');
+      showToast(e.message || tr("Failed to update quote status"), 'error');
       fetchData();
     }
   };
@@ -1130,12 +1131,12 @@ export default function Lead360Screen() {
     const rawTitle = quote?.title || `Quotation Option ${quote?.version || quoteIndex + 1}`;
     const displayTitle = rawTitle.length > 50 ? `${rawTitle.slice(0, 50)}...` : rawTitle;
     Alert.alert(
-      'Delete Quotation',
-      `Are you sure you want to delete "${displayTitle}" (${cur} ${formatMillionBillion(Number(quote?.grandTotal) || 0)})? This action cannot be undone.`,
+      tr("Delete Quotation"),
+      tr("Are you sure you want to delete \"{{displayTitle}}\" ({{cur}} {{formatMillionBillion}})? This action cannot be undone.", { displayTitle: displayTitle, cur: cur, formatMillionBillion: formatMillionBillion(Number(quote?.grandTotal) || 0) }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Delete Quotation',
+          text: tr("Delete Quotation"),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -1154,11 +1155,11 @@ export default function Lead360Screen() {
                 remarks: `Deleted Quotation Version ${quote?.version || quoteIndex + 1}`,
               });
 
-              showToast(`Quotation Version ${quote?.version || quoteIndex + 1} deleted successfully!`, 'success');
+              showToast(tr("Quotation Version {{value}} deleted successfully!", { value: quote?.version || quoteIndex + 1 }), 'success');
               setActiveQuoteIdx((prev) => Math.max(0, Math.min(prev, updatedQuotations.length - 1)));
               fetchData();
             } catch (e) {
-              showToast(e.message || 'Failed to delete quotation', 'error');
+              showToast(e.message || tr("Failed to delete quotation"), 'error');
             }
           },
         },
@@ -1169,7 +1170,7 @@ export default function Lead360Screen() {
 
   const handleSendQuotationEmail = async () => {
     if (!lead?.email) {
-      Alert.alert('Email Required', 'This lead has no email address on file. Add one from Edit Lead before sending.');
+      Alert.alert(tr("Email Required"), tr("This lead has no email address on file. Add one from Edit Lead before sending."));
       return;
     }
     if (!currentQuote) return;
@@ -1179,9 +1180,9 @@ export default function Lead360Screen() {
         quotation: currentQuote,
         recipientEmail: lead.email,
       });
-      showToast(`Quotation emailed to ${lead.email}!`, 'success');
+      showToast(tr("Quotation emailed to {{email}}!", { email: lead.email }), 'success');
     } catch (e) {
-      showToast(e.message || 'Failed to send quotation email', 'error');
+      showToast(e.message || tr("Failed to send quotation email"), 'error');
     } finally {
       setSendingQuoteEmail(false);
     }
@@ -1196,17 +1197,17 @@ export default function Lead360Screen() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `Quotation v${currentQuote.version}` });
       } else {
-        showToast('Sharing is not available on this device.', 'error');
+        showToast(tr("Sharing is not available on this device."), 'error');
       }
     } catch (e) {
-      showToast(e.message || 'Failed to generate quotation PDF', 'error');
+      showToast(e.message || tr("Failed to generate quotation PDF"), 'error');
     } finally {
       setDownloadingQuotePdf(false);
     }
   };
 
   const buildBoqHtml = (targetLead, boq) => {
-    const currency = targetLead?.currency || 'INR';
+    const currency = targetLead?.currency || currencyCode;
     const items = boq?.items || [];
     const sections = boq?.sections && boq.sections.length > 0 ? boq.sections : null;
 
@@ -1359,35 +1360,35 @@ export default function Lead360Screen() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `BOQ v${boq.version || 1}` });
       } else {
-        showToast('Sharing is not available on this device.', 'error');
+        showToast(tr("Sharing is not available on this device."), 'error');
       }
     } catch (e) {
-      showToast(e.message || 'Failed to generate BOQ PDF', 'error');
+      showToast(e.message || tr("Failed to generate BOQ PDF"), 'error');
     } finally {
       setDownloadingBoqPdf(false);
     }
   };
 
   const handleConvertToProject = async (quoteIndex) => {
-    if (isLost) return showToast('This lead is marked Lost and cannot be converted to a project.', 'info');
-    if (isConverted) return showToast('This lead has already been converted to a project.', 'info');
+    if (isLost) return showToast(tr("This lead is marked Lost and cannot be converted to a project."), 'info');
+    if (isConverted) return showToast(tr("This lead has already been converted to a project."), 'info');
     Alert.alert(
-      'Convert to Project',
-      'Are you sure you want to convert this Lead into an active Execution Project?',
+      tr("Convert to Project"),
+      tr("Are you sure you want to convert this Lead into an active Execution Project?"),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Convert Now',
+          text: tr("Convert Now"),
           style: 'default',
           onPress: async () => {
             try {
               await interiorApiClient.post(`/crm/customers/${id}/convert`, { quotationIndex: quoteIndex });
               invalidateCrmQueries(queryClient);
               invalidateProjectQueries(queryClient);
-              showToast('🎉 Successfully converted to Project!', 'success');
+              showToast(tr("🎉 Successfully converted to Project!"), 'success');
               router.push('/(tabs)/crm');
             } catch (e) {
-              showToast(e.message || 'Failed to convert to project', 'error');
+              showToast(e.message || tr("Failed to convert to project"), 'error');
             }
           }
         }
@@ -1448,7 +1449,7 @@ export default function Lead360Screen() {
     setEditFormErrors(nextErrors);
     setEditFormTouched(fields.reduce((acc, f) => ({ ...acc, [f]: true }), {}));
     if (Object.values(nextErrors).some(Boolean)) {
-      showToast('Please fix the validation errors before saving', 'error');
+      showToast(tr("Please fix the validation errors before saving"), 'error');
       return;
     }
     setSubmittingEdit(true);
@@ -1465,13 +1466,13 @@ export default function Lead360Screen() {
         payload.assignedSalesExecutive = editForm.assignedSalesExecutive;
       }
       await interiorApiClient.patch(`/crm/customers/${id}`, payload);
-      showToast('Lead updated successfully!', 'success');
+      showToast(tr("Lead updated successfully!"), 'success');
       setShowEditLeadSourceDropdown(false);
       setShowEditAssignDropdown(false);
       setShowEditModal(false);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to update lead', 'error');
+      showToast(e.message || tr("Failed to update lead"), 'error');
     } finally {
       setSubmittingEdit(false);
     }
@@ -1483,8 +1484,8 @@ export default function Lead360Screen() {
       const latest = existingQuotations.length > 0 ? existingQuotations[existingQuotations.length - 1] : null;
       if (latest && latest.status !== 'Rejected' && latest.status !== 'Draft') {
         Alert.alert(
-          'Cannot Create New Version',
-          `The current quotation (v${latest.version}) is "${latest.status}". A new version can only be created if the latest one is Rejected or in Draft.`
+          tr("Cannot Create New Version"),
+          tr("The current quotation (v{{version}}) is \"{{status}}\". A new version can only be created if the latest one is Rejected or in Draft.", { version: latest.version, status: latest.status })
         );
         return;
       }
@@ -1495,12 +1496,12 @@ export default function Lead360Screen() {
 
   const handleDeleteLead = () => {
     Alert.alert(
-      'Delete Lead',
-      `Are you sure you want to delete ${lead?.name || 'this lead'}? This action cannot be undone — all site visits, requirements, quotations, and activity history will be permanently deleted.`,
+      tr("Delete Lead"),
+      tr("Are you sure you want to delete {{value}}? This action cannot be undone — all site visits, requirements, quotations, and activity history will be permanently deleted.", { value: lead?.name || 'this lead' }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Delete',
+          text: tr("Delete"),
           style: 'destructive',
           onPress: async () => {
             setDeletingLead(true);
@@ -1508,10 +1509,10 @@ export default function Lead360Screen() {
               await interiorApiClient.delete(`/crm/customers/${id}`);
               queryClient.removeQueries({ queryKey: queryKeys.crmLead(id) });
               invalidateCrmQueries(queryClient);
-              showToast('Lead deleted successfully', 'delete');
+              showToast(tr("Lead deleted successfully"), 'delete');
               router.replace('/(tabs)/crm');
             } catch (e) {
-              showToast(e.message || 'Failed to delete lead', 'error');
+              showToast(e.message || tr("Failed to delete lead"), 'error');
             } finally {
               setDeletingLead(false);
             }
@@ -1546,10 +1547,10 @@ export default function Lead360Screen() {
           <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
             <Ionicons name="arrow-back" size={20} color="#1E293B" />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>Lead Details</Text>
+          <Text style={s.headerTitle}>{tr("Lead Details")}</Text>
         </View>
         <View style={s.center}>
-          <Text style={s.errorText}>Lead not found</Text>
+          <Text style={s.errorText}>{tr("Lead not found")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -1571,22 +1572,22 @@ export default function Lead360Screen() {
         <View style={s.headerLeadInfo}>
           <View style={s.headerTitleRow}>
             <Text style={s.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-              {lead.name}
+              {tr(lead.name)}
             </Text>
             {!!lead.leadNumber && (
               <View style={s.leadIdBadge}>
-                <Text style={s.leadIdText}>{lead.leadNumber}</Text>
+                <Text style={s.leadIdText}>{tr(lead.leadNumber)}</Text>
               </View>
             )}
           </View>
           <View style={s.headerPhoneRow}>
             <View style={[s.headerStagePill, { backgroundColor: meta.bg }]}>
-              <Text style={[s.headerStageText, { color: meta.color }]} numberOfLines={1}>{lead.status}</Text>
+              <Text style={[s.headerStageText, { color: meta.color }]} numberOfLines={1}>{tr(lead.status)}</Text>
             </View>
             {!!lead.mobileNumber && (
               <>
                 <Ionicons name="call" size={13} color="#1D4ED8" />
-                <Text style={s.headerSub} numberOfLines={1}>{lead.mobileNumber}</Text>
+                <Text style={s.headerSub} numberOfLines={1}>{tr(lead.mobileNumber)}</Text>
               </>
             )}
           </View>
@@ -1606,8 +1607,8 @@ export default function Lead360Screen() {
           >
             <Ionicons name={next.done ? 'checkmark-circle' : 'arrow-forward-circle'} size={20} color={next.done ? '#16A34A' : '#2563EB'} />
             <Text style={s.nextStepText} numberOfLines={2}>
-              {!next.done && <Text style={s.nextStepLabel}>Next: </Text>}
-              {next.text}
+              {!next.done && <Text style={s.nextStepLabel}>{tr("Next: ")}</Text>}
+              {tr(next.text)}
             </Text>
             {next.tab && tabAllowed && <Ionicons name="chevron-forward" size={18} color="#94A3B8" />}
           </TouchableOpacity>
@@ -1623,9 +1624,9 @@ export default function Lead360Screen() {
               <Ionicons name="close-circle" size={22} color="#DC2626" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.lostAlertTitle}>This Deal is Marked as Lost</Text>
+              <Text style={s.lostAlertTitle}>{tr("This Deal is Marked as Lost")}</Text>
               <Text style={s.lostAlertReason}>
-                {lead.lostReason ? `Reason: ${lead.lostReason}` : 'No reason recorded for this lost deal.'}
+                {lead.lostReason ? `Reason: ${lead.lostReason}` : tr("No reason recorded for this lost deal.")}
               </Text>
             </View>
           </View>
@@ -1636,7 +1637,7 @@ export default function Lead360Screen() {
               activeOpacity={0.7}
             >
               <Ionicons name="refresh" size={13} color="#2563EB" />
-              <Text style={s.reopenLeadBtnText}>Reactivate</Text>
+              <Text style={s.reopenLeadBtnText}>{tr("Reactivate")}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1672,7 +1673,7 @@ export default function Lead360Screen() {
                   activeOpacity={0.7}
                   onPress={() => {
                     if (lock.isLocked) {
-                      showToast(`Complete previous stages to unlock ${t.label}.`, 'info');
+                      showToast(tr("Complete previous stages to unlock {{label}}.", { label: t.label }), 'info');
                     }
                     setActiveTab(t.id);
                   }}
@@ -1683,12 +1684,12 @@ export default function Lead360Screen() {
                     <Ionicons name={t.icon} size={13} color={isFollowUpTab && hasOverdueFollowUp ? '#DC2626' : active ? '#2563EB' : '#64748B'} />
                   )}
                   <Text style={[s.tabText, active && s.tabTextActive, lock.isLocked && { color: '#94A3B8' }, isFollowUpTab && hasOverdueFollowUp && { color: '#DC2626', fontFamily: 'Inter-Bold' }]}>
-                    {t.label}
+                    {tr(t.label)}
                   </Text>
                   {isFollowUpTab && activePendingFollowUp && (
                     <View style={{ backgroundColor: hasOverdueFollowUp ? '#DC2626' : '#2563EB', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, marginLeft: 4 }}>
                       <Text style={{ color: '#FFFFFF', fontSize: 11, fontFamily: 'Inter-Bold' }}>
-                        {hasOverdueFollowUp ? 'Overdue' : '1'}
+                        {hasOverdueFollowUp ? tr("Overdue") : '1'}
                       </Text>
                     </View>
                   )}
@@ -1705,7 +1706,7 @@ export default function Lead360Screen() {
             <View style={{ gap: 14 }}>
               {/* Overview Section Header with Edit Button & Mark Lost */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' }}>Lead details</Text>
+                <Text style={{ fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr("Lead details")}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   {!isReadOnly && (
                     canAnyCrmUpdate && (
@@ -1750,18 +1751,18 @@ export default function Lead360Screen() {
 
               {/* Deal summary: the value first, then source / property as full-width chips (no truncated tiles) */}
               <View style={s.card}>
-                <Text style={s.ovKicker}>{latestQuoteTotal ? 'Latest quotation' : 'Client budget'}</Text>
+                <Text style={s.ovKicker}>{latestQuoteTotal ? tr("Latest quotation") : tr("Client budget")}</Text>
                 <Text style={s.ovBigValue} numberOfLines={1} adjustsFontSizeToFit>
-                  {latestQuoteTotal ? smartMoney(latestQuoteTotal, cur) : (lead.budgetRange || 'Not specified')}
+                  {latestQuoteTotal ? smartMoney(latestQuoteTotal, cur) : (lead.budgetRange || tr("Not specified"))}
                 </Text>
                 <View style={s.ovChipRow}>
                   <TouchableOpacity style={s.ovChip} activeOpacity={0.7} onPress={() => showFieldDetail('Client Source', lead.leadSource)}>
                     <Ionicons name="pricetag-outline" size={14} color="#64748B" />
-                    <Text style={s.ovChipText}>{lead.leadSource || 'Manual entry'}</Text>
+                    <Text style={s.ovChipText}>{lead.leadSource || tr("Manual entry")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={s.ovChip} activeOpacity={0.7} onPress={() => showFieldDetail('Property Scope', lead.propertyType)}>
                     <Ionicons name="business-outline" size={14} color="#64748B" />
-                    <Text style={s.ovChipText}>{lead.propertyType || 'Property not set'}</Text>
+                    <Text style={s.ovChipText}>{lead.propertyType || tr("Property not set")}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1770,13 +1771,13 @@ export default function Lead360Screen() {
               <View style={s.card}>
                 <View style={s.cardHeaderRow}>
                   <Ionicons name="person-outline" size={17} color="#2563EB" />
-                  <Text style={s.cardTitle}>Contact</Text>
+                  <Text style={s.cardTitle}>{tr("Contact")}</Text>
                 </View>
-                <Text style={s.ovContactName}>{lead.name}</Text>
+                <Text style={s.ovContactName}>{tr(lead.name)}</Text>
                 {!!lead.mobileNumber && (
                   <View style={s.ovContactLine}>
                     <Ionicons name="call-outline" size={16} color="#10B981" />
-                    <Text style={s.ovContactText} numberOfLines={1}>{lead.mobileNumber}</Text>
+                    <Text style={s.ovContactText} numberOfLines={1}>{tr(lead.mobileNumber)}</Text>
                     <TouchableOpacity style={s.ovRoundBtn} onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`)}>
                       <Ionicons name="call" size={16} color="#2563EB" />
                     </TouchableOpacity>
@@ -1797,33 +1798,33 @@ export default function Lead360Screen() {
               <View style={s.card}>
                 <View style={s.cardHeaderRow}>
                   <Ionicons name="location-outline" size={17} color="#D97706" />
-                  <Text style={s.cardTitle}>Site address</Text>
+                  <Text style={s.cardTitle}>{tr("Site address")}</Text>
                   {!isReadOnly && canDo('crm_leads', 'update') && (
                     <TouchableOpacity style={s.ovEditBtn} onPress={openEditModal}>
                       <Ionicons name="pencil" size={12} color="#2563EB" />
-                      <Text style={s.ovEditBtnText}>Edit</Text>
+                      <Text style={s.ovEditBtnText}>{tr("Edit")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
-                <Text style={s.ovAddressText}>{lead.projectLocation || lead.city || 'No site address yet.'}</Text>
+                <Text style={s.ovAddressText}>{lead.projectLocation || lead.city || tr("No site address yet.")}</Text>
                 {!!(lead.projectLocation || lead.city) && (
                   <View style={s.ovAddressActions}>
                     <TouchableOpacity
                       style={s.ovPillBtn}
                       onPress={async () => {
                         await Clipboard.setStringAsync(lead.projectLocation || lead.city);
-                        showToast('Address copied', 'success');
+                        showToast(tr("Address copied"), 'success');
                       }}
                     >
                       <Ionicons name="copy-outline" size={15} color="#334155" />
-                      <Text style={s.ovPillText}>Copy</Text>
+                      <Text style={s.ovPillText}>{tr("Copy")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[s.ovPillBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
                       onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.projectLocation || lead.city)}`)}
                     >
                       <Ionicons name="map-outline" size={15} color="#2563EB" />
-                      <Text style={[s.ovPillText, { color: '#2563EB' }]}>Open in Maps</Text>
+                      <Text style={[s.ovPillText, { color: '#2563EB' }]}>{tr("Open in Maps")}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1833,17 +1834,17 @@ export default function Lead360Screen() {
               <View style={s.card}>
                 <View style={s.cardHeaderRow}>
                   <Ionicons name="pulse" size={18} color="#2563EB" />
-                  <Text style={s.cardTitle}>Activity Timeline</Text>
+                  <Text style={s.cardTitle}>{tr("Activity Timeline")}</Text>
                   {canDo('crm_followups', 'create') && (
                     <TouchableOpacity style={s.smallBtn} onPress={() => setShowActivityModal(true)}>
                       <Ionicons name="add" size={14} color="#2563EB" />
-                      <Text style={s.smallBtnText}>Log</Text>
+                      <Text style={s.smallBtnText}>{tr("Log")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
 
                 {activities.length === 0 ? (
-                  <Text style={s.emptySubText}>No activities logged yet.</Text>
+                  <Text style={s.emptySubText}>{tr("No activities logged yet.")}</Text>
                 ) : (
                   activities.map((act) => {
                     const userName = act.user?.name || act.user?.firstName || 'User';
@@ -1856,10 +1857,10 @@ export default function Lead360Screen() {
                         <View style={s.timelineBody}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text style={s.actType}>{act.type} {isPending && (isOverdue ? '• Overdue' : '• Scheduled')}</Text>
+                              <Text style={s.actType}>{tr(act.type)} {isPending && (isOverdue ? tr("• Overdue") : tr("• Scheduled"))}</Text>
                               {isOverdue && (
                                 <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4, borderWidth: 1, borderColor: '#FCA5A5' }}>
-                                  <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#DC2626' }}>Overdue</Text>
+                                  <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#DC2626' }}>{tr("Overdue")}</Text>
                                 </View>
                               )}
                             </View>
@@ -1878,7 +1879,7 @@ export default function Lead360Screen() {
                               const noteSeg = segments.filter((s) => s !== assignedSeg && s !== scheduledSeg).join(' ');
                               return (
                                 <View style={{ gap: 4 }}>
-                                  {!!noteSeg && <Text style={s.actRemarks}>{noteSeg}</Text>}
+                                  {!!noteSeg && <Text style={s.actRemarks}>{tr(noteSeg)}</Text>}
                                   {(!!assignedSeg || !!scheduledSeg) && (
                                     <View style={{ gap: 3, marginTop: 2 }}>
                                       {!!assignedSeg && (
@@ -1890,7 +1891,7 @@ export default function Lead360Screen() {
                                       {!!scheduledSeg && (
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                                           <Ionicons name="calendar-outline" size={11} color="#64748B" />
-                                          <Text style={s.actMetaLine}>Scheduled for {scheduledSeg.replace(/^scheduled for:\s*/i, '')}</Text>
+                                          <Text style={s.actMetaLine}>{tr("Scheduled for ")}{scheduledSeg.replace(/^scheduled for:\s*/i, '')}</Text>
                                         </View>
                                       )}
                                     </View>
@@ -1899,9 +1900,9 @@ export default function Lead360Screen() {
                               );
                             })()
                           ) : (
-                            <Text style={s.actRemarks}>{act.remarks}</Text>
+                            <Text style={s.actRemarks}>{tr(act.remarks)}</Text>
                           )}
-                          <Text style={s.actAuthor}>Logged by {userName}</Text>
+                          <Text style={s.actAuthor}>{tr("Logged by ")}{tr(userName)}</Text>
                         </View>
                       </View>
                     );
@@ -1953,7 +1954,7 @@ export default function Lead360Screen() {
                                   activeOpacity={0.7}
                                 >
                                   <Ionicons name="create-outline" size={15} color="#FFFFFF" />
-                                  <Text style={s.saveBtnText}>Complete & Send to Requirements</Text>
+                                  <Text style={s.saveBtnText}>{tr("Complete & Send to Requirements")}</Text>
                                 </TouchableOpacity>
                               )
                               // Matches web: once overdue, only Reschedule is offered — no
@@ -1967,7 +1968,7 @@ export default function Lead360Screen() {
                                 activeOpacity={0.7}
                               >
                                 <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
-                                <Text style={s.saveBtnText}>Mark Done</Text>
+                                <Text style={s.saveBtnText}>{tr("Mark Done")}</Text>
                               </TouchableOpacity>
                             )
                           )
@@ -1979,7 +1980,7 @@ export default function Lead360Screen() {
                               activeOpacity={0.7}
                             >
                               <Ionicons name="calendar-outline" size={15} color="#FFFFFF" />
-                              <Text style={s.saveBtnText}>Schedule Follow-up</Text>
+                              <Text style={s.saveBtnText}>{tr("Schedule Follow-up")}</Text>
                             </TouchableOpacity>
                           )
                         ) : canSendToSiteVisit ? (
@@ -1990,7 +1991,7 @@ export default function Lead360Screen() {
                               activeOpacity={0.7}
                             >
                               <Ionicons name="create-outline" size={15} color="#FFFFFF" />
-                              <Text style={s.saveBtnText}>Complete & Send to Requirements</Text>
+                              <Text style={s.saveBtnText}>{tr("Complete & Send to Requirements")}</Text>
                             </TouchableOpacity>
                           )
                         ) : null}
@@ -2024,19 +2025,19 @@ export default function Lead360Screen() {
                           <View style={[s.card, { alignItems: 'center', paddingVertical: 28, gap: 8 }]}>
                             <Ionicons name="calendar-clear-outline" size={36} color="#CBD5E1" />
                             <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' }}>
-                              {isLeadProgressed ? 'Initial Follow-up Phase Completed' : 'No Follow-ups Scheduled'}
+                              {isLeadProgressed ? tr("Initial Follow-up Phase Completed") : tr("No Follow-ups Scheduled")}
                             </Text>
                             <Text style={[s.emptySubText, { textAlign: 'center' }]}>
                               {isLeadProgressed
-                                ? `This lead has already moved to the "${lead?.status || 'Site Visit'}" stage.`
-                                : 'Schedule client touchpoints (calls, WhatsApp or meetings) before planning the site visit.'}
+                                ? tr("This lead has already moved to the \"{{value}}\" stage.", { value: lead?.status || 'Site Visit' })
+                                : tr("Schedule client touchpoints (calls, WhatsApp or meetings) before planning the site visit.")}
                             </Text>
                             {!isReadOnly && !isLeadProgressed && canDo('crm_followups', 'create') && (
                               <TouchableOpacity
                                 style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, marginTop: 4 }}
                                 onPress={() => setShowFollowUpModal(true)}
                               >
-                                <Text style={{ color: '#2563EB', fontSize: 13, fontFamily: 'Inter-Bold' }}>+ Schedule Initial Follow-up</Text>
+                                <Text style={{ color: '#2563EB', fontSize: 13, fontFamily: 'Inter-Bold' }}>{tr("+ Schedule Initial Follow-up")}</Text>
                               </TouchableOpacity>
                             )}
                           </View>
@@ -2063,29 +2064,29 @@ export default function Lead360Screen() {
                                 <Ionicons name={typeIcon(current.type)} size={17} color={currentOverdue ? '#DC2626' : '#2563EB'} />
                               </View>
                               <View style={{ flex: 1, gap: 3 }}>
-                                <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{current.type || 'Follow-up'} Touchpoint</Text>
+                                <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{current.type || tr("Follow-up")}{tr(" Touchpoint")}</Text>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                   <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: statusColor + '18', borderWidth: 1, borderColor: statusColor + '40' }}>
-                                    <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: statusColor }}>{statusText}</Text>
+                                    <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: statusColor }}>{tr(statusText)}</Text>
                                   </View>
                                   {followUpActs.length > 1 && (
                                     <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: '#F1F5F9' }}>
-                                      <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B' }}>{followUpActs.length} Total Logs</Text>
+                                      <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B' }}>{followUpActs.length}{tr(" Total Logs")}</Text>
                                     </View>
                                   )}
                                 </View>
                               </View>
                             </View>
                             <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: currentOverdue ? '#B91C1C' : '#64748B', marginTop: 10 }}>
-                              {currentPending ? 'Scheduled for: ' : 'Logged on: '}
+                              {currentPending ? tr("Scheduled for: ") : tr("Logged on: ")}
                               <Text style={{ fontFamily: 'Inter-Bold', color: currentOverdue ? '#B91C1C' : '#0F172A' }}>{fmtWhen(current.scheduledDate || current.createdAt)}</Text>
                             </Text>
                             {currentPending && (
                               <View style={s.touchNoteWrap}>
-                                {!!current.remarks && <Text style={s.touchNote} numberOfLines={4}>{current.remarks}</Text>}
+                                {!!current.remarks && <Text style={s.touchNote} numberOfLines={4}>{tr(current.remarks)}</Text>}
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                   <Text style={s.touchMeta} numberOfLines={1}>
-                                    {current.type || 'Phone Call'} · {lead.assignedSalesExecutive || current.user ? userNameOf(lead.assignedSalesExecutive || current.user) : 'Unassigned'}
+                                    {current.type || tr("Phone Call")} · {lead.assignedSalesExecutive || current.user ? userNameOf(lead.assignedSalesExecutive || current.user) : tr("Unassigned")}
                                   </Text>
                                   {!!lead.mobileNumber && (
                                     <>
@@ -2104,7 +2105,7 @@ export default function Lead360Screen() {
                               <View style={{ flexDirection: 'row', gap: 6, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#FECACA' }}>
                                 <Ionicons name="warning-outline" size={14} color="#DC2626" />
                                 <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#991B1B' }}>
-                                  Scheduled window has expired. Contact the client and reschedule, or move to the next stage.
+                                  {tr("Scheduled window has expired. Contact the client and reschedule, or move to the next stage.")}
                                 </Text>
                               </View>
                             )}
@@ -2115,7 +2116,7 @@ export default function Lead360Screen() {
                                 activeOpacity={0.7}
                               >
                                 <Ionicons name="calendar-outline" size={13} color="#7C3AED" />
-                                <Text style={s.rescheduleBtnText}>Reschedule Follow-up</Text>
+                                <Text style={s.rescheduleBtnText}>{tr("Reschedule Follow-up")}</Text>
                               </TouchableOpacity>
                             )}
                           </View>
@@ -2124,9 +2125,9 @@ export default function Lead360Screen() {
                           <View style={s.card}>
                             <View style={s.cardHeaderRow}>
                               <Ionicons name="time-outline" size={17} color="#2563EB" />
-                              <Text style={s.cardTitle}>Follow-up history</Text>
+                              <Text style={s.cardTitle}>{tr("Follow-up history")}</Text>
                               <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                {sorted.length} {sorted.length === 1 ? 'Record' : 'Records'}
+                                {sorted.length} {sorted.length === 1 ? tr("Record") : tr("Records")}
                               </Text>
                             </View>
                             <View style={{ borderLeftWidth: 2, borderLeftColor: '#E2E8F0', marginLeft: 6, paddingLeft: 14, gap: 12 }}>
@@ -2144,9 +2145,9 @@ export default function Lead360Screen() {
                                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' }}>
                                         <Ionicons name={typeIcon(item.type)} size={13} color={color} />
-                                        <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{item.type || 'Follow-up'}</Text>
+                                        <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{item.type || tr("Follow-up")}</Text>
                                         <View style={{ paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: color + '18' }}>
-                                          <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color, textTransform: 'uppercase' }}>{badge}</Text>
+                                          <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color, textTransform: 'uppercase' }}>{tr(badge)}</Text>
                                         </View>
                                       </View>
                                       <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' }}>
@@ -2154,14 +2155,14 @@ export default function Lead360Screen() {
                                       </Text>
                                     </View>
                                     <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#334155', marginTop: 6, lineHeight: 17 }}>
-                                      {item.remarks || 'No notes logged.'}
+                                      {item.remarks || tr("No notes logged.")}
                                     </Text>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
                                       <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B', flex: 1 }} numberOfLines={1}>
-                                        Handled by: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{userNameOf(item.user)}</Text>
+                                        {tr("Handled by: ")}<Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{userNameOf(item.user)}</Text>
                                       </Text>
                                       {!!item.createdAt && (
-                                        <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' }}>Logged: {new Date(item.createdAt).toLocaleDateString('en-IN')}</Text>
+                                        <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' }}>{tr("Logged: ")}{new Date(item.createdAt).toLocaleDateString('en-IN')}</Text>
                                       )}
                                     </View>
                                   </View>
@@ -2212,7 +2213,7 @@ export default function Lead360Screen() {
                   <StageBrief
                     icon="location-outline"
                     color={isSiteVisitOverdue ? '#DC2626' : '#7C3AED'}
-                    title="Site visit"
+                    title={tr("Site visit")}
                     status={surveyStatus}
                     statusColor={surveyColor}
                     danger={isSiteVisitOverdue}
@@ -2231,7 +2232,7 @@ export default function Lead360Screen() {
                     right={siteVisitActs.length > 0 ? (
                       <TouchableOpacity style={s.smallBtn} onPress={() => setShowSiteHistoryModal(true)}>
                         <Ionicons name="time-outline" size={14} color="#7C3AED" />
-                        <Text style={[s.smallBtnText, { color: '#7C3AED' }]}>History ({siteVisitActs.length})</Text>
+                        <Text style={[s.smallBtnText, { color: '#7C3AED' }]}>{tr("History (")}{siteVisitActs.length})</Text>
                       </TouchableOpacity>
                     ) : null}
                   />
@@ -2242,18 +2243,18 @@ export default function Lead360Screen() {
                       <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#F3E8FF' }]}>
                         <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#7C3AED'} />
                       </View>
-                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Site Visit Stage is Locked'}</Text>
-                      <Text style={s.lockedSub}>{lock.reason}</Text>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? tr("Lead Assignment Required") : tr("Site Visit Stage is Locked")}</Text>
+                      <Text style={s.lockedSub}>{tr(lock.reason)}</Text>
                       {lock.isUnassigned ? (
                         <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
                           <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-                          <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
+                          <Text style={s.unlockActionBtnText}>{tr("Go to Follow-ups & Assign")}</Text>
                         </TouchableOpacity>
                       ) : (
                         // Bring the lead into this stage from here (same as the web "Send to Site Visit")
                         (canDo('crm_site_visits', 'create') || canDo('crm_site_visits', 'update') || canDo('crm_requirements', 'update') || canDo('crm_leads', 'update')) && (
                           <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#7C3AED' }]} onPress={() => setShowSendSiteModal(true)}>
-                            <Text style={s.unlockActionBtnText}>Send to Site Visit</Text>
+                            <Text style={s.unlockActionBtnText}>{tr("Send to Site Visit")}</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -2271,10 +2272,10 @@ export default function Lead360Screen() {
                           </View>
                           <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                              <Text style={s.siteOverdueTitle}>Site Visit Schedule Overdue</Text>
+                              <Text style={s.siteOverdueTitle}>{tr("Site Visit Schedule Overdue")}</Text>
                             </View>
                             <Text style={s.siteOverdueSub}>
-                              The scheduled site visit for {new Date(siteVisitScheduledDate).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} has passed without measurements being logged.
+                              {tr("The scheduled site visit for ")}{new Date(siteVisitScheduledDate).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}{tr(" has passed without measurements being logged.")}
                             </Text>
                             {!isReadOnly && (
                               <TouchableOpacity
@@ -2283,21 +2284,21 @@ export default function Lead360Screen() {
                                 activeOpacity={0.8}
                               >
                                 <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
-                                <Text style={s.siteOverdueRescheduleBtnText}>Reschedule Site Visit</Text>
+                                <Text style={s.siteOverdueRescheduleBtnText}>{tr("Reschedule Site Visit")}</Text>
                               </TouchableOpacity>
                             )}
                           </View>
                         </View>
                       )}
 
-                      {briefingCard}
+                      {tr(briefingCard)}
                       <View style={s.emptyCard}>
                         <Ionicons name="resize-outline" size={36} color="#7C3AED" />
-                        <Text style={s.emptyCardTitle}>Ready for On-Site Survey & Measurements</Text>
-                        <Text style={[s.emptySubText, { textAlign: 'center' }]}>Capture room dimensions, ceiling heights, door/window openings, MEP points and site photos.</Text>
+                        <Text style={s.emptyCardTitle}>{tr("Ready for On-Site Survey & Measurements")}</Text>
+                        <Text style={[s.emptySubText, { textAlign: 'center' }]}>{tr("Capture room dimensions, ceiling heights, door/window openings, MEP points and site photos.")}</Text>
                         {!isReadOnly && canDo('crm_site_visits', 'update') && (
                           <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowSiteModal(true)}>
-                            <Text style={s.actionBtnText}>Log Site Visit & Measurements</Text>
+                            <Text style={s.actionBtnText}>{tr("Log Site Visit & Measurements")}</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -2307,16 +2308,16 @@ export default function Lead360Screen() {
 
                 return (
                   <View style={{ gap: 16 }}>
-                    {briefingCard}
+                    {tr(briefingCard)}
                     {/* Measurements: one card, only the values that were recorded */}
                     <View style={s.card}>
                       <View style={s.cardHeaderRow}>
                         <Ionicons name="resize-outline" size={17} color="#7C3AED" />
-                        <Text style={s.cardTitle}>Measurements</Text>
+                        <Text style={s.cardTitle}>{tr("Measurements")}</Text>
                         {canDo('crm_site_visits', 'update') && (
                           <TouchableOpacity style={s.smallBtn} onPress={() => setShowSiteModal(true)}>
                             <Ionicons name="create-outline" size={14} color="#2563EB" />
-                            <Text style={s.smallBtnText}>Edit</Text>
+                            <Text style={s.smallBtnText}>{tr("Edit")}</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -2360,12 +2361,12 @@ export default function Lead360Screen() {
                           <View style={[s.actionIconBox, { backgroundColor: '#ECFDF5', width: 32, height: 32, borderRadius: 8, flexShrink: 0 }]}>
                             <Ionicons name="images-outline" size={16} color="#059669" />
                           </View>
-                          <Text style={s.cardTitle} numberOfLines={1}>Site photos ({lead.sitePhotos?.length || 0})</Text>
+                          <Text style={s.cardTitle} numberOfLines={1}>{tr("Site photos (")}{lead.sitePhotos?.length || 0})</Text>
                         </View>
                         {canDo('crm_site_visits', 'update') && (
                           <TouchableOpacity style={[s.smallBtn, { flexShrink: 0 }]} onPress={() => setShowSiteModal(true)}>
                             <Ionicons name="camera-outline" size={14} color="#2563EB" />
-                            <Text style={s.smallBtnText}>Manage</Text>
+                            <Text style={s.smallBtnText}>{tr("Manage")}</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -2386,7 +2387,7 @@ export default function Lead360Screen() {
                           })}
                         </View>
                       ) : (
-                        <Text style={s.emptySubText}>No Site Photos Uploaded</Text>
+                        <Text style={s.emptySubText}>{tr("No Site Photos Uploaded")}</Text>
                       )}
                     </View>
                     
@@ -2394,7 +2395,7 @@ export default function Lead360Screen() {
                       {['Under Site Visit', 'Measurement Done'].includes(lead.status) && (
                         (canDo('crm_site_visits', 'update') || canDo('crm_drawings', 'update') || canDo('crm_drawings', 'create') || canDo('crm_requirements', 'update')) && (
                           <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#4F46E5', marginTop: 0 }]} onPress={() => setShowSendDrawingModal(true)}>
-                            <Text style={s.actionBtnText}>Pass to 2D/3D Drawing</Text>
+                            <Text style={s.actionBtnText}>{tr("Pass to 2D/3D Drawing")}</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -2458,7 +2459,7 @@ export default function Lead360Screen() {
                   <StageBrief
                     icon="color-palette-outline"
                     color="#059669"
-                    title="Requirements"
+                    title={tr("Requirements")}
                     status={hasRequirements ? `${reqCount} ${reqCount === 1 ? 'space' : 'spaces'}${!teamReqCount ? ' · client intake' : ''}` : 'Discussion pending'}
                     statusColor={reqStatusColor}
                     danger={isReqOverdue && !hasRequirements}
@@ -2479,13 +2480,13 @@ export default function Lead360Screen() {
                             {canDo('crm_requirements', 'update') && (
                               <TouchableOpacity style={s.smallBtn} onPress={() => setShowReqModal(true)}>
                                 <Ionicons name="create-outline" size={14} color="#334155" />
-                                <Text style={[s.smallBtnText, { color: '#334155' }]}>Edit Requirements</Text>
+                                <Text style={[s.smallBtnText, { color: '#334155' }]}>{tr("Edit Requirements")}</Text>
                               </TouchableOpacity>
                             )}
                             {['Under Requirement', 'Requirement Completed'].includes(lead.status) && (
                               (canDo('crm_requirements', 'update') || canDo('crm_site_visits', 'update') || canDo('crm_site_visits', 'create')) && (
                                 <TouchableOpacity style={[s.smallBtn, { backgroundColor: '#7C3AED', borderColor: '#7C3AED' }]} onPress={() => setShowSendSiteModal(true)}>
-                                  <Text style={[s.smallBtnText, { color: '#FFFFFF' }]}>Pass to Site Visit</Text>
+                                  <Text style={[s.smallBtnText, { color: '#FFFFFF' }]}>{tr("Pass to Site Visit")}</Text>
                                   <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
                                 </TouchableOpacity>
                               )
@@ -2496,13 +2497,13 @@ export default function Lead360Screen() {
                             {canDo('crm_requirements', 'update') && (
                               <TouchableOpacity style={s.smallBtn} onPress={reschedule}>
                                 <Ionicons name="calendar-outline" size={14} color="#334155" />
-                                <Text style={[s.smallBtnText, { color: '#334155' }]}>Reschedule Session</Text>
+                                <Text style={[s.smallBtnText, { color: '#334155' }]}>{tr("Reschedule Session")}</Text>
                               </TouchableOpacity>
                             )}
                             {canDo('crm_requirements', 'create') && (
                               <TouchableOpacity style={[s.smallBtn, { backgroundColor: '#059669', borderColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
                                 <Ionicons name="add" size={14} color="#FFFFFF" />
-                                <Text style={[s.smallBtnText, { color: '#FFFFFF' }]}>Add Requirements</Text>
+                                <Text style={[s.smallBtnText, { color: '#FFFFFF' }]}>{tr("Add Requirements")}</Text>
                               </TouchableOpacity>
                             )}
                           </>
@@ -2517,17 +2518,17 @@ export default function Lead360Screen() {
                       <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#EEF2FF' }]}>
                         <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#4F46E5'} />
                       </View>
-                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Requirements Stage is Locked'}</Text>
-                      <Text style={s.lockedSub}>{lock.reason}</Text>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? tr("Lead Assignment Required") : tr("Requirements Stage is Locked")}</Text>
+                      <Text style={s.lockedSub}>{tr(lock.reason)}</Text>
                       {lock.isUnassigned ? (
                         <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
                           <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-                          <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
+                          <Text style={s.unlockActionBtnText}>{tr("Go to Follow-ups & Assign")}</Text>
                         </TouchableOpacity>
                       ) : (
                         (canDo('crm_requirements', 'create') || canDo('crm_requirements', 'update') || canDo('crm_followups', 'update') || canDo('crm_leads', 'update')) && (
                           <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#059669' }]} onPress={() => setShowSendReqModal(true)}>
-                            <Text style={s.unlockActionBtnText}>Send to Requirements</Text>
+                            <Text style={s.unlockActionBtnText}>{tr("Send to Requirements")}</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -2543,9 +2544,9 @@ export default function Lead360Screen() {
                           <Ionicons name="warning" size={20} color="#DC2626" />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={s.siteOverdueTitle}>Requirements Session Overdue</Text>
+                          <Text style={s.siteOverdueTitle}>{tr("Requirements Session Overdue")}</Text>
                           <Text style={s.siteOverdueSub}>
-                            The scheduled session for {new Date(pendingReqActEarly.scheduledDate).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} has passed without requirements being logged.
+                            {tr("The scheduled session for ")}{new Date(pendingReqActEarly.scheduledDate).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}{tr(" has passed without requirements being logged.")}
                           </Text>
                           {!isReadOnly && (
                             <TouchableOpacity
@@ -2554,20 +2555,20 @@ export default function Lead360Screen() {
                               activeOpacity={0.8}
                             >
                               <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
-                              <Text style={s.siteOverdueRescheduleBtnText}>Reschedule Session</Text>
+                              <Text style={s.siteOverdueRescheduleBtnText}>{tr("Reschedule Session")}</Text>
                             </TouchableOpacity>
                           )}
                         </View>
                       </View>
                     )}
 
-                    {reqBriefingCard}
+                    {tr(reqBriefingCard)}
 
                     {!!(globalScopeOfWork || globalTimeline || globalSpecialRequests) && (
                       <View style={s.card}>
                         <View style={s.cardHeaderRow}>
                           <Ionicons name="options-outline" size={17} color="#3B82F6" />
-                          <Text style={s.cardTitle}>Project scope</Text>
+                          <Text style={s.cardTitle}>{tr("Project scope")}</Text>
                         </View>
                         <InfoRows
                           groups={[{ title: '', rows: [
@@ -2606,17 +2607,17 @@ export default function Lead360Screen() {
                       <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#F0F9FF' }]}>
                         <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#0284C7'} />
                       </View>
-                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : '2D & 3D Drawings Stage is Locked'}</Text>
-                      <Text style={s.lockedSub}>{lock.reason}</Text>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? tr("Lead Assignment Required") : tr("2D & 3D Drawings Stage is Locked")}</Text>
+                      <Text style={s.lockedSub}>{tr(lock.reason)}</Text>
                       {lock.isUnassigned ? (
                         <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
                           <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-                          <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
+                          <Text style={s.unlockActionBtnText}>{tr("Go to Follow-ups & Assign")}</Text>
                         </TouchableOpacity>
                       ) : (
                         (canDo('crm_drawings', 'create') || canDo('crm_drawings', 'update') || canDo('crm_requirements', 'update')) && (
                           <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#0284C7' }]} onPress={() => setShowSendDrawingModal(true)}>
-                            <Text style={s.unlockActionBtnText}>Send to Drawings</Text>
+                            <Text style={s.unlockActionBtnText}>{tr("Send to Drawings")}</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -2634,15 +2635,15 @@ export default function Lead360Screen() {
                   return (
                     <View style={s.emptyCard}>
                       <Ionicons name="cloud-upload-outline" size={40} color="#2563EB" />
-                      <Text style={s.emptyCardTitle}>No Designs Uploaded</Text>
-                      <Text style={s.emptySubText}>Attach 2D/3D design renders and files.</Text>
+                      <Text style={s.emptyCardTitle}>{tr("No Designs Uploaded")}</Text>
+                      <Text style={s.emptySubText}>{tr("Attach 2D/3D design renders and files.")}</Text>
                       {!!drawingNote && (
                         <View style={s.briefingCardBlue}>
                           <View style={s.briefingIconBoxBlue}>
                             <Ionicons name="chatbubble-ellipses-outline" size={15} color="#1D4ED8" />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={s.briefingLabelBlue}>DESIGN BRIEF & LAYER GUIDELINES</Text>
+                            <Text style={s.briefingLabelBlue}>{tr("DESIGN BRIEF & LAYER GUIDELINES")}</Text>
                             <BriefNoteBody raw={drawingNote} textStyle={s.briefingTextBlue} metaTextStyle={s.actMetaLine} />
                           </View>
                         </View>
@@ -2650,7 +2651,7 @@ export default function Lead360Screen() {
                       {!isReadOnly && (
                         canDo('crm_drawings', 'create') && (
                           <TouchableOpacity style={s.actionBtnPrimary} onPress={() => setShowDesignModal(true)}>
-                            <Text style={s.actionBtnText}>Upload Design File</Text>
+                            <Text style={s.actionBtnText}>{tr("Upload Design File")}</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -2687,7 +2688,7 @@ export default function Lead360Screen() {
                     <StageBrief
                       icon="resize-outline"
                       color="#2563EB"
-                      title="Drawings"
+                      title={tr("Drawings")}
                       status={headerBadge.text}
                       statusColor={headerBadge.color}
                       meta={[
@@ -2703,13 +2704,13 @@ export default function Lead360Screen() {
                           {pendingDrawingAct && (
                             <TouchableOpacity style={s.smallBtn} onPress={() => openRescheduleDrawing(pendingDrawingAct)}>
                               <Ionicons name="time-outline" size={14} color="#0284C7" />
-                              <Text style={[s.smallBtnText, { color: '#0284C7' }]}>Reschedule</Text>
+                              <Text style={[s.smallBtnText, { color: '#0284C7' }]}>{tr("Reschedule")}</Text>
                             </TouchableOpacity>
                           )}
                           {canDo('crm_drawings', 'create') && (
                             <TouchableOpacity style={s.smallBtn} onPress={() => setShowDesignModal(true)}>
                               <Ionicons name="add" size={14} color="#2563EB" />
-                              <Text style={s.smallBtnText}>Upload File</Text>
+                              <Text style={s.smallBtnText}>{tr("Upload File")}</Text>
                             </TouchableOpacity>
                           )}
                         </View>
@@ -2728,7 +2729,7 @@ export default function Lead360Screen() {
                           style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: drawingFilter === opt.key ? (opt.key === '3d' ? '#7C3AED' : '#2563EB') : 'transparent' }}
                           onPress={() => setDrawingFilter(opt.key)}
                         >
-                          <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: drawingFilter === opt.key ? '#FFFFFF' : '#64748B' }}>{opt.label}</Text>
+                          <Text style={{ fontSize: 13, fontFamily: 'Inter-Bold', color: drawingFilter === opt.key ? '#FFFFFF' : '#64748B' }}>{tr(opt.label)}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -2740,14 +2741,14 @@ export default function Lead360Screen() {
                           <Ionicons name="globe-outline" size={16} color="#7C3AED" />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={s.shareRibbonTitle}>Client View-Only Portal</Text>
+                          <Text style={s.shareRibbonTitle}>{tr("Client View-Only Portal")}</Text>
                           <Text style={s.shareRibbonSub}>
-                            {lead.shareSettings?.isPublic ? 'Active — approved drawings are visible to the client' : 'Not generated yet'}
+                            {lead.shareSettings?.isPublic ? tr("Active — approved drawings are visible to the client") : tr("Not generated yet")}
                           </Text>
                         </View>
                         <View style={[s.shareRibbonBadge, { backgroundColor: lead.shareSettings?.isPublic ? '#DCFCE7' : '#F1F5F9' }]}>
                           <Text style={[s.shareRibbonBadgeText, { color: lead.shareSettings?.isPublic ? '#16A34A' : '#64748B' }]}>
-                            {lead.shareSettings?.isPublic ? 'Active' : 'Inactive'}
+                            {lead.shareSettings?.isPublic ? tr("Active") : tr("Inactive")}
                           </Text>
                         </View>
                       </View>
@@ -2758,13 +2759,13 @@ export default function Lead360Screen() {
                             onPress={() => Linking.openURL(`${WEB_APP_URL}/share/drawing/${lead.shareSettings.shareToken}`)}
                           >
                             <Ionicons name="eye-outline" size={13} color="#7C3AED" />
-                            <Text style={s.shareRibbonBtnOutlineText}>Preview Portal</Text>
+                            <Text style={s.shareRibbonBtnOutlineText}>{tr("Preview Portal")}</Text>
                           </TouchableOpacity>
                         )}
                         {canAnyCrmUpdate && (
                           <TouchableOpacity style={s.shareRibbonBtn} onPress={() => { setShareModalMode('drawings'); setShowShareModal(true); }}>
                             <Ionicons name="link-outline" size={13} color="#FFFFFF" />
-                            <Text style={s.shareRibbonBtnText}>{lead.shareSettings?.isPublic ? 'Manage / Copy Link' : 'Generate Share Link'}</Text>
+                            <Text style={s.shareRibbonBtnText}>{lead.shareSettings?.isPublic ? tr("Manage / Copy Link") : tr("Generate Share Link")}</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -2772,7 +2773,7 @@ export default function Lead360Screen() {
 
                     {visibleDrawings.length === 0 && (
                       <View style={[s.card, { alignItems: 'center', paddingVertical: 22 }]}>
-                        <Text style={s.emptySubText}>No {drawingFilter === '3d' ? '3D models' : '2D drawings'} uploaded yet.</Text>
+                        <Text style={s.emptySubText}>{tr("No ")}{drawingFilter === '3d' ? tr("3D models") : tr("2D drawings")}{tr(" uploaded yet.")}</Text>
                       </View>
                     )}
                     {visibleDrawings.map((file, idx) => {
@@ -2816,7 +2817,7 @@ export default function Lead360Screen() {
                             <View style={{ position: 'absolute', top: 8, left: 8, flexDirection: 'row', gap: 6 }}>
                               <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
                                 <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#FFFFFF', textTransform: 'uppercase' }}>
-                                  {getCrmFileBadge(file.name, file.category || (isDrawing3D(file) ? '3D' : '2D'), drawingFileUrl(file), file.fileType).label}
+                                  {tr(getCrmFileBadge(file.name, file.category || (isDrawing3D(file) ? '3D' : '2D'), drawingFileUrl(file), file.fileType).label)}
                                 </Text>
                               </View>
                               <View style={{ backgroundColor: 'rgba(15,23,42,0.65)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
@@ -2824,7 +2825,7 @@ export default function Lead360Screen() {
                               </View>
                             </View>
                             <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: statusMeta.bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                              <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: statusMeta.color }}>{statusMeta.label}</Text>
+                              <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: statusMeta.color }}>{tr(statusMeta.label)}</Text>
                             </View>
                           </TouchableOpacity>
 
@@ -2834,25 +2835,25 @@ export default function Lead360Screen() {
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                               {!!file.roomTag && (
                                 <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                  <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>{file.roomTag}</Text>
+                                  <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>{tr(file.roomTag)}</Text>
                                 </View>
                               )}
                               <Text style={s.fileSub}>{new Date(file.uploadedAt).toLocaleDateString()}</Text>
                               {!!file.assignedReviewerName && (status === 'pending_internal_approval') && (
-                                <Text style={s.fileSub}>• Assigned: {file.assignedReviewerName}</Text>
+                                <Text style={s.fileSub}>{tr("• Assigned: ")}{tr(file.assignedReviewerName)}</Text>
                               )}
                             </View>
 
                             {(status === 'internally_rejected' || status === 'client_changes_requested') && !!file.rejectionReason && (
                               <View style={{ backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 8, padding: 8 }}>
-                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#DC2626' }}>REJECTION REASON</Text>
-                                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{file.rejectionReason}</Text>
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#DC2626' }}>{tr("REJECTION REASON")}</Text>
+                                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{tr(file.rejectionReason)}</Text>
                               </View>
                             )}
                             {!!file.clientFeedback && (
                               <View style={{ backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 8, padding: 8 }}>
-                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#B45309' }}>CLIENT FEEDBACK</Text>
-                                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{file.clientFeedback}</Text>
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#B45309' }}>{tr("CLIENT FEEDBACK")}</Text>
+                                <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#334155', marginTop: 2 }} numberOfLines={2}>{tr(file.clientFeedback)}</Text>
                               </View>
                             )}
 
@@ -2861,7 +2862,7 @@ export default function Lead360Screen() {
                                 {status === 'draft' && (
                                   <TouchableOpacity style={s.smallBtn} onPress={() => setSendApprovalDrawing(file)}>
                                     <Ionicons name="paper-plane-outline" size={13} color="#0284C7" />
-                                    <Text style={[s.smallBtnText, { color: '#0284C7' }]}>Send for Approval</Text>
+                                    <Text style={[s.smallBtnText, { color: '#0284C7' }]}>{tr("Send for Approval")}</Text>
                                   </TouchableOpacity>
                                 )}
                                 {status === 'pending_internal_approval' && (
@@ -2874,7 +2875,7 @@ export default function Lead360Screen() {
                                       {isApprovingThis ? <ActivityIndicator size="small" color="#16A34A" /> : (
                                         <>
                                           <Ionicons name="checkmark-circle-outline" size={13} color="#16A34A" />
-                                          <Text style={[s.smallBtnText, { color: '#16A34A' }]}>Approve</Text>
+                                          <Text style={[s.smallBtnText, { color: '#16A34A' }]}>{tr("Approve")}</Text>
                                         </>
                                       )}
                                     </TouchableOpacity>
@@ -2883,14 +2884,14 @@ export default function Lead360Screen() {
                                       onPress={() => { setApprovalModalAction('reject'); setApprovalModalDrawing(file); }}
                                     >
                                       <Ionicons name="close-circle-outline" size={13} color="#DC2626" />
-                                      <Text style={[s.smallBtnText, { color: '#DC2626' }]}>Reject</Text>
+                                      <Text style={[s.smallBtnText, { color: '#DC2626' }]}>{tr("Reject")}</Text>
                                     </TouchableOpacity>
                                   </>
                                 )}
                                 {(status === 'internally_rejected' || status === 'client_changes_requested') && (
                                   <TouchableOpacity style={[s.smallBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => setRevisionDrawing(file)}>
                                     <Ionicons name="add-circle-outline" size={13} color="#2563EB" />
-                                    <Text style={[s.smallBtnText, { color: '#2563EB' }]}>+ Revision</Text>
+                                    <Text style={[s.smallBtnText, { color: '#2563EB' }]}>{tr("+ Revision")}</Text>
                                   </TouchableOpacity>
                                 )}
                                 {canDo('crm_drawings', 'delete') && (
@@ -2913,17 +2914,17 @@ export default function Lead360Screen() {
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, padding: 10 }}>
                               <Ionicons name="alert-circle" size={14} color="#B45309" />
                               <Text style={{ flex: 1, fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#92400E' }}>
-                                Cannot pass to BOQ — {pendingCount} drawing{pendingCount === 1 ? '' : 's'} pending approval.
+                                {tr("Cannot pass to BOQ — ")}{tr(pendingCount)}{tr(" drawing")}{pendingCount === 1 ? '' : 's'}{tr(" pending approval.")}
                               </Text>
                             </View>
                             <TouchableOpacity disabled style={[s.actionBtnPrimary, { backgroundColor: '#CBD5E1', marginTop: 0 }]}>
-                              <Text style={s.actionBtnText}>Drawings Pending Approval</Text>
+                              <Text style={s.actionBtnText}>{tr("Drawings Pending Approval")}</Text>
                             </TouchableOpacity>
                           </View>
                         ) : (
                           canMoveLead(canDo, 'crm_drawings', 'crm_boq') && (
                             <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#0284C7', marginTop: 0 }]} onPress={() => setShowSendBoqModal(true)}>
-                              <Text style={s.actionBtnText}>Complete Phase & Pass to BOQ Estimation</Text>
+                              <Text style={s.actionBtnText}>{tr("Complete Phase & Pass to BOQ Estimation")}</Text>
                             </TouchableOpacity>
                           )
                         );
@@ -2946,17 +2947,17 @@ export default function Lead360Screen() {
                       <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#ECFDF5' }]}>
                         <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#059669'} />
                       </View>
-                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'BOQ Stage is Locked'}</Text>
-                      <Text style={s.lockedSub}>{lock.reason}</Text>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? tr("Lead Assignment Required") : tr("BOQ Stage is Locked")}</Text>
+                      <Text style={s.lockedSub}>{tr(lock.reason)}</Text>
                       {lock.isUnassigned ? (
                         <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
                           <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-                          <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
+                          <Text style={s.unlockActionBtnText}>{tr("Go to Follow-ups & Assign")}</Text>
                         </TouchableOpacity>
                       ) : (
                         (canDo('crm_boq', 'create') || canDo('crm_boq', 'update') || canDo('crm_drawings', 'update')) && (
                           <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#059669' }]} onPress={() => setShowSendBoqModal(true)}>
-                            <Text style={s.unlockActionBtnText}>Send to BOQ</Text>
+                            <Text style={s.unlockActionBtnText}>{tr("Send to BOQ")}</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -2968,15 +2969,15 @@ export default function Lead360Screen() {
                   return (
                     <View style={s.emptyCard}>
                       <Ionicons name="calculator-outline" size={40} color="#059669" />
-                      <Text style={s.emptyCardTitle}>No BOQ Generated</Text>
-                      <Text style={s.emptySubText}>Build an itemized Bill of Quantities with quantities and rates.</Text>
+                      <Text style={s.emptyCardTitle}>{tr("No BOQ Generated")}</Text>
+                      <Text style={s.emptySubText}>{tr("Build an itemized Bill of Quantities with quantities and rates.")}</Text>
                       {!isReadOnly && (
                         canDo('crm_boq', 'create') && (
                           <TouchableOpacity
                             style={[s.actionBtnPrimary, { backgroundColor: '#059669' }]}
                             onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}
                           >
-                            <Text style={s.actionBtnText}>+ Create Estimate BOQ</Text>
+                            <Text style={s.actionBtnText}>{tr("+ Create Estimate BOQ")}</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -3014,13 +3015,13 @@ export default function Lead360Screen() {
                         <Ionicons name="warning" size={18} color="#E11D48" style={{ marginTop: 1 }} />
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <Text style={s.overBudgetTitle}>Over the client's budget</Text>
+                            <Text style={s.overBudgetTitle}>{tr("Over the client's budget")}</Text>
                             <View style={s.overBudgetPill}>
                               <Text style={s.overBudgetPillText}>+{boqExcessPct >= 10 ? Math.round(boqExcessPct) : boqExcessPct.toFixed(1)}%</Text>
                             </View>
                           </View>
                           <Text style={s.overBudgetSub}>
-                            BOQ {cur} {formatMillionBillion(estimatedTotal)} · budget {lead?.budgetRange || `${cur} ${formatMillionBillion(boqMaxBudget)}`}. {cur} {formatMillionBillion(estimatedTotal - boqMaxBudget)} over.
+                            {tr("BOQ ")}{tr(cur)} {formatMillionBillion(estimatedTotal)}{tr(" · budget ")}{lead?.budgetRange || `${cur} ${formatMillionBillion(boqMaxBudget)}`}. {tr(cur)} {formatMillionBillion(estimatedTotal - boqMaxBudget)}{tr(" over.")}
                           </Text>
                         </View>
                       </View>
@@ -3040,9 +3041,9 @@ export default function Lead360Screen() {
                               <Ionicons name="calculator-outline" size={17} color="#4F46E5" />
                             </View>
                             <View style={{ flex: 1, gap: 4 }}>
-                              <Text style={[s.cardTitle, { flex: 0 }]}>Bill of Quantities (BOQ) & Estimations</Text>
+                              <Text style={[s.cardTitle, { flex: 0 }]}>{tr("Bill of Quantities (BOQ) & Estimations")}</Text>
                               <View style={{ alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: badge.c + '18', borderWidth: 1, borderColor: badge.c + '40' }}>
-                                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: badge.c }}>{badge.t}</Text>
+                                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: badge.c }}>{tr(badge.t)}</Text>
                               </View>
                             </View>
                           </View>
@@ -3058,7 +3059,7 @@ export default function Lead360Screen() {
                                 ) : (
                                   <>
                                     <Ionicons name="share-outline" size={13} color="#475569" />
-                                    <Text style={[s.editBoqBtnText, { color: '#475569' }]}>Export</Text>
+                                    <Text style={[s.editBoqBtnText, { color: '#475569' }]}>{tr("Export")}</Text>
                                   </>
                                 )}
                               </TouchableOpacity>
@@ -3066,20 +3067,20 @@ export default function Lead360Screen() {
                             {boqIsLocked ? (
                               <View style={s.boqLockedPill}>
                                 <Ionicons name="lock-closed" size={12} color="#64748B" />
-                                <Text style={s.boqLockedPillText}>{isLost ? 'Lead Lost (Locked)' : 'Quotation Approved (Locked)'}</Text>
+                                <Text style={s.boqLockedPillText}>{isLost ? tr("Lead Lost (Locked)") : tr("Quotation Approved (Locked)")}</Text>
                               </View>
                             ) : (
                               <>
                                 {canDo('crm_boq', 'update') && activeBoq?.status !== 'approved' && (
                                   <TouchableOpacity style={s.editBoqBtn} onPress={() => { setEditingBoqIdx(activeBoqIdx); setShowBoqModal(true); }}>
                                     <Ionicons name="create-outline" size={13} color="#2563EB" />
-                                    <Text style={s.editBoqBtnText}>Edit BOQ</Text>
+                                    <Text style={s.editBoqBtnText}>{tr("Edit BOQ")}</Text>
                                   </TouchableOpacity>
                                 )}
                                 {canDo('crm_boq', 'create') && (
                                   <TouchableOpacity style={s.newBoqBtn} onPress={() => { setEditingBoqIdx(null); setShowBoqModal(true); }}>
                                     <Ionicons name="add" size={14} color="#FFFFFF" />
-                                    <Text style={s.newBoqBtnText}>New Version</Text>
+                                    <Text style={s.newBoqBtnText}>{tr("New Version")}</Text>
                                   </TouchableOpacity>
                                 )}
                               </>
@@ -3087,20 +3088,20 @@ export default function Lead360Screen() {
                           </View>
                           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                             <View style={s.specBox}>
-                              <Text style={s.specLabel}>TOTAL AMOUNT</Text>
-                              <Text style={[s.specVal, { color: boqIsOverBudget ? '#E11D48' : '#4F46E5' }]} numberOfLines={1}>{cur} {Math.round(estimatedTotal).toLocaleString(numLocale)}</Text>
+                              <Text style={s.specLabel}>{tr("TOTAL AMOUNT")}</Text>
+                              <Text style={[s.specVal, { color: boqIsOverBudget ? '#E11D48' : '#4F46E5' }]} numberOfLines={1}>{tr(cur)} {Math.round(estimatedTotal).toLocaleString(numLocale)}</Text>
                             </View>
                             <View style={s.specBox}>
-                              <Text style={s.specLabel}>SCOPE CATEGORIES</Text>
-                              <Text style={s.specVal} numberOfLines={1}>{sectionCount} {sectionCount === 1 ? 'Category' : 'Categories'}</Text>
+                              <Text style={s.specLabel}>{tr("SCOPE CATEGORIES")}</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{tr(sectionCount)} {sectionCount === 1 ? tr("Category") : tr("Categories")}</Text>
                             </View>
                             <View style={s.specBox}>
-                              <Text style={s.specLabel}>TARGET BUDGET</Text>
-                              <Text style={s.specVal} numberOfLines={1}>{lead.budgetRange || 'Not specified'}</Text>
+                              <Text style={s.specLabel}>{tr("TARGET BUDGET")}</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{lead.budgetRange || tr("Not specified")}</Text>
                             </View>
                             <View style={s.specBox}>
-                              <Text style={s.specLabel}>SCOPE</Text>
-                              <Text style={s.specVal} numberOfLines={1}>{lead.propertyType || 'Interior'}</Text>
+                              <Text style={s.specLabel}>{tr("SCOPE")}</Text>
+                              <Text style={s.specVal} numberOfLines={1}>{lead.propertyType || tr("Interior")}</Text>
                             </View>
                           </View>
                         </View>
@@ -3112,7 +3113,7 @@ export default function Lead360Screen() {
                     {!boqIsLocked && lead.status === 'Under BOQ Creation' && activeBoq?.status === 'approved' && (
                       canMoveLead(canDo, 'crm_boq', 'crm_quotations') && (
                         <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#059669', marginTop: 0 }]} onPress={() => setShowSendQuoteModal(true)}>
-                          <Text style={s.actionBtnText}>Complete Phase & Pass to Quotation</Text>
+                          <Text style={s.actionBtnText}>{tr("Complete Phase & Pass to Quotation")}</Text>
                         </TouchableOpacity>
                       )
                     )}
@@ -3174,29 +3175,29 @@ export default function Lead360Screen() {
                             </View>
                             <View style={{ flex: 1, gap: 4 }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{meta.title}</Text>
+                                <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr(meta.title)}</Text>
                                 <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, borderWidth: 1, borderColor: meta.c + '55', backgroundColor: '#FFFFFF' }}>
-                                  <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: meta.c, textTransform: 'uppercase' }}>{meta.pill}</Text>
+                                  <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Bold', color: meta.c, textTransform: 'uppercase' }}>{tr(meta.pill)}</Text>
                                 </View>
                               </View>
                               {st === 'rejected' && !!activeBoq.rejectionReason ? (
                                 <View style={{ backgroundColor: '#FFFFFF', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#FECACA' }}>
                                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                                     <Ionicons name="close-circle-outline" size={12} color="#DC2626" />
-                                    <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#DC2626' }}>Revisions Required:</Text>
+                                    <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#DC2626' }}>{tr("Revisions Required:")}</Text>
                                   </View>
-                                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17, marginTop: 3 }}>"{activeBoq.rejectionReason}"</Text>
+                                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17, marginTop: 3 }}>"{tr(activeBoq.rejectionReason)}"</Text>
                                 </View>
                               ) : (
-                                <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17 }}>{meta.text}</Text>
+                                <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', lineHeight: 17 }}>{tr(meta.text)}</Text>
                               )}
                               <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>
-                                Version {activeBoq.version || activeBoqIdx + 1} · Created {activeBoq.createdAt ? new Date(activeBoq.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'recently'} · By {activeBoq.createdByName || 'Estimator'}
-                                {activeBoq.updatedAt ? ` · Updated ${new Date(activeBoq.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}${activeBoq.updatedByName ? ` by ${activeBoq.updatedByName}` : ''}` : ''}
+                                {tr("Version ")}{activeBoq.version || activeBoqIdx + 1}{tr(" · Created ")}{activeBoq.createdAt ? new Date(activeBoq.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : tr("recently")}{tr(" · By ")}{activeBoq.createdByName || tr("Estimator")}
+                                {activeBoq.updatedAt ? tr(" · Updated {{value}}{{value2}}", { value: new Date(activeBoq.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), value2: activeBoq.updatedByName ? ` by ${activeBoq.updatedByName}` : '' }) : ''}
                               </Text>
                               {!!activeBoq.submissionNotes && (
                                 <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#334155', backgroundColor: '#FFFFFF', borderRadius: 8, padding: 8, marginTop: 4, borderWidth: 1, borderColor: '#E2E8F0' }}>
-                                  Review Focus / Note: "{activeBoq.submissionNotes}"
+                                  {tr("Review Focus / Note: \"")}{tr(activeBoq.submissionNotes)}"
                                 </Text>
                               )}
                             </View>
@@ -3206,18 +3207,18 @@ export default function Lead360Screen() {
                               {(st === 'draft' || st === 'rejected') && canDo('crm_boq', 'update') && (
                                 <TouchableOpacity style={[s.boqApprovalBtn, { backgroundColor: '#4F46E5' }]} onPress={() => openBoqApproval('submit')}>
                                   <Ionicons name="send-outline" size={13} color="#FFFFFF" />
-                                  <Text style={s.boqApprovalBtnText}>{st === 'rejected' ? 'Resubmit for Approval' : 'Send for Approval'}</Text>
+                                  <Text style={s.boqApprovalBtnText}>{st === 'rejected' ? tr("Resubmit for Approval") : tr("Send for Approval")}</Text>
                                 </TouchableOpacity>
                               )}
                               {st === 'pending_approval' && canDo('crm_boq', 'approve') && (
                                 <>
                                   <TouchableOpacity style={[s.boqApprovalBtn, { backgroundColor: '#059669' }]} onPress={() => openBoqApproval('approve')}>
                                     <Ionicons name="checkmark-circle-outline" size={14} color="#FFFFFF" />
-                                    <Text style={s.boqApprovalBtnText}>Approve</Text>
+                                    <Text style={s.boqApprovalBtnText}>{tr("Approve")}</Text>
                                   </TouchableOpacity>
                                   <TouchableOpacity style={[s.boqApprovalBtn, { backgroundColor: '#DC2626' }]} onPress={() => openBoqApproval('reject')}>
                                     <Ionicons name="close-circle-outline" size={14} color="#FFFFFF" />
-                                    <Text style={s.boqApprovalBtnText}>Reject</Text>
+                                    <Text style={s.boqApprovalBtnText}>{tr("Reject")}</Text>
                                   </TouchableOpacity>
                                 </>
                               )}
@@ -3230,11 +3231,11 @@ export default function Lead360Screen() {
                     {/* Summary Totals */}
                     <View style={s.costSummaryCard}>
                       <View style={s.costRow}>
-                        <Text style={s.costLabel}>Line Items</Text>
-                        <Text style={s.costVal}>{boqItems.length} item{boqItems.length === 1 ? '' : 's'}</Text>
+                        <Text style={s.costLabel}>{tr("Line Items")}</Text>
+                        <Text style={s.costVal}>{boqItems.length}{tr(" item")}{boqItems.length === 1 ? '' : 's'}</Text>
                       </View>
                       <View style={[s.costRow, s.costRowTotal]}>
-                        <Text style={s.grandTotalTitle}>Total BOQ Amount</Text>
+                        <Text style={s.grandTotalTitle}>{tr("Total BOQ Amount")}</Text>
                         <Text style={[s.grandTotalAmount, boqIsOverBudget && { color: '#E11D48' }]}>
                           {smartMoney(estimatedTotal, cur)}
                         </Text>
@@ -3258,9 +3259,9 @@ export default function Lead360Screen() {
                           {cats.map((cat) => (
                             <View key={cat.name} style={s.catChip}>
                               <Ionicons name="pricetag-outline" size={11} color="#4F46E5" />
-                              <Text style={s.catChipText} numberOfLines={1} ellipsizeMode="tail">{cat.name}</Text>
+                              <Text style={s.catChipText} numberOfLines={1} ellipsizeMode="tail">{tr(cat.name)}</Text>
                               <Text style={s.catChipCount}>({cat.count})</Text>
-                              <Text style={[s.catChipCount, { fontFamily: 'Inter-Bold', color: '#334155' }]}>{cur} {formatMillionBillion(cat.total)}</Text>
+                              <Text style={[s.catChipCount, { fontFamily: 'Inter-Bold', color: '#334155' }]}>{tr(cur)} {formatMillionBillion(cat.total)}</Text>
                             </View>
                           ))}
                         </ScrollView>
@@ -3286,22 +3287,22 @@ export default function Lead360Screen() {
                         <View key={g.key} style={s.card}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                             <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
-                              <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#4F46E5' }}>Sec {g.number || gi + 1}</Text>
+                              <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#4F46E5' }}>{tr("Sec ")}{g.number || gi + 1}</Text>
                             </View>
-                            <Text style={[s.cardTitle, { fontSize: 13.5 }]} numberOfLines={2}>{g.title}</Text>
-                            <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{cur} {formatMillionBillion(g.items.reduce((sum, it) => sum + itemAmount(it), 0))}</Text>
+                            <Text style={[s.cardTitle, { fontSize: 13.5 }]} numberOfLines={2}>{tr(g.title)}</Text>
+                            <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr(cur)} {formatMillionBillion(g.items.reduce((sum, it) => sum + itemAmount(it), 0))}</Text>
                           </View>
-                          {!!g.scope && <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginBottom: 6 }}>{g.scope}</Text>}
+                          {!!g.scope && <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginBottom: 6 }}>{tr(g.scope)}</Text>}
                           {g.items.map((it, idx) => (
                             <View key={idx} style={s.boqItemRow}>
                               <View style={{ flex: 1, marginRight: 10 }}>
-                                <Text style={s.itemNameText} numberOfLines={2}>{it.itemCode ? `${it.itemCode}  ` : ''}{it.itemName || 'Unnamed Item'}</Text>
-                                {!!it.description && <Text style={s.itemDescText} numberOfLines={3}>{it.description}</Text>}
-                                {!!it.brandMakes && <Text style={[s.itemDescText, { color: '#4F46E5' }]} numberOfLines={1}>Make: {it.brandMakes}</Text>}
+                                <Text style={s.itemNameText} numberOfLines={2}>{it.itemCode ? `${it.itemCode}  ` : ''}{it.itemName || tr("Unnamed Item")}</Text>
+                                {!!it.description && <Text style={s.itemDescText} numberOfLines={3}>{tr(it.description)}</Text>}
+                                {!!it.brandMakes && <Text style={[s.itemDescText, { color: '#4F46E5' }]} numberOfLines={1}>{tr("Make: ")}{tr(it.brandMakes)}</Text>}
                                 <Text style={s.itemQtyRateText}>
-                                  {formatMillionBillion(Number(it.quantity || 0))} {it.unit} × {smartMoney(it.rate || it.unitRate, cur)}
+                                  {formatMillionBillion(Number(it.quantity || 0))} {tr(it.unit)} × {smartMoney(it.rate || it.unitRate, cur)}
                                 </Text>
-                                {!!it.remarks && <Text style={[s.itemDescText, { fontStyle: 'italic' }]} numberOfLines={2}>{it.remarks}</Text>}
+                                {!!it.remarks && <Text style={[s.itemDescText, { fontStyle: 'italic' }]} numberOfLines={2}>{tr(it.remarks)}</Text>}
                               </View>
                               <Text style={s.itemTotalText}>{smartMoney(itemAmount(it), cur)}</Text>
                             </View>
@@ -3314,9 +3315,9 @@ export default function Lead360Screen() {
                       <View style={s.quoteNotesBox}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                           <Ionicons name="document-text-outline" size={13} color="#64748B" />
-                          <Text style={s.quoteNotesHeader}>BOQ REMARKS / TERMS</Text>
+                          <Text style={s.quoteNotesHeader}>{tr("BOQ REMARKS / TERMS")}</Text>
                         </View>
-                        <Text style={s.quoteNotesBody}>{activeBoq.notes}</Text>
+                        <Text style={s.quoteNotesBody}>{tr(activeBoq.notes)}</Text>
                       </View>
                     )}
                   </View>
@@ -3336,17 +3337,17 @@ export default function Lead360Screen() {
                       <View style={[s.lockedIconBox, { backgroundColor: lock.isUnassigned ? '#EFF6FF' : '#FFF1F2' }]}>
                         <Ionicons name="lock-closed" size={24} color={lock.isUnassigned ? '#2563EB' : '#E11D48'} />
                       </View>
-                      <Text style={s.lockedTitle}>{lock.isUnassigned ? 'Lead Assignment Required' : 'Quotations Stage is Locked'}</Text>
-                      <Text style={s.lockedSub}>{lock.reason}</Text>
+                      <Text style={s.lockedTitle}>{lock.isUnassigned ? tr("Lead Assignment Required") : tr("Quotations Stage is Locked")}</Text>
+                      <Text style={s.lockedSub}>{tr(lock.reason)}</Text>
                       {lock.isUnassigned ? (
                         <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('follow_ups')}>
                           <Ionicons name="person-add-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-                          <Text style={s.unlockActionBtnText}>Go to Follow-ups & Assign</Text>
+                          <Text style={s.unlockActionBtnText}>{tr("Go to Follow-ups & Assign")}</Text>
                         </TouchableOpacity>
                       ) : (
                         (canDo('crm_quotations', 'create') || canDo('crm_quotations', 'update') || canDo('crm_boq', 'update')) && (
                           <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#E11D48' }]} onPress={() => setShowSendQuoteModal(true)}>
-                            <Text style={s.unlockActionBtnText}>Send to Quotations</Text>
+                            <Text style={s.unlockActionBtnText}>{tr("Send to Quotations")}</Text>
                           </TouchableOpacity>
                         )
                       )}
@@ -3358,11 +3359,11 @@ export default function Lead360Screen() {
                   return (
                     <View style={s.emptyCard}>
                       <Ionicons name="calculator-outline" size={40} color="#E11D48" />
-                      <Text style={s.emptyCardTitle}>No Quotations Created</Text>
-                      <Text style={s.emptySubText}>Generate itemized quotes for your client.</Text>
+                      <Text style={s.emptyCardTitle}>{tr("No Quotations Created")}</Text>
+                      <Text style={s.emptySubText}>{tr("Generate itemized quotes for your client.")}</Text>
                       {canDo('crm_quotations', 'create') && (
                         <TouchableOpacity style={[s.actionBtnPrimary, { backgroundColor: '#E11D48' }]} onPress={openQuoteModal}>
-                          <Text style={s.actionBtnText}>Generate Quotation</Text>
+                          <Text style={s.actionBtnText}>{tr("Generate Quotation")}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -3381,13 +3382,13 @@ export default function Lead360Screen() {
                         <Ionicons name="warning" size={18} color="#E11D48" style={{ marginTop: 1 }} />
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <Text style={s.overBudgetTitle}>Over the client's budget</Text>
+                            <Text style={s.overBudgetTitle}>{tr("Over the client's budget")}</Text>
                             <View style={s.overBudgetPill}>
                               <Text style={s.overBudgetPillText}>+{quoteExcessPct >= 10 ? Math.round(quoteExcessPct) : quoteExcessPct.toFixed(1)}%</Text>
                             </View>
                           </View>
                           <Text style={s.overBudgetSub}>
-                            Quote {cur} {formatMillionBillion(quoteGrandTotal)} · budget {lead?.budgetRange || `${cur} ${formatMillionBillion(quoteMaxBudget)}`}. {cur} {formatMillionBillion(quoteGrandTotal - quoteMaxBudget)} over.
+                            {tr("Quote ")}{tr(cur)} {formatMillionBillion(quoteGrandTotal)}{tr(" · budget ")}{lead?.budgetRange || `${cur} ${formatMillionBillion(quoteMaxBudget)}`}. {tr(cur)} {formatMillionBillion(quoteGrandTotal - quoteMaxBudget)}{tr(" over.")}
                           </Text>
                         </View>
                       </View>
@@ -3401,7 +3402,7 @@ export default function Lead360Screen() {
                           onPress={() => setActiveQuoteIdx(idx)}
                         >
                           <Text style={[s.versionChipText, activeQuoteIdx === idx && s.versionChipTextActive]}>
-                            v{q.version} ({q.status})
+                            v{tr(q.version)} ({tr(q.status)})
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -3420,15 +3421,15 @@ export default function Lead360Screen() {
                         {/* Quotation Header */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                           <View>
-                            <Text style={s.cardTitle}>Quotation v{currentQuote.version}</Text>
+                            <Text style={s.cardTitle}>{tr("Quotation v")}{tr(currentQuote.version)}</Text>
                             <Text style={{ fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>
-                              {currentQuote.items?.length || 0} line item{currentQuote.items?.length === 1 ? '' : 's'}
+                              {currentQuote.items?.length || 0}{tr(" line item")}{currentQuote.items?.length === 1 ? '' : 's'}
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                             <View style={[s.stageBadge, { backgroundColor: currentQuote.status === 'Accepted' ? '#DCFCE7' : currentQuote.status === 'Rejected' ? '#FEE2E2' : '#FEF3C7' }]}>
                               <Text style={[s.stageBadgeText, { color: currentQuote.status === 'Accepted' ? '#15803D' : currentQuote.status === 'Rejected' ? '#B91C1C' : '#B45309' }]}>
-                                {currentQuote.status || 'Sent'}
+                                {currentQuote.status || tr("Sent")}
                               </Text>
                             </View>
                             {!isConverted && (
@@ -3461,7 +3462,7 @@ export default function Lead360Screen() {
                             activeOpacity={0.8}
                           >
                             <Ionicons name="document-text-outline" size={14} color="#4F46E5" />
-                            <Text style={s.quoteDocActionText} numberOfLines={1}>Preview</Text>
+                            <Text style={s.quoteDocActionText} numberOfLines={1}>{tr("Preview")}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={s.quoteDocActionBtn}
@@ -3469,7 +3470,7 @@ export default function Lead360Screen() {
                             activeOpacity={0.8}
                           >
                             <Ionicons name="paper-plane-outline" size={14} color="#4F46E5" />
-                            <Text style={s.quoteDocActionText} numberOfLines={1}>Send to Client</Text>
+                            <Text style={s.quoteDocActionText} numberOfLines={1}>{tr("Send to Client")}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={s.quoteDocActionBtn}
@@ -3477,7 +3478,7 @@ export default function Lead360Screen() {
                             activeOpacity={0.8}
                           >
                             <Ionicons name="business-outline" size={14} color="#059669" />
-                            <Text style={[s.quoteDocActionText, { color: '#059669' }]} numberOfLines={1}>Send to Vendor</Text>
+                            <Text style={[s.quoteDocActionText, { color: '#059669' }]} numberOfLines={1}>{tr("Send to Vendor")}</Text>
                           </TouchableOpacity>
                           {canDo('crm_quotations', 'export') && (
                             <TouchableOpacity
@@ -3491,7 +3492,7 @@ export default function Lead360Screen() {
                               ) : (
                                 <>
                                   <Ionicons name="download-outline" size={14} color="#4F46E5" />
-                                  <Text style={s.quoteDocActionText} numberOfLines={1}>Download</Text>
+                                  <Text style={s.quoteDocActionText} numberOfLines={1}>{tr("Download")}</Text>
                                 </>
                               )}
                             </TouchableOpacity>
@@ -3501,9 +3502,9 @@ export default function Lead360Screen() {
                         {/* Prepared For / Details Meta */}
                         {/* Stacked (not two columns) so the client name, phone and email get the full width */}
                         <View style={s.quoteMetaRow}>
-                          <Text style={s.quoteMetaLabel}>PREPARED FOR</Text>
-                          <Text style={s.quoteMetaName}>{lead.name}</Text>
-                          {!!lead.mobileNumber && <Text style={s.quoteMetaSub}>{lead.mobileNumber}</Text>}
+                          <Text style={s.quoteMetaLabel}>{tr("PREPARED FOR")}</Text>
+                          <Text style={s.quoteMetaName}>{tr(lead.name)}</Text>
+                          {!!lead.mobileNumber && <Text style={s.quoteMetaSub}>{tr(lead.mobileNumber)}</Text>}
                           {!!lead.email && <Text style={s.quoteMetaSub} numberOfLines={1}>{lead.email}</Text>}
                           <View style={s.quoteMetaDivider} />
                           {[
@@ -3513,8 +3514,8 @@ export default function Lead360Screen() {
                               || (lead.leadNumber ? `QTN-${lead.leadNumber.replace(/^LD-/, '')}-${currentQuote.version || activeQuoteIdx + 1}` : `QTN-${String(activeQuoteIdx + 1).padStart(3, '0')}`)],
                           ].map(([label, value]) => (
                             <View key={label} style={s.quoteMetaLine}>
-                              <Text style={s.quoteMetaLineLabel}>{label}</Text>
-                              <Text style={s.quoteMetaLineValue} numberOfLines={1}>{value}</Text>
+                              <Text style={s.quoteMetaLineLabel}>{tr(label)}</Text>
+                              <Text style={s.quoteMetaLineValue} numberOfLines={1}>{tr(value)}</Text>
                             </View>
                           ))}
                         </View>
@@ -3522,15 +3523,15 @@ export default function Lead360Screen() {
                         {/* Scope / Items — fits the screen (no sideways scrolling) */}
                         <View style={s.quoteTable}>
                           <View style={s.scopeHeader}>
-                            <Text style={s.scopeHeaderText}>SCOPE / ITEMS</Text>
+                            <Text style={s.scopeHeaderText}>{tr("SCOPE / ITEMS")}</Text>
                             <View style={s.scopeCountPill}>
                               <Text style={s.scopeCountText}>
-                                {(currentQuote.items || []).length} {(currentQuote.items || []).length === 1 ? 'item' : 'items'}
+                                {(currentQuote.items || []).length} {(currentQuote.items || []).length === 1 ? tr("item") : tr("items")}
                               </Text>
                             </View>
                           </View>
                           {(currentQuote.items || []).length === 0 ? (
-                            <Text style={[s.quoteMetaSub, { padding: 12 }]}>No line items in this quotation.</Text>
+                            <Text style={[s.quoteMetaSub, { padding: 12 }]}>{tr("No line items in this quotation.")}</Text>
                           ) : (
                             (currentQuote.items || []).map((item, i) => {
                               const qty = Number(item.quantity) || 1;
@@ -3541,7 +3542,7 @@ export default function Lead360Screen() {
                                 <View key={i} style={[s.scopeRow, i === (currentQuote.items || []).length - 1 && { borderBottomWidth: 0 }]}>
                                   <View style={{ flexDirection: 'row', gap: 8 }}>
                                     <Text style={s.scopeIndex}>{i + 1}.</Text>
-                                    <Text style={s.scopeTitle}>{title}</Text>
+                                    <Text style={s.scopeTitle}>{tr(title)}</Text>
                                   </View>
                                   <View style={s.scopeFigures}>
                                     <Text style={s.scopeMeta}>
@@ -3568,27 +3569,27 @@ export default function Lead360Screen() {
                           return (
                             <View style={s.quoteTotalsBox}>
                               <View style={s.totalRow}>
-                                <Text style={s.totalLabel}>Subtotal ({quoteItems.length} items)</Text>
-                                <Text style={s.totalVal}>{cur} {formatMillionBillion(subtotal)}</Text>
+                                <Text style={s.totalLabel}>{tr("Subtotal (")}{quoteItems.length}{tr(" items)")}</Text>
+                                <Text style={s.totalVal}>{tr(cur)} {formatMillionBillion(subtotal)}</Text>
                               </View>
                               <View style={s.totalRow}>
-                                <Text style={s.totalLabel}>Tax ({taxPercentage}%)</Text>
-                                <Text style={s.totalVal}>{cur} {formatMillionBillion(taxAmount)}</Text>
+                                <Text style={s.totalLabel}>{tr("Tax (")}{tr(taxPercentage)}%)</Text>
+                                <Text style={s.totalVal}>{tr(cur)} {formatMillionBillion(taxAmount)}</Text>
                               </View>
                               {discount > 0 && (
                                 <View style={s.totalRow}>
-                                  <Text style={[s.totalLabel, { color: '#16A34A' }]}>Discount Applied</Text>
-                                  <Text style={[s.totalVal, { color: '#16A34A' }]}>- {cur} {formatMillionBillion(discount)}</Text>
+                                  <Text style={[s.totalLabel, { color: '#16A34A' }]}>{tr("Discount Applied")}</Text>
+                                  <Text style={[s.totalVal, { color: '#16A34A' }]}>- {tr(cur)} {formatMillionBillion(discount)}</Text>
                                 </View>
                               )}
                               <View style={{ height: 1, backgroundColor: '#E2E8F0', marginVertical: 6 }} />
                               <View style={s.totalRow}>
                                 <View>
-                                  <Text style={s.grandTotalTitle}>Grand Total</Text>
-                                  <Text style={s.quoteMetaSub}>Net Payable</Text>
+                                  <Text style={s.grandTotalTitle}>{tr("Grand Total")}</Text>
+                                  <Text style={s.quoteMetaSub}>{tr("Net Payable")}</Text>
                                 </View>
                                 <Text style={s.grandTotalVal}>
-                                  {cur} {formatMillionBillion(grandTotal)}
+                                  {tr(cur)} {formatMillionBillion(grandTotal)}
                                 </Text>
                               </View>
                             </View>
@@ -3600,9 +3601,9 @@ export default function Lead360Screen() {
                           <View style={s.quoteNotesBox}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                               <Ionicons name="document-text-outline" size={13} color="#64748B" />
-                              <Text style={s.quoteNotesHeader}>NOTES & REMARKS</Text>
+                              <Text style={s.quoteNotesHeader}>{tr("NOTES & REMARKS")}</Text>
                             </View>
-                            <Text style={s.quoteNotesBody}>{currentQuote.notes}</Text>
+                            <Text style={s.quoteNotesBody}>{tr(currentQuote.notes)}</Text>
                           </View>
                         )}
 
@@ -3612,13 +3613,13 @@ export default function Lead360Screen() {
                             <View style={s.quoteAcceptedBanner}>
                               <Ionicons name="checkmark-circle" size={20} color="#15803D" />
                               <View style={{ flex: 1 }}>
-                                <Text style={s.quoteAcceptedTitle}>Quotation Accepted</Text>
+                                <Text style={s.quoteAcceptedTitle}>{tr("Quotation Accepted")}</Text>
                                 <Text style={s.quoteAcceptedSubtitle}>
                                   {isLost
-                                    ? 'This lead was later marked Lost and can no longer be converted.'
+                                    ? tr("This lead was later marked Lost and can no longer be converted.")
                                     : isConverted
-                                    ? 'This lead has already been converted to a project.'
-                                    : 'Client approved this proposal. Ready to initialize project execution.'}
+                                    ? tr("This lead has already been converted to a project.")
+                                    : tr("Client approved this proposal. Ready to initialize project execution.")}
                                 </Text>
                               </View>
                             </View>
@@ -3630,7 +3631,7 @@ export default function Lead360Screen() {
                                   activeOpacity={0.8}
                                 >
                                   <Ionicons name="rocket-outline" size={18} color="#FFFFFF" />
-                                  <Text style={s.quoteConvertBtnText}>Convert to Project</Text>
+                                  <Text style={s.quoteConvertBtnText}>{tr("Convert to Project")}</Text>
                                 </TouchableOpacity>
                               )
                             )}
@@ -3640,8 +3641,8 @@ export default function Lead360Screen() {
                             <View style={s.quoteRejectedBanner}>
                               <Ionicons name="close-circle" size={20} color="#B91C1C" />
                               <View style={{ flex: 1 }}>
-                                <Text style={s.quoteRejectedTitle}>Quotation Rejected</Text>
-                                <Text style={s.quoteRejectedSubtitle}>Client declined this version. Create a new revision with revised rates.</Text>
+                                <Text style={s.quoteRejectedTitle}>{tr("Quotation Rejected")}</Text>
+                                <Text style={s.quoteRejectedSubtitle}>{tr("Client declined this version. Create a new revision with revised rates.")}</Text>
                               </View>
                             </View>
                             {canDo('crm_quotations', 'create') && (
@@ -3651,7 +3652,7 @@ export default function Lead360Screen() {
                                 activeOpacity={0.8}
                               >
                                 <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-                                <Text style={s.quoteConvertBtnText}>Create New Revision</Text>
+                                <Text style={s.quoteConvertBtnText}>{tr("Create New Revision")}</Text>
                               </TouchableOpacity>
                             )}
                           </View>
@@ -3665,7 +3666,7 @@ export default function Lead360Screen() {
                                   activeOpacity={0.8}
                                 >
                                   <Ionicons name="checkmark-circle-outline" size={15} color="#15803D" style={{ marginRight: 4 }} />
-                                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#15803D' }}>Mark Accepted</Text>
+                                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#15803D' }}>{tr("Mark Accepted")}</Text>
                                 </TouchableOpacity>
                               )}
                               {canDo('crm_quotations', 'approve') && (
@@ -3675,7 +3676,7 @@ export default function Lead360Screen() {
                                   activeOpacity={0.8}
                                 >
                                   <Ionicons name="close-circle-outline" size={15} color="#B91C1C" style={{ marginRight: 4 }} />
-                                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#B91C1C' }}>Mark Rejected</Text>
+                                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#B91C1C' }}>{tr("Mark Rejected")}</Text>
                                 </TouchableOpacity>
                               )}
                             </View>
@@ -3696,11 +3697,11 @@ export default function Lead360Screen() {
                   <View style={[s.lockedIconBox, { backgroundColor: '#FFFBEB' }]}>
                     <Ionicons name="lock-closed" size={24} color="#D97706" />
                   </View>
-                  <Text style={s.lockedTitle}>Order Confirmation Stage is Locked</Text>
-                  <Text style={s.lockedSub}>{getTabLockState('confirm_order').reason}</Text>
+                  <Text style={s.lockedTitle}>{tr("Order Confirmation Stage is Locked")}</Text>
+                  <Text style={s.lockedSub}>{tr(getTabLockState('confirm_order').reason)}</Text>
                   {canViewLeadTab('quotations') && (
                     <TouchableOpacity style={[s.unlockActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setActiveTab('quotations')}>
-                      <Text style={s.unlockActionBtnText}>Go to Quotations Tab</Text>
+                      <Text style={s.unlockActionBtnText}>{tr("Go to Quotations Tab")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -3732,7 +3733,7 @@ export default function Lead360Screen() {
         leadName={lead.name}
         onSuccess={() => {
           setLead((prev) => (prev ? { ...prev, status: 'Lost' } : prev));
-          showToast('Lead has been marked as Lost.', 'success');
+          showToast(tr("Lead has been marked as Lost."), 'success');
           fetchData();
         }}
       />
@@ -3760,10 +3761,10 @@ export default function Lead360Screen() {
       <Modal visible={showStatusModal} transparent animationType="fade" onRequestClose={() => setShowStatusModal(false)}>
         <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowStatusModal(false)}>
           <View style={s.modalCard}>
-            <Text style={s.modalTitle}>Update Lead Stage</Text>
+            <Text style={s.modalTitle}>{tr("Update Lead Stage")}</Text>
             {STAGES.map((st) => (
               <TouchableOpacity key={st} style={s.stageOption} onPress={() => handleStatusChange(st)}>
-                <Text style={[s.stageOptionText, lead.status === st && { fontWeight: '900', color: '#2563EB' }]}>{st}</Text>
+                <Text style={[s.stageOptionText, lead.status === st && { fontWeight: '900', color: '#2563EB' }]}>{tr(st)}</Text>
                 {lead.status === st && <Ionicons name="checkmark" size={16} color="#2563EB" />}
               </TouchableOpacity>
             ))}
@@ -3776,25 +3777,25 @@ export default function Lead360Screen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Edit Lead Details</Text>
+              <Text style={s.modalTitle}>{tr("Edit Lead Details")}</Text>
               <TouchableOpacity onPress={() => setShowEditModal(false)}>
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Full Name *</Text>
+              <Text style={s.label}>{tr("Full Name *")}</Text>
               <TextInput
                 style={[s.input, editFormErrors.name && s.inputError]}
-                placeholder="e.g. John Doe"
+                placeholder={tr("e.g. John Doe")}
                 placeholderTextColor="#94A3B8"
                 value={editForm.name}
                 maxLength={50}
                 onChangeText={(v) => handleEditFieldChange('name', v)}
                 onBlur={() => handleEditFieldBlur('name')}
               />
-              {!!editFormErrors.name && <Text style={s.fieldErrorText}>{editFormErrors.name}</Text>}
+              {!!editFormErrors.name && <Text style={s.fieldErrorText}>{tr(editFormErrors.name)}</Text>}
 
-              <Text style={s.label}>Mobile Number *</Text>
+              <Text style={s.label}>{tr("Mobile Number *")}</Text>
               <TextInput
                 style={[s.input, editFormErrors.mobileNumber && s.inputError]}
                 placeholder="+91 9876543210"
@@ -3805,12 +3806,12 @@ export default function Lead360Screen() {
                 onChangeText={(v) => handleEditFieldChange('mobileNumber', v)}
                 onBlur={() => handleEditFieldBlur('mobileNumber')}
               />
-              {!!editFormErrors.mobileNumber && <Text style={s.fieldErrorText}>{editFormErrors.mobileNumber}</Text>}
+              {!!editFormErrors.mobileNumber && <Text style={s.fieldErrorText}>{tr(editFormErrors.mobileNumber)}</Text>}
 
-              <Text style={s.label}>Email Address</Text>
+              <Text style={s.label}>{tr("Email Address")}</Text>
               <TextInput
                 style={[s.input, editFormErrors.email && s.inputError]}
-                placeholder="john@example.com"
+                placeholder={tr("john@example.com")}
                 placeholderTextColor="#94A3B8"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -3821,7 +3822,7 @@ export default function Lead360Screen() {
               />
               {!!editFormErrors.email && <Text style={s.fieldErrorText}>{editFormErrors.email}</Text>}
 
-              <Text style={s.label}>Lead Source</Text>
+              <Text style={s.label}>{tr("Lead Source")}</Text>
               <TouchableOpacity
                 style={[s.dropdownBtn, showEditLeadSourceDropdown && s.dropdownBtnActive]}
                 onPress={() => setShowEditLeadSourceDropdown(!showEditLeadSourceDropdown)}
@@ -3829,7 +3830,7 @@ export default function Lead360Screen() {
               >
                 <View style={s.dropdownBtnContent}>
                   <Ionicons name="funnel-outline" size={15} color="#64748B" style={{ marginRight: 8 }} />
-                  <Text style={s.dropdownBtnText}>{editForm.leadSource || 'Select Lead Source'}</Text>
+                  <Text style={s.dropdownBtnText}>{editForm.leadSource || tr("Select Lead Source")}</Text>
                 </View>
                 <Ionicons name={showEditLeadSourceDropdown ? 'chevron-up' : 'chevron-down'} size={18} color="#64748B" />
               </TouchableOpacity>
@@ -3852,7 +3853,7 @@ export default function Lead360Screen() {
                             setShowEditLeadSourceDropdown(false);
                           }}
                         >
-                          <Text style={[s.dropdownItemText, active && s.dropdownItemTextActive]}>{opt}</Text>
+                          <Text style={[s.dropdownItemText, active && s.dropdownItemTextActive]}>{tr(opt)}</Text>
                           {active && <Ionicons name="checkmark-circle" size={18} color="#2563EB" />}
                         </TouchableOpacity>
                       );
@@ -3861,15 +3862,15 @@ export default function Lead360Screen() {
                 </View>
               )}
 
-              <Text style={s.label}>Property Type</Text>
+              <Text style={s.label}>{tr("Property Type")}</Text>
               <SelectField
                 value={editForm.propertyType}
                 onChange={(v) => handleEditFieldChange('propertyType', v)}
                 options={['Flat', 'Villa', 'Office', 'Shop', 'Other']}
-                placeholder="Select property type"
+                placeholder={tr("Select property type")}
               />
 
-              <Text style={s.label}>Assign Follow-up Executive</Text>
+              <Text style={s.label}>{tr("Assign Follow-up Executive")}</Text>
               <TouchableOpacity
                 style={[s.dropdownBtn, showEditAssignDropdown && s.dropdownBtnActive]}
                 onPress={() => setShowEditAssignDropdown(!showEditAssignDropdown)}
@@ -3902,7 +3903,7 @@ export default function Lead360Screen() {
                       }}
                     >
                       <Text style={[s.dropdownItemText, !editForm.assignedSalesExecutive && s.dropdownItemTextActive]}>
-                        Unassigned (No Follow-up Assigned)
+                        {tr("Unassigned (No Follow-up Assigned)")}
                       </Text>
                       {!editForm.assignedSalesExecutive && <Ionicons name="checkmark-circle" size={18} color="#2563EB" />}
                     </TouchableOpacity>
@@ -3931,20 +3932,20 @@ export default function Lead360Screen() {
                 </View>
               )}
 
-              <Text style={s.label}>Project Location</Text>
+              <Text style={s.label}>{tr("Project Location")}</Text>
               <TextInput
                 style={[s.input, editFormErrors.projectLocation && s.inputError]}
-                placeholder="e.g. Hiranandani Estate, Thane"
+                placeholder={tr("e.g. Hiranandani Estate, Thane")}
                 placeholderTextColor="#94A3B8"
                 value={editForm.projectLocation}
                 maxLength={150}
                 onChangeText={(v) => handleEditFieldChange('projectLocation', v)}
                 onBlur={() => handleEditFieldBlur('projectLocation')}
               />
-              {!!editFormErrors.projectLocation && <Text style={s.fieldErrorText}>{editFormErrors.projectLocation}</Text>}
+              {!!editFormErrors.projectLocation && <Text style={s.fieldErrorText}>{tr(editFormErrors.projectLocation)}</Text>}
 
               <TouchableOpacity style={s.submitBtn} onPress={handleEditSubmit} disabled={submittingEdit}>
-                <Text style={s.submitBtnText}>{submittingEdit ? 'Saving...' : 'Save Changes'}</Text>
+                <Text style={s.submitBtnText}>{submittingEdit ? tr("Saving...") : tr("Save Changes")}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -3956,30 +3957,30 @@ export default function Lead360Screen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Log Activity</Text>
+              <Text style={s.modalTitle}>{tr("Log Activity")}</Text>
               <TouchableOpacity onPress={() => setShowActivityModal(false)}>
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
-            <Text style={s.label}>Activity Type</Text>
+            <Text style={s.label}>{tr("Activity Type")}</Text>
             <View style={s.chipOptions}>
               {['Phone Call', 'WhatsApp', 'Meeting', 'Site Visit'].map((t) => (
                 <TouchableOpacity key={t} style={[s.optionChip, activityForm.type === t && s.optionChipActive]} onPress={() => setActivityForm({ ...activityForm, type: t })}>
-                  <Text style={[s.optionChipText, activityForm.type === t && s.optionChipTextActive]}>{t}</Text>
+                  <Text style={[s.optionChipText, activityForm.type === t && s.optionChipTextActive]}>{tr(t)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={s.label}>Remarks / Summary</Text>
+            <Text style={s.label}>{tr("Remarks / Summary")}</Text>
             <TextInput
               style={[s.input, { height: 80 }]}
               multiline
-              placeholder="Enter meeting notes..."
+              placeholder={tr("Enter meeting notes...")}
               placeholderTextColor="#94A3B8"
               value={activityForm.remarks}
               onChangeText={(v) => setActivityForm({ ...activityForm, remarks: v })}
             />
             <TouchableOpacity style={s.submitBtn} onPress={handleAddActivity} disabled={submittingAct}>
-              <Text style={s.submitBtnText}>{submittingAct ? 'Saving...' : 'Save Activity'}</Text>
+              <Text style={s.submitBtnText}>{submittingAct ? tr("Saving...") : tr("Save Activity")}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -3990,28 +3991,28 @@ export default function Lead360Screen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Schedule Follow-up</Text>
+              <Text style={s.modalTitle}>{tr("Schedule Follow-up")}</Text>
               <TouchableOpacity onPress={() => setShowFollowUpModal(false)}>
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-              <Text style={s.label}>Follow-up Type</Text>
+              <Text style={s.label}>{tr("Follow-up Type")}</Text>
               <SelectField
                 value={followUpForm.type}
                 onChange={(v) => setFollowUpForm((prev) => ({ ...prev, type: v }))}
                 options={FOLLOWUP_TYPES}
-                placeholder="Select follow-up type"
+                placeholder={tr("Select follow-up type")}
                 style={{ marginBottom: 8 }}
               />
 
-              <Text style={s.label}>Date & Time *</Text>
+              <Text style={s.label}>{tr("Date & Time *")}</Text>
               <TouchableOpacity style={s.dateInput} onPress={openScheduleDatePicker}>
                 <Text style={[s.dateInputText, !followUpForm.scheduledDate && { color: '#94A3B8' }]}>
                   {followUpForm.scheduledDate
                     ? followUpForm.scheduledDate.toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                    : 'Select date & time'}
+                    : tr("Select date & time")}
                 </Text>
                 <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
               </TouchableOpacity>
@@ -4027,27 +4028,27 @@ export default function Lead360Screen() {
                 />
               )}
 
-              <Text style={s.label}>Assign Member *</Text>
+              <Text style={s.label}>{tr("Assign Member *")}</Text>
               <SelectField
                 value={followUpForm.assignedSalesExecutive}
                 onChange={(v) => setFollowUpForm((prev) => ({ ...prev, assignedSalesExecutive: v }))}
                 options={users.map((u) => ({ value: u._id || u.id, label: userLabel(u) }))}
-                placeholder="Select a team member"
+                placeholder={tr("Select a team member")}
                 style={{ marginBottom: 8 }}
               />
 
-              <Text style={s.label}>Follow-up Notes / Goal *</Text>
+              <Text style={s.label}>{tr("Follow-up Notes / Goal *")}</Text>
               <TextInput
                 style={[s.input, { height: 80 }]}
                 multiline
-                placeholder="e.g. Call client to confirm design meeting..."
+                placeholder={tr("e.g. Call client to confirm design meeting...")}
                 placeholderTextColor="#94A3B8"
                 value={followUpForm.remarks}
                 onChangeText={(v) => setFollowUpForm({ ...followUpForm, remarks: v })}
               />
 
               <TouchableOpacity style={s.submitBtn} onPress={handleScheduleFollowUp} disabled={submittingAct}>
-                <Text style={s.submitBtnText}>{submittingAct ? 'Scheduling...' : 'Schedule Follow-up'}</Text>
+                <Text style={s.submitBtnText}>{submittingAct ? tr("Scheduling...") : tr("Schedule Follow-up")}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -4065,7 +4066,7 @@ export default function Lead360Screen() {
           instructions={lead?.remarks}
           isReadOnly={isReadOnly}
           onSuccess={() => {
-            showToast('Site visit logged successfully!', 'success');
+            showToast(tr("Site visit logged successfully!"), 'success');
             fetchData();
           }}
         />
@@ -4077,7 +4078,7 @@ export default function Lead360Screen() {
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>
-                {boqApprovalMode === 'submit' ? 'Send BOQ for Internal Approval' : boqApprovalMode === 'approve' ? 'Approve BOQ' : 'Reject BOQ'}
+                {boqApprovalMode === 'submit' ? tr("Send BOQ for Internal Approval") : boqApprovalMode === 'approve' ? tr("Approve BOQ") : tr("Reject BOQ")}
               </Text>
               <TouchableOpacity onPress={() => setBoqApprovalMode(null)}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -4089,15 +4090,15 @@ export default function Lead360Screen() {
                 if (!b) return null;
                 return (
                   <View style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, marginBottom: 6 }}>
-                    <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>BOQ Version {b.version || activeBoqIdx + 1}</Text>
+                    <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr("BOQ Version ")}{b.version || activeBoqIdx + 1}</Text>
                     <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#475569', marginTop: 2 }}>
-                      {cur} {Math.round(Number(b.totalAmount) || 0).toLocaleString(numLocale)} · {(b.items || []).length} items
+                      {tr(cur)} {Math.round(Number(b.totalAmount) || 0).toLocaleString(numLocale)} · {(b.items || []).length}{tr(" items")}
                     </Text>
                     {boqApprovalMode !== 'submit' && !!b.assignedReviewerName && (
-                      <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 4 }}>Reviewer: {b.assignedReviewerName}</Text>
+                      <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 4 }}>{tr("Reviewer: ")}{tr(b.assignedReviewerName)}</Text>
                     )}
                     {boqApprovalMode !== 'submit' && !!b.submissionNotes && (
-                      <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>Note: "{b.submissionNotes}"</Text>
+                      <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 2 }}>{tr("Note: \"")}{tr(b.submissionNotes)}"</Text>
                     )}
                   </View>
                 );
@@ -4105,12 +4106,12 @@ export default function Lead360Screen() {
 
               {boqApprovalMode === 'submit' && (
                 <>
-                  <Text style={s.label}>Reviewer *</Text>
+                  <Text style={s.label}>{tr("Reviewer *")}</Text>
                   <SelectField
                     value={boqReviewer}
                     onChange={setBoqReviewer}
                     options={users.map((u) => ({ value: u._id || u.id, label: userLabel(u) }))}
-                    placeholder="Select who approves this BOQ"
+                    placeholder={tr("Select who approves this BOQ")}
                     style={{ marginBottom: 8 }}
                   />
                 </>
@@ -4120,7 +4121,7 @@ export default function Lead360Screen() {
                   {/* Same labels and 500-character cap as the web BOQ approval modals */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Text style={[s.label, boqApprovalMode === 'reject' && { color: '#E11D48' }]}>
-                      {boqApprovalMode === 'reject' ? 'Rejection Reason / Required Revisions *' : 'Handover Notes / Review Focus (Optional)'}
+                      {boqApprovalMode === 'reject' ? tr("Rejection Reason / Required Revisions *") : tr("Handover Notes / Review Focus (Optional)")}
                     </Text>
                     <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: boqApprovalMode === 'reject' ? '#F43F5E' : '#94A3B8' }}>
                       {boqApprovalNote.length}/500
@@ -4130,7 +4131,7 @@ export default function Lead360Screen() {
                     style={[s.input, { height: 80 }]}
                     maxLength={500}
                     multiline
-                    placeholder={boqApprovalMode === 'reject' ? 'What needs to change before approval...' : 'Anything the reviewer should check...'}
+                    placeholder={boqApprovalMode === 'reject' ? tr("What needs to change before approval...") : tr("Anything the reviewer should check...")}
                     placeholderTextColor="#94A3B8"
                     value={boqApprovalNote}
                     onChangeText={setBoqApprovalNote}
@@ -4139,7 +4140,7 @@ export default function Lead360Screen() {
               )}
               {boqApprovalMode === 'approve' && (
                 <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#334155', marginVertical: 8 }}>
-                  Approving this BOQ unlocks the Quotations stage for this lead.
+                  {tr("Approving this BOQ unlocks the Quotations stage for this lead.")}
                 </Text>
               )}
 
@@ -4149,7 +4150,7 @@ export default function Lead360Screen() {
                 disabled={submittingBoqApproval}
               >
                 <Text style={s.submitBtnText}>
-                  {submittingBoqApproval ? 'Saving...' : boqApprovalMode === 'submit' ? 'Send for Approval' : boqApprovalMode === 'approve' ? 'Approve BOQ' : 'Reject BOQ'}
+                  {submittingBoqApproval ? tr("Saving...") : boqApprovalMode === 'submit' ? tr("Send for Approval") : boqApprovalMode === 'approve' ? tr("Approve BOQ") : tr("Reject BOQ")}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -4162,7 +4163,7 @@ export default function Lead360Screen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Reschedule Follow-up</Text>
+              <Text style={s.modalTitle}>{tr("Reschedule Follow-up")}</Text>
               <TouchableOpacity onPress={() => setShowRescheduleModal(false)}>
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
@@ -4172,25 +4173,25 @@ export default function Lead360Screen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 12, padding: 12, marginBottom: 6 }}>
                 <Ionicons name="time-outline" size={18} color="#D97706" />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#B45309', letterSpacing: 0.4 }}>PREVIOUSLY SCHEDULED</Text>
+                  <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#B45309', letterSpacing: 0.4 }}>{tr("PREVIOUSLY SCHEDULED")}</Text>
                   <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 }}>
                     {rescheduleForm.previousDate
                       ? new Date(rescheduleForm.previousDate).toLocaleString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                      : 'No date was set'}
+                      : tr("No date was set")}
                   </Text>
                 </View>
               </View>
 
-              <Text style={s.label}>Follow-up Type</Text>
+              <Text style={s.label}>{tr("Follow-up Type")}</Text>
               <SelectField
                 value={rescheduleForm.type}
                 onChange={(v) => setRescheduleForm((prev) => ({ ...prev, type: v }))}
                 options={FOLLOWUP_TYPES}
-                placeholder="Select follow-up type"
+                placeholder={tr("Select follow-up type")}
                 style={{ marginBottom: 12 }}
               />
 
-              <Text style={s.label}>New Date & Time *</Text>
+              <Text style={s.label}>{tr("New Date & Time *")}</Text>
               <TouchableOpacity
                 style={[s.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
                 onPress={openRescheduleDatePicker}
@@ -4198,7 +4199,7 @@ export default function Lead360Screen() {
                 <Text style={{ color: rescheduleForm.scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
                   {rescheduleForm.scheduledDate
                     ? new Date(rescheduleForm.scheduledDate).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                    : 'Select date & time'}
+                    : tr("Select date & time")}
                 </Text>
                 <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
               </TouchableOpacity>
@@ -4214,20 +4215,20 @@ export default function Lead360Screen() {
                 />
               )}
 
-              <Text style={s.label}>Assign Member *</Text>
+              <Text style={s.label}>{tr("Assign Member *")}</Text>
               <SelectField
                 value={rescheduleForm.assignedSalesExecutive}
                 onChange={(v) => setRescheduleForm((prev) => ({ ...prev, assignedSalesExecutive: v }))}
                 options={users.map((u) => ({ value: u._id || u.id, label: userLabel(u) }))}
-                placeholder="Select a team member"
+                placeholder={tr("Select a team member")}
                 style={{ marginBottom: 8 }}
               />
 
-              <Text style={s.label}>Updated Notes / Goal *</Text>
+              <Text style={s.label}>{tr("Updated Notes / Goal *")}</Text>
               <TextInput
                 style={[s.input, { height: 80 }]}
                 multiline
-                placeholder="e.g. Call client to confirm revised meeting time..."
+                placeholder={tr("e.g. Call client to confirm revised meeting time...")}
                 placeholderTextColor="#94A3B8"
                 value={rescheduleForm.remarks}
                 onChangeText={(v) => setRescheduleForm({ ...rescheduleForm, remarks: v })}
@@ -4238,7 +4239,7 @@ export default function Lead360Screen() {
                 onPress={handleRescheduleFollowUp}
                 disabled={submittingReschedule}
               >
-                <Text style={s.submitBtnText}>{submittingReschedule ? 'Rescheduling...' : 'Save & Reschedule'}</Text>
+                <Text style={s.submitBtnText}>{submittingReschedule ? tr("Rescheduling...") : tr("Save & Reschedule")}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -4257,7 +4258,7 @@ export default function Lead360Screen() {
           currentStatus={lead?.status}
           isReadOnly={isReadOnly}
           onSuccess={() => {
-            showToast('Requirements logged successfully!', 'success');
+            showToast(tr("Requirements logged successfully!"), 'success');
             fetchData();
           }}
         />
@@ -4274,7 +4275,7 @@ export default function Lead360Screen() {
           requirements={lead?.requirements}
           isReadOnly={isReadOnly}
           onSuccess={() => {
-            showToast('Design file uploaded successfully!', 'success');
+            showToast(tr("Design file uploaded successfully!"), 'success');
             fetchData();
           }}
         />
@@ -4288,7 +4289,7 @@ export default function Lead360Screen() {
         drawing={sendApprovalDrawing}
         users={users}
         onSuccess={() => {
-          showToast('Drawing sent for internal approval!', 'success');
+          showToast(tr("Drawing sent for internal approval!"), 'success');
           fetchData();
         }}
       />
@@ -4300,7 +4301,7 @@ export default function Lead360Screen() {
         drawing={approvalModalDrawing}
         initialAction={approvalModalAction}
         onSuccess={(action) => {
-          showToast(action === 'approve' ? 'Drawing approved and published to client portal!' : 'Drawing rejected.', 'success');
+          showToast(action === 'approve' ? tr("Drawing approved and published to client portal!") : tr("Drawing rejected."), 'success');
           fetchData();
         }}
       />
@@ -4312,7 +4313,7 @@ export default function Lead360Screen() {
         drawing={revisionDrawing}
         users={users}
         onSuccess={() => {
-          showToast('Revision uploaded and sent for review!', 'success');
+          showToast(tr("Revision uploaded and sent for review!"), 'success');
           fetchData();
         }}
       />
@@ -4341,7 +4342,7 @@ export default function Lead360Screen() {
           budgetRange={lead?.budgetRange || lead?.estimatedBudget || lead?.budget}
           isReadOnly={isReadOnly}
           onSuccess={() => {
-            showToast('Quotation saved successfully!', 'success');
+            showToast(tr("Quotation saved successfully!"), 'success');
             fetchData();
           }}
         />
@@ -4358,7 +4359,7 @@ export default function Lead360Screen() {
         customerPhone={lead?.phone}
         quotation={sendQuoteModalQuote}
         onSuccess={() => {
-          showToast('Quotation dispatched successfully!', 'success');
+          showToast(tr("Quotation dispatched successfully!"), 'success');
           fetchData();
         }}
       />
@@ -4381,7 +4382,7 @@ export default function Lead360Screen() {
             lead?.linkedProject
           )}
           onSuccess={() => {
-            showToast('BOQ saved successfully!', 'success');
+            showToast(tr("BOQ saved successfully!"), 'success');
             fetchData();
           }}
         />
@@ -4417,7 +4418,7 @@ export default function Lead360Screen() {
           users={users}
           initialData={sendSiteInitialData}
           onSuccess={() => {
-            showToast(sendSiteInitialData ? 'Site visit rescheduled successfully!' : 'Passed to Site Visit phase!', 'success');
+            showToast(sendSiteInitialData ? tr("Site visit rescheduled successfully!") : tr("Passed to Site Visit phase!"), 'success');
             setSendSiteInitialData(null);
             fetchData();
           }}
@@ -4432,7 +4433,7 @@ export default function Lead360Screen() {
           users={users}
           initialData={sendReqInitialData}
           onSuccess={() => {
-            showToast(sendReqInitialData ? 'Requirements session rescheduled!' : 'Passed to Requirements phase!', 'success');
+            showToast(sendReqInitialData ? tr("Requirements session rescheduled!") : tr("Passed to Requirements phase!"), 'success');
             setSendReqInitialData(null);
             fetchData();
           }}
@@ -4447,7 +4448,7 @@ export default function Lead360Screen() {
           users={users}
           initialData={sendDrawingInitialData}
           onSuccess={() => {
-            showToast(sendDrawingInitialData ? 'Drawing schedule updated!' : 'Passed to Drawing phase!', 'success');
+            showToast(sendDrawingInitialData ? tr("Drawing schedule updated!") : tr("Passed to Drawing phase!"), 'success');
             setSendDrawingInitialData(null);
             fetchData();
           }}
@@ -4462,7 +4463,7 @@ export default function Lead360Screen() {
           users={users}
           lead={lead}
           onSuccess={() => {
-            showToast('Passed to BOQ Estimation phase!', 'success');
+            showToast(tr("Passed to BOQ Estimation phase!"), 'success');
             fetchData();
           }}
         />
@@ -4475,7 +4476,7 @@ export default function Lead360Screen() {
           customerId={id}
           users={users}
           onSuccess={() => {
-            showToast('Passed to Quotation phase!', 'success');
+            showToast(tr("Passed to Quotation phase!"), 'success');
             fetchData();
           }}
         />
@@ -4486,7 +4487,7 @@ export default function Lead360Screen() {
         onClose={() => setShowConvertModal(false)}
         customerId={id}
         onSuccess={() => {
-          showToast('🎉 Converted to active project!', 'success');
+          showToast(tr("🎉 Converted to active project!"), 'success');
           fetchData();
           router.push('/(tabs)/crm');
         }}
@@ -4501,13 +4502,13 @@ export default function Lead360Screen() {
         <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F5F9' }}>
           <View style={s.quoteDocHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={s.quoteDocHeaderTitle}>Quotation Document</Text>
+              <Text style={s.quoteDocHeaderTitle}>{tr("Quotation Document")}</Text>
               <Text style={s.quoteDocHeaderSub}>
-                {currentQuote ? `Version ${currentQuote.version} · ${currentQuote.status || 'Sent'}` : ''}
+                {currentQuote ? tr("Version {{version}} · {{value}}", { version: currentQuote.version, value: currentQuote.status || 'Sent' }) : ''}
               </Text>
               {currentQuote && (
                 <Text style={[s.quoteDocHeaderSub, { color: '#334155' }]} numberOfLines={1}>
-                  Client: {lead?.name} • Total Scope: {(currentQuote.items || []).length} Items ({formatExactCurrency(Number(currentQuote.grandTotal) || 0, currencyCode)})
+                  {tr("Client: ")}{tr(lead?.name)}{tr(" • Total Scope: ")}{(currentQuote.items || []).length}{tr(" Items (")}{formatExactCurrency(Number(currentQuote.grandTotal) || 0, currencyCode)})
                 </Text>
               )}
             </View>
@@ -4515,8 +4516,8 @@ export default function Lead360Screen() {
               <TouchableOpacity
                 onPress={() =>
                   currentQuote &&
-                  printQuotation(lead, currentQuote).catch((e) => {
-                    if (!/cancel/i.test(e?.message || '')) showToast(e?.message || 'Failed to print quotation', 'error');
+                  printQuotation({ ...lead, currency: currencyCode }, currentQuote).catch((e) => {
+                    if (!/cancel/i.test(e?.message || '')) showToast(e?.message || tr("Failed to print quotation"), 'error');
                   })
                 }
                 style={s.quoteDocHeaderBtn}
@@ -4570,7 +4571,7 @@ export default function Lead360Screen() {
                   }}
                 >
                   <Ionicons name="rocket-outline" size={16} color="#FFFFFF" />
-                  <Text style={[s.quoteFooterText, { color: '#FFFFFF' }]}>Convert to Project</Text>
+                  <Text style={[s.quoteFooterText, { color: '#FFFFFF' }]}>{tr("Convert to Project")}</Text>
                 </TouchableOpacity>
               ) : null}
               {/* Same as the web preview: dispatch to the client or a vendor */}
@@ -4580,7 +4581,7 @@ export default function Lead360Screen() {
               >
                 <Ionicons name="paper-plane-outline" size={15} color="#4338CA" />
                 <Text style={[s.quoteFooterText, { color: '#4338CA' }]}>
-                  {currentQuote.sentToClient ? 'Resend to Client' : 'Send to Client'}
+                  {currentQuote.sentToClient ? tr("Resend to Client") : tr("Send to Client")}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -4588,7 +4589,7 @@ export default function Lead360Screen() {
                 onPress={() => openSendQuote(currentQuote, 'vendor')}
               >
                 <Ionicons name="business-outline" size={15} color="#047857" />
-                <Text style={[s.quoteFooterText, { color: '#047857' }]}>Send to Vendor</Text>
+                <Text style={[s.quoteFooterText, { color: '#047857' }]}>{tr("Send to Vendor")}</Text>
               </TouchableOpacity>
             </View>
           )}

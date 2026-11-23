@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -48,7 +49,7 @@ export default function InteriorNcrsScreen() {
       setNcrs(res?.success && res?.data ? res.data : []);
     } catch (e) {
       console.error('Failed to load NCRs', e);
-      showToast('Failed to fetch Non-Conformance logs', 'error');
+      showToast(tr("Failed to fetch Non-Conformance logs"), 'error');
     } finally {
       setLoading(false);
     }
@@ -58,22 +59,22 @@ export default function InteriorNcrsScreen() {
 
   const handleSubmitNcr = async () => {
     if (!form.description.trim()) {
-      showToast('Description is required', 'error');
+      showToast(tr("Description is required"), 'error');
       return;
     }
     setSubmitting(true);
     try {
       if (editNcrId) {
         await interiorApiClient.put(`/projects/${projectId}/ncrs`, { ncrId: editNcrId, ...form });
-        showToast('NCR updated successfully!', 'success');
+        showToast(tr("NCR updated successfully!"), 'success');
       } else {
         await interiorApiClient.post(`/projects/${projectId}/ncrs`, form);
-        showToast('Non-Conformance Report logged successfully!', 'success');
+        showToast(tr("Non-Conformance Report logged successfully!"), 'success');
       }
       closeModal();
       fetchNcrs();
     } catch (e) {
-      showToast(e.message || (editNcrId ? 'Failed to update NCR' : 'Failed to log NCR'), 'error');
+      showToast(e.message || (editNcrId ? tr("Failed to update NCR") : tr("Failed to log NCR")), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -103,16 +104,16 @@ export default function InteriorNcrsScreen() {
   };
 
   const handleDeleteNcr = (ncr) => {
-    Alert.alert('Delete NCR', 'Are you sure you want to delete this Non-Conformance Report? This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete NCR"), tr("Are you sure you want to delete this Non-Conformance Report? This cannot be undone."), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: tr("Delete"), style: 'destructive', onPress: async () => {
           try {
             await interiorApiClient.delete(`/projects/${projectId}/ncrs?ncrId=${ncr._id}`);
-            showToast('NCR deleted successfully!', 'delete');
+            showToast(tr("NCR deleted successfully!"), 'delete');
             fetchNcrs();
           } catch (e) {
-            showToast(e.message || 'Failed to delete NCR', 'error');
+            showToast(e.message || tr("Failed to delete NCR"), 'error');
           }
         },
       },
@@ -128,7 +129,7 @@ export default function InteriorNcrsScreen() {
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Non-Conformance Reports</Text>
+            <Text style={s.headerTitle}>{tr("Non-Conformance Reports")}</Text>
           </View>
         </View>
 
@@ -139,7 +140,7 @@ export default function InteriorNcrsScreen() {
             {ncrs.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="alert-circle-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No non-conformances logged</Text>
+                <Text style={s.emptyTitle}>{tr("No non-conformances logged")}</Text>
               </View>
             ) : (
               ncrs.map((ncr) => {
@@ -149,7 +150,7 @@ export default function InteriorNcrsScreen() {
                     <View style={s.ncrTopRow}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <Ionicons name="document-text-outline" size={12} color="#64748B" />
-                        <Text style={s.ncrNumber}>{ncr.ncrNumber}</Text>
+                        <Text style={s.ncrNumber}>{tr(ncr.ncrNumber)}</Text>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <View style={[s.pill, { backgroundColor: meta.bg }]}>
@@ -164,20 +165,20 @@ export default function InteriorNcrsScreen() {
                       </View>
                     </View>
 
-                    <Text style={s.ncrDesc}>{ncr.description}</Text>
+                    <Text style={s.ncrDesc}>{tr(ncr.description)}</Text>
 
                     {(!!ncr.rootCause || !!ncr.correctiveAction) && (
                       <View style={s.detailBox}>
                         {!!ncr.rootCause && (
                           <View style={{ marginBottom: ncr.correctiveAction ? 10 : 0 }}>
-                            <Text style={s.detailLabel}>Investigated Root Cause:</Text>
-                            <Text style={s.detailText}>{ncr.rootCause}</Text>
+                            <Text style={s.detailLabel}>{tr("Investigated Root Cause:")}</Text>
+                            <Text style={s.detailText}>{tr(ncr.rootCause)}</Text>
                           </View>
                         )}
                         {!!ncr.correctiveAction && (
                           <View>
-                            <Text style={[s.detailLabel, { color: '#16A34A' }]}>Corrective Action Taken:</Text>
-                            <Text style={s.detailText}>{ncr.correctiveAction}</Text>
+                            <Text style={[s.detailLabel, { color: '#16A34A' }]}>{tr("Corrective Action Taken:")}</Text>
+                            <Text style={s.detailText}>{tr(ncr.correctiveAction)}</Text>
                           </View>
                         )}
                       </View>
@@ -199,33 +200,33 @@ export default function InteriorNcrsScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{editNcrId ? 'Edit Quality NCR' : 'Log Quality NCR'}</Text>
+              <Text style={s.modalTitle}>{editNcrId ? tr("Edit Quality NCR") : tr("Log Quality NCR")}</Text>
               <TouchableOpacity onPress={closeModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Deviation Description *</Text>
-              <TextInput style={s.input} placeholder="e.g. Concrete cube compression test failed target" placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} />
+              <Text style={s.label}>{tr("Deviation Description *")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Concrete cube compression test failed target")} placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} />
 
-              <Text style={s.label}>Root Cause Investigation</Text>
-              <TextInput style={s.input} placeholder="e.g. Excess water added in transit batch mix" placeholderTextColor="#94A3B8" value={form.rootCause} onChangeText={(v) => setForm({ ...form, rootCause: v })} />
+              <Text style={s.label}>{tr("Root Cause Investigation")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Excess water added in transit batch mix")} placeholderTextColor="#94A3B8" value={form.rootCause} onChangeText={(v) => setForm({ ...form, rootCause: v })} />
 
-              <Text style={s.label}>Corrective Action Plan</Text>
-              <TextInput style={s.input} placeholder="e.g. Demolish grid core column and recast with audit" placeholderTextColor="#94A3B8" value={form.correctiveAction} onChangeText={(v) => setForm({ ...form, correctiveAction: v })} />
+              <Text style={s.label}>{tr("Corrective Action Plan")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Demolish grid core column and recast with audit")} placeholderTextColor="#94A3B8" value={form.correctiveAction} onChangeText={(v) => setForm({ ...form, correctiveAction: v })} />
 
-              <Text style={s.label}>Workflow Status</Text>
+              <Text style={s.label}>{tr("Workflow Status")}</Text>
               <View style={{ gap: 6, marginBottom: 8 }}>
                 {STATUSES.map((st) => (
                   <TouchableOpacity key={st.value} style={[s.statusOption, form.status === st.value && s.statusOptionActive]} onPress={() => setForm({ ...form, status: st.value })}>
-                    <Text style={[s.statusOptionText, form.status === st.value && s.statusOptionTextActive]}>{st.label}</Text>
+                    <Text style={[s.statusOptionText, form.status === st.value && s.statusOptionTextActive]}>{tr(st.label)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
               <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmitNcr} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editNcrId ? 'Update NCR' : 'Log NCR'}</Text>}
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editNcrId ? tr("Update NCR") : tr("Log NCR")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

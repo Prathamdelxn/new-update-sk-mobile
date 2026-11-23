@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
@@ -85,18 +86,18 @@ export default function InteriorUsersRolesScreen() {
     setAddUserOpen(true);
   };
   const confirmDeleteUser = (u) =>
-    Alert.alert('Delete user', `Remove ${u.firstName} ${u.lastName}? They will lose access to every project.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete user"), tr("Remove {{firstName}} {{lastName}}? They will lose access to every project.", { firstName: u.firstName, lastName: u.lastName }), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete',
+        text: tr("Delete"),
         style: 'destructive',
         onPress: async () => {
           try {
             await interiorApiClient.delete(`/users/${u._id}`);
-            showToast('User deleted', 'success');
+            showToast(tr("User deleted"), 'success');
             loadUsers();
           } catch (e) {
-            showToast(e.message || 'Failed to delete user', 'error');
+            showToast(e.message || tr("Failed to delete user"), 'error');
           }
         },
       },
@@ -152,7 +153,7 @@ export default function InteriorUsersRolesScreen() {
 
   const handleAddUser = async () => {
     if (!userForm.firstName.trim() || !userForm.lastName.trim() || !userForm.email.trim()) {
-      showToast('First name, last name and email are required', 'error');
+      showToast(tr("First name, last name and email are required"), 'error');
       return;
     }
     setSavingUser(true);
@@ -173,17 +174,17 @@ export default function InteriorUsersRolesScreen() {
       if (editingUserId) {
         // Clearing the phone is allowed when editing
         await interiorApiClient.patch(`/users/${editingUserId}`, { ...payload, phone: userForm.phone.trim(), status: userForm.status });
-        showToast(`User ${userForm.firstName} ${userForm.lastName} updated successfully`, 'success');
+        showToast(tr("User {{firstName}} {{lastName}} updated successfully", { firstName: userForm.firstName, lastName: userForm.lastName }), 'success');
       } else {
         await interiorApiClient.post('/users', payload);
-        showToast(`User ${userForm.firstName} ${userForm.lastName} created successfully`, 'success');
+        showToast(tr("User {{firstName}} {{lastName}} created successfully", { firstName: userForm.firstName, lastName: userForm.lastName }), 'success');
       }
       setEditingUserId(null);
       setAddUserOpen(false);
       setUserForm(emptyUserForm);
       loadUsers();
     } catch (e) {
-      showToast(e.message || (editingUserId ? 'Failed to update user' : 'Failed to create user'), 'error');
+      showToast(e.message || (editingUserId ? tr("Failed to update user") : tr("Failed to create user")), 'error');
     } finally {
       setSavingUser(false);
     }
@@ -198,8 +199,8 @@ export default function InteriorUsersRolesScreen() {
             <Ionicons name="chevron-back" size={18} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Users & Roles</Text>
-            <Text style={s.headerSub}>Team assignments & role permission matrix.</Text>
+            <Text style={s.headerTitle}>{tr("Users & Roles")}</Text>
+            <Text style={s.headerSub}>{tr("Team assignments & role permission matrix.")}</Text>
           </View>
           {activeTab === 'users' && canAddUsers && (
             <TouchableOpacity style={s.addBtn} onPress={openAddUser}>
@@ -212,20 +213,20 @@ export default function InteriorUsersRolesScreen() {
           {showUsersTab && (
             <TouchableOpacity style={[s.tabBtn, activeTab === 'users' && s.tabBtnActive]} onPress={() => setActiveTab('users')}>
               <Ionicons name="people-outline" size={14} color={activeTab === 'users' ? '#FFFFFF' : '#64748B'} />
-              <Text style={[s.tabBtnText, activeTab === 'users' && s.tabBtnTextActive]}>Users</Text>
+              <Text style={[s.tabBtnText, activeTab === 'users' && s.tabBtnTextActive]}>{tr("Users")}</Text>
             </TouchableOpacity>
           )}
           {showRolesTab && (
             <TouchableOpacity style={[s.tabBtn, activeTab === 'roles' && s.tabBtnActive]} onPress={() => setActiveTab('roles')}>
               <Ionicons name="shield-outline" size={14} color={activeTab === 'roles' ? '#FFFFFF' : '#64748B'} />
-              <Text style={[s.tabBtnText, activeTab === 'roles' && s.tabBtnTextActive]}>Roles</Text>
+              <Text style={[s.tabBtnText, activeTab === 'roles' && s.tabBtnTextActive]}>{tr("Roles")}</Text>
             </TouchableOpacity>
           )}
         </View>
 
         {activeTab === null ? (
           <View style={s.center}>
-            <Text style={{ fontSize: 14, color: '#64748B', fontFamily: 'Inter-Regular' }}>You don&apos;t have permission to view users or roles.</Text>
+            <Text style={{ fontSize: 14, color: '#64748B', fontFamily: 'Inter-Regular' }}>{tr("You don't have permission to view users or roles.")}</Text>
           </View>
         ) : activeTab === 'users' && loading ? (
           <SkeletonList variant="rows" />
@@ -234,27 +235,27 @@ export default function InteriorUsersRolesScreen() {
             <View style={s.summaryRow}>
               <View style={s.summaryCard}>
                 <Text style={s.summaryValue}>{users.length}</Text>
-                <Text style={s.summaryLabel}>Total Members</Text>
+                <Text style={s.summaryLabel}>{tr("Total Members")}</Text>
               </View>
               <View style={s.summaryCard}>
-                <Text style={[s.summaryValue, { color: '#059669' }]}>{activeUsers}</Text>
-                <Text style={s.summaryLabel}>Active Accounts</Text>
+                <Text style={[s.summaryValue, { color: '#059669' }]}>{tr(activeUsers)}</Text>
+                <Text style={s.summaryLabel}>{tr("Active Accounts")}</Text>
               </View>
               <View style={s.summaryCard}>
-                <Text style={[s.summaryValue, { color: '#2563EB' }]}>{totalProjects}</Text>
-                <Text style={s.summaryLabel}>Projects Covered</Text>
+                <Text style={[s.summaryValue, { color: '#2563EB' }]}>{tr(totalProjects)}</Text>
+                <Text style={s.summaryLabel}>{tr("Projects Covered")}</Text>
               </View>
             </View>
 
             <View style={s.searchRow}>
               <Ionicons name="search" size={15} color="#94A3B8" style={{ marginRight: 8 }} />
-              <TextInput style={s.searchInput} placeholder="Search member by name, email, designation..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
+              <TextInput style={s.searchInput} placeholder={tr("Search member by name, email, designation...")} placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10, marginBottom: 4 }}>
               {['All', 'super_admin', 'org_admin', 'manager', 'member', 'viewer'].map((r) => (
                 <TouchableOpacity key={r} style={[s.filterChip, roleFilter === r && s.filterChipActive]} onPress={() => setRoleFilter(r)}>
-                  <Text style={[s.filterChipText, roleFilter === r && s.filterChipTextActive]}>{r === 'All' ? 'All Roles' : (SYSTEM_ROLE_LABELS[r]?.label || r)}</Text>
+                  <Text style={[s.filterChipText, roleFilter === r && s.filterChipTextActive]}>{r === 'All' ? tr("All Roles") : (SYSTEM_ROLE_LABELS[r]?.label || r)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -263,7 +264,7 @@ export default function InteriorUsersRolesScreen() {
               {filteredUsers.length === 0 ? (
                 <View style={s.empty}>
                   <Ionicons name="people-outline" size={40} color="#CBD5E1" />
-                  <Text style={s.emptyTitle}>No users match your search.</Text>
+                  <Text style={s.emptyTitle}>{tr("No users match your search.")}</Text>
                 </View>
               ) : (
                 filteredUsers.map((u) => {
@@ -278,9 +279,9 @@ export default function InteriorUsersRolesScreen() {
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <Text style={s.userName}>{u.firstName} {u.lastName}</Text>
+                            <Text style={s.userName}>{tr(u.firstName)} {tr(u.lastName)}</Text>
                             <View style={[s.roleBadge, { backgroundColor: sysRole.bg }]}>
-                              <Text style={[s.roleBadgeText, { color: sysRole.color }]}>{sysRole.label}</Text>
+                              <Text style={[s.roleBadgeText, { color: sysRole.color }]}>{tr(sysRole.label)}</Text>
                             </View>
                           </View>
                           <Text style={s.userEmail} numberOfLines={1}>{u.email}</Text>
@@ -299,28 +300,28 @@ export default function InteriorUsersRolesScreen() {
                               {canManageUsers && (
                                 <TouchableOpacity style={s.userActionBtn} onPress={() => openEditUser(u)}>
                                   <Ionicons name="create-outline" size={14} color="#2563EB" />
-                                  <Text style={s.userActionText}>Edit</Text>
+                                  <Text style={s.userActionText}>{tr("Edit")}</Text>
                                 </TouchableOpacity>
                               )}
                               {canDeleteUsers && !isSelf(u) && (
                                 <TouchableOpacity style={[s.userActionBtn, { borderColor: '#FECACA' }]} onPress={() => confirmDeleteUser(u)}>
                                   <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                                  <Text style={[s.userActionText, { color: '#DC2626' }]}>Delete</Text>
+                                  <Text style={[s.userActionText, { color: '#DC2626' }]}>{tr("Delete")}</Text>
                                 </TouchableOpacity>
                               )}
                             </View>
                           )}
                           {assignments.length === 0 ? (
-                            <Text style={s.noAssignments}>No project assignments linked to this member.</Text>
+                            <Text style={s.noAssignments}>{tr("No project assignments linked to this member.")}</Text>
                           ) : (
                             assignments.map((a) => (
                               <View key={a.projectId} style={s.assignmentRow}>
                                 <View style={{ flex: 1, minWidth: 0 }}>
-                                  <Text style={s.assignmentProject} numberOfLines={1}>{a.projectName}</Text>
-                                  <Text style={s.assignmentRole}>{PROJECT_ROLE_LABELS[a.projectRole] || a.projectRole} · {(a.permissions || []).length} modules</Text>
+                                  <Text style={s.assignmentProject} numberOfLines={1}>{tr(a.projectName)}</Text>
+                                  <Text style={s.assignmentRole}>{PROJECT_ROLE_LABELS[a.projectRole] || a.projectRole} · {(a.permissions || []).length}{tr(" modules")}</Text>
                                 </View>
                                 <View style={s.assignmentStatusBadge}>
-                                  <Text style={s.assignmentStatusText}>{a.projectStatus}</Text>
+                                  <Text style={s.assignmentStatusText}>{tr(a.projectStatus)}</Text>
                                 </View>
                               </View>
                             ))
@@ -346,7 +347,7 @@ export default function InteriorUsersRolesScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{editingUserId ? 'Edit User Account' : 'Add New Member'}</Text>
+              <Text style={s.modalTitle}>{editingUserId ? tr("Edit User Account") : tr("Add New Member")}</Text>
               <TouchableOpacity onPress={() => setAddUserOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
@@ -354,42 +355,42 @@ export default function InteriorUsersRolesScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>First Name *</Text>
-                  <TextInput style={s.input} placeholder="John" placeholderTextColor="#94A3B8" value={userForm.firstName} onChangeText={(v) => setUserForm({ ...userForm, firstName: v })} />
+                  <Text style={s.label}>{tr("First Name *")}</Text>
+                  <TextInput style={s.input} placeholder={tr("John")} placeholderTextColor="#94A3B8" value={userForm.firstName} onChangeText={(v) => setUserForm({ ...userForm, firstName: v })} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Last Name *</Text>
-                  <TextInput style={s.input} placeholder="Doe" placeholderTextColor="#94A3B8" value={userForm.lastName} onChangeText={(v) => setUserForm({ ...userForm, lastName: v })} />
+                  <Text style={s.label}>{tr("Last Name *")}</Text>
+                  <TextInput style={s.input} placeholder={tr("Doe")} placeholderTextColor="#94A3B8" value={userForm.lastName} onChangeText={(v) => setUserForm({ ...userForm, lastName: v })} />
                 </View>
               </View>
 
-              <Text style={s.label}>Email *</Text>
-              <TextInput style={s.input} placeholder="john@company.com" placeholderTextColor="#94A3B8" keyboardType="email-address" autoCapitalize="none" value={userForm.email} onChangeText={(v) => setUserForm({ ...userForm, email: v })} />
+              <Text style={s.label}>{tr("Email *")}</Text>
+              <TextInput style={s.input} placeholder={tr("john@company.com")} placeholderTextColor="#94A3B8" keyboardType="email-address" autoCapitalize="none" value={userForm.email} onChangeText={(v) => setUserForm({ ...userForm, email: v })} />
 
-              <Text style={s.label}>Password</Text>
-              <TextInput style={s.input} placeholder="Leave blank for default: welcome123" placeholderTextColor="#94A3B8" secureTextEntry value={userForm.password} onChangeText={(v) => setUserForm({ ...userForm, password: v })} />
+              <Text style={s.label}>{tr("Password")}</Text>
+              <TextInput style={s.input} placeholder={tr("Leave blank for default: welcome123")} placeholderTextColor="#94A3B8" secureTextEntry value={userForm.password} onChangeText={(v) => setUserForm({ ...userForm, password: v })} />
 
-              <Text style={s.label}>Phone</Text>
+              <Text style={s.label}>{tr("Phone")}</Text>
               <TextInput style={s.input} placeholder="+91 9876543210" placeholderTextColor="#94A3B8" keyboardType="phone-pad" value={userForm.phone} onChangeText={(v) => setUserForm({ ...userForm, phone: v })} />
 
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Designation</Text>
-                  <TextInput style={s.input} placeholder="e.g. Site Engineer" placeholderTextColor="#94A3B8" value={userForm.designation} onChangeText={(v) => setUserForm({ ...userForm, designation: v })} />
+                  <Text style={s.label}>{tr("Designation")}</Text>
+                  <TextInput style={s.input} placeholder={tr("e.g. Site Engineer")} placeholderTextColor="#94A3B8" value={userForm.designation} onChangeText={(v) => setUserForm({ ...userForm, designation: v })} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Department</Text>
-                  <TextInput style={s.input} placeholder="e.g. Operations" placeholderTextColor="#94A3B8" value={userForm.department} onChangeText={(v) => setUserForm({ ...userForm, department: v })} />
+                  <Text style={s.label}>{tr("Department")}</Text>
+                  <TextInput style={s.input} placeholder={tr("e.g. Operations")} placeholderTextColor="#94A3B8" value={userForm.department} onChangeText={(v) => setUserForm({ ...userForm, department: v })} />
                 </View>
               </View>
 
               {orgRoles.length > 0 && (
                 <>
-                  <Text style={s.label}>Organization Role</Text>
+                  <Text style={s.label}>{tr("Organization Role")}</Text>
                   <View style={s.pillWrap}>
                     {orgRoles.map((r) => (
                       <TouchableOpacity key={r._id} style={[s.pill, userForm.roleId === r._id && s.pillActive]} onPress={() => setUserForm({ ...userForm, roleId: r._id })}>
-                        <Text style={[s.pillText, userForm.roleId === r._id && s.pillTextActive]}>{r.name}</Text>
+                        <Text style={[s.pillText, userForm.roleId === r._id && s.pillTextActive]}>{tr(r.name)}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -398,7 +399,7 @@ export default function InteriorUsersRolesScreen() {
 
               {editingUserId && (
                 <>
-                  <Text style={s.label}>Status</Text>
+                  <Text style={s.label}>{tr("Status")}</Text>
                   <View style={s.pillWrap}>
                     {['active', 'inactive', 'suspended'].map((st) => (
                       <TouchableOpacity key={st} style={[s.pill, userForm.status === st && s.pillActive]} onPress={() => setUserForm({ ...userForm, status: st })}>
@@ -410,7 +411,7 @@ export default function InteriorUsersRolesScreen() {
               )}
 
               <TouchableOpacity style={[s.saveBtn, savingUser && { opacity: 0.6 }]} onPress={handleAddUser} disabled={savingUser}>
-                {savingUser ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingUserId ? 'Save Changes' : 'Create User'}</Text>}
+                {savingUser ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingUserId ? tr("Save Changes") : tr("Create User")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

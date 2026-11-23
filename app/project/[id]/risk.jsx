@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, ActivityIndicator, Modal, TextInput, Platform, RefreshControl, LayoutAnimation, Keyboard } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -119,12 +120,12 @@ export default function ProjectRiskTab({ project }) {
           setRisks(Array.isArray(data) ? data : []);
         } catch (parseError) {
           console.error('Risks JSON parse error:', parseError, 'Raw response:', text);
-          showToast('Invalid data received', 'error');
+          showToast(tr("Invalid data received"), 'error');
         }
       } else {
         const errText = await res.text();
         console.error('Fetch risks failed:', res.status, errText);
-        showToast(`Server error: ${res.status}`, 'error');
+        showToast(tr("Server error: {{status}}", { status: res.status }), 'error');
       }
     } catch (error) {
       console.error('Fetch risks network error:', error);
@@ -152,11 +153,11 @@ export default function ProjectRiskTab({ project }) {
 
   const handleCreateRisk = async () => {
     if (!canCreate) {
-      showToast('Permission denied', 'error');
+      showToast(tr("Permission denied"), 'error');
       return;
     }
     if (!title.trim()) {
-      showToast('Title is required', 'error');
+      showToast(tr("Title is required"), 'error');
       return;
     }
     try {
@@ -167,7 +168,7 @@ export default function ProjectRiskTab({ project }) {
         body: JSON.stringify({ title, category, description, impact, probability, owner: null })
       });
       if (res.ok) {
-        showToast('Risk logged successfully', 'success');
+        showToast(tr("Risk logged successfully"), 'success');
         setIsAddModalVisible(false);
         setTitle('');
         setCategory('Technical');
@@ -176,7 +177,7 @@ export default function ProjectRiskTab({ project }) {
         setProbability('Medium');
         fetchRisks();
       } else {
-        showToast('Failed to create risk', 'error');
+        showToast(tr("Failed to create risk"), 'error');
       }
     } catch (error) {
       showToast(t('networkError'), 'error');
@@ -187,7 +188,7 @@ export default function ProjectRiskTab({ project }) {
 
   const handleUpdateMitigation = async () => {
     if (!canUpdate) {
-      showToast('Permission denied', 'error');
+      showToast(tr("Permission denied"), 'error');
       return;
     }
     try {
@@ -202,12 +203,12 @@ export default function ProjectRiskTab({ project }) {
         })
       });
       if (res.ok) {
-        showToast('Risk updated', 'success');
+        showToast(tr("Risk updated"), 'success');
         setIsMitigationModalVisible(false);
         fetchRisks();
       }
     } catch (error) {
-      showToast('Update failed', 'error');
+      showToast(tr("Update failed"), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -215,7 +216,7 @@ export default function ProjectRiskTab({ project }) {
 
   const handleDeleteRisk = async (id) => {
     if (!canDelete) {
-      showToast('Permission denied', 'error');
+      showToast(tr("Permission denied"), 'error');
       setConfirmModal({ visible: false, id: null });
       return;
     }
@@ -225,11 +226,11 @@ export default function ProjectRiskTab({ project }) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        showToast('Risk deleted', 'delete');
+        showToast(tr("Risk deleted"), 'delete');
         fetchRisks();
       }
     } catch (error) {
-      showToast('Delete failed', 'error');
+      showToast(tr("Delete failed"), 'error');
     } finally {
       setConfirmModal({ visible: false, id: null });
     }
@@ -263,9 +264,9 @@ export default function ProjectRiskTab({ project }) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, marginTop: 40 }}>
         <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
-        <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>Access Restricted</Text>
+        <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>{tr("Access Restricted")}</Text>
         <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', marginTop: 8 }}>
-          You don't have permission to view the Risk Management module.
+          {tr("You don't have permission to view the Risk Management module.")}
         </Text>
       </View>
     );
@@ -282,9 +283,9 @@ export default function ProjectRiskTab({ project }) {
       <View style={{ paddingHorizontal: 8, marginBottom: 20 }}>
         <View style={{ backgroundColor: '#0F172A', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: {width: 0, height: 10}, shadowOpacity: 0.15, shadowRadius: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <Text style={{ fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#94A3B8' }}>{t('riskOverview') || 'Risk Overview'}</Text>
+            <Text style={{ fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#94A3B8' }}>{t('riskOverview') || tr("Risk Overview")}</Text>
             <View style={{ backgroundColor: '#1E293B', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
-              <Text style={{ fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFF' }}>{risks.length} {t('total') || 'Total Risks'}</Text>
+              <Text style={{ fontSize: 12, fontFamily: 'Inter-Bold', color: '#FFF' }}>{risks.length} {t('total') || tr("Total Risks")}</Text>
             </View>
           </View>
           
@@ -292,7 +293,7 @@ export default function ProjectRiskTab({ project }) {
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' }} />
-                <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' }}>{t('critical') || 'Critical'}</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' }}>{t('critical') || tr("Critical")}</Text>
               </View>
               <Text style={{ fontSize: 24, fontFamily: 'Inter-Bold', color: '#FFF' }}>{risks.filter(r => r.status === 'Critical').length}</Text>
             </View>
@@ -302,7 +303,7 @@ export default function ProjectRiskTab({ project }) {
             <View style={{ flex: 1, alignItems: 'center' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#F59E0B' }} />
-                <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' }}>{t('active') || 'Active'}</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' }}>{t('active') || tr("Active")}</Text>
               </View>
               <Text style={{ fontSize: 24, fontFamily: 'Inter-Bold', color: '#FFF' }}>{risks.filter(r => r.status === 'Active').length}</Text>
             </View>
@@ -312,7 +313,7 @@ export default function ProjectRiskTab({ project }) {
             <View style={{ flex: 1, alignItems: 'flex-end' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' }} />
-                <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' }}>{t('resolved') || 'Resolved'}</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: '#64748B' }}>{t('resolved') || tr("Resolved")}</Text>
               </View>
               <Text style={{ fontSize: 24, fontFamily: 'Inter-Bold', color: '#FFF' }}>{risks.filter(r => r.status === 'Resolved').length}</Text>
             </View>
@@ -382,31 +383,31 @@ export default function ProjectRiskTab({ project }) {
                       size={14}
                       color={getStatusColor(risk.status)}
                     />
-                    <Text style={[styles.categoryText, { color: getStatusColor(risk.status) }]}>{risk.category}</Text>
+                    <Text style={[styles.categoryText, { color: getStatusColor(risk.status) }]}>{tr(risk.category)}</Text>
                   </View>
-                  <Text style={styles.riskTitle}>{risk.title}</Text>
+                  <Text style={styles.riskTitle}>{tr(risk.title)}</Text>
                   
                   {/* Polymorphic Source Display */}
                   {risk.sourceType && risk.sourceType !== 'Manual' && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' }}>
                       <Feather name="link" size={10} color="#64748B" />
                       <Text style={{ fontSize: 10, fontFamily: 'Inter-Medium', color: '#64748B', marginLeft: 4 }}>
-                        Source: {risk.sourceType} {risk.sourceName ? `- ${risk.sourceName}` : ''}
+                        {tr("Source: ")}{tr(risk.sourceType)} {risk.sourceName ? `- ${risk.sourceName}` : ''}
                       </Text>
                     </View>
                   )}
                 </View>
                 <View style={[styles.impactBadge, { backgroundColor: getImpactColor(risk.impact) + '15' }]}>
-                  <Text style={[styles.impactBadgeText, { color: getImpactColor(risk.impact) }]}>{risk.impact}</Text>
+                  <Text style={[styles.impactBadgeText, { color: getImpactColor(risk.impact) }]}>{tr(risk.impact)}</Text>
                 </View>
               </View>
 
-              <Text style={styles.riskDesc} numberOfLines={2}>{risk.description}</Text>
+              <Text style={styles.riskDesc} numberOfLines={2}>{tr(risk.description)}</Text>
 
               <View style={styles.progressContainer}>
                 <View style={styles.progressHeader}>
-                  <Text style={styles.progressLabel}>Mitigation Progress</Text>
-                  <Text style={styles.progressValue}>{risk.mitigationProgress}%</Text>
+                  <Text style={styles.progressLabel}>{tr("Mitigation Progress")}</Text>
+                  <Text style={styles.progressValue}>{tr(risk.mitigationProgress)}%</Text>
                 </View>
                 <View style={styles.progressBarBg}>
                   <View
@@ -422,7 +423,7 @@ export default function ProjectRiskTab({ project }) {
                 <View style={styles.userInfo}>
                   <Feather name="clock" size={13} color="#94A3B8" style={{ marginRight: 6 }} />
                   <Text style={styles.dateText} numberOfLines={1}>
-                    Updated {new Date(risk.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {tr("Updated ")}{new Date(risk.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </Text>
                 </View>
 
@@ -576,12 +577,12 @@ export default function ProjectRiskTab({ project }) {
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setIsMitigationModalVisible(false)} />
           <View style={styles.smallModal}>
             <Text style={styles.modalTitleSmall}>{t('updateProgress')}</Text>
-            <Text style={styles.modalRiskTitle}>{selectedRisk?.title}</Text>
+            <Text style={styles.modalRiskTitle}>{tr(selectedRisk?.title)}</Text>
 
             <View style={styles.inputGroup}>
               <View style={styles.labelRow}>
                 <Text style={styles.inputLabel}>{t('mitigationPercent')}</Text>
-                <Text style={styles.percentValue}>{mitigationProgress}%</Text>
+                <Text style={styles.percentValue}>{tr(mitigationProgress)}%</Text>
               </View>
               <View style={{ marginTop: 16, marginBottom: 16, flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4 }}>
                 {[0, 25, 50, 75, 100].map(pct => {
@@ -609,7 +610,7 @@ export default function ProjectRiskTab({ project }) {
                         fontFamily: isSelected ? 'Inter-Bold' : 'Inter-Medium',
                         color: isSelected ? '#3B82F6' : '#64748B'
                       }}>
-                        {pct}%
+                        {tr(pct)}%
                       </Text>
                     </TouchableOpacity>
                   );
@@ -669,7 +670,7 @@ export default function ProjectRiskTab({ project }) {
           <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={styles.dragHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('riskDetails') || 'Risk Details'}</Text>
+              <Text style={styles.modalTitle}>{t('riskDetails') || tr("Risk Details")}</Text>
               <TouchableOpacity style={styles.closeBtn} onPress={() => setIsViewModalVisible(false)}>
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
@@ -684,33 +685,33 @@ export default function ProjectRiskTab({ project }) {
                       size={16}
                       color={getStatusColor(selectedRisk.status)}
                     />
-                    <Text style={[styles.categoryText, { color: getStatusColor(selectedRisk.status), fontSize: 12 }]}>{selectedRisk.category}</Text>
+                    <Text style={[styles.categoryText, { color: getStatusColor(selectedRisk.status), fontSize: 12 }]}>{tr(selectedRisk.category)}</Text>
                   </View>
-                  <Text style={[styles.riskTitle, { fontSize: 20, marginTop: 8 }]}>{selectedRisk.title}</Text>
+                  <Text style={[styles.riskTitle, { fontSize: 20, marginTop: 8 }]}>{tr(selectedRisk.title)}</Text>
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
                   <View style={{ flex: 1, backgroundColor: '#F8FAFF', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
-                    <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>{t('status') || 'Status'}</Text>
-                    <Text style={{ fontSize: 14, fontFamily: 'Inter-SemiBold', color: getStatusColor(selectedRisk.status) }}>{selectedRisk.status}</Text>
+                    <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>{t('status') || tr("Status")}</Text>
+                    <Text style={{ fontSize: 14, fontFamily: 'Inter-SemiBold', color: getStatusColor(selectedRisk.status) }}>{tr(selectedRisk.status)}</Text>
                   </View>
                   <View style={{ flex: 1, backgroundColor: '#F8FAFF', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
-                    <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>{t('impact') || 'Impact'}</Text>
-                    <Text style={{ fontSize: 14, fontFamily: 'Inter-SemiBold', color: getImpactColor(selectedRisk.impact) }}>{selectedRisk.impact}</Text>
+                    <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>{t('impact') || tr("Impact")}</Text>
+                    <Text style={{ fontSize: 14, fontFamily: 'Inter-SemiBold', color: getImpactColor(selectedRisk.impact) }}>{tr(selectedRisk.impact)}</Text>
                   </View>
                 </View>
 
                 <View style={{ backgroundColor: '#F8FAFF', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 20 }}>
-                  <Text style={{ fontSize: 12, fontFamily: 'Inter-Bold', color: '#64748B', marginBottom: 8, textTransform: 'uppercase' }}>{t('description') || 'Description'}</Text>
+                  <Text style={{ fontSize: 12, fontFamily: 'Inter-Bold', color: '#64748B', marginBottom: 8, textTransform: 'uppercase' }}>{t('description') || tr("Description")}</Text>
                   <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#0F172A', lineHeight: 22 }}>
-                    {selectedRisk.description || 'No description provided.'}
+                    {selectedRisk.description || tr("No description provided.")}
                   </Text>
                 </View>
 
                 <View style={styles.progressContainer}>
                   <View style={styles.progressHeader}>
-                    <Text style={styles.progressLabel}>Mitigation Progress</Text>
-                    <Text style={styles.progressValue}>{selectedRisk.mitigationProgress}%</Text>
+                    <Text style={styles.progressLabel}>{tr("Mitigation Progress")}</Text>
+                    <Text style={styles.progressValue}>{tr(selectedRisk.mitigationProgress)}%</Text>
                   </View>
                   <View style={styles.progressBarBg}>
                     <View
@@ -722,7 +723,7 @@ export default function ProjectRiskTab({ project }) {
                   </View>
                   {selectedRisk.note && (
                     <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 12, fontStyle: 'italic' }}>
-                      "{selectedRisk.note}"
+                      "{tr(selectedRisk.note)}"
                     </Text>
                   )}
                 </View>

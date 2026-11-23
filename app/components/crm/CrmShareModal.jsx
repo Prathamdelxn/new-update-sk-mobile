@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, ScrollView,
@@ -79,7 +80,7 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
       });
       onSuccess();
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to update share link settings.');
+      Alert.alert(tr("Error"), e.message || tr("Failed to update share link settings."));
     } finally {
       setLoading(false);
     }
@@ -116,7 +117,7 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
         await interiorCrmService.revokeShareLink(customerId);
         onSuccess();
       } catch (e) {
-        Alert.alert('Error', e.message || 'Failed to revoke share link.');
+        Alert.alert(tr("Error"), e.message || tr("Failed to revoke share link."));
       } finally {
         setRevoking(false);
       }
@@ -135,12 +136,12 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
 
   const handleResetToken = () => {
     Alert.alert(
-      'Reset Share Link',
-      'This invalidates the current link — anyone with the old URL will lose access. Continue?',
+      tr("Reset Share Link"),
+      tr("This invalidates the current link — anyone with the old URL will lose access. Continue?"),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Reset Token',
+          text: tr("Reset Token"),
           style: 'destructive',
           onPress: async () => {
             setResetting(true);
@@ -154,7 +155,7 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
               });
               onSuccess();
             } catch (e) {
-              Alert.alert('Error', e.message || 'Failed to reset share link.');
+              Alert.alert(tr("Error"), e.message || tr("Failed to reset share link."));
             } finally {
               setResetting(false);
             }
@@ -167,11 +168,11 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
   // Returns false (and explains why) when the link can't be shared right now
   const ensureShareable = () => {
     if (!isPublic) {
-      Alert.alert('Link Stopped', 'This link is currently stopped. Turn on "Public Link" to re-enable it.');
+      Alert.alert(tr("Link Stopped"), tr("This link is currently stopped. Turn on \"Public Link\" to re-enable it."));
       return false;
     }
     if (isLinkExpired) {
-      Alert.alert('Link Expired', 'This link has expired. Tap "Renew Link" to re-enable it.');
+      Alert.alert(tr("Link Expired"), tr("This link has expired. Tap \"Renew Link\" to re-enable it."));
       return false;
     }
     return !!shareUrl;
@@ -183,7 +184,7 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
   const handleCopyLink = async () => {
     if (!ensureShareable()) return;
     await Clipboard.setStringAsync(shareUrl);
-    Alert.alert('Copied', 'Share link copied to clipboard.');
+    Alert.alert(tr("Copied"), tr("Share link copied to clipboard."));
   };
 
   // Same as the web share modal: opens the mail app with the link pre-filled
@@ -197,7 +198,7 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
       ? `Hello ${clientName},\n\nPlease fill out your interior design requirements & room wishlist using this link:\n\n${shareUrl}\n\nOur design team will review your preferences right away!`
       : `Hello ${clientName},\n\nHere is your interior design & drawings link for review:\n\n${shareUrl}\n\nPlease click to view your 2D plans and 3D renders.`;
     Linking.openURL(`mailto:${lead?.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
-      .catch(() => Alert.alert('Error', 'Could not open the email app.'));
+      .catch(() => Alert.alert(tr("Error"), tr("Could not open the email app.")));
   };
 
   const handleSendWhatsApp = () => {
@@ -207,7 +208,7 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
       ? `Hello ${lead?.name || 'Client'},\n\nPlease fill out your interior design requirements & room wishlist using this link:\n${shareUrl}\n\nOur design team will review your preferences and specifications right away!`
       : `Hello ${lead?.name || ''},\n\nHere is your interior design & drawings link for review:\n${shareUrl}\n\nPlease click to view your 2D plans and 3D renders.`;
     const url = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-    Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open WhatsApp.'));
+    Linking.openURL(url).catch(() => Alert.alert(tr("Error"), tr("Could not open WhatsApp.")));
   };
 
   const expiryDisplay = () => {
@@ -223,11 +224,11 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
         <View style={s.card}>
           <View style={s.header}>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>{isReq ? 'Client Requirements Link' : 'Client Share Portal'}</Text>
+              <Text style={s.title}>{isReq ? tr("Client Requirements Link") : tr("Client Share Portal")}</Text>
               <Text style={s.subtitle}>
                 {isReq
-                  ? 'The client fills in their room wishlist, style and budget — no login needed.'
-                  : "A view-only link showing this lead's approved drawings."}
+                  ? tr("The client fills in their room wishlist, style and budget — no login needed.")
+                  : tr("A view-only link showing this lead's approved drawings.")}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose}>
@@ -241,23 +242,23 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
                 <Ionicons name={lead?.clientRequirementsSubmittedAt ? 'checkmark-circle' : 'time-outline'} size={16} color={lead?.clientRequirementsSubmittedAt ? '#16A34A' : '#0D9488'} />
                 <Text style={[s.countBannerText, { color: '#166534' }]}>
                   {lead?.clientRequirementsSubmittedAt
-                    ? `Client submitted on ${new Date(lead.clientRequirementsSubmittedAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} — they can reopen the link to refine it.`
-                    : 'Awaiting the client — share the link so they can self-fill their requirements.'}
+                    ? tr("Client submitted on {{value}} — they can reopen the link to refine it.", { value: new Date(lead.clientRequirementsSubmittedAt).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })
+                    : tr("Awaiting the client — share the link so they can self-fill their requirements.")}
                 </Text>
               </View>
             ) : (
               <View style={[s.countBanner, approvedCount === 0 && s.countBannerWarn]}>
                 <Ionicons name={approvedCount > 0 ? 'checkmark-circle' : 'alert-circle'} size={16} color={approvedCount > 0 ? '#16A34A' : '#D97706'} />
                 <Text style={[s.countBannerText, { color: approvedCount > 0 ? '#166534' : '#92400E' }]}>
-                  {approvedCount > 0 ? `${approvedCount} Approved Drawing${approvedCount === 1 ? '' : 's'} visible on this link` : 'No approved drawings yet — approve at least one drawing before sharing.'}
+                  {approvedCount > 0 ? tr("{{approvedCount}} Approved Drawing{{value}} visible on this link", { approvedCount: approvedCount, value: approvedCount === 1 ? '' : 's' }) : tr("No approved drawings yet — approve at least one drawing before sharing.")}
                 </Text>
               </View>
             )}
 
             <View style={s.row}>
               <View style={{ flex: 1 }}>
-                <Text style={s.rowLabel}>Public Link {isPublic ? 'Active' : 'Inactive'}</Text>
-                <Text style={s.rowSub}>{isPublic ? expiryDisplay() : isReq ? 'Client can submit requirements without logging in.' : 'Client can view approved drawings without logging in.'}</Text>
+                <Text style={s.rowLabel}>{tr("Public Link ")}{isPublic ? tr("Active") : tr("Inactive")}</Text>
+                <Text style={s.rowSub}>{isPublic ? expiryDisplay() : isReq ? tr("Client can submit requirements without logging in.") : tr("Client can view approved drawings without logging in.")}</Text>
               </View>
               {(loading && !autoProvisioned) || revoking ? <ActivityIndicator size="small" color="#0284C7" /> : (
                 <Switch value={isPublic} onValueChange={handleToggleActive} trackColor={{ true: '#0284C7' }} />
@@ -268,7 +269,7 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
               <>
                 <View style={[s.linkBox, isLinkExpired && s.linkBoxExpired]}>
                   <Text numberOfLines={1} style={[s.linkText, isLinkExpired && s.linkTextExpired]}>
-                    {isLinkExpired ? 'Link Expired (Renew below)' : shareUrl}
+                    {isLinkExpired ? tr("Link Expired (Renew below)") : shareUrl}
                   </Text>
                 </View>
                 {isLinkExpired && (
@@ -276,7 +277,7 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
                     {loading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
                       <>
                         <Ionicons name="refresh-outline" size={14} color="#FFFFFF" />
-                        <Text style={s.renewBtnText}>Renew Link ({EXPIRY_OPTIONS.find((o) => o.value === expiryOption)?.label || '7 Days'})</Text>
+                        <Text style={s.renewBtnText}>{tr("Renew Link (")}{EXPIRY_OPTIONS.find((o) => o.value === expiryOption)?.label || tr("7 Days")})</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -284,32 +285,32 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                   <TouchableOpacity style={[s.actionBtn, !canShare && s.actionBtnDisabled]} onPress={handleCopyLink}>
                     <Ionicons name="copy-outline" size={14} color="#334155" />
-                    <Text style={s.actionBtnText}>Copy</Text>
+                    <Text style={s.actionBtnText}>{tr("Copy")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.actionBtn, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }, !canShare && s.actionBtnDisabled]} onPress={handleSendWhatsApp}>
                     <Ionicons name="logo-whatsapp" size={14} color="#16A34A" />
-                    <Text style={[s.actionBtnText, { color: '#16A34A' }]}>WhatsApp</Text>
+                    <Text style={[s.actionBtnText, { color: '#16A34A' }]}>{tr("WhatsApp")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[s.actionBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }, !canShare && s.actionBtnDisabled]}
                     onPress={handleEmailShare}
                   >
                     <Ionicons name="mail-outline" size={14} color="#1D4ED8" />
-                    <Text style={[s.actionBtnText, { color: '#1D4ED8' }]}>Email</Text>
+                    <Text style={[s.actionBtnText, { color: '#1D4ED8' }]}>{tr("Email")}</Text>
                   </TouchableOpacity>
                 </View>
 
                 {!isReq && (
                   <View style={s.row}>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.rowLabel}>Allow Drawing Downloads</Text>
-                      <Text style={s.rowSub}>Off by default — client can only view, not save files.</Text>
+                      <Text style={s.rowLabel}>{tr("Allow Drawing Downloads")}</Text>
+                      <Text style={s.rowSub}>{tr("Off by default — client can only view, not save files.")}</Text>
                     </View>
                     <Switch value={allowDownload} onValueChange={handleToggleDownload} trackColor={{ true: '#0284C7' }} disabled={loading} />
                   </View>
                 )}
 
-                <Text style={[s.rowLabel, { marginTop: 12, marginBottom: 8 }]}>Link Expiration</Text>
+                <Text style={[s.rowLabel, { marginTop: 12, marginBottom: 8 }]}>{tr("Link Expiration")}</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                   {EXPIRY_OPTIONS.map((opt) => (
                     <TouchableOpacity
@@ -318,7 +319,7 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
                       onPress={() => handleChangeExpiry(opt.value)}
                       disabled={loading}
                     >
-                      <Text style={[s.expiryChipText, expiryOption === opt.value && s.expiryChipTextActive]}>{opt.label}</Text>
+                      <Text style={[s.expiryChipText, expiryOption === opt.value && s.expiryChipTextActive]}>{tr(opt.label)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -327,13 +328,13 @@ export default function CrmShareModal({ isOpen, onClose, customerId, lead, onSuc
                   {resetting ? <ActivityIndicator size="small" color="#DC2626" /> : (
                     <>
                       <Ionicons name="refresh-outline" size={14} color="#DC2626" />
-                      <Text style={s.resetBtnText}>Reset Token (invalidate old link)</Text>
+                      <Text style={s.resetBtnText}>{tr("Reset Token (invalidate old link)")}</Text>
                     </>
                   )}
                 </TouchableOpacity>
 
                 {!!shareSettings?.viewCount && (
-                  <Text style={s.viewCountText}>Viewed {shareSettings.viewCount} time{shareSettings.viewCount === 1 ? '' : 's'}{shareSettings.lastViewedAt ? ` • Last: ${new Date(shareSettings.lastViewedAt).toLocaleDateString('en-IN')}` : ''}</Text>
+                  <Text style={s.viewCountText}>{tr("Viewed ")}{tr(shareSettings.viewCount)}{tr(" time")}{shareSettings.viewCount === 1 ? '' : 's'}{shareSettings.lastViewedAt ? tr(" • Last: {{value}}", { value: new Date(shareSettings.lastViewedAt).toLocaleDateString('en-IN') }) : ''}</Text>
                 )}
               </>
             )}

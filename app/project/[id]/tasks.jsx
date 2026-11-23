@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import AdaptiveGlass from '../../components/AdaptiveGlass';
@@ -21,15 +22,15 @@ export default function ProjectTasksTab() {
               <AdaptiveGlass key={task.id} intensity={10} tint="light" style={styles.taskCard}>
                 <View style={styles.taskTop}>
                   <View style={[styles.pPill, { backgroundColor: task.priority === 'Urgent' ? '#EF4444' : '#64748B' }]}>
-                    <Text style={styles.pText}>{task.priority}</Text>
+                    <Text style={styles.pText}>{tr(task.priority)}</Text>
                   </View>
-                  <Text style={styles.tTeam}>{task.team}</Text>
+                  <Text style={styles.tTeam}>{tr(task.team)}</Text>
                 </View>
-                <Text style={styles.taskTitle}>{task.title}</Text>
+                <Text style={styles.taskTitle}>{tr(task.title)}</Text>
               </AdaptiveGlass>
             ))}
             {FULL_TASKS.filter(t => t.status === status).length === 0 && (
-              <Text style={styles.emptyTaskText}>No tasks</Text>
+              <Text style={styles.emptyTaskText}>{tr("No tasks")}</Text>
             )}
           </View>
         ))}

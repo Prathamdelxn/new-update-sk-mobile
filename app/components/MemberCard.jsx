@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +24,7 @@ const MemberCard = ({ name, email, role, onRemove, onChangeRole, showActions = t
     <AdaptiveGlass intensity={15} tint="light" style={styles.card}>
       <View style={styles.content}>
         <View style={styles.avatarBox}>
-          <Text style={styles.avatarText}>{initials}</Text>
+          <Text style={styles.avatarText}>{tr(initials)}</Text>
           {role && role !== 'No Role' && (
             <View style={[styles.roleIndicator, { backgroundColor: style.text }]} />
           )}
@@ -31,10 +32,10 @@ const MemberCard = ({ name, email, role, onRemove, onChangeRole, showActions = t
 
         <View style={styles.info}>
           <View style={styles.nameRow}>
-            <Text style={styles.name}>{name}</Text>
+            <Text style={styles.name}>{tr(name)}</Text>
             {isSelf && (
               <View style={styles.selfBadge}>
-                <Text style={styles.selfBadgeText}>You</Text>
+                <Text style={styles.selfBadgeText}>{tr("You")}</Text>
               </View>
             )}
           </View>
@@ -42,7 +43,7 @@ const MemberCard = ({ name, email, role, onRemove, onChangeRole, showActions = t
           
           {role && role !== 'No Role' && (
             <View style={[styles.roleBadge, { backgroundColor: style.bg + '50', borderColor: style.bg }]}>
-              <Text style={[styles.roleText, { color: style.text }]}>{role}</Text>
+              <Text style={[styles.roleText, { color: style.text }]}>{tr(role)}</Text>
             </View>
           )}
         </View>

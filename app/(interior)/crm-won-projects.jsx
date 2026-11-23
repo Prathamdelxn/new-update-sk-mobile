@@ -1,19 +1,15 @@
+import { tr } from '../utils/i18n/tr';
 ﻿import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useOrgCurrency } from '../utils/interior/orgCurrency';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import interiorCrmService from '../services/interiorCrmService';
 import interiorApiClient from '../services/interiorApiClient';
 import { queryKeys, useRefreshOnFocus } from '../context/QueryProvider';
 import SkeletonList from '../components/common/SkeletonList';
-
-// Currency formatter using unicode rupee symbol
-function formatBudget(amount) {
-  if (!amount) return '\u20B90';
-  return `\u20B9${Math.round(amount).toLocaleString('en-IN')}`;
-}
 
 function getStatusColor(status) {
   const s = (status || '').toLowerCase();
@@ -24,6 +20,8 @@ function getStatusColor(status) {
 }
 
 export default function CrmWonProjectsScreen() {
+  // Budgets in the organisation's currency (was a hard-coded ₹)
+  const formatBudget = useOrgCurrency().money;
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -66,8 +64,8 @@ export default function CrmWonProjectsScreen() {
             <Ionicons name="chevron-back" size={18} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Won Projects</Text>
-            <Text style={s.headerSub}>Converted leads now in execution.</Text>
+            <Text style={s.headerTitle}>{tr("Won Projects")}</Text>
+            <Text style={s.headerSub}>{tr("Converted leads now in execution.")}</Text>
           </View>
           <View style={s.totalBadge}>
             <Ionicons name="trophy" size={12} color="#D97706" />
@@ -88,9 +86,9 @@ export default function CrmWonProjectsScreen() {
                 <View style={s.emptyIconBox}>
                   <Ionicons name="trophy-outline" size={32} color="#FCD34D" />
                 </View>
-                <Text style={s.emptyTitle}>No Converted Projects Yet</Text>
+                <Text style={s.emptyTitle}>{tr("No Converted Projects Yet")}</Text>
                 <Text style={s.emptySub}>
-                  Once a quotation is accepted and converted, the project will appear here for the execution team.
+                  {tr("Once a quotation is accepted and converted, the project will appear here for the execution team.")}
                 </Text>
               </View>
             ) : (
@@ -110,18 +108,18 @@ export default function CrmWonProjectsScreen() {
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={s.projectName} numberOfLines={1}>
-                          {p.name || p.projectName || 'Interior Project'}
+                          {p.name || p.projectName || tr("Interior Project")}
                         </Text>
                         <View style={s.clientChip}>
                           <Ionicons name="person-outline" size={11} color="#64748B" />
                           <Text style={s.clientChipText} numberOfLines={1}>
-                            {p.client || p.customer?.name || p.clientName || 'Client'}
+                            {p.client || p.customer?.name || p.clientName || tr("Client")}
                           </Text>
                         </View>
                       </View>
                       <View style={[s.statusPill, { backgroundColor: statusColor.bg }]}>
                         <Text style={[s.statusPillText, { color: statusColor.text }]}>
-                          {p.status || p.health || 'Active'}
+                          {p.status || p.health || tr("Active")}
                         </Text>
                       </View>
                     </View>
@@ -129,14 +127,14 @@ export default function CrmWonProjectsScreen() {
                     {/* Stats */}
                     <View style={s.statsBox}>
                       <View style={s.statsRow}>
-                        <Text style={s.statsLabel}>Final Budget</Text>
+                        <Text style={s.statsLabel}>{tr("Final Budget")}</Text>
                         <Text style={s.statsValue}>
                           {formatBudget(p.budget?.amount ?? p.totalBudget ?? p.finalBudget)}
                         </Text>
                       </View>
                       {p.startDate && (
                         <View style={s.statsRow}>
-                          <Text style={s.statsLabel}>Start Date</Text>
+                          <Text style={s.statsLabel}>{tr("Start Date")}</Text>
                           <Text style={s.statsValueSm}>
                             {new Date(p.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </Text>
@@ -144,7 +142,7 @@ export default function CrmWonProjectsScreen() {
                       )}
                       {(p.completionPercentage !== undefined || p.progress !== undefined) && (
                         <View style={s.statsRow}>
-                          <Text style={s.statsLabel}>Progress</Text>
+                          <Text style={s.statsLabel}>{tr("Progress")}</Text>
                           <Text style={s.statsValue}>{p.completionPercentage ?? p.progress ?? 0}%</Text>
                         </View>
                       )}
@@ -152,7 +150,7 @@ export default function CrmWonProjectsScreen() {
 
                     {/* CTA */}
                     <View style={s.openBtn}>
-                      <Text style={s.openBtnText}>Open Project Details</Text>
+                      <Text style={s.openBtnText}>{tr("Open Project Details")}</Text>
                       <Ionicons name="arrow-forward" size={14} color="#B45309" />
                     </View>
                   </TouchableOpacity>

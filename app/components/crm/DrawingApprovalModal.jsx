@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, ScrollView, TextInput,
@@ -38,7 +39,7 @@ export default function DrawingApprovalModal({ isOpen, onClose, customerId, draw
 
   const handleDecision = async (action) => {
     if (action === 'reject' && !rejectionReason.trim()) {
-      Alert.alert('Reason Required', 'Please describe why this drawing is being rejected.');
+      Alert.alert(tr("Reason Required"), tr("Please describe why this drawing is being rejected."));
       return;
     }
     setSubmitting(true);
@@ -51,7 +52,7 @@ export default function DrawingApprovalModal({ isOpen, onClose, customerId, draw
       onSuccess(action);
       onClose();
     } catch (e) {
-      Alert.alert('Error', e.message || `Failed to ${action} drawing.`);
+      Alert.alert(tr("Error"), e.message || tr("Failed to {{action}} drawing.", { action: action }));
     } finally {
       setSubmitting(false);
     }
@@ -63,8 +64,8 @@ export default function DrawingApprovalModal({ isOpen, onClose, customerId, draw
         <View style={s.card}>
           <View style={s.header}>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>{isRejectMode ? 'Reject Drawing' : 'Review & Approve Drawing'}</Text>
-              <Text style={s.subtitle} numberOfLines={1}>{drawing.title || drawing.name} • v{currentVersion}</Text>
+              <Text style={s.title}>{isRejectMode ? tr("Reject Drawing") : tr("Review & Approve Drawing")}</Text>
+              <Text style={s.subtitle} numberOfLines={1}>{drawing.title || drawing.name} • v{tr(currentVersion)}</Text>
             </View>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={22} color="#64748B" />
@@ -76,31 +77,31 @@ export default function DrawingApprovalModal({ isOpen, onClose, customerId, draw
               <>
                 {!!drawing.rejectionReason && (
                   <View style={[s.noticeBox, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-                    <Text style={[s.noticeLabel, { color: '#DC2626' }]}>PREVIOUS REJECTION REASON</Text>
-                    <Text style={s.noticeText}>{drawing.rejectionReason}</Text>
+                    <Text style={[s.noticeLabel, { color: '#DC2626' }]}>{tr("PREVIOUS REJECTION REASON")}</Text>
+                    <Text style={s.noticeText}>{tr(drawing.rejectionReason)}</Text>
                   </View>
                 )}
                 {!!drawing.clientFeedback && (
                   <View style={[s.noticeBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-                    <Text style={[s.noticeLabel, { color: '#B45309' }]}>CLIENT FEEDBACK</Text>
-                    <Text style={s.noticeText}>{drawing.clientFeedback}</Text>
+                    <Text style={[s.noticeLabel, { color: '#B45309' }]}>{tr("CLIENT FEEDBACK")}</Text>
+                    <Text style={s.noticeText}>{tr(drawing.clientFeedback)}</Text>
                   </View>
                 )}
 
                 {versions.length > 0 && (
                   <>
-                    <Text style={s.sectionLabel}>VERSION HISTORY</Text>
+                    <Text style={s.sectionLabel}>{tr("VERSION HISTORY")}</Text>
                     <View style={{ gap: 8, marginBottom: 8 }}>
                       {versions.map((v) => {
                         const meta = VERSION_STATUS_META[v.approvalStatus] || VERSION_STATUS_META.draft;
                         return (
                           <View key={v.versionNumber} style={s.versionRow}>
                             <View style={{ flex: 1 }}>
-                              <Text style={s.versionRowTitle}>v{v.versionNumber}{v.versionNumber === currentVersion ? ' (Latest)' : ''}</Text>
+                              <Text style={s.versionRowTitle}>v{tr(v.versionNumber)}{v.versionNumber === currentVersion ? tr(" (Latest)") : ''}</Text>
                               <Text style={s.versionRowSub}>{fmtDate(v.uploadedAt)}</Text>
                             </View>
                             <View style={[s.statusPill, { backgroundColor: meta.bg }]}>
-                              <Text style={[s.statusPillText, { color: meta.color }]}>{meta.label}</Text>
+                              <Text style={[s.statusPillText, { color: meta.color }]}>{tr(meta.label)}</Text>
                             </View>
                           </View>
                         );
@@ -112,13 +113,13 @@ export default function DrawingApprovalModal({ isOpen, onClose, customerId, draw
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
                   <TouchableOpacity style={[s.rejectBtn, { flex: 1 }]} onPress={() => setIsRejectMode(true)} disabled={submitting}>
                     <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
-                    <Text style={s.rejectBtnText}>Reject</Text>
+                    <Text style={s.rejectBtnText}>{tr("Reject")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.approveBtn, { flex: 1.4 }]} onPress={() => handleDecision('approve')} disabled={submitting}>
                     {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
                       <>
                         <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
-                        <Text style={s.approveBtnText}>Approve & Publish</Text>
+                        <Text style={s.approveBtnText}>{tr("Approve & Publish")}</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -126,21 +127,21 @@ export default function DrawingApprovalModal({ isOpen, onClose, customerId, draw
               </>
             ) : (
               <>
-                <Text style={s.label}>Rejection Reason *</Text>
+                <Text style={s.label}>{tr("Rejection Reason *")}</Text>
                 <TextInput
                   style={[s.input, { height: 90, textAlignVertical: 'top' }]}
                   multiline
-                  placeholder="Explain what needs to change before this drawing can be approved..."
+                  placeholder={tr("Explain what needs to change before this drawing can be approved...")}
                   placeholderTextColor="#94A3B8"
                   value={rejectionReason}
                   onChangeText={setRejectionReason}
                 />
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
                   <TouchableOpacity style={[s.cancelBtn, { flex: 1 }]} onPress={() => setIsRejectMode(false)} disabled={submitting}>
-                    <Text style={s.cancelBtnText}>Back</Text>
+                    <Text style={s.cancelBtnText}>{tr("Back")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.rejectConfirmBtn, { flex: 1.4 }]} onPress={() => handleDecision('reject')} disabled={submitting}>
-                    {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.rejectConfirmBtnText}>Confirm Rejection</Text>}
+                    {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.rejectConfirmBtnText}>{tr("Confirm Rejection")}</Text>}
                   </TouchableOpacity>
                 </View>
               </>

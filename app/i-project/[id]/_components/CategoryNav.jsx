@@ -1,3 +1,4 @@
+import { tr } from '../../../utils/i18n/tr';
 import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -103,7 +104,7 @@ export default function CategoryNav({ projectId, activeItem, comingSoon }) {
               onPress={() => setOpenCategory(openCategory === cat.name ? null : cat.name)}
             >
               <Text style={s.catChipIcon}>{cat.icon}</Text>
-              <Text style={[s.catChipText, (openCategory === cat.name || isActive) && s.catChipTextActive]}>{cat.name}</Text>
+              <Text style={[s.catChipText, (openCategory === cat.name || isActive) && s.catChipTextActive]}>{tr(cat.name)}</Text>
               <Ionicons name={openCategory === cat.name ? 'chevron-up' : 'chevron-down'} size={12} color={(openCategory === cat.name || isActive) ? '#2563EB' : '#94A3B8'} />
             </TouchableOpacity>
           );
@@ -113,7 +114,7 @@ export default function CategoryNav({ projectId, activeItem, comingSoon }) {
         <View style={s.catDropdown}>
           {categories.find((c) => c.name === openCategory).items.map((item) => (
             <TouchableOpacity key={item} style={s.catDropdownItem} onPress={() => handleItemPress(item)}>
-              <Text style={[s.catDropdownItemText, item === activeItem && s.catDropdownItemTextActive]}>{item}</Text>
+              <Text style={[s.catDropdownItemText, item === activeItem && s.catDropdownItemTextActive]}>{tr(item)}</Text>
               <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
             </TouchableOpacity>
           ))}

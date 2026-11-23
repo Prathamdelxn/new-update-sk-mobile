@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState } from 'react';
 import {
   Modal,
@@ -53,10 +54,10 @@ export default function BoqDrawingViewerModal({
       if (supported) {
         await Linking.openURL(url);
       } else {
-        Alert.alert('Error', 'Cannot open URL on this device.');
+        Alert.alert(tr("Error"), tr("Cannot open URL on this device."));
       }
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to open link.');
+      Alert.alert(tr("Error"), err.message || tr("Failed to open link."));
     }
   };
 
@@ -90,20 +91,20 @@ export default function BoqDrawingViewerModal({
             <View style={{ flex: 1, marginRight: 10 }}>
               <View style={s.headerBadgeRow}>
                 <Ionicons name="document-attach" size={13} color="#60A5FA" />
-                <Text style={s.headerBadgeText}>{title}</Text>
+                <Text style={s.headerBadgeText}>{tr(title)}</Text>
                 {targetDrawing?.category && (
                   <View style={s.catBadge}>
-                    <Text style={s.catBadgeText}>{targetDrawing.category}</Text>
+                    <Text style={s.catBadgeText}>{tr(targetDrawing.category)}</Text>
                   </View>
                 )}
               </View>
               <Text style={s.fileNameText} numberOfLines={1}>
-                {fileName}
+                {tr(fileName)}
               </Text>
               {(leadName || sectionTitle) && (
                 <Text style={s.metaSubtitle} numberOfLines={1}>
                   {sectionTitle ? `Section: ${sectionTitle}  ` : ''}
-                  {leadName ? `• Client: ${leadName}` : ''}
+                  {leadName ? tr("• Client: {{leadName}}", { leadName: leadName }) : ''}
                 </Text>
               )}
             </View>
@@ -118,7 +119,7 @@ export default function BoqDrawingViewerModal({
             {loading && (
               <View style={s.loaderWrap}>
                 <ActivityIndicator size="large" color="#3B82F6" />
-                <Text style={s.loaderText}>Loading drawing...</Text>
+                <Text style={s.loaderText}>{tr("Loading drawing...")}</Text>
               </View>
             )}
 
@@ -142,11 +143,11 @@ export default function BoqDrawingViewerModal({
             ) : (
               <View style={s.pdfNoticeWrap}>
                 <Ionicons name="document-text-outline" size={54} color="#60A5FA" />
-                <Text style={s.pdfNoticeTitle}>PDF Architectural Drawing</Text>
-                <Text style={s.pdfNoticeSub}>{fileName}</Text>
+                <Text style={s.pdfNoticeTitle}>{tr("PDF Architectural Drawing")}</Text>
+                <Text style={s.pdfNoticeSub}>{tr(fileName)}</Text>
                 <TouchableOpacity style={s.pdfOpenBtn} onPress={handleOpenExternal}>
                   <Ionicons name="open-outline" size={16} color="#FFFFFF" />
-                  <Text style={s.pdfOpenBtnText}>Open Document in Viewer</Text>
+                  <Text style={s.pdfOpenBtnText}>{tr("Open Document in Viewer")}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -176,7 +177,7 @@ export default function BoqDrawingViewerModal({
           <View style={s.footer}>
             <TouchableOpacity style={s.footerActionBtn} onPress={handleOpenExternal}>
               <Ionicons name="open-outline" size={16} color="#94A3B8" />
-              <Text style={s.footerActionText}>Browser</Text>
+              <Text style={s.footerActionText}>{tr("Browser")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -189,7 +190,7 @@ export default function BoqDrawingViewerModal({
               ) : (
                 <>
                   <Ionicons name="share-social-outline" size={16} color="#FFFFFF" />
-                  <Text style={s.footerPrimaryText}>Share / Save Drawing</Text>
+                  <Text style={s.footerPrimaryText}>{tr("Share / Save Drawing")}</Text>
                 </>
               )}
             </TouchableOpacity>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, Modal, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert, Clipboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -113,7 +114,7 @@ export default function MemberManagementScreen() {
 
     } catch (e) {
       console.error('Failed to fetch registry data', e);
-      showToast('Failed to synchronize with server', 'error');
+      showToast(tr("Failed to synchronize with server"), 'error');
     } finally {
       setIsLoading(false);
       setIsLoadingSettings(false);
@@ -154,12 +155,12 @@ export default function MemberManagementScreen() {
 
   const addNewMember = async () => {
     if (!newMemberName.trim() || !newMemberEmail.trim()) {
-      showToast('Please enter at least a name and email.', 'error');
+      showToast(tr("Please enter at least a name and email."), 'error');
       return;
     }
 
     if (newMemberMobile && !isPhoneValid) {
-      showToast('Please enter a valid phone number length.', 'error');
+      showToast(tr("Please enter a valid phone number length."), 'error');
       return;
     }
 
@@ -196,7 +197,7 @@ export default function MemberManagementScreen() {
       if (response.ok) {
         if (isEditing) {
           setMembers(prev => prev.map(m => m._id === editingId ? data : m));
-          showToast('Member details updated successfully', 'success');
+          showToast(tr("Member details updated successfully"), 'success');
           closeModal();
         } else {
           setMembers(prev => [data, ...prev]);
@@ -275,16 +276,16 @@ export default function MemberManagementScreen() {
 
   const handleEditMember = (member) => {
     if (!hasPermission('users', 'update')) {
-      showToast("You don't have permission to update members.", "error");
+      showToast(tr("You don't have permission to update members."), "error");
       return;
     }
     if (!canManageMember(member)) {
-      showToast("Only an Admin can modify Admin accounts.", "error");
+      showToast(tr("Only an Admin can modify Admin accounts."), "error");
       return;
     }
     const isSelf = checkIsSelf(member);
     if (isSelf && !isViewerAdmin) {
-      showToast("You cannot edit your own role. Please edit your details in Profile.", "error");
+      showToast(tr("You cannot edit your own role. Please edit your details in Profile."), "error");
       return;
     }
     setEditingId(member._id);
@@ -319,15 +320,15 @@ export default function MemberManagementScreen() {
 
   const removeMember = (id, name, member) => {
     if (!hasPermission('users', 'delete')) {
-      showToast("You don't have permission to remove members.", "error");
+      showToast(tr("You don't have permission to remove members."), "error");
       return;
     }
     if (checkIsSelf(member) || (user && ((user._id || user.id)?.toString() === id?.toString()))) {
-      showToast("You cannot delete your own account.", "error");
+      showToast(tr("You cannot delete your own account."), "error");
       return;
     }
     if (!canManageMember(member)) {
-      showToast("Only an Admin can remove Admin accounts.", "error");
+      showToast(tr("Only an Admin can remove Admin accounts."), "error");
       return;
     }
     setConfirmModal({
@@ -345,10 +346,10 @@ export default function MemberManagementScreen() {
           });
           if (response.ok) {
             setMembers(prev => prev.filter(m => m._id !== id));
-            showToast('Team member has been removed.', 'delete');
+            showToast(tr("Team member has been removed."), 'delete');
           } else {
             const data = await response.json();
-            showToast(data.message || 'Failed to remove member', 'error');
+            showToast(data.message || tr("Failed to remove member"), 'error');
           }
         } catch (e) {
           showToast(t('networkError'), 'error');
@@ -366,13 +367,13 @@ export default function MemberManagementScreen() {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, backgroundColor: '#F8FAFC' }}>
         <Ionicons name="lock-closed-outline" size={56} color="#CBD5E1" />
         <Text style={{ marginTop: 16, fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' }}>
-          You don't have access to Team &amp; Roles
+          {tr("You don't have access to Team & Roles")}
         </Text>
         <Text style={{ marginTop: 8, fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', lineHeight: 20 }}>
-          Ask your admin to enable User Management → View on your role.
+          {tr("Ask your admin to enable User Management → View on your role.")}
         </Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: '#EFF6FF' }}>
-          <Text style={{ fontFamily: 'Inter-Bold', color: '#2563EB' }}>Go back</Text>
+          <Text style={{ fontFamily: 'Inter-Bold', color: '#2563EB' }}>{tr("Go back")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -470,7 +471,7 @@ export default function MemberManagementScreen() {
                 value={newMemberMobile} 
                 onChange={setNewMemberMobile} 
                 onValidate={setIsPhoneValid}
-                placeholder="Enter mobile number" 
+                placeholder={tr("Enter mobile number")} 
                 placeholderTextColor="#94A3B8" 
               />
 
@@ -492,7 +493,7 @@ export default function MemberManagementScreen() {
                     </TouchableOpacity>
                   </AdaptiveGlass>
                   <Text style={{ fontSize: 12, color: '#64748B', fontFamily: 'Inter-Medium', paddingHorizontal: 4, marginBottom: 24 }}>
-                    * Default password will be welcome123
+                    {tr("* Default password will be welcome123")}
                   </Text>
                 </>
               )}
@@ -550,7 +551,7 @@ export default function MemberManagementScreen() {
                           }}
                         >
                           <View style={styles.listItemTextContainer}>
-                            <Text style={[styles.roleListItemText, !selectedRole && styles.activeRoleItemText]}>None (Project Specific)</Text>
+                            <Text style={[styles.roleListItemText, !selectedRole && styles.activeRoleItemText]}>{tr("None (Project Specific)")}</Text>
                           </View>
                           {!selectedRole && <Ionicons name="checkmark-circle" size={20} color="#2563EB" />}
                         </TouchableOpacity>
@@ -561,7 +562,7 @@ export default function MemberManagementScreen() {
                         style={[styles.roleListItem, ((activeProjectForRole && projectRoles[activeProjectForRole] === role.id) || (!activeProjectForRole && selectedRole?.id === role.id)) && styles.activeRoleItem, role.title.toLowerCase() === 'admin' && { opacity: 0.5 }]}
                         onPress={() => { 
                           if (role.title.toLowerCase() === 'admin') {
-                            showToast('There can be only one Admin for the workspace.', 'error');
+                            showToast(tr("There can be only one Admin for the workspace."), 'error');
                             return;
                           }
                           if (activeProjectForRole) {
@@ -573,7 +574,7 @@ export default function MemberManagementScreen() {
                         }}
                       >
                         <View style={styles.listItemTextContainer}>
-                          <Text style={[styles.roleListItemText, ((activeProjectForRole && projectRoles[activeProjectForRole] === role.id) || (!activeProjectForRole && selectedRole?.id === role.id)) && styles.activeRoleItemText]}>{role.title}</Text>
+                          <Text style={[styles.roleListItemText, ((activeProjectForRole && projectRoles[activeProjectForRole] === role.id) || (!activeProjectForRole && selectedRole?.id === role.id)) && styles.activeRoleItemText]}>{tr(role.title)}</Text>
                         </View>
                         {((activeProjectForRole && projectRoles[activeProjectForRole] === role.id) || (!activeProjectForRole && selectedRole?.id === role.id)) && <Ionicons name="checkmark-circle" size={20} color="#2563EB" />}
                       </TouchableOpacity>
@@ -612,7 +613,7 @@ export default function MemberManagementScreen() {
                           onPress={() => toggleProject(project)}
                         >
                           <View style={styles.listItemTextContainer}>
-                            <Text style={[styles.roleListItemText, isSelected && styles.activeRoleItemText]}>{project.name}</Text>
+                            <Text style={[styles.roleListItemText, isSelected && styles.activeRoleItemText]}>{tr(project.name)}</Text>
                           </View>
                           {isSelected && <Ionicons name="checkmark-circle" size={20} color="#2563EB" />}
                         </TouchableOpacity>
@@ -636,8 +637,8 @@ export default function MemberManagementScreen() {
 
       <ConfirmModal
         visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={tr(confirmModal.title)}
+        message={tr(confirmModal.message)}
         confirmText={confirmModal.confirmText}
         type={confirmModal.type}
         isSubmitting={isOnboarding}
@@ -654,7 +655,7 @@ export default function MemberManagementScreen() {
               <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
                 <Ionicons name="checkmark-circle" size={32} color="#10B981" />
               </View>
-              <Text style={{ fontSize: 18, fontFamily: 'Inter-Black', color: '#0F172A' }}>{credentialModal.name} {t('onboardNewMember').split(' ').slice(-1)[0]}</Text>
+              <Text style={{ fontSize: 18, fontFamily: 'Inter-Black', color: '#0F172A' }}>{tr(credentialModal.name)} {tr(t('onboardNewMember').split(' ').slice(-1)[0])}</Text>
               <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#64748B', marginTop: 4, textAlign: 'center' }}>{t('shareLoginCredentials')}</Text>
             </View>
 
@@ -666,7 +667,7 @@ export default function MemberManagementScreen() {
               <View style={{ height: 1, backgroundColor: '#E2E8F0' }} />
               <View>
                 <Text style={{ fontSize: 10, fontFamily: 'Inter-Black', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 4 }}>{t('password')}</Text>
-                <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', letterSpacing: 1 }}>{credentialModal.password}</Text>
+                <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', letterSpacing: 1 }}>{tr(credentialModal.password)}</Text>
               </View>
             </View>
 
@@ -675,12 +676,12 @@ export default function MemberManagementScreen() {
               activeOpacity={0.8}
               onPress={() => {
                 Clipboard.setString(`Email: ${credentialModal.email}\nPassword: ${credentialModal.password}`);
-                showToast('Credentials copied to clipboard', 'success');
+                showToast(tr("Credentials copied to clipboard"), 'success');
               }}
             >
               <LinearGradient colors={['#3B82F6', '#2563EB']} style={{ height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <Ionicons name="copy-outline" size={18} color="#FFFFFF" />
-                <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>Copy Credentials</Text>
+                <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#FFFFFF' }}>{tr("Copy Credentials")}</Text>
               </LinearGradient>
             </TouchableOpacity>
 

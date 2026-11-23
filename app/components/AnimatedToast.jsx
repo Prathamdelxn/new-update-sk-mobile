@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 // import React, { useEffect, useRef } from 'react';
 // import { Animated, Text, StyleSheet, Platform, View, Easing, Dimensions } from 'react-native';
 // import { Ionicons } from '@expo/vector-icons';
@@ -388,7 +389,7 @@ export default function AnimatedToast({ visible, message, type = 'success', onHi
                 }
               ]}>
                 <Text style={styles.title}>{getToastTitle()}</Text>
-                <Text style={styles.message} numberOfLines={1}>{message}</Text>
+                <Text style={styles.message} numberOfLines={1}>{tr(message)}</Text>
               </Animated.View>
 
             </View>

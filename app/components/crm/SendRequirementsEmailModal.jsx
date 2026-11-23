@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // "Email Design Questionnaire" sheet (web: InteriorSendRequirementsModal).
 // Emails the client requirements intake link through the server (POST /crm/customers/:id/share/email),
 // with WhatsApp / mail-app fallbacks and a "Stop Link" option.
@@ -46,7 +47,7 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
     setExpiresDays(7);
     setCustomSubject(`✨ Complete Your Interior Design Wishlist - ${leadName} | SkyStruct Interior`);
     setCustomMessage(
-      `Hi ${firstName},\n\nWe are excited to begin designing your dream space! Please take 3 minutes to complete your interactive design questionnaire. You can select your favorite interior styles, detail your room-by-room wishlist, and upload inspiration photos so our design team can craft tailored 2D plans and 3D renders for you.\n\nWarm regards,\nDesign Team`
+      tr("Hi {{firstName}},\n\nWe are excited to begin designing your dream space! Please take 3 minutes to complete your interactive design questionnaire. You can select your favorite interior styles, detail your room-by-room wishlist, and upload inspiration photos so our design team can craft tailored 2D plans and 3D renders for you.\n\nWarm regards,\nDesign Team", { firstName: firstName })
     );
 
     const existingToken = lead.shareSettings?.shareToken;
@@ -67,18 +68,18 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
     if (!requirementsUrl) return;
     await Clipboard.setStringAsync(requirementsUrl);
     setCopied(true);
-    showToast('Requirements link copied to clipboard!', 'success');
+    showToast(tr("Requirements link copied to clipboard!"), 'success');
     setTimeout(() => setCopied(false), 2500);
   };
 
   const handleSendEmail = async () => {
     const trimmed = recipientEmail.trim();
     if (!trimmed) {
-      setEmailError('Please enter a recipient email address.');
+      setEmailError(tr("Please enter a recipient email address."));
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setEmailError('Please enter a valid email address.');
+      setEmailError(tr("Please enter a valid email address."));
       return;
     }
     setEmailError('');
@@ -91,31 +92,31 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
         requirementsUrl: requirementsUrl || undefined,
         expiresDays,
       });
-      showToast(res?.data?.message || res?.message || `Requirements link successfully emailed to ${trimmed}!`, 'success');
+      showToast(res?.data?.message || res?.message || tr("Requirements link successfully emailed to {{trimmed}}!", { trimmed: trimmed }), 'success');
       onSuccess?.();
       onClose();
     } catch (e) {
-      showToast(e?.message || 'Failed to send email. Please verify SMTP configuration.', 'error');
+      showToast(e?.message || tr("Failed to send email. Please verify SMTP configuration."), 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleStopLink = () => {
-    Alert.alert('Stop Link', 'Are you sure you want to stop this link? Anyone attempting to open it will be blocked.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Stop Link"), tr("Are you sure you want to stop this link? Anyone attempting to open it will be blocked."), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Stop Link',
+        text: tr("Stop Link"),
         style: 'destructive',
         onPress: async () => {
           setIsRevoking(true);
           try {
             await interiorCrmService.revokeShareLink(lead._id);
-            showToast('Requirements link stopped and access revoked.', 'success');
+            showToast(tr("Requirements link stopped and access revoked."), 'success');
             onSuccess?.();
             onClose();
           } catch (e) {
-            showToast(e?.message || 'Failed to stop link', 'error');
+            showToast(e?.message || tr("Failed to stop link"), 'error');
           } finally {
             setIsRevoking(false);
           }
@@ -129,7 +130,7 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
     const body = `${customMessage}\n\n👉 Complete Your Design Questionnaire here:\n${requirementsUrl}`;
     Linking.openURL(
       `mailto:${recipientEmail.trim()}?subject=${encodeURIComponent(customSubject)}&body=${encodeURIComponent(body)}`
-    ).catch(() => showToast('Could not open the email app.', 'error'));
+    ).catch(() => showToast(tr("Could not open the email app."), 'error'));
   };
 
   const handleWhatsApp = () => {
@@ -137,7 +138,7 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
     const clientName = (lead?.name || 'there').split(' ')[0];
     const message = `Hi ${clientName}! Please share your interior design preferences, room wishlist, and style inspirations using this link: ${requirementsUrl}\n\nOur design team will use your brief to create your custom 2D & 3D designs!`;
     Linking.openURL(`https://wa.me/${String(lead?.mobileNumber || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`)
-      .catch(() => showToast('Could not open WhatsApp.', 'error'));
+      .catch(() => showToast(tr("Could not open WhatsApp."), 'error'));
   };
 
   if (!lead) return null;
@@ -153,11 +154,11 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
             </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <Text style={s.title}>Email Design Questionnaire</Text>
-                <Text style={s.portalPill}>Client Portal</Text>
+                <Text style={s.title}>{tr("Email Design Questionnaire")}</Text>
+                <Text style={s.portalPill}>{tr("Client Portal")}</Text>
               </View>
               <Text style={s.subtitle}>
-                Send the self-service requirements questionnaire directly to <Text style={{ fontFamily: 'Inter-Bold' }}>{lead.name}</Text>.
+                {tr("Send the self-service requirements questionnaire directly to ")}<Text style={{ fontFamily: 'Inter-Bold' }}>{tr(lead.name)}</Text>.
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} disabled={isSubmitting} style={{ padding: 4 }}>
@@ -169,33 +170,33 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
             <View style={s.labelRow}>
               <View style={s.labelInline}>
                 <Ionicons name="mail-outline" size={13} color="#4F46E5" />
-                <Text style={s.label}>Recipient Client Email <Text style={{ color: '#F43F5E' }}>*</Text></Text>
+                <Text style={s.label}>{tr("Recipient Client Email ")}<Text style={{ color: '#F43F5E' }}>*</Text></Text>
               </View>
-              {!!lead.name && <Text style={s.metaText}>{lead.name}</Text>}
+              {!!lead.name && <Text style={s.metaText}>{tr(lead.name)}</Text>}
             </View>
             <TextInput
               style={[s.input, !!emailError && { borderColor: '#FB7185' }]}
               value={recipientEmail}
               onChangeText={(v) => { setRecipientEmail(v); if (emailError) setEmailError(''); }}
-              placeholder="client@example.com"
+              placeholder={tr("client@example.com")}
               placeholderTextColor="#94A3B8"
               keyboardType="email-address"
               autoCapitalize="none"
             />
-            {!!emailError && <Text style={s.errorText}>{emailError}</Text>}
+            {!!emailError && <Text style={s.errorText}>{tr(emailError)}</Text>}
 
-            <Text style={[s.label, { marginTop: 14, marginBottom: 6 }]}>Email Subject</Text>
-            <TextInput style={s.input} value={customSubject} onChangeText={setCustomSubject} placeholder="Subject line..." placeholderTextColor="#94A3B8" />
+            <Text style={[s.label, { marginTop: 14, marginBottom: 6 }]}>{tr("Email Subject")}</Text>
+            <TextInput style={s.input} value={customSubject} onChangeText={setCustomSubject} placeholder={tr("Subject line...")} placeholderTextColor="#94A3B8" />
 
             <View style={s.labelRow}>
-              <Text style={s.label}>Personal Message / Note from Designer</Text>
+              <Text style={s.label}>{tr("Personal Message / Note from Designer")}</Text>
             </View>
-            <Text style={[s.metaText, { marginBottom: 6 }]}>Appears inside the branded email card</Text>
+            <Text style={[s.metaText, { marginBottom: 6 }]}>{tr("Appears inside the branded email card")}</Text>
             <TextInput
               style={[s.input, { minHeight: 110, textAlignVertical: 'top', fontSize: 13, lineHeight: 18 }]}
               value={customMessage}
               onChangeText={setCustomMessage}
-              placeholder="Write a personalized note to the client..."
+              placeholder={tr("Write a personalized note to the client...")}
               placeholderTextColor="#94A3B8"
               multiline
             />
@@ -203,17 +204,17 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
             <View style={s.labelRow}>
               <View style={s.labelInline}>
                 <Ionicons name="time-outline" size={13} color="#4F46E5" />
-                <Text style={s.label}>Link Expiration Period</Text>
+                <Text style={s.label}>{tr("Link Expiration Period")}</Text>
               </View>
-              <Text style={s.metaText}>{expiresDays === null ? 'Never expires' : `Valid for ${expiresDays} days from dispatch`}</Text>
+              <Text style={s.metaText}>{expiresDays === null ? tr("Never expires") : tr("Valid for {{expiresDays}} days from dispatch", { expiresDays: expiresDays })}</Text>
             </View>
             <View style={s.expiryGrid}>
               {EXPIRY_CHOICES.map((opt) => {
                 const active = expiresDays === opt.val;
                 return (
                   <TouchableOpacity key={opt.label} style={[s.expiryChip, active && s.expiryChipActive]} onPress={() => setExpiresDays(opt.val)}>
-                    <Text style={[s.expiryLabel, active && { color: '#4338CA', fontFamily: 'Inter-Bold' }]}>{opt.label}</Text>
-                    <Text style={[s.expiryDesc, active && { color: '#4338CA' }]}>{opt.desc}</Text>
+                    <Text style={[s.expiryLabel, active && { color: '#4338CA', fontFamily: 'Inter-Bold' }]}>{tr(opt.label)}</Text>
+                    <Text style={[s.expiryDesc, active && { color: '#4338CA' }]}>{tr(opt.desc)}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -222,11 +223,11 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
             {!isStopped && !!shareToken && (
               <View style={s.stopBox}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.stopTitle}>Need to disable this link?</Text>
-                  <Text style={s.stopText}>Stopping the link immediately blocks clients from accessing or submitting preferences.</Text>
+                  <Text style={s.stopTitle}>{tr("Need to disable this link?")}</Text>
+                  <Text style={s.stopText}>{tr("Stopping the link immediately blocks clients from accessing or submitting preferences.")}</Text>
                 </View>
                 <TouchableOpacity style={s.stopBtn} onPress={handleStopLink} disabled={isRevoking}>
-                  <Text style={s.stopBtnText}>{isRevoking ? 'Stopping...' : 'Stop Link'}</Text>
+                  <Text style={s.stopBtnText}>{isRevoking ? tr("Stopping...") : tr("Stop Link")}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -234,7 +235,7 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
               <View style={s.warnBox}>
                 <Ionicons name="alert-circle-outline" size={14} color="#D97706" />
                 <Text style={s.warnText}>
-                  This link is currently <Text style={{ fontFamily: 'Inter-Bold' }}>stopped / disabled</Text>. Sending an email will automatically reactivate it for the client.
+                  {tr("This link is currently ")}<Text style={{ fontFamily: 'Inter-Bold' }}>{tr("stopped / disabled")}</Text>{tr(". Sending an email will automatically reactivate it for the client.")}
                 </Text>
               </View>
             )}
@@ -243,15 +244,15 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
               <View style={s.labelRow}>
                 <View style={s.labelInline}>
                   <Ionicons name="link-outline" size={13} color="#4F46E5" />
-                  <Text style={s.label}>Shareable Questionnaire Link</Text>
+                  <Text style={s.label}>{tr("Shareable Questionnaire Link")}</Text>
                 </View>
-                {isLoadingToken && <Text style={s.metaText}>Generating...</Text>}
+                {isLoadingToken && <Text style={s.metaText}>{tr("Generating...")}</Text>}
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={s.linkText} numberOfLines={1}>{requirementsUrl || 'Preparing unique link...'}</Text>
+                <Text style={s.linkText} numberOfLines={1}>{requirementsUrl || tr("Preparing unique link...")}</Text>
                 <TouchableOpacity style={s.smallBtn} onPress={handleCopy} disabled={!requirementsUrl}>
                   <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={13} color={copied ? '#10B981' : '#0F172A'} />
-                  <Text style={s.smallBtnText}>{copied ? 'Copied' : 'Copy'}</Text>
+                  <Text style={s.smallBtnText}>{copied ? tr("Copied") : tr("Copy")}</Text>
                 </TouchableOpacity>
                 {!!requirementsUrl && (
                   <TouchableOpacity style={s.iconBtn} onPress={() => Linking.openURL(requirementsUrl)}>
@@ -260,29 +261,29 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
                 )}
               </View>
               <View style={s.featureRow}>
-                <Text style={s.featureText}><Ionicons name="color-palette-outline" size={11} color="#A855F7" /> Visual Theme Picker</Text>
-                <Text style={s.featureText}><Ionicons name="sparkles-outline" size={11} color="#F59E0B" /> Pinterest Inspiration</Text>
-                <Text style={s.featureText}><Ionicons name="checkmark" size={11} color="#10B981" /> Auto-syncs to CRM</Text>
+                <Text style={s.featureText}><Ionicons name="color-palette-outline" size={11} color="#A855F7" />{tr(" Visual Theme Picker")}</Text>
+                <Text style={s.featureText}><Ionicons name="sparkles-outline" size={11} color="#F59E0B" />{tr(" Pinterest Inspiration")}</Text>
+                <Text style={s.featureText}><Ionicons name="checkmark" size={11} color="#10B981" />{tr(" Auto-syncs to CRM")}</Text>
               </View>
             </View>
 
             <View style={s.altRow}>
-              <Text style={s.metaText}>Alternative dispatch options:</Text>
+              <Text style={s.metaText}>{tr("Alternative dispatch options:")}</Text>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 {!!lead.mobileNumber && (
                   <TouchableOpacity onPress={handleWhatsApp} disabled={!requirementsUrl}>
-                    <Text style={[s.altLink, { color: '#059669' }]}>WhatsApp</Text>
+                    <Text style={[s.altLink, { color: '#059669' }]}>{tr("WhatsApp")}</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={handleMailto} disabled={!requirementsUrl}>
-                  <Text style={s.altLink}>Open in Email App (mailto)</Text>
+                  <Text style={s.altLink}>{tr("Open in Email App (mailto)")}</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={s.footer}>
               <TouchableOpacity style={s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-                <Text style={s.cancelText}>Cancel</Text>
+                <Text style={s.cancelText}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.sendBtn, (isSubmitting || isLoadingToken) && { opacity: 0.6 }]}
@@ -290,7 +291,7 @@ export default function SendRequirementsEmailModal({ visible, onClose, lead, onS
                 disabled={isSubmitting || isLoadingToken}
               >
                 {isSubmitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="send" size={13} color="#FFFFFF" />}
-                <Text style={s.sendText}>{isSubmitting ? 'Sending Email via SMTP...' : 'Send Intake Link via Email'}</Text>
+                <Text style={s.sendText}>{isSubmitting ? tr("Sending Email via SMTP...") : tr("Send Intake Link via Email")}</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>

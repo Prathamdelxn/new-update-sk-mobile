@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, FlatList, TextInput, Modal, Image, Alert, Platform, Keyboard, LayoutAnimation } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -190,11 +191,11 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
         setEditingSnagId(null);
         setNewSnag({ title: '', description: '', priority: 'Medium' });
         setSelectedImage(null);
-        showToast(editingSnagId ? "Snag updated successfully" : "Snag reported successfully", "success");
+        showToast(editingSnagId ? tr("Snag updated successfully") : tr("Snag reported successfully"), "success");
         fetchSnags();
       } else {
         const err = await response.json();
-        showToast(err.message || `Failed to ${editingSnagId ? 'update' : 'create'} snag`, "error");
+        showToast(err.message || tr("Failed to {{value}} snag", { value: editingSnagId ? 'update' : 'create' }), "error");
       }
     } catch (e) {
       console.error(e);
@@ -267,7 +268,7 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
 
       if (!res.ok) throw new Error("Failed to update snag");
 
-      showToast("Snag completed successfully!", "success");
+      showToast(tr("Snag completed successfully!"), "success");
       setIsCompleteModalVisible(false);
       setCompletingSnag(null);
       setCompletionProof(null);
@@ -276,7 +277,7 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
 
     } catch (e) {
       console.error(e);
-      showToast("Error completing snag", "error");
+      showToast(tr("Error completing snag"), "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -315,11 +316,11 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (response.ok) {
-            showToast("Snag deleted successfully", "delete");
+            showToast(tr("Snag deleted successfully"), "delete");
             fetchSnags();
           } else {
             const err = await response.json();
-            showToast(err.message || "Failed to delete snag", "error");
+            showToast(err.message || tr("Failed to delete snag"), "error");
           }
         } catch (e) {
           console.error('Delete snag error:', e);
@@ -337,7 +338,7 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
     const draftSnags = snags.filter(s => s.status === 'Draft');
     if (draftSnags.length === 0) {
       if (snags.some(s => s.status === 'In Progress')) {
-        showToast("These snags are already In Progress", "info");
+        showToast(tr("These snags are already In Progress"), "info");
       }
       return;
     }
@@ -374,11 +375,11 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
         })
       });
 
-      showToast(`${draftSnags.length} snags sent for fixing`, "success");
+      showToast(tr("{{draftSnagsCount}} snags sent for fixing", { draftSnagsCount: draftSnags.length }), "success");
       fetchSnags();
     } catch (e) {
       console.error('Send for fixing error:', e);
-      showToast("Failed to process request", "error");
+      showToast(tr("Failed to process request"), "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -407,10 +408,10 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
             })
           });
           if (response.ok) {
-            showToast("Snagging phase completed", "success");
+            showToast(tr("Snagging phase completed"), "success");
             if (fetchProjectData) fetchProjectData();
           } else {
-            showToast("Failed to update status", "error");
+            showToast(tr("Failed to update status"), "error");
           }
         } catch (e) {
           console.error(e);
@@ -455,14 +456,14 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
         })
       });
 
-      showToast("Snag assigned for fixing successfully", "success");
+      showToast(tr("Snag assigned for fixing successfully"), "success");
       setIsAssignModalVisible(false);
       setAssigningSnag(null);
       fetchSnags();
       if (fetchProjectData) fetchProjectData();
     } catch (e) {
       console.error(e);
-      showToast("Error processing request", "error");
+      showToast(tr("Error processing request"), "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -472,9 +473,9 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
     <AdaptiveGlass intensity={20} tint="light" style={styles.snagCard}>
       <View style={styles.snagHeader}>
         <View style={styles.titleContainer}>
-          <Text style={styles.snagTitle}>{item.title}</Text>
+          <Text style={styles.snagTitle}>{tr(item.title)}</Text>
           <View style={[styles.priorityPill, { backgroundColor: item.priority === 'Critical' ? '#FEF2F2' : '#F1F5F9' }]}>
-            <Text style={[styles.priorityText, { color: item.priority === 'Critical' ? '#EF4444' : '#64748B' }]}>{item.priority}</Text>
+            <Text style={[styles.priorityText, { color: item.priority === 'Critical' ? '#EF4444' : '#64748B' }]}>{tr(item.priority)}</Text>
           </View>
         </View>
         <View style={[styles.statusBadge, {
@@ -484,11 +485,11 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
           <Text style={[styles.statusText, {
             color: item.status === 'Resolved' ? '#10B981' :
               item.status === 'Draft' ? '#64748B' : '#D97706'
-          }]}>{item.status}</Text>
+          }]}>{tr(item.status)}</Text>
         </View>
       </View>
 
-      <Text style={styles.snagDesc}>{item.description}</Text>
+      <Text style={styles.snagDesc}>{tr(item.description)}</Text>
 
       {item.images && item.images.length > 0 && (
         <Image source={{ uri: item.images[0] }} style={styles.snagImage} />
@@ -735,7 +736,7 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
                     style={[styles.priorityItem, newSnag.priority === p && styles.priorityItemActive]}
                     onPress={() => setNewSnag(s => ({ ...s, priority: p }))}
                   >
-                    <Text style={[styles.priorityItemText, newSnag.priority === p && styles.priorityItemTextActive]}>{p}</Text>
+                    <Text style={[styles.priorityItemText, newSnag.priority === p && styles.priorityItemTextActive]}>{tr(p)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -766,8 +767,8 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
 
       <ConfirmModal
         visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={tr(confirmModal.title)}
+        message={tr(confirmModal.message)}
         confirmText={confirmModal.confirmText}
         type={confirmModal.type}
         isSubmitting={isSubmitting}
@@ -798,11 +799,11 @@ export default function ProjectSnaggingTab({ project, fetchProjectData, refreshT
                 {fixingMembers.map((member) => (
                   <TouchableOpacity key={member._id} style={styles.userItem} onPress={() => handleAssignSnagForFixing(assigningSnag, member)}>
                     <View style={styles.avatarBox}>
-                      <Text style={styles.avatarText}>{member.name?.[0]}</Text>
+                      <Text style={styles.avatarText}>{tr(member.name?.[0])}</Text>
                     </View>
                     <View style={styles.userInfo}>
-                      <Text style={styles.userName}>{member.name}</Text>
-                      <Text style={styles.userRole}>{member.role?.name || 'Team Member'}</Text>
+                      <Text style={styles.userName}>{tr(member.name)}</Text>
+                      <Text style={styles.userRole}>{member.role?.name || tr("Team Member")}</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
                   </TouchableOpacity>

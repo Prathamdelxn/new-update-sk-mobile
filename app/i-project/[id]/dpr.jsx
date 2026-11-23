@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -86,7 +87,7 @@ function DateField({ value, onChange, placeholder = 'Select date' }) {
                 }}
               />
               <TouchableOpacity style={s.iosPickerDone} onPress={() => setShowIosPicker(false)}>
-                <Text style={s.iosPickerDoneText}>Done</Text>
+                <Text style={s.iosPickerDoneText}>{tr("Done")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -104,7 +105,7 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', s
     <View style={{ position: 'relative', zIndex: open ? 50 : 1 }}>
       <TouchableOpacity style={[s.dropdownBtn, style]} onPress={() => setOpen((v) => !v)} activeOpacity={0.7}>
         <Text style={[s.dropdownBtnText, textStyle, !selected && { color: '#94A3B8' }]} numberOfLines={1}>
-          {selected ? selected.label : placeholder}
+          {selected ? tr(selected.label) : placeholder}
         </Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={15} color="#64748B" />
       </TouchableOpacity>
@@ -123,7 +124,7 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', s
                   }}
                 >
                   <Text style={[s.dropdownItemText, active && s.dropdownItemTextActive]} numberOfLines={1}>
-                    {o.label}
+                    {tr(o.label)}
                   </Text>
                 </TouchableOpacity>
               );
@@ -526,7 +527,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setMoms(momRes.status === 'fulfilled' && momRes.value?.success ? momRes.value.data || [] : []);
     } catch (e) {
       console.warn('Failed to load DPR dashboard', e);
-      showToast('Failed to load DPR records', 'error');
+      showToast(tr("Failed to load DPR records"), 'error');
     } finally {
       setLoading(false);
     }
@@ -639,7 +640,7 @@ const { can: canDo } = useProjectPermissions(projectId);
   // Submit DPR
   const handleSubmitDpr = async () => {
     if (!dprDate) {
-      showToast('Please select a DPR date', 'error');
+      showToast(tr("Please select a DPR date"), 'error');
       return;
     }
     setSubmitting(true);
@@ -673,12 +674,12 @@ const { can: canDo } = useProjectPermissions(projectId);
 
       const res = await interiorApiClient.post(`/projects/${projectId}/dpr`, payload);
       if (res?.success) {
-        showToast('Daily Progress Report submitted successfully', 'success');
+        showToast(tr("Daily Progress Report submitted successfully"), 'success');
         setIsFormOpen(false);
         loadData();
       }
     } catch (err) {
-      showToast(err?.message || 'Failed to submit DPR', 'error');
+      showToast(err?.message || tr("Failed to submit DPR"), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -687,21 +688,21 @@ const { can: canDo } = useProjectPermissions(projectId);
   // Delete DPR
   const handleDeleteDpr = (dprId, date) => {
     Alert.alert(
-      'Delete Daily Progress Report',
-      `Are you sure you want to delete the DPR recorded for ${formatDate(date)}? This action cannot be undone.`,
+      tr("Delete Daily Progress Report"),
+      tr("Are you sure you want to delete the DPR recorded for {{formatDate}}? This action cannot be undone.", { formatDate: formatDate(date) }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Delete Report',
+          text: tr("Delete Report"),
           style: 'destructive',
           onPress: async () => {
             setDeletingId(dprId);
             try {
               await interiorApiClient.delete(`/projects/${projectId}/dpr/${dprId}`);
-              showToast('DPR report deleted successfully', 'delete');
+              showToast(tr("DPR report deleted successfully"), 'delete');
               loadData();
             } catch (e) {
-              showToast(e.message || 'Failed to delete DPR report', 'error');
+              showToast(e.message || tr("Failed to delete DPR report"), 'error');
             } finally {
               setDeletingId(null);
             }
@@ -736,7 +737,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       const html = generateDprHtml(dprItem, project);
       await Print.printAsync({ html });
     } catch (e) {
-      showToast('Failed to open print dialogue', 'error');
+      showToast(tr("Failed to open print dialogue"), 'error');
     }
   };
 
@@ -757,10 +758,10 @@ const { can: canDo } = useProjectPermissions(projectId);
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
       } else {
-        showToast('Blank Template PDF generated', 'success');
+        showToast(tr("Blank Template PDF generated"), 'success');
       }
     } catch (e) {
-      showToast('Failed to generate template PDF', 'error');
+      showToast(tr("Failed to generate template PDF"), 'error');
     }
   };
 
@@ -773,10 +774,10 @@ const { can: canDo } = useProjectPermissions(projectId);
           <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={[s.headerTitle, { flex: 1 }]} numberOfLines={1}>Daily Reports</Text>
+          <Text style={[s.headerTitle, { flex: 1 }]} numberOfLines={1}>{tr("Daily Reports")}</Text>
           <TouchableOpacity style={s.templateBtn} onPress={handleDownloadBlankTemplate}>
             <Ionicons name="download-outline" size={15} color="#475569" />
-            <Text style={s.templateBtnText}>Blank form</Text>
+            <Text style={s.templateBtnText}>{tr("Blank form")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -789,11 +790,11 @@ const { can: canDo } = useProjectPermissions(projectId);
                 <View style={s.emptyIconCircle}>
                   <Ionicons name="document-text-outline" size={32} color="#2563EB" />
                 </View>
-                <Text style={s.emptyTitle}>No DPRs Recorded Yet</Text>
+                <Text style={s.emptyTitle}>{tr("No DPRs Recorded Yet")}</Text>
                 {canDo('dpr', 'create') && (
                   <TouchableOpacity style={s.emptyActionBtn} onPress={openCreateForm}>
                     <Ionicons name="add" size={16} color="#FFFFFF" />
-                    <Text style={s.emptyActionBtnText}>Create First DPR</Text>
+                    <Text style={s.emptyActionBtnText}>{tr("Create First DPR")}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -824,47 +825,47 @@ const { can: canDo } = useProjectPermissions(projectId);
                 return (
                   <TouchableOpacity key={item._id} style={s.dprCard} onPress={openReport} activeOpacity={0.85}>
                     <View style={s.cardTopRow}>
-                      <Text style={s.dprDate} numberOfLines={1}>{dateFormatted}</Text>
+                      <Text style={s.dprDate} numberOfLines={1}>{tr(dateFormatted)}</Text>
                       <View style={[s.weatherPill, { backgroundColor: weatherMeta.bg }]}>
                         <Ionicons name={weatherMeta.icon} size={14} color={weatherMeta.color} />
-                        <Text style={[s.weatherPillText, { color: weatherMeta.color }]}>{item.weather || 'Sunny'}</Text>
+                        <Text style={[s.weatherPillText, { color: weatherMeta.color }]}>{item.weather || tr("Sunny")}</Text>
                       </View>
                     </View>
 
-                    {!!mainWork && <Text style={s.dprMainWork} numberOfLines={2}>{mainWork}</Text>}
+                    {!!mainWork && <Text style={s.dprMainWork} numberOfLines={2}>{tr(mainWork)}</Text>}
 
                     <View style={s.figRow}>
                       <View style={s.figCol}>
-                        <Text style={s.figLabel}>Workers</Text>
-                        <Text style={s.figValue}>{totalWorkers}</Text>
+                        <Text style={s.figLabel}>{tr("Workers")}</Text>
+                        <Text style={s.figValue}>{tr(totalWorkers)}</Text>
                       </View>
                       <View style={[s.figCol, { alignItems: 'center' }]}>
-                        <Text style={s.figLabel}>Activities</Text>
+                        <Text style={s.figLabel}>{tr("Activities")}</Text>
                         <Text style={s.figValue}>{labourList.length}</Text>
                       </View>
                       <View style={[s.figCol, { alignItems: 'flex-end' }]}>
-                        <Text style={s.figLabel}>Deliveries</Text>
-                        <Text style={s.figValue}>{matReceiptCount}</Text>
+                        <Text style={s.figLabel}>{tr("Deliveries")}</Text>
+                        <Text style={s.figValue}>{tr(matReceiptCount)}</Text>
                       </View>
                     </View>
 
                     <View style={s.dprFooter}>
                       <TouchableOpacity style={s.viewReportBtn} onPress={openReport}>
                         <Ionicons name="document-text-outline" size={15} color="#1D4ED8" />
-                        <Text style={s.viewReportText}>View report</Text>
+                        <Text style={s.viewReportText}>{tr("View report")}</Text>
                       </TouchableOpacity>
                       {canDo('dpr', 'export') && (
-                        <TouchableOpacity style={s.dprIconBtn} onPress={() => handleDownloadPdf(item)} disabled={isDownloading} accessibilityLabel="Download PDF">
+                        <TouchableOpacity style={s.dprIconBtn} onPress={() => handleDownloadPdf(item)} disabled={isDownloading} accessibilityLabel={tr("Download PDF")}>
                           {isDownloading ? <ActivityIndicator size="small" color="#2563EB" /> : <Ionicons name="download-outline" size={17} color="#334155" />}
                         </TouchableOpacity>
                       )}
                       {canDo('dpr', 'export') && (
-                        <TouchableOpacity style={s.dprIconBtn} onPress={() => handlePrintDpr(item)} accessibilityLabel="Print">
+                        <TouchableOpacity style={s.dprIconBtn} onPress={() => handlePrintDpr(item)} accessibilityLabel={tr("Print")}>
                           <Ionicons name="print-outline" size={17} color="#334155" />
                         </TouchableOpacity>
                       )}
                       {canDo('dpr', 'delete') && (
-                        <TouchableOpacity style={[s.dprIconBtn, s.deleteBtn]} onPress={() => handleDeleteDpr(item._id, item.date)} disabled={isDeleting} accessibilityLabel="Delete">
+                        <TouchableOpacity style={[s.dprIconBtn, s.deleteBtn]} onPress={() => handleDeleteDpr(item._id, item.date)} disabled={isDeleting} accessibilityLabel={tr("Delete")}>
                           {isDeleting ? <ActivityIndicator size="small" color="#DC2626" /> : <Ionicons name="trash-outline" size={17} color="#DC2626" />}
                         </TouchableOpacity>
                       )}
@@ -893,9 +894,9 @@ const { can: canDo } = useProjectPermissions(projectId);
           <View style={s.previewModalCard}>
             <View style={s.previewTopBar}>
               <View style={{ flex: 1 }}>
-                <Text style={s.previewModalTitle}>Daily Progress Report (DPR) Preview</Text>
+                <Text style={s.previewModalTitle}>{tr("Daily Progress Report (DPR) Preview")}</Text>
                 <Text style={s.previewModalSub}>
-                  {project?.name || 'Project'} • {previewDpr?.date ? formatDate(previewDpr.date) : ''}
+                  {project?.name || tr("Project")} • {previewDpr?.date ? formatDate(previewDpr.date) : ''}
                 </Text>
               </View>
 
@@ -906,7 +907,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     onPress={() => previewDpr && handlePrintDpr(previewDpr)}
                   >
                     <Ionicons name="print-outline" size={15} color="#2563EB" />
-                    <Text style={s.previewActionBtnText}>Print</Text>
+                    <Text style={s.previewActionBtnText}>{tr("Print")}</Text>
                   </TouchableOpacity>
                 )}
 
@@ -916,7 +917,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     onPress={() => previewDpr && handleDownloadPdf(previewDpr)}
                   >
                     <Ionicons name="share-outline" size={15} color="#FFFFFF" />
-                    <Text style={[s.previewActionBtnText, { color: '#FFFFFF' }]}>Share PDF</Text>
+                    <Text style={[s.previewActionBtnText, { color: '#FFFFFF' }]}>{tr("Share PDF")}</Text>
                   </TouchableOpacity>
                 )}
 
@@ -954,8 +955,8 @@ const { can: canDo } = useProjectPermissions(projectId);
                   <Ionicons name="document-text" size={18} color="#2563EB" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.modalTitle}>Log Daily Progress Report (DPR)</Text>
-                  <Text style={s.modalSubtitle}>SkyStruct Lite • {project?.name || 'Site Project'}</Text>
+                  <Text style={s.modalTitle}>{tr("Log Daily Progress Report (DPR)")}</Text>
+                  <Text style={s.modalSubtitle}>{tr("SkyStruct Lite • ")}{project?.name || tr("Site Project")}</Text>
                 </View>
               </View>
 
@@ -964,11 +965,11 @@ const { can: canDo } = useProjectPermissions(projectId);
                   style={s.syncLiveBtn}
                   onPress={() => {
                     populateFromLiveProject();
-                    showToast('Live tasks and progress synchronized!', 'success');
+                    showToast(tr("Live tasks and progress synchronized!"), 'success');
                   }}
                 >
                   <Ionicons name="sparkles" size={13} color="#2563EB" />
-                  <Text style={s.syncLiveBtnText}>Sync Live Data</Text>
+                  <Text style={s.syncLiveBtnText}>{tr("Sync Live Data")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setIsFormOpen(false)} style={s.modalCloseBtn}>
                   <Ionicons name="close" size={20} color="#64748B" />
@@ -991,7 +992,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     onPress={() => setActiveFormTab(tab.id)}
                   >
                     <Text style={[s.formTabStripItemText, activeFormTab === tab.id && s.formTabStripItemTextActive]}>
-                      {tab.label}
+                      {tr(tab.label)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -1002,17 +1003,17 @@ const { can: canDo } = useProjectPermissions(projectId);
               {/* Basic Info Bar (Always Visible at top of form, exact Web parity) */}
               <View style={s.basicInfoBar}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.inputLabel}>Report Date *</Text>
+                  <Text style={s.inputLabel}>{tr("Report Date *")}</Text>
                   <DateField value={dprDate} onChange={setDprDate} />
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <Text style={s.inputLabel}>Weather Condition</Text>
+                  <Text style={s.inputLabel}>{tr("Weather Condition")}</Text>
                   <SelectDropdown
                     value={weather}
                     options={WEATHER_OPTIONS}
                     onChange={setWeather}
-                    placeholder="Select weather..."
+                    placeholder={tr("Select weather...")}
                   />
                 </View>
               </View>
@@ -1022,19 +1023,19 @@ const { can: canDo } = useProjectPermissions(projectId);
                 <View style={s.tabContentWrapper}>
                   <View style={s.subSectionHeader}>
                     <View>
-                      <Text style={s.subSectionTitle}>Labour Report & Ongoing Work Status</Text>
-                      <Text style={s.subSectionSub}>Track agency activity, skilled / unskilled headcount, and ongoing task status.</Text>
+                      <Text style={s.subSectionTitle}>{tr("Labour Report & Ongoing Work Status")}</Text>
+                      <Text style={s.subSectionSub}>{tr("Track agency activity, skilled / unskilled headcount, and ongoing task status.")}</Text>
                     </View>
                     <TouchableOpacity style={s.addRowBtn} onPress={addLabourRow}>
                       <Ionicons name="add" size={13} color="#2563EB" />
-                      <Text style={s.addRowBtnText}>Add Row</Text>
+                      <Text style={s.addRowBtnText}>{tr("Add Row")}</Text>
                     </TouchableOpacity>
                   </View>
 
                   {labourReports.map((row, idx) => (
                     <View key={idx} style={s.itemBox}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <Text style={s.itemBoxNum}>Entry #{idx + 1}</Text>
+                        <Text style={s.itemBoxNum}>{tr("Entry #")}{idx + 1}</Text>
                         {labourReports.length > 1 && (
                           <TouchableOpacity onPress={() => removeLabourRow(idx)}>
                             <Ionicons name="trash-outline" size={14} color="#DC2626" />
@@ -1043,10 +1044,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </View>
 
                       <View>
-                        <Text style={s.fieldLabel}>Agency - Activity *</Text>
+                        <Text style={s.fieldLabel}>{tr("Agency - Activity *")}</Text>
                         <TextInput
                           style={s.textInput}
-                          placeholder="e.g. Electrical - Conduit Piping / Carpentry"
+                          placeholder={tr("e.g. Electrical - Conduit Piping / Carpentry")}
                           placeholderTextColor="#94A3B8"
                           value={row.agencyActivity}
                           onChangeText={(t) => updateLabourRow(idx, 'agencyActivity', t)}
@@ -1055,7 +1056,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
                       <View style={{ flexDirection: 'row', gap: 10 }}>
                         <View style={{ flex: 1 }}>
-                          <Text style={s.fieldLabel}>Skilled</Text>
+                          <Text style={s.fieldLabel}>{tr("Skilled")}</Text>
                           <TextInput
                             style={s.textInput}
                             keyboardType="numeric"
@@ -1066,7 +1067,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                           />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={s.fieldLabel}>Unskilled</Text>
+                          <Text style={s.fieldLabel}>{tr("Unskilled")}</Text>
                           <TextInput
                             style={s.textInput}
                             keyboardType="numeric"
@@ -1079,10 +1080,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </View>
 
                       <View>
-                        <Text style={s.fieldLabel}>Current Ongoing Work *</Text>
+                        <Text style={s.fieldLabel}>{tr("Current Ongoing Work *")}</Text>
                         <TextInput
                           style={s.textInput}
-                          placeholder="e.g. Living room wall chasing, bedroom conduit pull"
+                          placeholder={tr("e.g. Living room wall chasing, bedroom conduit pull")}
                           placeholderTextColor="#94A3B8"
                           value={row.currentWork}
                           onChangeText={(t) => updateLabourRow(idx, 'currentWork', t)}
@@ -1090,10 +1091,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </View>
 
                       <View>
-                        <Text style={s.fieldLabel}>Status as per Bar Chart</Text>
+                        <Text style={s.fieldLabel}>{tr("Status as per Bar Chart")}</Text>
                         <TextInput
                           style={s.textInput}
-                          placeholder="e.g. On Track / 70% / Delayed"
+                          placeholder={tr("e.g. On Track / 70% / Delayed")}
                           placeholderTextColor="#94A3B8"
                           value={row.statusAsPerBarChart}
                           onChangeText={(t) => updateLabourRow(idx, 'statusAsPerBarChart', t)}
@@ -1109,34 +1110,34 @@ const { can: canDo } = useProjectPermissions(projectId);
                 <View style={s.tabContentWrapper}>
                   <View style={s.subSectionHeader}>
                     <View>
-                      <Text style={s.subSectionTitle}>Material Receipt Details</Text>
-                      <Text style={s.subSectionSub}>Log goods / materials delivered to site with challan & receipt numbers.</Text>
+                      <Text style={s.subSectionTitle}>{tr("Material Receipt Details")}</Text>
+                      <Text style={s.subSectionSub}>{tr("Log goods / materials delivered to site with challan & receipt numbers.")}</Text>
                     </View>
                     <TouchableOpacity style={s.addRowBtn} onPress={addMaterialReceiptRow}>
                       <Ionicons name="add" size={13} color="#2563EB" />
-                      <Text style={s.addRowBtnText}>Add Receipt</Text>
+                      <Text style={s.addRowBtnText}>{tr("Add Receipt")}</Text>
                     </TouchableOpacity>
                   </View>
 
                   {materialReceipts.length === 0 ? (
                     <View style={s.tabEmptyBox}>
-                      <Text style={s.emptyHint}>No materials delivered today. Click &quot;Add Receipt&quot; if site received materials.</Text>
+                      <Text style={s.emptyHint}>{tr("No materials delivered today. Click \"Add Receipt\" if site received materials.")}</Text>
                     </View>
                   ) : (
                     materialReceipts.map((row, idx) => (
                       <View key={idx} style={s.itemBox}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                          <Text style={s.itemBoxNum}>Material Delivery #{idx + 1}</Text>
+                          <Text style={s.itemBoxNum}>{tr("Material Delivery #")}{idx + 1}</Text>
                           <TouchableOpacity onPress={() => removeMaterialReceiptRow(idx)}>
                             <Ionicons name="trash-outline" size={14} color="#DC2626" />
                           </TouchableOpacity>
                         </View>
 
                         <View>
-                          <Text style={s.fieldLabel}>Name of Supplier</Text>
+                          <Text style={s.fieldLabel}>{tr("Name of Supplier")}</Text>
                           <TextInput
                             style={s.textInput}
-                            placeholder="e.g. Saint-Gobain Gyproc / Asian Paints"
+                            placeholder={tr("e.g. Saint-Gobain Gyproc / Asian Paints")}
                             placeholderTextColor="#94A3B8"
                             value={row.supplierName}
                             onChangeText={(t) => updateMaterialReceiptRow(idx, 'supplierName', t)}
@@ -1145,20 +1146,20 @@ const { can: canDo } = useProjectPermissions(projectId);
 
                         <View style={{ flexDirection: 'row', gap: 10 }}>
                           <View style={{ flex: 1 }}>
-                            <Text style={s.fieldLabel}>Delivery Challan No</Text>
+                            <Text style={s.fieldLabel}>{tr("Delivery Challan No")}</Text>
                             <TextInput
                               style={s.textInput}
-                              placeholder="e.g. DC-1049"
+                              placeholder={tr("e.g. DC-1049")}
                               placeholderTextColor="#94A3B8"
                               value={row.challanNo}
                               onChangeText={(t) => updateMaterialReceiptRow(idx, 'challanNo', t)}
                             />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={s.fieldLabel}>Material Receipt No</Text>
+                            <Text style={s.fieldLabel}>{tr("Material Receipt No")}</Text>
                             <TextInput
                               style={s.textInput}
-                              placeholder="e.g. MR-084"
+                              placeholder={tr("e.g. MR-084")}
                               placeholderTextColor="#94A3B8"
                               value={row.receiptNo}
                               onChangeText={(t) => updateMaterialReceiptRow(idx, 'receiptNo', t)}
@@ -1167,10 +1168,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                         </View>
 
                         <View>
-                          <Text style={s.fieldLabel}>Material Details</Text>
+                          <Text style={s.fieldLabel}>{tr("Material Details")}</Text>
                           <TextInput
                             style={s.textInput}
-                            placeholder="e.g. 18mm Marine Plywood (BWP Grade)"
+                            placeholder={tr("e.g. 18mm Marine Plywood (BWP Grade)")}
                             placeholderTextColor="#94A3B8"
                             value={row.materialDetails}
                             onChangeText={(t) => updateMaterialReceiptRow(idx, 'materialDetails', t)}
@@ -1179,17 +1180,17 @@ const { can: canDo } = useProjectPermissions(projectId);
 
                         <View style={{ flexDirection: 'row', gap: 10 }}>
                           <View style={{ flex: 1 }}>
-                            <Text style={s.fieldLabel}>UOM</Text>
+                            <Text style={s.fieldLabel}>{tr("UOM")}</Text>
                             <TextInput
                               style={s.textInput}
-                              placeholder="e.g. Sheets / Nos / Bags"
+                              placeholder={tr("e.g. Sheets / Nos / Bags")}
                               placeholderTextColor="#94A3B8"
                               value={row.uom}
                               onChangeText={(t) => updateMaterialReceiptRow(idx, 'uom', t)}
                             />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={s.fieldLabel}>Qty</Text>
+                            <Text style={s.fieldLabel}>{tr("Qty")}</Text>
                             <TextInput
                               style={s.textInput}
                               keyboardType="numeric"
@@ -1211,34 +1212,34 @@ const { can: canDo } = useProjectPermissions(projectId);
                 <View style={s.tabContentWrapper}>
                   <View style={s.subSectionHeader}>
                     <View>
-                      <Text style={s.subSectionTitle}>Tomorrow&apos;s Planning</Text>
-                      <Text style={s.subSectionSub}>Schedule targets, agency manpower requirements, and potential site concerns.</Text>
+                      <Text style={s.subSectionTitle}>{tr("Tomorrow's Planning")}</Text>
+                      <Text style={s.subSectionSub}>{tr("Schedule targets, agency manpower requirements, and potential site concerns.")}</Text>
                     </View>
                     <TouchableOpacity style={s.addRowBtn} onPress={addTomorrowPlanningRow}>
                       <Ionicons name="add" size={13} color="#2563EB" />
-                      <Text style={s.addRowBtnText}>Add Plan Row</Text>
+                      <Text style={s.addRowBtnText}>{tr("Add Plan Row")}</Text>
                     </TouchableOpacity>
                   </View>
 
                   {tomorrowPlanning.length === 0 ? (
                     <View style={s.tabEmptyBox}>
-                      <Text style={s.emptyHint}>No targeted planning logged for tomorrow.</Text>
+                      <Text style={s.emptyHint}>{tr("No targeted planning logged for tomorrow.")}</Text>
                     </View>
                   ) : (
                     tomorrowPlanning.map((row, idx) => (
                       <View key={idx} style={s.itemBox}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                          <Text style={s.itemBoxNum}>Tomorrow Target #{idx + 1}</Text>
+                          <Text style={s.itemBoxNum}>{tr("Tomorrow Target #")}{idx + 1}</Text>
                           <TouchableOpacity onPress={() => removeTomorrowPlanningRow(idx)}>
                             <Ionicons name="trash-outline" size={14} color="#DC2626" />
                           </TouchableOpacity>
                         </View>
 
                         <View>
-                          <Text style={s.fieldLabel}>Agency - Activity</Text>
+                          <Text style={s.fieldLabel}>{tr("Agency - Activity")}</Text>
                           <TextInput
                             style={s.textInput}
-                            placeholder="e.g. POP / False Ceiling Framing"
+                            placeholder={tr("e.g. POP / False Ceiling Framing")}
                             placeholderTextColor="#94A3B8"
                             value={row.agencyActivity}
                             onChangeText={(t) => updateTomorrowPlanningRow(idx, 'agencyActivity', t)}
@@ -1247,7 +1248,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
                         <View style={{ flexDirection: 'row', gap: 10 }}>
                           <View style={{ flex: 1 }}>
-                            <Text style={s.fieldLabel}>Skilled Req</Text>
+                            <Text style={s.fieldLabel}>{tr("Skilled Req")}</Text>
                             <TextInput
                               style={s.textInput}
                               keyboardType="numeric"
@@ -1258,7 +1259,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                             />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={s.fieldLabel}>Unskilled Req</Text>
+                            <Text style={s.fieldLabel}>{tr("Unskilled Req")}</Text>
                             <TextInput
                               style={s.textInput}
                               keyboardType="numeric"
@@ -1271,10 +1272,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                         </View>
 
                         <View>
-                          <Text style={s.fieldLabel}>Targeted Works</Text>
+                          <Text style={s.fieldLabel}>{tr("Targeted Works")}</Text>
                           <TextInput
                             style={s.textInput}
-                            placeholder="e.g. Master Bedroom perimeter GI channel fixing"
+                            placeholder={tr("e.g. Master Bedroom perimeter GI channel fixing")}
                             placeholderTextColor="#94A3B8"
                             value={row.targetedWorks}
                             onChangeText={(t) => updateTomorrowPlanningRow(idx, 'targetedWorks', t)}
@@ -1282,10 +1283,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                         </View>
 
                         <View>
-                          <Text style={s.fieldLabel}>Remark / Concern</Text>
+                          <Text style={s.fieldLabel}>{tr("Remark / Concern")}</Text>
                           <TextInput
                             style={s.textInput}
-                            placeholder="e.g. Awaiting electrical conduit clearance / drawings verified"
+                            placeholder={tr("e.g. Awaiting electrical conduit clearance / drawings verified")}
                             placeholderTextColor="#94A3B8"
                             value={row.remarkConcern}
                             onChangeText={(t) => updateTomorrowPlanningRow(idx, 'remarkConcern', t)}
@@ -1303,18 +1304,18 @@ const { can: canDo } = useProjectPermissions(projectId);
                   {/* Part A: Material Requirement at Site */}
                   <View style={s.subSectionHeader}>
                     <View>
-                      <Text style={s.subSectionTitle}>Material Requirement at Site</Text>
-                      <Text style={s.subSectionSub}>List upcoming site material requisitions or shortages.</Text>
+                      <Text style={s.subSectionTitle}>{tr("Material Requirement at Site")}</Text>
+                      <Text style={s.subSectionSub}>{tr("List upcoming site material requisitions or shortages.")}</Text>
                     </View>
                     <TouchableOpacity style={s.addRowBtn} onPress={addMaterialRequirementRow}>
                       <Ionicons name="add" size={13} color="#2563EB" />
-                      <Text style={s.addRowBtnText}>Add Item</Text>
+                      <Text style={s.addRowBtnText}>{tr("Add Item")}</Text>
                     </TouchableOpacity>
                   </View>
 
                   {materialRequirements.length === 0 ? (
                     <View style={s.tabEmptyBox}>
-                      <Text style={s.emptyHint}>No urgent material requirements for site.</Text>
+                      <Text style={s.emptyHint}>{tr("No urgent material requirements for site.")}</Text>
                     </View>
                   ) : (
                     materialRequirements.map((row, idx) => (
@@ -1322,14 +1323,14 @@ const { can: canDo } = useProjectPermissions(projectId);
                         <Text style={s.reqIndex}>{idx + 1}</Text>
                         <TextInput
                           style={[s.textInput, { flex: 2 }]}
-                          placeholder="Material Description (e.g. 1mm Laminate L-904)"
+                          placeholder={tr("Material Description (e.g. 1mm Laminate L-904)")}
                           placeholderTextColor="#94A3B8"
                           value={row.materialDescription}
                           onChangeText={(t) => updateMaterialRequirementRow(idx, 'materialDescription', t)}
                         />
                         <TextInput
                           style={[s.textInput, { flex: 0.9 }]}
-                          placeholder="UOM"
+                          placeholder={tr("UOM")}
                           placeholderTextColor="#94A3B8"
                           value={row.uom}
                           onChangeText={(t) => updateMaterialRequirementRow(idx, 'uom', t)}
@@ -1337,7 +1338,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                         <TextInput
                           style={[s.textInput, { flex: 0.8 }]}
                           keyboardType="numeric"
-                          placeholder="Qty"
+                          placeholder={tr("Qty")}
                           placeholderTextColor="#94A3B8"
                           value={String(row.qty)}
                           onChangeText={(t) => updateMaterialRequirementRow(idx, 'qty', t)}
@@ -1356,7 +1357,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                         <Ionicons name="chatbubbles" size={15} color="#2563EB" />
-                        <Text style={s.fieldLabel}>5. Minutes of Meeting (MOM) & Directives</Text>
+                        <Text style={s.fieldLabel}>{tr("5. Minutes of Meeting (MOM) & Directives")}</Text>
                       </View>
                       {moms.length > 0 && (
                         <SelectDropdown
@@ -1372,10 +1373,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                                 selectedMom.actionItems?.length ? '\nAction Items: ' + selectedMom.actionItems.map((a) => `• ${a.description} [${a.status || 'open'}]`).join('; ') : ''
                               }`;
                               setSiteInstructions(text);
-                              showToast(`Inserted MOM: ${selectedMom.title}`, 'success');
+                              showToast(tr("Inserted MOM: {{title}}", { title: selectedMom.title }), 'success');
                             }
                           }}
-                          placeholder="Insert from MOMs..."
+                          placeholder={tr("Insert from MOMs...")}
                           style={{ height: 32, paddingVertical: 4, paddingHorizontal: 8, minWidth: 140 }}
                           textStyle={{ fontSize: 12 }}
                         />
@@ -1385,7 +1386,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     <TextInput
                       style={[s.textInput, { height: 90, textAlignVertical: 'top' }]}
                       multiline
-                      placeholder="Official Minutes of Meeting directives, decisions, and site action points..."
+                      placeholder={tr("Official Minutes of Meeting directives, decisions, and site action points...")}
                       placeholderTextColor="#94A3B8"
                       value={siteInstructions}
                       onChangeText={setSiteInstructions}
@@ -1406,7 +1407,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                         else if (activeFormTab === 'receipts') setActiveFormTab('labour');
                       }}
                     >
-                      <Text style={s.navBtnText}>Previous</Text>
+                      <Text style={s.navBtnText}>{tr("Previous")}</Text>
                     </TouchableOpacity>
                   )}
                   {activeFormTab !== 'requirements' && (
@@ -1418,14 +1419,14 @@ const { can: canDo } = useProjectPermissions(projectId);
                         else if (activeFormTab === 'tomorrow') setActiveFormTab('requirements');
                       }}
                     >
-                      <Text style={s.navBtnText}>Next Section</Text>
+                      <Text style={s.navBtnText}>{tr("Next Section")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <TouchableOpacity style={s.cancelBtn} onPress={() => setIsFormOpen(false)}>
-                    <Text style={s.cancelBtnText}>Cancel</Text>
+                    <Text style={s.cancelBtnText}>{tr("Cancel")}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -1438,7 +1439,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     ) : (
                       <>
                         <Ionicons name="document-text" size={15} color="#FFFFFF" />
-                        <Text style={s.submitDprBtnText}>Save & Generate</Text>
+                        <Text style={s.submitDprBtnText}>{tr("Save & Generate")}</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -1457,8 +1458,8 @@ const { can: canDo } = useProjectPermissions(projectId);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>DPR Breakdown: {formatDate(viewingDpr?.date)}</Text>
-                <Text style={s.modalSubtitle}>Weather: {viewingDpr?.weather || 'Sunny'}</Text>
+                <Text style={s.modalTitle}>{tr("DPR Breakdown: ")}{formatDate(viewingDpr?.date)}</Text>
+                <Text style={s.modalSubtitle}>{tr("Weather: ")}{viewingDpr?.weather || tr("Sunny")}</Text>
               </View>
               <TouchableOpacity onPress={() => setViewingDpr(null)} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -1480,7 +1481,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     onPress={() => setViewTab(tab.id)}
                   >
                     <Text style={[s.formTabStripItemText, viewTab === tab.id && s.formTabStripItemTextActive]}>
-                      {tab.label}
+                      {tr(tab.label)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -1491,20 +1492,20 @@ const { can: canDo } = useProjectPermissions(projectId);
               {viewTab === 'labour' && (
                 <View style={{ gap: 8 }}>
                   {(viewingDpr?.labourReports || []).length === 0 ? (
-                    <Text style={s.emptyHint}>No labour logs recorded.</Text>
+                    <Text style={s.emptyHint}>{tr("No labour logs recorded.")}</Text>
                   ) : (
                     (viewingDpr?.labourReports || []).map((l, i) => (
                       <View key={i} style={s.inspectItemCard}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={s.inspectItemTitle}>{l.agencyActivity || 'General'}</Text>
+                          <Text style={s.inspectItemTitle}>{l.agencyActivity || tr("General")}</Text>
                           <View style={s.statusPill}>
-                            <Text style={s.statusPillText}>{l.statusAsPerBarChart || 'In Progress'}</Text>
+                            <Text style={s.statusPillText}>{l.statusAsPerBarChart || tr("In Progress")}</Text>
                           </View>
                         </View>
                         <Text style={s.inspectSubText}>
-                          Headcount: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{l.skilled || 0} Skilled</Text> + <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{l.unskilled || 0} Unskilled</Text>
+                          {tr("Headcount: ")}<Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{l.skilled || 0}{tr(" Skilled")}</Text> + <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{l.unskilled || 0}{tr(" Unskilled")}</Text>
                         </Text>
-                        {!!l.currentWork && <Text style={s.inspectBodyText}>{l.currentWork}</Text>}
+                        {!!l.currentWork && <Text style={s.inspectBodyText}>{tr(l.currentWork)}</Text>}
                       </View>
                     ))
                   )}
@@ -1514,15 +1515,15 @@ const { can: canDo } = useProjectPermissions(projectId);
               {viewTab === 'receipts' && (
                 <View style={{ gap: 8 }}>
                   {(viewingDpr?.materialReceipts || []).length === 0 ? (
-                    <Text style={s.emptyHint}>No deliveries recorded.</Text>
+                    <Text style={s.emptyHint}>{tr("No deliveries recorded.")}</Text>
                   ) : (
                     (viewingDpr?.materialReceipts || []).map((r, i) => (
                       <View key={i} style={s.inspectItemCard}>
-                        <Text style={s.inspectItemTitle}>{r.materialDetails || 'Material'}</Text>
-                        <Text style={s.inspectSubText}>Supplier: {r.supplierName || 'Vendor'}</Text>
+                        <Text style={s.inspectItemTitle}>{r.materialDetails || tr("Material")}</Text>
+                        <Text style={s.inspectSubText}>{tr("Supplier: ")}{r.supplierName || tr("Vendor")}</Text>
                         <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
-                          <Text style={s.inspectSubText}>Challan: <Text style={{ fontFamily: 'Inter-Bold' }}>{r.challanNo || '-'}</Text></Text>
-                          <Text style={s.inspectSubText}>Qty: <Text style={{ fontFamily: 'Inter-Bold' }}>{r.qty || 0} {r.uom || ''}</Text></Text>
+                          <Text style={s.inspectSubText}>{tr("Challan: ")}<Text style={{ fontFamily: 'Inter-Bold' }}>{r.challanNo || '-'}</Text></Text>
+                          <Text style={s.inspectSubText}>{tr("Qty: ")}<Text style={{ fontFamily: 'Inter-Bold' }}>{r.qty || 0} {r.uom || ''}</Text></Text>
                         </View>
                       </View>
                     ))
@@ -1533,13 +1534,13 @@ const { can: canDo } = useProjectPermissions(projectId);
               {viewTab === 'tomorrow' && (
                 <View style={{ gap: 8 }}>
                   {(viewingDpr?.tomorrowPlanning || []).length === 0 ? (
-                    <Text style={s.emptyHint}>No tomorrow plan recorded.</Text>
+                    <Text style={s.emptyHint}>{tr("No tomorrow plan recorded.")}</Text>
                   ) : (
                     (viewingDpr?.tomorrowPlanning || []).map((t, i) => (
                       <View key={i} style={s.inspectItemCard}>
-                        <Text style={s.inspectItemTitle}>{t.agencyActivity || 'Planned Task'}</Text>
-                        <Text style={s.inspectBodyText}>Target: {t.targetedWorks || '-'}</Text>
-                        {!!t.remarkConcern && <Text style={[s.inspectSubText, { color: '#D97706' }]}>Concern: {t.remarkConcern}</Text>}
+                        <Text style={s.inspectItemTitle}>{t.agencyActivity || tr("Planned Task")}</Text>
+                        <Text style={s.inspectBodyText}>{tr("Target: ")}{t.targetedWorks || '-'}</Text>
+                        {!!t.remarkConcern && <Text style={[s.inspectSubText, { color: '#D97706' }]}>{tr("Concern: ")}{tr(t.remarkConcern)}</Text>}
                       </View>
                     ))
                   )}
@@ -1549,19 +1550,19 @@ const { can: canDo } = useProjectPermissions(projectId);
               {viewTab === 'requirements' && (
                 <View style={{ gap: 8 }}>
                   {(viewingDpr?.materialRequirements || []).length === 0 ? (
-                    <Text style={s.emptyHint}>No site requisitions recorded.</Text>
+                    <Text style={s.emptyHint}>{tr("No site requisitions recorded.")}</Text>
                   ) : (
                     (viewingDpr?.materialRequirements || []).map((req, i) => (
                       <View key={i} style={s.inspectItemCard}>
-                        <Text style={s.inspectItemTitle}>{req.materialDescription || 'Material'}</Text>
-                        <Text style={s.inspectSubText}>Quantity: {req.qty || 0} {req.uom || ''}</Text>
+                        <Text style={s.inspectItemTitle}>{req.materialDescription || tr("Material")}</Text>
+                        <Text style={s.inspectSubText}>{tr("Quantity: ")}{req.qty || 0} {req.uom || ''}</Text>
                       </View>
                     ))
                   )}
                   {!!viewingDpr?.siteInstructions && (
                     <View style={s.siteInstructionsBox}>
-                      <Text style={s.siteInstructionsTitle}>Site Instructions / MOMs:</Text>
-                      <Text style={s.siteInstructionsBody}>{viewingDpr.siteInstructions}</Text>
+                      <Text style={s.siteInstructionsTitle}>{tr("Site Instructions / MOMs:")}</Text>
+                      <Text style={s.siteInstructionsBody}>{tr(viewingDpr.siteInstructions)}</Text>
                     </View>
                   )}
                 </View>

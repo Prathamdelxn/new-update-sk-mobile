@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import {
   Modal,
@@ -46,11 +47,11 @@ export default function MarkLostModal({
   const handleSubmit = async () => {
     const trimmed = reason.trim();
     if (!trimmed) {
-      setError('Reason for loss is required');
+      setError(tr("Reason for loss is required"));
       return;
     }
     if (trimmed.length < 3) {
-      setError('Please provide at least 3 characters for the reason');
+      setError(tr("Please provide at least 3 characters for the reason"));
       return;
     }
     setIsSubmitting(true);
@@ -74,7 +75,7 @@ export default function MarkLostModal({
       onClose();
     } catch (error) {
       console.error('Error marking as lost:', error);
-      Alert.alert('Error', error.message || 'Failed to mark lead as lost.');
+      Alert.alert(tr("Error"), error.message || tr("Failed to mark lead as lost."));
     } finally {
       setIsSubmitting(false);
     }
@@ -90,8 +91,8 @@ export default function MarkLostModal({
                 <Ionicons name="close-circle-outline" size={24} color="#E11D48" />
               </View>
               <View>
-                <Text style={s.modalTitle}>Mark as Lost</Text>
-                <Text style={s.modalSubtitle}>Move lead to lost stage</Text>
+                <Text style={s.modalTitle}>{tr("Mark as Lost")}</Text>
+                <Text style={s.modalSubtitle}>{tr("Move lead to lost stage")}</Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
@@ -103,12 +104,12 @@ export default function MarkLostModal({
             <View style={s.warningBox}>
               <Ionicons name="alert-circle-outline" size={20} color="#BE123C" />
               <Text style={s.warningText}>
-                You are about to mark <Text style={{ fontFamily: 'Inter-Bold' }}>{leadName || 'this lead'}</Text> as Lost. They will be moved to the Lost Leads tab.
+                {tr("You are about to mark ")}<Text style={{ fontFamily: 'Inter-Bold' }}>{leadName || tr("this lead")}</Text>{tr(" as Lost. They will be moved to the Lost Leads tab.")}
               </Text>
             </View>
 
             <View style={s.inputContainer}>
-              <Text style={s.label}>Loss Reason Category *</Text>
+              <Text style={s.label}>{tr("Loss Reason Category *")}</Text>
               <View style={s.chipsRow}>
                 {LOST_REASON_CATEGORIES.map((cat) => (
                   <TouchableOpacity
@@ -117,7 +118,7 @@ export default function MarkLostModal({
                     onPress={() => setReasonCategory(cat.value)}
                     activeOpacity={0.7}
                   >
-                    <Text style={[s.chipText, reasonCategory === cat.value && s.chipTextActive]}>{cat.label}</Text>
+                    <Text style={[s.chipText, reasonCategory === cat.value && s.chipTextActive]}>{tr(cat.label)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -125,12 +126,12 @@ export default function MarkLostModal({
 
             <View style={s.inputContainer}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={s.label}>Reason & Notes *</Text>
-                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#E11D48' }}>Required</Text>
+                <Text style={s.label}>{tr("Reason & Notes *")}</Text>
+                <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#E11D48' }}>{tr("Required")}</Text>
               </View>
               <TextInput
                 style={[s.inputArea, error && { borderColor: '#E11D48' }]}
-                placeholder="Explain why the lead was lost (e.g., Client finalized another vendor with lower quotation)..."
+                placeholder={tr("Explain why the lead was lost (e.g., Client finalized another vendor with lower quotation)...")}
                 placeholderTextColor="#94A3B8"
                 value={reason}
                 onChangeText={(t) => { setReason(t); if (error) setError(null); }}
@@ -138,16 +139,16 @@ export default function MarkLostModal({
                 numberOfLines={3}
                 textAlignVertical="top"
               />
-              {!!error && <Text style={{ fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#E11D48', marginTop: 4 }}>{error}</Text>}
+              {!!error && <Text style={{ fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#E11D48', marginTop: 4 }}>{tr(error)}</Text>}
             </View>
           </View>
 
           <View style={s.footer}>
             <TouchableOpacity style={s.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={s.cancelBtnText}>Cancel</Text>
+              <Text style={s.cancelBtnText}>{tr("Cancel")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Confirm Lost</Text>}
+              {isSubmitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>{tr("Confirm Lost")}</Text>}
             </TouchableOpacity>
           </View>
         </View>

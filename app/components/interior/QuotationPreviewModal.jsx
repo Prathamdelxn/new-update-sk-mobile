@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // =============================================================================
 // Interior — quotation document preview (mobile version of the web
 // InteriorQuotationPreviewModal): the A4 quotation document, plus Print,
@@ -13,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../../context/ToastContext';
 import SendQuotationModal from '../crm/SendQuotationModal';
 import { buildQuotationHtml, printQuotation, shareQuotationPdf } from '../../utils/interior/quotationDocument';
+import { useOrgCurrency } from '../../utils/interior/orgCurrency';
 import { formatExactCurrency } from '../../utils/format';
 
 /**
@@ -34,6 +36,9 @@ export default function QuotationPreviewModal({
   onSent,
 }) {
   const { showToast } = useToast();
+  const orgCurrency = useOrgCurrency();
+  // Quote documents: the lead's own currency, else the organisation's (not INR)
+  const docLead = lead ? { ...lead, currency: lead.currency || orgCurrency.code } : lead;
   const [busy, setBusy] = useState(null); // 'print' | 'pdf'
   const [sendTarget, setSendTarget] = useState(null); // 'customer' | 'vendor'
 
@@ -44,10 +49,10 @@ export default function QuotationPreviewModal({
     if (!quote) return;
     setBusy(kind);
     try {
-      await fn(lead, quote);
+      await fn(docLead, quote);
     } catch (e) {
       // Closing the print dialog without printing is not an error
-      if (!/cancel/i.test(e?.message || '')) showToast(e?.message || 'Something went wrong', 'error');
+      if (!/cancel/i.test(e?.message || '')) showToast(e?.message || tr("Something went wrong"), 'error');
     } finally {
       setBusy(null);
     }
@@ -59,12 +64,12 @@ export default function QuotationPreviewModal({
         {/* Header */}
         <View style={s.header}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.title} numberOfLines={1}>{quote?.title || 'Quotation Document'}</Text>
+            <Text style={s.title} numberOfLines={1}>{quote?.title || tr("Quotation Document")}</Text>
             <Text style={s.sub} numberOfLines={1}>
-              Version {quote?.version || (quotationIndex ?? 0) + 1} · {quote?.status || 'Generated'}
+              {tr("Version ")}{quote?.version || (quotationIndex ?? 0) + 1} · {quote?.status || tr("Generated")}
             </Text>
             <Text style={[s.sub, { color: '#334155' }]} numberOfLines={1}>
-              Client: {lead?.name || '—'} • {(quote?.items || []).length} Items ({formatExactCurrency(Number(quote?.grandTotal) || 0, currency)})
+              {tr("Client: ")}{lead?.name || '—'} • {(quote?.items || []).length}{tr(" Items (")}{formatExactCurrency(Number(quote?.grandTotal) || 0, currency)})
             </Text>
           </View>
           <TouchableOpacity onPress={onClose} style={s.iconBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -76,7 +81,7 @@ export default function QuotationPreviewModal({
         {quote && (
           <WebView
             originWhitelist={['*']}
-            source={{ html: buildQuotationHtml(lead, quote) }}
+            source={{ html: buildQuotationHtml(docLead, quote) }}
             style={s.doc}
           />
         )}
@@ -88,11 +93,11 @@ export default function QuotationPreviewModal({
               <View style={s.actionRow}>
                 <TouchableOpacity style={s.secondaryBtn} onPress={() => run('print', printQuotation)} disabled={!!busy}>
                   {busy === 'print' ? <ActivityIndicator size="small" color="#334155" /> : <Ionicons name="print-outline" size={16} color="#334155" />}
-                  <Text style={s.secondaryText}>Print</Text>
+                  <Text style={s.secondaryText}>{tr("Print")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.secondaryBtn} onPress={() => run('pdf', shareQuotationPdf)} disabled={!!busy}>
                   {busy === 'pdf' ? <ActivityIndicator size="small" color="#334155" /> : <Ionicons name="download-outline" size={16} color="#334155" />}
-                  <Text style={s.secondaryText}>Download PDF</Text>
+                  <Text style={s.secondaryText}>{tr("Download PDF")}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -100,11 +105,11 @@ export default function QuotationPreviewModal({
               <View style={s.actionRow}>
                 <TouchableOpacity style={s.clientBtn} onPress={() => setSendTarget('customer')}>
                   <Ionicons name="person-outline" size={16} color="#FFFFFF" />
-                  <Text style={s.primaryText}>Send to Client</Text>
+                  <Text style={s.primaryText}>{tr("Send to Client")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.vendorBtn} onPress={() => setSendTarget('vendor')}>
                   <Ionicons name="storefront-outline" size={16} color="#FFFFFF" />
-                  <Text style={s.primaryText}>Send to Vendor</Text>
+                  <Text style={s.primaryText}>{tr("Send to Vendor")}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -123,7 +128,7 @@ export default function QuotationPreviewModal({
           quotationIndex={quotationIndex}
           onSuccess={() => {
             setSendTarget(null);
-            showToast('Quotation dispatched successfully!', 'success');
+            showToast(tr("Quotation dispatched successfully!"), 'success');
             onSent?.();
           }}
         />

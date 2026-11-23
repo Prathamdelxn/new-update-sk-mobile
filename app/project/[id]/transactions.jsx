@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // import React, { useState, useEffect, useCallback } from 'react';
 // import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 // import { Feather } from '@expo/vector-icons';
@@ -826,7 +827,7 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
 
   const handleSaveTx = async () => {
     if (!amount || isNaN(parseFloat(amount)) || !partyName.trim()) {
-      showToast('Amount and Party Name are required', 'error');
+      showToast(tr("Amount and Party Name are required"), 'error');
       return;
     }
     try {
@@ -866,14 +867,14 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
 
       if (response.ok) {
         setIsTxModalVisible(false);
-        showToast(editingTxId ? 'Transaction updated' : 'Transaction saved', 'success');
+        showToast(editingTxId ? tr("Transaction updated") : tr("Transaction saved"), 'success');
         fetchData();
       } else {
         const err = await response.json();
-        showToast(err.message || 'Operation failed', 'error');
+        showToast(err.message || tr("Operation failed"), 'error');
       }
     } catch (error) {
-      showToast('Failed to save transaction', 'error');
+      showToast(tr("Failed to save transaction"), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -891,10 +892,10 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (response.ok) {
-            showToast('Transaction permanently deleted', 'delete');
+            showToast(tr("Transaction permanently deleted"), 'delete');
             fetchData();
           } else {
-            showToast('Failed to delete transaction', 'error');
+            showToast(tr("Failed to delete transaction"), 'error');
           }
         } catch (error) {
           showToast(t('networkErrorDeleting'), 'error');
@@ -917,21 +918,21 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
         uriToShare = downloadRes.uri;
       } else {
         // Generate on-the-fly for old records
-        showToast('Generating invoice for old record...', 'info');
+        showToast(tr("Generating invoice for old record..."), 'info');
         const html = generateTransactionHTML(item);
         const { uri } = await Print.printToFileAsync({ html });
         uriToShare = uri;
       }
       
       if (await Sharing.isAvailableAsync()) {
-        showToast('Invoice ready, opening options...', 'success');
+        showToast(tr("Invoice ready, opening options..."), 'success');
         await Sharing.shareAsync(uriToShare);
       } else {
-        showToast('Sharing not available', 'error');
+        showToast(tr("Sharing not available"), 'error');
       }
     } catch (error) {
       console.error('Download error:', error);
-      showToast('Failed to process invoice', 'error');
+      showToast(tr("Failed to process invoice"), 'error');
     }
   };
 
@@ -958,7 +959,7 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24, flex: 1 }]}>
         <Feather name="lock" size={48} color="#CBD5E1" />
         <Text style={{ marginTop: 16, fontSize: 16, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center' }}>
-          You do not have permission to view transactions.
+          {tr("You do not have permission to view transactions.")}
         </Text>
       </View>
     );
@@ -971,7 +972,7 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
       <View style={styles.dashboardCard}>
         <View style={styles.dashTop}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.dashLabel}>Available Balance</Text>
+            <Text style={styles.dashLabel}>{tr("Available Balance")}</Text>
             <TouchableOpacity onPress={() => setRevealedBalance(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Feather name={revealedBalance ? 'eye-off' : 'eye'} size={13} color="#94A3B8" />
             </TouchableOpacity>
@@ -994,7 +995,7 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
             </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Text style={styles.dashSubLabel} numberOfLines={1}>Total Inflow</Text>
+                <Text style={styles.dashSubLabel} numberOfLines={1}>{tr("Total Inflow")}</Text>
                 <TouchableOpacity onPress={() => setRevealedInflow(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Feather name={revealedInflow ? 'eye-off' : 'eye'} size={11} color="#94A3B8" />
                 </TouchableOpacity>
@@ -1009,7 +1010,7 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
             </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Text style={styles.dashSubLabel} numberOfLines={1}>Total Outflow</Text>
+                <Text style={styles.dashSubLabel} numberOfLines={1}>{tr("Total Outflow")}</Text>
                 <TouchableOpacity onPress={() => setRevealedOutflow(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Feather name={revealedOutflow ? 'eye-off' : 'eye'} size={11} color="#94A3B8" />
                 </TouchableOpacity>
@@ -1025,7 +1026,7 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           {['All', 'Incoming', 'Outgoing'].map(filter => (
             <TouchableOpacity key={filter} onPress={() => setActiveFilter(filter)} style={[styles.filterChip, activeFilter === filter && styles.filterChipActive]}>
-              <Text style={[styles.filterText, activeFilter === filter && styles.filterTextActive]}>{filter}</Text>
+              <Text style={[styles.filterText, activeFilter === filter && styles.filterTextActive]}>{tr(filter)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -1033,16 +1034,16 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
 
       {/* Header Row with Action */}
       <View style={styles.headerRow}>
-        <Text style={styles.sectionLabel}>FINANCIAL LEDGER</Text>
+        <Text style={styles.sectionLabel}>{tr("FINANCIAL LEDGER")}</Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => {
           if (!hasPermission('transactions', 'create')) {
-            showToast("You don't have permission to add transaction records.", "error");
+            showToast(tr("You don't have permission to add transaction records."), "error");
             return;
           }
           setIsActionSheetVisible(true);
         }}>
           <Feather name="plus" size={16} color="#FFF" />
-          <Text style={styles.addBtnText}>Add Record</Text>
+          <Text style={styles.addBtnText}>{tr("Add Record")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -1053,7 +1054,7 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
             <View style={styles.emptyIconBox}>
               <Feather name="layers" size={32} color="#CBD5E1" />
             </View>
-            <Text style={styles.emptyText}>No financial records found</Text>
+            <Text style={styles.emptyText}>{tr("No financial records found")}</Text>
           </View>
         ) : (
           <View style={styles.txGrid}>
@@ -1065,9 +1066,9 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
                     <Feather name={icon} size={20} color={color} />
                   </View>
                   <View style={styles.txContent}>
-                    <Text style={styles.txParty} numberOfLines={1}>{item.partyName}</Text>
+                    <Text style={styles.txParty} numberOfLines={1}>{tr(item.partyName)}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={styles.txMeta}>{item.type} • {new Date(item.date).toLocaleDateString()}</Text>
+                      <Text style={styles.txMeta}>{tr(item.type)} • {new Date(item.date).toLocaleDateString()}</Text>
                     </View>
                   </View>
                   <View style={styles.txRight}>
@@ -1080,7 +1081,7 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
                         numberOfLines={revealedTxIds.has(item._id) ? undefined : 1}
                         ellipsizeMode="tail"
                       >
-                        {prefix}{project?.currency || '$'} {Number(item.amount).toLocaleString('en-US')}
+                        {tr(prefix)}{project?.currency || '$'} {Number(item.amount).toLocaleString('en-US')}
                       </Text>
                     </View>
                     <View style={styles.txActionRow}>
@@ -1138,15 +1139,15 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
           <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setIsActionSheetVisible(false)} />
           <View style={styles.sheetContent}>
             <View style={styles.sheetDragHandle} />
-            <Text style={styles.sheetTitle}>Record Transaction</Text>
+            <Text style={styles.sheetTitle}>{tr("Record Transaction")}</Text>
             
             <TouchableOpacity style={styles.sheetBtn} onPress={() => handleActionSelect('Incoming')}>
               <View style={[styles.sheetIconBox, { backgroundColor: '#ECFDF5' }]}>
                 <Feather name="arrow-down-left" size={20} color="#10B981" />
               </View>
               <View>
-                <Text style={styles.sheetBtnTitle}>Incoming Funds</Text>
-                <Text style={styles.sheetBtnSub}>Money received from client or HO</Text>
+                <Text style={styles.sheetBtnTitle}>{tr("Incoming Funds")}</Text>
+                <Text style={styles.sheetBtnSub}>{tr("Money received from client or HO")}</Text>
               </View>
             </TouchableOpacity>
 
@@ -1155,8 +1156,8 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
                 <Feather name="arrow-up-right" size={20} color="#EF4444" />
               </View>
               <View>
-                <Text style={styles.sheetBtnTitle}>Outgoing Payment</Text>
-                <Text style={styles.sheetBtnSub}>Money paid to vendor or labor</Text>
+                <Text style={styles.sheetBtnTitle}>{tr("Outgoing Payment")}</Text>
+                <Text style={styles.sheetBtnSub}>{tr("Money paid to vendor or labor")}</Text>
               </View>
             </TouchableOpacity>
 
@@ -1165,8 +1166,8 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
                 <Feather name="alert-triangle" size={20} color="#F59E0B" />
               </View>
               <View>
-                <Text style={styles.sheetBtnTitle}>Debit Note</Text>
-                <Text style={styles.sheetBtnSub}>Record penalties or deductions</Text>
+                <Text style={styles.sheetBtnTitle}>{tr("Debit Note")}</Text>
+                <Text style={styles.sheetBtnSub}>{tr("Record penalties or deductions")}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -1178,7 +1179,7 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New {txType}</Text>
+              <Text style={styles.modalTitle}>{tr("New ")}{tr(txType)}</Text>
               <TouchableOpacity onPress={() => setIsTxModalVisible(false)} style={styles.closeBtn}>
                 <Feather name="x" size={20} color="#64748B" />
               </TouchableOpacity>
@@ -1186,28 +1187,28 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Amount ($)</Text>
+                <Text style={styles.label}>{tr("Amount ({{currency}})", { currency: project?.currency || 'AED' })}</Text>
                 <TextInput style={styles.input} keyboardType="numeric" value={amount} onChangeText={(val) => setAmount(val.replace(/[^0-9.]/g, ''))} placeholder="0.00" />
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>{txType === 'Incoming' ? 'Received From' : txType === 'Outgoing' ? 'Paid To' : 'Issued To'}</Text>
-                <TextInput style={styles.input} value={partyName} onChangeText={setPartyName} placeholder="Name of party..." />
+                <Text style={styles.label}>{txType === 'Incoming' ? tr("Received From") : txType === 'Outgoing' ? tr("Paid To") : tr("Issued To")}</Text>
+                <TextInput style={styles.input} value={partyName} onChangeText={setPartyName} placeholder={tr("Name of party...")} />
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Description / Remarks (Optional)</Text>
-                <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]} multiline value={description} onChangeText={setDescription} placeholder="Enter any notes..." />
+                <Text style={styles.label}>{tr("Description / Remarks (Optional)")}</Text>
+                <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]} multiline value={description} onChangeText={setDescription} placeholder={tr("Enter any notes...")} />
               </View>
 
               <View style={styles.autoGenBanner}>
                 <Feather name="file-text" size={20} color="#3B82F6" />
-                <Text style={styles.autoGenText}>Digital Invoice will be auto-generated</Text>
+                <Text style={styles.autoGenText}>{tr("Digital Invoice will be auto-generated")}</Text>
               </View>
             </ScrollView>
 
             <TouchableOpacity style={styles.submitBtn} onPress={handleSaveTx} disabled={isSubmitting}>
-              {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Save</Text>}
+              {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>{tr("Save")}</Text>}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -1217,14 +1218,14 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
       <Modal visible={confirmModal.visible} transparent animationType="fade">
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmBox}>
-            <Text style={styles.confirmTitle}>{confirmModal.title}</Text>
-            <Text style={styles.confirmText}>{confirmModal.message}</Text>
+            <Text style={styles.confirmTitle}>{tr(confirmModal.title)}</Text>
+            <Text style={styles.confirmText}>{tr(confirmModal.message)}</Text>
             <View style={styles.confirmActions}>
               <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setConfirmModal({ visible: false })}>
-                <Text style={styles.confirmCancelText}>Cancel</Text>
+                <Text style={styles.confirmCancelText}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.confirmDeleteBtn} onPress={confirmModal.onConfirm}>
-                <Text style={styles.confirmDeleteText}>Delete</Text>
+                <Text style={styles.confirmDeleteText}>{tr("Delete")}</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, StatusBar, Image, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,7 +63,7 @@ export default function ViewTemplateScreen() {
         }
         // A real "not found" won't change on retry
         if (response.status === 404 || attempt === 2) {
-          if (!cached) showToast(data.message || 'Could not load template', 'error');
+          if (!cached) showToast(data.message || tr("Could not load template"), 'error');
           break;
         }
       } catch (e) {
@@ -91,9 +92,9 @@ export default function ViewTemplateScreen() {
   if (!template) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Template not found</Text>
+        <Text style={styles.loadingText}>{tr("Template not found")}</Text>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={{ color: '#3B82F6', marginTop: 10 }}>Go Back</Text>
+          <Text style={{ color: '#3B82F6', marginTop: 10 }}>{tr("Go Back")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -133,8 +134,8 @@ export default function ViewTemplateScreen() {
           </TouchableOpacity>
           
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerPreTitle}>Viewing Template</Text>
-            <Text style={styles.headerTitle}>{template.name}</Text>
+            <Text style={styles.headerPreTitle}>{tr("Viewing Template")}</Text>
+            <Text style={styles.headerTitle}>{tr(template.name)}</Text>
           </View>
         </View>
 
@@ -148,43 +149,43 @@ export default function ViewTemplateScreen() {
               </View>
               <View style={styles.categoryPill}>
                 <Text style={styles.categoryPillText}>
-                  {template.category?.name || 'Uncategorized'}
+                  {template.category?.name || tr("Uncategorized")}
                 </Text>
               </View>
             </View>
             
-            <Text style={styles.heroTitle}>{template.name}</Text>
+            <Text style={styles.heroTitle}>{tr(template.name)}</Text>
             {template.description ? (
-              <Text style={styles.heroDesc}>{template.description}</Text>
+              <Text style={styles.heroDesc}>{tr(template.description)}</Text>
             ) : (
               <Text style={styles.heroDesc}>
-                A professional template designed for {template.category?.name || 'standard'} projects.
+                {tr("A professional template designed for ")}{template.category?.name || tr("standard")}{tr(" projects.")}
               </Text>
             )}
 
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
-                <Text style={styles.statLabel}>Budget range</Text>
+                <Text style={styles.statLabel}>{tr("Budget range")}</Text>
                 <Text style={styles.statValue}>
                   ${formatCompact(template.minBudget)} - ${formatCompact(template.maxBudget)}
                 </Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Text style={styles.statLabel}>Est. Area</Text>
-                <Text style={styles.statValue}>{template.area?.toLocaleString('en-US')} sqft</Text>
+                <Text style={styles.statLabel}>{tr("Est. Area")}</Text>
+                <Text style={styles.statValue}>{template.area?.toLocaleString('en-US')}{tr(" sqft")}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Text style={styles.statLabel}>Timeline</Text>
-                <Text style={styles.statValue}>{template.estimatedDays || '--'} Days</Text>
+                <Text style={styles.statLabel}>{tr("Timeline")}</Text>
+                <Text style={styles.statValue}>{template.estimatedDays || '--'}{tr(" Days")}</Text>
               </View>
             </View>
           </AdaptiveGlass>
 
           {/* Media Gallery */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Photos & Visuals</Text>
+            <Text style={styles.sectionLabel}>{tr("Photos & Visuals")}</Text>
             {template.images && template.images.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.imageGallery}>
                 {template.images.map((img, idx) => (
@@ -196,14 +197,14 @@ export default function ViewTemplateScreen() {
             ) : (
               <AdaptiveGlass intensity={10} tint="light" style={styles.emptyStateCard}>
                 <Ionicons name="images-outline" size={28} color="#94A3B8" />
-                <Text style={styles.emptyTitle}>No photos uploaded</Text>
+                <Text style={styles.emptyTitle}>{tr("No photos uploaded")}</Text>
               </AdaptiveGlass>
             )}
           </View>
 
           {/* Plan Files */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Plan Files & Documents</Text>
+            <Text style={styles.sectionLabel}>{tr("Plan Files & Documents")}</Text>
             {template.files && template.files.length > 0 ? (
               <View style={styles.fileList}>
                 {template.files.map((file, idx) => (
@@ -213,9 +214,9 @@ export default function ViewTemplateScreen() {
                     </View>
                     <View style={styles.fileInfo}>
                       <Text style={styles.fileName} numberOfLines={1}>
-                        Project File {idx + 1}
+                        {tr("Project File ")}{idx + 1}
                       </Text>
-                      <Text style={styles.fileSize}>Architectural Plan</Text>
+                      <Text style={styles.fileSize}>{tr("Architectural Plan")}</Text>
                     </View>
                     <TouchableOpacity style={styles.downloadBtn}>
                       <Ionicons name="download-outline" size={20} color="#64748B" />
@@ -226,7 +227,7 @@ export default function ViewTemplateScreen() {
             ) : (
               <AdaptiveGlass intensity={10} tint="light" style={styles.emptyStateCard}>
                 <Ionicons name="document-text-outline" size={28} color="#3B82F6" />
-                <Text style={styles.emptyTitle}>No files attached</Text>
+                <Text style={styles.emptyTitle}>{tr("No files attached")}</Text>
               </AdaptiveGlass>
             )}
           </View>

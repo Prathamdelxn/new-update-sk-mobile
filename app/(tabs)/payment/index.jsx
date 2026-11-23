@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, ActivityIndicator, Dimensions, Modal, TextInput,
@@ -98,7 +99,7 @@ const StatusBadge = ({ status }) => {
   return (
     <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
       <View style={[styles.statusDot, { backgroundColor: s.dot }]} />
-      <Text style={[styles.statusText, { color: s.text }]}>{status}</Text>
+      <Text style={[styles.statusText, { color: s.text }]}>{tr(status)}</Text>
     </View>
   );
 };
@@ -113,9 +114,9 @@ const UsageBar = ({ label, used, max, accentColor }) => {
   return (
     <View style={styles.usageBarWrap}>
       <View style={styles.usageBarHeader}>
-        <Text style={styles.usageBarLabel}>{label}</Text>
+        <Text style={styles.usageBarLabel}>{tr(label)}</Text>
         <Text style={[styles.usageBarCount, isOver && { color: '#EF4444', fontFamily: 'Inter-Black' }]}>
-          {used} / {isUnlimited ? '∞' : max}
+          {tr(used)} / {isUnlimited ? '∞' : max}
         </Text>
       </View>
       <View style={styles.usageTrack}>
@@ -136,7 +137,7 @@ const FeatureRow = ({ label, included }) => (
       />
     </View>
     <Text style={[styles.featureLabel, !included && styles.featureLabelOff]}>
-      {label}
+      {tr(label)}
     </Text>
   </View>
 );
@@ -279,7 +280,7 @@ export default function PlanBillingScreen() {
           {!loading && error && (
             <AdaptiveGlass intensity={20} tint="light" style={styles.errorCard}>
               <Ionicons name="alert-circle" size={32} color="#EF4444" />
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>{tr(error)}</Text>
               <TouchableOpacity style={styles.retryBtn} onPress={fetchSubscription} activeOpacity={0.8}>
                 <Text style={styles.retryText}>{t('retry')}</Text>
               </TouchableOpacity>
@@ -320,7 +321,7 @@ export default function PlanBillingScreen() {
                 <View style={styles.planCardTop}>
                   <View>
                     <Text style={styles.planCardLabel}>{t('currentPlanLabel')}</Text>
-                    <Text style={styles.planCardName}>{plan}</Text>
+                    <Text style={styles.planCardName}>{tr(plan)}</Text>
                   </View>
                   <View style={styles.planCardIconWrap}>
                     <Ionicons name={meta.iconName} size={32} color="rgba(255,255,255,0.9)" />
@@ -366,7 +367,7 @@ export default function PlanBillingScreen() {
               <AdaptiveGlass intensity={20} tint="light" style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('whatsIncluded')}</Text>
                 {features.map((f) => (
-                  <FeatureRow key={f.label} label={f.label} included={f.included} />
+                  <FeatureRow key={f.label} label={tr(f.label)} included={f.included} />
                 ))}
               </AdaptiveGlass>
 
@@ -402,7 +403,7 @@ export default function PlanBillingScreen() {
                     </Text>
                   </View>
                   {planRequest.reviewNote ? (
-                    <Text style={styles.reqBannerNote}>"{planRequest.reviewNote}"</Text>
+                    <Text style={styles.reqBannerNote}>"{tr(planRequest.reviewNote)}"</Text>
                   ) : null}
                   {planRequest.status === 'Pending' && (
                     <TouchableOpacity
@@ -443,7 +444,7 @@ export default function PlanBillingScreen() {
                     >
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <Ionicons name={m.iconName} size={20} color="rgba(255,255,255,0.9)" />
-                        <Text style={styles.planChoiceName}>{p}</Text>
+                        <Text style={styles.planChoiceName}>{tr(p)}</Text>
                       </View>
                       {isCurrent && (
                         <View style={styles.currentBadge}>
@@ -458,7 +459,7 @@ export default function PlanBillingScreen() {
                     </LinearGradient>
                     <View style={styles.planChoiceBody}>
                       {planFeat.slice(0, 6).map((f) => (
-                        <FeatureRow key={f.label} label={f.label} included={f.included} />
+                        <FeatureRow key={f.label} label={tr(f.label)} included={f.included} />
                       ))}
                       {!isCurrent && (
                         <TouchableOpacity
@@ -492,8 +493,8 @@ export default function PlanBillingScreen() {
                     <View key={i} style={[styles.historyRow, i < Math.min(sub.history.length, 5) - 1 && styles.historyDivider]}>
                       <View style={[styles.historyDot, { backgroundColor: meta.accentColor }]} />
                       <View style={styles.historyInfo}>
-                        <Text style={styles.historyTitle}>{h.plan} — {h.status}</Text>
-                        {h.reason ? <Text style={styles.historyReason}>{h.reason}</Text> : null}
+                        <Text style={styles.historyTitle}>{tr(h.plan)} — {tr(h.status)}</Text>
+                        {h.reason ? <Text style={styles.historyReason}>{tr(h.reason)}</Text> : null}
                         <Text style={styles.historyDate}>
                           {h.timestamp ? new Date(h.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
                         </Text>
@@ -536,7 +537,7 @@ export default function PlanBillingScreen() {
               textAlignVertical="top"
             />
             {submitError ? (
-              <Text style={styles.submitError}>{submitError}</Text>
+              <Text style={styles.submitError}>{tr(submitError)}</Text>
             ) : null}
             <TouchableOpacity
               style={[styles.submitBtn, submitting && { opacity: 0.6 }]}

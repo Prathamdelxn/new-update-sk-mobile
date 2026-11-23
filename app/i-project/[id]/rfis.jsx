@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -104,7 +105,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setRfis(res?.success && res?.data ? res.data : []);
     } catch (e) {
       console.error('Failed to load RFIs', e);
-      showToast('Failed to fetch RFIs registry', 'error');
+      showToast(tr("Failed to fetch RFIs registry"), 'error');
     } finally {
       setLoading(false);
     }
@@ -114,7 +115,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleCreate = async () => {
     if (!form.subject.trim() || !form.question.trim()) {
-      showToast('Please fill in subject and question', 'error');
+      showToast(tr("Please fill in subject and question"), 'error');
       return;
     }
     setSubmitting(true);
@@ -125,12 +126,12 @@ const { can: canDo } = useProjectPermissions(projectId);
         priority: form.priority,
         dueDate: form.dueDate || undefined,
       });
-      showToast('RFI raised successfully!', 'success');
+      showToast(tr("RFI raised successfully!"), 'success');
       setIsModalOpen(false);
       setForm(emptyForm);
       fetchRfis();
     } catch (e) {
-      showToast(e.message || 'Failed to submit RFI', 'error');
+      showToast(e.message || tr("Failed to submit RFI"), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -141,12 +142,12 @@ const { can: canDo } = useProjectPermissions(projectId);
     setPosting(true);
     try {
       await interiorApiClient.put(`/projects/${projectId}/rfis`, { rfiId: selectedRfi._id, response: responseText });
-      showToast('Response posted successfully!', 'success');
+      showToast(tr("Response posted successfully!"), 'success');
       setResponseText('');
       setSelectedRfi(null);
       fetchRfis();
     } catch (e) {
-      showToast(e.message || 'Failed to post response', 'error');
+      showToast(e.message || tr("Failed to post response"), 'error');
     } finally {
       setPosting(false);
     }
@@ -155,28 +156,28 @@ const { can: canDo } = useProjectPermissions(projectId);
   const closeRfi = async (rfi) => {
     try {
       await interiorApiClient.put(`/projects/${projectId}/rfis`, { rfiId: rfi._id, status: 'closed' });
-      showToast('RFI closed and verified', 'success');
+      showToast(tr("RFI closed and verified"), 'success');
       setSelectedRfi(null);
       fetchRfis();
     } catch (e) {
-      showToast(e.message || 'Failed to close RFI', 'error');
+      showToast(e.message || tr("Failed to close RFI"), 'error');
     }
   };
 
   const deleteRfi = (rfi) => {
-    Alert.alert('Delete RFI', `Delete "${rfi.subject}"? This can't be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete RFI"), tr("Delete \"{{subject}}\"? This can't be undone.", { subject: rfi.subject }), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete',
+        text: tr("Delete"),
         style: 'destructive',
         onPress: async () => {
           try {
             await interiorApiClient.delete(`/projects/${projectId}/rfis?rfiId=${rfi._id}`);
-            showToast('RFI deleted', 'success');
+            showToast(tr("RFI deleted"), 'success');
             setSelectedRfi(null);
             fetchRfis();
           } catch (e) {
-            showToast(e.message || 'Failed to delete RFI', 'error');
+            showToast(e.message || tr("Failed to delete RFI"), 'error');
           }
         },
       },
@@ -192,7 +193,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Requests For Information</Text>
+            <Text style={s.headerTitle}>{tr("Requests For Information")}</Text>
           </View>
         </View>
 
@@ -203,7 +204,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             {rfis.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="chatbox-ellipses-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No RFIs raised yet</Text>
+                <Text style={s.emptyTitle}>{tr("No RFIs raised yet")}</Text>
               </View>
             ) : (
               rfis.map((rfi) => {
@@ -214,25 +215,25 @@ const { can: canDo } = useProjectPermissions(projectId);
                     <View style={s.rfiTopRow}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <Ionicons name="chatbox-outline" size={12} color="#64748B" />
-                        <Text style={s.rfiNumber}>{rfi.rfiNumber}</Text>
+                        <Text style={s.rfiNumber}>{tr(rfi.rfiNumber)}</Text>
                       </View>
                       <View style={{ flexDirection: 'row', gap: 6 }}>
                         <View style={[s.pill, { backgroundColor: priority.bg }]}>
-                          <Text style={[s.pillText, { color: priority.color }]}>{rfi.priority}</Text>
+                          <Text style={[s.pillText, { color: priority.color }]}>{tr(rfi.priority)}</Text>
                         </View>
                         <View style={[s.pill, { backgroundColor: status.bg }]}>
-                          <Text style={[s.pillText, { color: status.color }]}>{rfi.status}</Text>
+                          <Text style={[s.pillText, { color: status.color }]}>{tr(rfi.status)}</Text>
                         </View>
                       </View>
                     </View>
-                    <Text style={s.rfiSubject} numberOfLines={1}>{rfi.subject}</Text>
-                    <Text style={s.rfiQuestion} numberOfLines={2}>{rfi.question}</Text>
+                    <Text style={s.rfiSubject} numberOfLines={1}>{tr(rfi.subject)}</Text>
+                    <Text style={s.rfiQuestion} numberOfLines={2}>{tr(rfi.question)}</Text>
                     <View style={s.rfiBottomRow}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <Ionicons name="calendar-outline" size={12} color="#3B82F6" />
-                        <Text style={s.dueText}>Due: {formatDate(rfi.dueDate)}</Text>
+                        <Text style={s.dueText}>{tr("Due: ")}{formatDate(rfi.dueDate)}</Text>
                       </View>
-                      <Text style={s.viewThreadText}>View thread →</Text>
+                      <Text style={s.viewThreadText}>{tr("View thread →")}</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -254,40 +255,40 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Raise Design RFI</Text>
+              <Text style={s.modalTitle}>{tr("Raise Design RFI")}</Text>
               <TouchableOpacity onPress={() => setIsModalOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Subject Title *</Text>
-              <TextInput style={s.input} placeholder="e.g. Glass partition core alignment" placeholderTextColor="#94A3B8" value={form.subject} onChangeText={(v) => setForm({ ...form, subject: v })} />
+              <Text style={s.label}>{tr("Subject Title *")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Glass partition core alignment")} placeholderTextColor="#94A3B8" value={form.subject} onChangeText={(v) => setForm({ ...form, subject: v })} />
 
-              <Text style={s.label}>Clarification Question *</Text>
+              <Text style={s.label}>{tr("Clarification Question *")}</Text>
               <TextInput
                 style={[s.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
-                placeholder="Specify drawing discrepancy details..."
+                placeholder={tr("Specify drawing discrepancy details...")}
                 placeholderTextColor="#94A3B8"
                 value={form.question}
                 onChangeText={(v) => setForm({ ...form, question: v })}
                 multiline
               />
 
-              <Text style={s.label}>Priority</Text>
+              <Text style={s.label}>{tr("Priority")}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                 {PRIORITIES.map((p) => (
                   <TouchableOpacity key={p} style={[s.chip, form.priority === p && s.chipActive]} onPress={() => setForm({ ...form, priority: p })}>
-                    <Text style={[s.chipText, form.priority === p && s.chipTextActive]}>{p}</Text>
+                    <Text style={[s.chipText, form.priority === p && s.chipTextActive]}>{tr(p)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.label}>Due Date</Text>
+              <Text style={s.label}>{tr("Due Date")}</Text>
               <DateField value={form.dueDate} onChange={(v) => setForm({ ...form, dueDate: v })} inputStyle={s.input} />
 
               <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleCreate} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Submit RFI</Text>}
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Submit RFI")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -302,8 +303,8 @@ const { can: canDo } = useProjectPermissions(projectId);
               <>
                 <View style={s.modalHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.rfiNumber}>{selectedRfi.rfiNumber}</Text>
-                    <Text style={s.modalTitle} numberOfLines={1}>{selectedRfi.subject}</Text>
+                    <Text style={s.rfiNumber}>{tr(selectedRfi.rfiNumber)}</Text>
+                    <Text style={s.modalTitle} numberOfLines={1}>{tr(selectedRfi.subject)}</Text>
                   </View>
                   <TouchableOpacity onPress={() => setSelectedRfi(null)}>
                     <Ionicons name="close" size={22} color="#64748B" />
@@ -311,16 +312,16 @@ const { can: canDo } = useProjectPermissions(projectId);
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false}>
-                  <Text style={s.label}>Question Description</Text>
+                  <Text style={s.label}>{tr("Question Description")}</Text>
                   <View style={s.questionBox}>
-                    <Text style={s.questionText}>{selectedRfi.question}</Text>
+                    <Text style={s.questionText}>{tr(selectedRfi.question)}</Text>
                   </View>
 
                   {!!selectedRfi.response && (
                     <>
-                      <Text style={s.label}>Latest Response</Text>
+                      <Text style={s.label}>{tr("Latest Response")}</Text>
                       <View style={[s.questionBox, { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE' }]}>
-                        <Text style={s.questionText}>{selectedRfi.response}</Text>
+                        <Text style={s.questionText}>{tr(selectedRfi.response)}</Text>
                       </View>
                     </>
                   )}
@@ -330,15 +331,15 @@ const { can: canDo } = useProjectPermissions(projectId);
                       {canDo('rfis', 'update') && (
                         <TouchableOpacity style={s.resolveBtn} onPress={() => closeRfi(selectedRfi)}>
                           <Ionicons name="checkmark-circle-outline" size={16} color="#16A34A" />
-                          <Text style={s.resolveBtnText}>Mark Resolved & Close</Text>
+                          <Text style={s.resolveBtnText}>{tr("Mark Resolved & Close")}</Text>
                         </TouchableOpacity>
                       )}
 
-                      <Text style={s.label}>Post a Response</Text>
+                      <Text style={s.label}>{tr("Post a Response")}</Text>
                       <View style={s.responseRow}>
                         <TextInput
                           style={s.responseInput}
-                          placeholder="Type consultant response or clarification note..."
+                          placeholder={tr("Type consultant response or clarification note...")}
                           placeholderTextColor="#94A3B8"
                           value={responseText}
                           onChangeText={setResponseText}
@@ -354,7 +355,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                   {canDo('rfis', 'delete') && (
                     <TouchableOpacity style={s.deleteRfiBtn} onPress={() => deleteRfi(selectedRfi)}>
                       <Ionicons name="trash-outline" size={15} color="#E11D48" />
-                      <Text style={s.deleteRfiText}>Delete RFI</Text>
+                      <Text style={s.deleteRfiText}>{tr("Delete RFI")}</Text>
                     </TouchableOpacity>
                   )}
                   <View style={{ height: 20 }} />

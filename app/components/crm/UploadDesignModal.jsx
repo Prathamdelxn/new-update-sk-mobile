@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useMemo, useState } from 'react';
 import {
   Modal,
@@ -140,19 +141,19 @@ export default function UploadDesignModal({
       }
     } catch (e) {
       console.log('Document picker error:', e);
-      Alert.alert('Picker Error', 'Failed to pick file from device.');
+      Alert.alert(tr("Picker Error"), tr("Failed to pick file from device."));
     }
   };
 
   const handleAddToQueue = () => {
     if (!selectedFile) {
-      Alert.alert('File Required', 'Please select a file to stage.');
+      Alert.alert(tr("File Required"), tr("Please select a file to stage."));
       return;
     }
     const titleError = getTitleValidationError(title);
     if (titleError) {
       setTitleTouched(true);
-      Alert.alert('Invalid Title', titleError);
+      Alert.alert(tr("Invalid Title"), titleError);
       return;
     }
     setQueuedFiles((prev) => [
@@ -177,7 +178,7 @@ export default function UploadDesignModal({
 
   const handleSubmit = async () => {
     if (isReadOnly) {
-      Alert.alert('Locked', 'This lead is read-only and cannot be edited.');
+      Alert.alert(tr("Locked"), tr("This lead is read-only and cannot be edited."));
       return;
     }
 
@@ -185,13 +186,13 @@ export default function UploadDesignModal({
 
     if (itemsToUpload.length === 0) {
       if (!selectedFile) {
-        Alert.alert('Error', 'Please choose a drawing file to upload.');
+        Alert.alert(tr("Error"), tr("Please choose a drawing file to upload."));
         return;
       }
       const titleError = getTitleValidationError(title);
       if (titleError) {
         setTitleTouched(true);
-        Alert.alert('Invalid Title', titleError);
+        Alert.alert(tr("Invalid Title"), titleError);
         return;
       }
       itemsToUpload.push({
@@ -253,7 +254,7 @@ export default function UploadDesignModal({
       onClose();
     } catch (error) {
       console.error('Error uploading design:', error);
-      Alert.alert('Upload Failed', error.message || 'Failed to upload design file. Please try again.');
+      Alert.alert(tr("Upload Failed"), error.message || tr("Failed to upload design file. Please try again."));
     } finally {
       setIsSubmitting(false);
     }
@@ -281,8 +282,8 @@ export default function UploadDesignModal({
         <View style={s.modalContent}>
           <View style={s.modalHeader}>
             <View>
-              <Text style={s.modalTitle}>Upload New Drawing</Text>
-              <Text style={s.modalSubtitle}>Each drawing starts as a draft and must be sent for approval.</Text>
+              <Text style={s.modalTitle}>{tr("Upload New Drawing")}</Text>
+              <Text style={s.modalSubtitle}>{tr("Each drawing starts as a draft and must be sent for approval.")}</Text>
             </View>
             <TouchableOpacity onPress={closeModal} style={s.closeBtn}>
               <Ionicons name="close" size={24} color="#64748B" />
@@ -292,12 +293,12 @@ export default function UploadDesignModal({
           <ScrollView style={s.modalBody} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
             {queuedFiles.length > 0 && (
               <View style={s.queueBox}>
-                <Text style={s.queueLabel}>STAGED FOR UPLOAD ({queuedFiles.length})</Text>
+                <Text style={s.queueLabel}>{tr("STAGED FOR UPLOAD (")}{queuedFiles.length})</Text>
                 {queuedFiles.map((q) => (
                   <View key={q.id} style={s.queueRow}>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={s.queueRowTitle} numberOfLines={1}>{q.title}</Text>
-                      <Text style={s.queueRowSub} numberOfLines={1}>{q.roomTag} • {q.category} • {q.name}</Text>
+                      <Text style={s.queueRowTitle} numberOfLines={1}>{tr(q.title)}</Text>
+                      <Text style={s.queueRowSub} numberOfLines={1}>{tr(q.roomTag)} • {tr(q.category)} • {tr(q.name)}</Text>
                     </View>
                     <TouchableOpacity onPress={() => removeQueuedFile(q.id)}>
                       <Ionicons name="trash-outline" size={16} color="#DC2626" />
@@ -309,23 +310,23 @@ export default function UploadDesignModal({
 
             <View style={s.inputContainer}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={s.label}>Drawing Title *</Text>
+                <Text style={s.label}>{tr("Drawing Title *")}</Text>
                 <Text style={[s.charCount, title.length > 45 && { color: '#D97706' }]}>{title.length}/50</Text>
               </View>
               <TextInput
                 style={[s.input, titleError && s.inputError]}
-                placeholder="e.g. Master Bedroom 3D View"
+                placeholder={tr("e.g. Master Bedroom 3D View")}
                 placeholderTextColor="#94A3B8"
                 value={title}
                 onChangeText={(v) => setTitle(v)}
                 onBlur={() => setTitleTouched(true)}
                 maxLength={60}
               />
-              {!!titleError && <Text style={s.errorText}>{titleError}</Text>}
+              {!!titleError && <Text style={s.errorText}>{tr(titleError)}</Text>}
             </View>
 
             <View style={s.inputContainer}>
-              <Text style={s.label}>Category</Text>
+              <Text style={s.label}>{tr("Category")}</Text>
               <View style={s.chipOptions}>
                 {['2D', '3D'].map((cat) => (
                   <TouchableOpacity
@@ -333,16 +334,16 @@ export default function UploadDesignModal({
                     style={[s.optionChip, category === cat && s.optionChipActive]}
                     onPress={() => setCategory(cat)}
                   >
-                    <Text style={[s.optionChipText, category === cat && s.optionChipTextActive]}>{cat} Drawing</Text>
+                    <Text style={[s.optionChipText, category === cat && s.optionChipTextActive]}>{tr(cat)}{tr(" Drawing")}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
 
             <View style={s.inputContainer}>
-              <Text style={s.label}>Room / Area</Text>
+              <Text style={s.label}>{tr("Room / Area")}</Text>
               <TouchableOpacity style={s.dropdownBtn} onPress={() => setShowRoomDropdown((v) => !v)}>
-                <Text style={s.dropdownBtnText} numberOfLines={1}>{roomTag}</Text>
+                <Text style={s.dropdownBtnText} numberOfLines={1}>{tr(roomTag)}</Text>
                 <Ionicons name={showRoomDropdown ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
               </TouchableOpacity>
               {showRoomDropdown && (
@@ -354,7 +355,7 @@ export default function UploadDesignModal({
                         style={s.dropdownItem}
                         onPress={() => { setRoomTag(room); setShowRoomDropdown(false); }}
                       >
-                        <Text style={[s.dropdownItemText, roomTag === room && s.dropdownItemTextActive]}>{room}</Text>
+                        <Text style={[s.dropdownItemText, roomTag === room && s.dropdownItemTextActive]}>{tr(room)}</Text>
                         {roomTag === room && <Ionicons name="checkmark" size={14} color="#2563EB" />}
                       </TouchableOpacity>
                     ))}
@@ -364,7 +365,7 @@ export default function UploadDesignModal({
               {roomTag === 'Other / Custom Area' && (
                 <TextInput
                   style={[s.input, { marginTop: 8 }]}
-                  placeholder="Enter custom room / area name"
+                  placeholder={tr("Enter custom room / area name")}
                   placeholderTextColor="#94A3B8"
                   value={customRoomInput}
                   onChangeText={setCustomRoomInput}
@@ -373,7 +374,7 @@ export default function UploadDesignModal({
             </View>
 
             <View style={s.inputContainer}>
-              <Text style={s.label}>Upload File *</Text>
+              <Text style={s.label}>{tr("Upload File *")}</Text>
               {selectedFile ? (
                 <View style={{ borderRadius: 10, overflow: 'hidden', backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' }}>
                   {selectedFile.fileType === 'image' && (
@@ -392,7 +393,7 @@ export default function UploadDesignModal({
                       color="#2563EB"
                     />
                     <Text style={{ flex: 1, marginLeft: 8, fontSize: 14, color: '#0F172A', fontFamily: 'Inter-Medium' }} numberOfLines={1}>
-                      {selectedFile.name}
+                      {tr(selectedFile.name)}
                     </Text>
                     {selectedFile.fileType === 'image' && (
                       <TouchableOpacity
@@ -400,7 +401,7 @@ export default function UploadDesignModal({
                         style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, marginRight: 6 }}
                       >
                         <Ionicons name="eye-outline" size={14} color="#2563EB" />
-                        <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#2563EB', marginLeft: 4 }}>Preview</Text>
+                        <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#2563EB', marginLeft: 4 }}>{tr("Preview")}</Text>
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity onPress={() => setSelectedFile(null)}>
@@ -414,8 +415,8 @@ export default function UploadDesignModal({
                   onPress={pickDocument}
                 >
                   <Ionicons name="cloud-upload-outline" size={32} color="#94A3B8" />
-                  <Text style={{ marginTop: 8, color: '#64748B', fontFamily: 'Inter-Medium', fontSize: 14 }}>Tap to select file from device</Text>
-                  <Text style={{ marginTop: 4, color: '#94A3B8', fontFamily: 'Inter-Regular', fontSize: 12.5 }}>Images, PDFs, DWG, OBJ, FBX and more</Text>
+                  <Text style={{ marginTop: 8, color: '#64748B', fontFamily: 'Inter-Medium', fontSize: 14 }}>{tr("Tap to select file from device")}</Text>
+                  <Text style={{ marginTop: 4, color: '#94A3B8', fontFamily: 'Inter-Regular', fontSize: 12.5 }}>{tr("Images, PDFs, DWG, OBJ, FBX and more")}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -423,7 +424,7 @@ export default function UploadDesignModal({
             {selectedFile && (
               <TouchableOpacity style={s.stageBtn} onPress={handleAddToQueue}>
                 <Ionicons name="add-circle-outline" size={16} color="#0284C7" />
-                <Text style={s.stageBtnText}>Stage & Add Another Drawing</Text>
+                <Text style={s.stageBtnText}>{tr("Stage & Add Another Drawing")}</Text>
               </TouchableOpacity>
             )}
 
@@ -432,12 +433,12 @@ export default function UploadDesignModal({
 
           <View style={s.footer}>
             <TouchableOpacity style={isReadOnly ? s.saveBtn : s.cancelBtn} onPress={closeModal} disabled={isSubmitting}>
-              <Text style={isReadOnly ? s.saveBtnText : s.cancelBtnText}>{isReadOnly ? 'Close' : 'Cancel'}</Text>
+              <Text style={isReadOnly ? s.saveBtnText : s.cancelBtnText}>{isReadOnly ? tr("Close") : tr("Cancel")}</Text>
             </TouchableOpacity>
             {!isReadOnly && (
               <TouchableOpacity style={s.saveBtn} onPress={handleSubmit} disabled={isSubmitting}>
                 {isSubmitting ? <ActivityIndicator color="#fff" size="small" /> : (
-                  <Text style={s.saveBtnText}>{queuedFiles.length > 0 ? `Upload ${queuedFiles.length + (selectedFile ? 1 : 0)} Drawing(s)` : 'Upload Drawing'}</Text>
+                  <Text style={s.saveBtnText}>{queuedFiles.length > 0 ? tr("Upload {{value}} Drawing(s)", { value: queuedFiles.length + (selectedFile ? 1 : 0) }) : tr("Upload Drawing")}</Text>
                 )}
               </TouchableOpacity>
             )}

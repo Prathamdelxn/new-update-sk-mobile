@@ -1,3 +1,4 @@
+import { tr } from '../../../utils/i18n/tr';
 // Tapping the On Track / At Risk / Delayed badge explains WHY (same rules as the backend
 // health check and the web ProjectHealthBadge), and links to each cause.
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
@@ -49,13 +50,13 @@ export default function HealthReasonsSheet({ visible, onClose, projectId, projec
         <View style={s.grabber} />
         <View style={s.header}>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>{health === 'on-track' ? 'Project is on track' : `Why "${healthLabel}"?`}</Text>
+            <Text style={s.title}>{health === 'on-track' ? tr("Project is on track") : tr("Why \"{{healthLabel}}\"?", { healthLabel: healthLabel })}</Text>
             <Text style={s.sub}>
               {health === 'delayed'
-                ? 'Delayed = a milestone is delayed, or the end date has passed.'
+                ? tr("Delayed = a milestone is delayed, or the end date has passed.")
                 : health === 'at-risk'
-                  ? 'At Risk = an overdue task, or an open risk scoring 6+.'
-                  : 'No overdue tasks, delayed milestones or high-score risks.'}
+                  ? tr("At Risk = an overdue task, or an open risk scoring 6+.")
+                  : tr("No overdue tasks, delayed milestones or high-score risks.")}
             </Text>
           </View>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -65,12 +66,12 @@ export default function HealthReasonsSheet({ visible, onClose, projectId, projec
 
         <ScrollView style={{ maxHeight: 460 }} contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>
           {query.isPending && visible ? (
-            <View style={s.center}><ActivityIndicator color="#2563EB" /><Text style={s.sub}>Checking what's causing this…</Text></View>
+            <View style={s.center}><ActivityIndicator color="#2563EB" /><Text style={s.sub}>{tr("Checking what's causing this…")}</Text></View>
           ) : reasons.length === 0 ? (
             <View style={s.center}>
               <Ionicons name="checkmark-circle" size={30} color="#10B981" />
-              <Text style={s.okTitle}>{health === 'on-track' ? 'Nothing needs attention' : 'Nothing is flagged any more'}</Text>
-              {health !== 'on-track' && <Text style={s.sub}>The issues seem resolved. Go back and reopen the project to update the status.</Text>}
+              <Text style={s.okTitle}>{health === 'on-track' ? tr("Nothing needs attention") : tr("Nothing is flagged any more")}</Text>
+              {health !== 'on-track' && <Text style={s.sub}>{tr("The issues seem resolved. Go back and reopen the project to update the status.")}</Text>}
             </View>
           ) : (
             reasons.map((r) => (
@@ -80,30 +81,30 @@ export default function HealthReasonsSheet({ visible, onClose, projectId, projec
                     <Ionicons name={r.icon} size={16} color={r.color} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={s.reasonTitle}>{r.title}</Text>
-                    <Text style={s.reasonHint}>{r.hint}</Text>
+                    <Text style={s.reasonTitle}>{tr(r.title)}</Text>
+                    <Text style={s.reasonHint}>{tr(r.hint)}</Text>
                   </View>
-                  <Text style={s.openText}>Open</Text>
+                  <Text style={s.openText}>{tr("Open")}</Text>
                 </TouchableOpacity>
                 {r.rows.slice(0, 5).map((row) => (
                   <TouchableOpacity key={row.id} style={s.rowItem} onPress={() => go(r.section, row.taskId)} activeOpacity={0.75}>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={s.rowLabel} numberOfLines={1}>{row.label}</Text>
-                      {!!row.sub && <Text style={s.rowSub} numberOfLines={1}>{row.sub}</Text>}
+                      <Text style={s.rowLabel} numberOfLines={1}>{tr(row.label)}</Text>
+                      {!!row.sub && <Text style={s.rowSub} numberOfLines={1}>{tr(row.sub)}</Text>}
                     </View>
                     <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
                   </TouchableOpacity>
                 ))}
                 {r.rows.length > 5 && (
                   <TouchableOpacity style={s.rowItem} onPress={() => go(r.section)}>
-                    <Text style={s.openText}>+{r.rows.length - 5} more</Text>
+                    <Text style={s.openText}>+{r.rows.length - 5}{tr(" more")}</Text>
                   </TouchableOpacity>
                 )}
               </View>
             ))
           )}
           {hidden.length > 0 && health !== 'on-track' && (
-            <Text style={s.note}>You don't have access to {hidden.join(', ')}, so items there aren't listed.</Text>
+            <Text style={s.note}>{tr("You don't have access to ")}{hidden.join(', ')}{tr(", so items there aren't listed.")}</Text>
           )}
         </ScrollView>
       </View>

@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import { useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import {
@@ -68,11 +69,11 @@ export default function RegisterScreen() {
 
     if (isInterior) {
       if (!organizationName || !firstName || !lastName || !email || !password) {
-        setError('Please fill in all required fields');
+        setError(tr("Please fill in all required fields"));
         return;
       }
       if (!emailRegex.test(email.trim().toLowerCase())) {
-        setError('Enter a valid email address');
+        setError(tr("Enter a valid email address"));
         return;
       }
       const strongEnough =
@@ -81,7 +82,7 @@ export default function RegisterScreen() {
         /[a-z]/.test(password) &&
         /[0-9]/.test(password);
       if (!strongEnough) {
-        setError('Password must be 8+ chars with uppercase, lowercase & number');
+        setError(tr("Password must be 8+ chars with uppercase, lowercase & number"));
         return;
       }
 
@@ -126,19 +127,19 @@ export default function RegisterScreen() {
 
     // Construction validation (matching web parity)
     if (!name || !email || !password || !confirmPassword) {
-      setError('Please fill in all required fields');
+      setError(tr("Please fill in all required fields"));
       return;
     }
     if (!emailRegex.test(email.trim().toLowerCase())) {
-      setError('Enter a valid email address');
+      setError(tr("Enter a valid email address"));
       return;
     }
     if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError(tr("Password must be at least 8 characters"));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(tr("Passwords do not match"));
       return;
     }
 
@@ -183,7 +184,7 @@ export default function RegisterScreen() {
         onLongPress={async () => {
           await SecureStore.deleteItemAsync('hasSeenOnboarding');
           await SecureStore.deleteItemAsync('hasSelectedLanguage');
-          alert('App state reset! Restart the app to see the intro sequence again.');
+          alert(tr("App state reset! Restart the app to see the intro sequence again."));
         }}
         activeOpacity={0.7}
       >
@@ -214,9 +215,9 @@ export default function RegisterScreen() {
               style={styles.centeredLogo}
               contentFit="contain"
             />
-            <Text style={styles.mainTitle}>Create Workspace</Text>
+            <Text style={styles.mainTitle}>{tr("Create Workspace")}</Text>
             <Text style={styles.subTitle}>
-              {isInterior ? 'Set up your interior workspace' : 'Set up your construction workspace'}
+              {isInterior ? tr("Set up your interior workspace") : tr("Set up your construction workspace")}
             </Text>
           </View>
 
@@ -225,7 +226,7 @@ export default function RegisterScreen() {
             <View style={styles.errorContainer}>
               <Ionicons name="alert-circle" size={15} color="#DC2626" style={{ marginRight: 6 }} />
               <Text style={styles.errorText} numberOfLines={2}>
-                {error}
+                {tr(error)}
               </Text>
             </View>
           ) : null}
@@ -253,7 +254,7 @@ export default function RegisterScreen() {
                   ]}
                   numberOfLines={1}
                 >
-                  Construction
+                  {tr("Construction")}
                 </Text>
               </TouchableOpacity>
 
@@ -276,7 +277,7 @@ export default function RegisterScreen() {
                   ]}
                   numberOfLines={1}
                 >
-                  Interior Design
+                  {tr("Interior Design")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -286,12 +287,12 @@ export default function RegisterScreen() {
                 {/* INTERIOR FORM */}
                 {/* Organization */}
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Company / Organization</Text>
+                  <Text style={styles.fieldLabel}>{tr("Company / Organization")}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="business-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="Acme Interior Solutions"
+                      placeholder={tr("Acme Interior Solutions")}
                       placeholderTextColor="#94A3B8"
                       value={organizationName}
                       onChangeText={setOrganizationName}
@@ -302,12 +303,12 @@ export default function RegisterScreen() {
                 {/* First name & Last name */}
                 <View style={styles.nameRow}>
                   <View style={[styles.fieldGroup, { flex: 1 }]}>
-                    <Text style={styles.fieldLabel}>First name</Text>
+                    <Text style={styles.fieldLabel}>{tr("First name")}</Text>
                     <View style={styles.inputWrapper}>
                       <Ionicons name="person-outline" size={15} color="#94A3B8" style={styles.fieldIconSmall} />
                       <TextInput
                         style={styles.input}
-                        placeholder="John"
+                        placeholder={tr("John")}
                         placeholderTextColor="#94A3B8"
                         value={firstName}
                         onChangeText={setFirstName}
@@ -317,11 +318,11 @@ export default function RegisterScreen() {
                   </View>
 
                   <View style={[styles.fieldGroup, { flex: 1 }]}>
-                    <Text style={styles.fieldLabel}>Last name</Text>
+                    <Text style={styles.fieldLabel}>{tr("Last name")}</Text>
                     <View style={styles.inputWrapper}>
                       <TextInput
                         style={[styles.input, { paddingLeft: 4 }]}
-                        placeholder="Doe"
+                        placeholder={tr("Doe")}
                         placeholderTextColor="#94A3B8"
                         value={lastName}
                         onChangeText={setLastName}
@@ -333,12 +334,12 @@ export default function RegisterScreen() {
 
                 {/* Work email */}
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Work email</Text>
+                  <Text style={styles.fieldLabel}>{tr("Work email")}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="mail-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="john@acme.com"
+                      placeholder={tr("john@acme.com")}
                       placeholderTextColor="#94A3B8"
                       value={email}
                       onChangeText={setEmail}
@@ -352,10 +353,10 @@ export default function RegisterScreen() {
                 {/* Contact Number with Country Code */}
                 <View style={styles.fieldGroup}>
                   <View style={styles.phoneLabelRow}>
-                    <Text style={styles.fieldLabel}>Contact Number</Text>
+                    <Text style={styles.fieldLabel}>{tr("Contact Number")}</Text>
                     <View style={styles.currencyPill}>
                       <Text style={styles.currencyPillText}>
-                        {selectedCountry?.currencySymbol} {selectedCountry?.currencyCode}
+                        {tr(selectedCountry?.currencySymbol)} {tr(selectedCountry?.currencyCode)}
                       </Text>
                     </View>
                   </View>
@@ -365,8 +366,8 @@ export default function RegisterScreen() {
                       onPress={() => setIsCountryModalVisible(true)}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.countryFlag}>{selectedCountry?.flag}</Text>
-                      <Text style={styles.countryCode}>{selectedCountry?.phoneCode}</Text>
+                      <Text style={styles.countryFlag}>{tr(selectedCountry?.flag)}</Text>
+                      <Text style={styles.countryCode}>{tr(selectedCountry?.phoneCode)}</Text>
                       <Ionicons name="chevron-down" size={12} color="#64748B" />
                     </TouchableOpacity>
 
@@ -391,7 +392,7 @@ export default function RegisterScreen() {
                     <Ionicons name="lock-closed-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="Min. 8 characters"
+                      placeholder={tr("Min. 8 characters")}
                       placeholderTextColor="#94A3B8"
                       value={password}
                       onChangeText={setPassword}
@@ -410,7 +411,7 @@ export default function RegisterScreen() {
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.passwordHint}>
-                    8+ chars with uppercase, lowercase &amp; number
+                    {tr("8+ chars with uppercase, lowercase & number")}
                   </Text>
                 </View>
               </>
@@ -419,12 +420,12 @@ export default function RegisterScreen() {
                 {/* CONSTRUCTION FORM - 100% Matching Structure & Styling */}
                 {/* Full Name */}
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Full name</Text>
+                  <Text style={styles.fieldLabel}>{tr("Full name")}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="person-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="John Doe"
+                      placeholder={tr("John Doe")}
                       placeholderTextColor="#94A3B8"
                       value={name}
                       onChangeText={setName}
@@ -435,12 +436,12 @@ export default function RegisterScreen() {
 
                 {/* Work email */}
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Work email</Text>
+                  <Text style={styles.fieldLabel}>{tr("Work email")}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="mail-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="name@company.com"
+                      placeholder={tr("name@company.com")}
                       placeholderTextColor="#94A3B8"
                       value={email}
                       onChangeText={setEmail}
@@ -454,10 +455,10 @@ export default function RegisterScreen() {
                 {/* Contact Number with Same Country Picker */}
                 <View style={styles.fieldGroup}>
                   <View style={styles.phoneLabelRow}>
-                    <Text style={styles.fieldLabel}>Contact Number</Text>
+                    <Text style={styles.fieldLabel}>{tr("Contact Number")}</Text>
                     <View style={styles.currencyPill}>
                       <Text style={styles.currencyPillText}>
-                        {selectedCountry?.currencySymbol} {selectedCountry?.currencyCode}
+                        {tr(selectedCountry?.currencySymbol)} {tr(selectedCountry?.currencyCode)}
                       </Text>
                     </View>
                   </View>
@@ -467,8 +468,8 @@ export default function RegisterScreen() {
                       onPress={() => setIsCountryModalVisible(true)}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.countryFlag}>{selectedCountry?.flag}</Text>
-                      <Text style={styles.countryCode}>{selectedCountry?.phoneCode}</Text>
+                      <Text style={styles.countryFlag}>{tr(selectedCountry?.flag)}</Text>
+                      <Text style={styles.countryCode}>{tr(selectedCountry?.phoneCode)}</Text>
                       <Ionicons name="chevron-down" size={12} color="#64748B" />
                     </TouchableOpacity>
 
@@ -490,12 +491,12 @@ export default function RegisterScreen() {
                 <View style={[styles.fieldGroup, { marginBottom: 4 }]}>
                   <View style={styles.nameRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.fieldLabel}>Password</Text>
+                      <Text style={styles.fieldLabel}>{tr("Password")}</Text>
                       <View style={styles.inputWrapper}>
                         <Ionicons name="lock-closed-outline" size={15} color="#94A3B8" style={styles.fieldIconSmall} />
                         <TextInput
                           style={styles.input}
-                          placeholder="Min. 8 chars"
+                          placeholder={tr("Min. 8 chars")}
                           placeholderTextColor="#94A3B8"
                           value={password}
                           onChangeText={setPassword}
@@ -516,12 +517,12 @@ export default function RegisterScreen() {
                     </View>
 
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.fieldLabel}>Confirm password</Text>
+                      <Text style={styles.fieldLabel}>{tr("Confirm password")}</Text>
                       <View style={styles.inputWrapper}>
                         <Ionicons name="lock-closed-outline" size={15} color="#94A3B8" style={styles.fieldIconSmall} />
                         <TextInput
                           style={styles.input}
-                          placeholder="Confirm"
+                          placeholder={tr("Confirm")}
                           placeholderTextColor="#94A3B8"
                           value={confirmPassword}
                           onChangeText={setConfirmPassword}
@@ -542,7 +543,7 @@ export default function RegisterScreen() {
                     </View>
                   </View>
                   <Text style={styles.passwordHint}>
-                    8+ chars with uppercase, lowercase, number &amp; symbol
+                    {tr("8+ chars with uppercase, lowercase, number & symbol")}
                   </Text>
                 </View>
               </>
@@ -558,10 +559,10 @@ export default function RegisterScreen() {
               {isLoading ? (
                 <View style={styles.loadingRow}>
                   <ActivityIndicator color="#FFFFFF" size="small" />
-                  <Text style={styles.submitBtnText}>Creating workspace...</Text>
+                  <Text style={styles.submitBtnText}>{tr("Creating workspace...")}</Text>
                 </View>
               ) : (
-                <Text style={styles.submitBtnText}>Create workspace</Text>
+                <Text style={styles.submitBtnText}>{tr("Create workspace")}</Text>
               )}
             </TouchableOpacity>
 
@@ -572,8 +573,8 @@ export default function RegisterScreen() {
               style={styles.loginRow}
             >
               <Text style={styles.loginRowText}>
-                Already have a workspace?{' '}
-                <Text style={styles.loginRowHighlight}>Sign in</Text>
+                {tr("Already have a workspace?")}{' '}
+                <Text style={styles.loginRowHighlight}>{tr("Sign in")}</Text>
               </Text>
             </TouchableOpacity>
           </View>

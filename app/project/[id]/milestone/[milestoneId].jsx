@@ -1,3 +1,4 @@
+import { tr } from '../../../utils/i18n/tr';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, StatusBar, Platform, Modal, TextInput, Keyboard, LayoutAnimation, Image } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -211,7 +212,7 @@ export default function MilestoneTaskDetail() {
           fetchInventory();
           fetchMaterialUsages();
         } else {
-          showToast("Milestone not found", "error");
+          showToast(tr("Milestone not found"), "error");
         }
       } else {
         console.warn('Milestone data is not an array:', data);
@@ -246,12 +247,12 @@ export default function MilestoneTaskDetail() {
         const data = await response.json();
         setSelectedSnag(data);
       } else {
-        showToast("Failed to load snag details", "error");
+        showToast(tr("Failed to load snag details"), "error");
         setIsSnagModalVisible(false);
       }
     } catch (e) {
       console.error(e);
-      showToast("Error loading snag", "error");
+      showToast(tr("Error loading snag"), "error");
       setIsSnagModalVisible(false);
     } finally {
       setIsFetchingSnag(false);
@@ -681,7 +682,7 @@ export default function MilestoneTaskDetail() {
         fetchMilestone(); // Sync with server data
         fetchInventory(); // Refresh stock levels
         fetchMaterialUsages(); // Refresh usage logs
-        showToast('Task submitted successfully', 'success');
+        showToast(tr("Task submitted successfully"), 'success');
       } catch (backendError) {
         setMilestone(originalMilestone); // Revert UI
         setConfirmModal({
@@ -764,8 +765,8 @@ export default function MilestoneTaskDetail() {
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.headerPre}>MILESTONE TASKS</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>{milestone.name}</Text>
+          <Text style={styles.headerPre}>{tr("MILESTONE TASKS")}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{tr(milestone.name)}</Text>
         </View>
         {canCreateTask && canAssignTask && (
           <TouchableOpacity style={styles.addBtn} onPress={() => setIsModalVisible(true)}>
@@ -782,11 +783,11 @@ export default function MilestoneTaskDetail() {
           <View style={styles.progressInfoRow}>
             <View style={styles.progressTextCol}>
               <Text style={styles.progressValue}>{Math.round(progress * 100)}%</Text>
-              <Text style={styles.progressLabel}>Overall Completion</Text>
+              <Text style={styles.progressLabel}>{tr("Overall Completion")}</Text>
             </View>
             <View style={styles.progressBadge}>
                <Feather name="check-circle" size={14} color={milestone.status === 'Completed' ? '#10B981' : '#3B82F6'} />
-               <Text style={styles.progressStats}>{completedCount} / {totalCount} Tasks</Text>
+               <Text style={styles.progressStats}>{tr(completedCount)} / {tr(totalCount)}{tr(" Tasks")}</Text>
             </View>
           </View>
           
@@ -797,13 +798,13 @@ export default function MilestoneTaskDetail() {
 
         {milestone.description && (
           <View style={styles.milestoneDescBox}>
-            <Text style={styles.milestoneDescLabel}>Milestone Description</Text>
-            <Text style={styles.milestoneDescText}>{milestone.description}</Text>
+            <Text style={styles.milestoneDescLabel}>{tr("Milestone Description")}</Text>
+            <Text style={styles.milestoneDescText}>{tr(milestone.description)}</Text>
           </View>
         )}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Task Checklist</Text>
+          <Text style={styles.sectionTitle}>{tr("Task Checklist")}</Text>
           <TouchableOpacity style={styles.textAddBtn} onPress={() => setIsModalVisible(true)}>
             {/* <Feather name="plus-circle" size={16} color="#3B82F6" /> */}
             {/* <Text style={styles.textAddBtnText}>Add Task</Text> */}
@@ -834,17 +835,17 @@ export default function MilestoneTaskDetail() {
                 </TouchableOpacity>
                 <View style={styles.taskInfo}>
                   <Text style={[styles.taskTitle, task.isCompleted && styles.taskTitleDone]}>
-                    {task.title}
+                    {tr(task.title)}
                   </Text>
                   {task.description && (
-                    <Text style={styles.taskDesc}>{task.description}</Text>
+                    <Text style={styles.taskDesc}>{tr(task.description)}</Text>
                   )}
 
                   <View style={styles.taskMeta}>
                     {assignee ? (
                       <View style={styles.metaBadge}>
                         <Feather name="user" size={10} color="#64748B" />
-                        <Text style={styles.metaText} numberOfLines={1}>{assignee.name || 'User'}</Text>
+                        <Text style={styles.metaText} numberOfLines={1}>{assignee.name || tr("User")}</Text>
                       </View>
                     ) : (
                       (canUpdateTask || canAssignTask) && !task.isCompleted && (
@@ -856,7 +857,7 @@ export default function MilestoneTaskDetail() {
                           }}
                         >
                           <Feather name="user-plus" size={10} color="#2563EB" />
-                          <Text style={[styles.metaText, { color: '#2563EB', fontFamily: 'Inter-SemiBold' }]}>Assign</Text>
+                          <Text style={[styles.metaText, { color: '#2563EB', fontFamily: 'Inter-SemiBold' }]}>{tr("Assign")}</Text>
                         </TouchableOpacity>
                       )
                     )}
@@ -878,7 +879,7 @@ export default function MilestoneTaskDetail() {
                         }}
                       >
                         <Feather name="alert-circle" size={10} color="#3B82F6" />
-                        <Text style={[styles.metaText, { color: '#3B82F6' }]}>Snag Task</Text>
+                        <Text style={[styles.metaText, { color: '#3B82F6' }]}>{tr("Snag Task")}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -889,11 +890,11 @@ export default function MilestoneTaskDetail() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                           <Feather name="check-circle" size={12} color="#059669" />
                           <Text style={styles.completionHeaderText}>
-                            Completed {task.completedAt ? `on ${new Date(task.completedAt).toLocaleDateString()}` : ''}
+                            {tr("Completed ")}{task.completedAt ? `on ${new Date(task.completedAt).toLocaleDateString()}` : ''}
                           </Text>
                         </View>
                         <View style={styles.viewSubmissionChip}>
-                          <Text style={styles.viewSubmissionChipText}>View Report</Text>
+                          <Text style={styles.viewSubmissionChipText}>{tr("View Report")}</Text>
                           <Feather name="chevron-right" size={12} color="#059669" />
                         </View>
                       </View>
@@ -912,7 +913,7 @@ export default function MilestoneTaskDetail() {
                             </TouchableOpacity>
                           )}
                           {task.completionNote ? (
-                            <Text style={styles.completionNoteText} numberOfLines={2}>{task.completionNote}</Text>
+                            <Text style={styles.completionNoteText} numberOfLines={2}>{tr(task.completionNote)}</Text>
                           ) : null}
                         </View>
                       )}
@@ -925,13 +926,13 @@ export default function MilestoneTaskDetail() {
                           <View style={styles.cardMaterialsWrapper}>
                             <View style={styles.cardMaterialsHeader}>
                               <Ionicons name="cube-outline" size={12} color="#047857" />
-                              <Text style={styles.cardMaterialsTitle}>Materials Used ({mats.length}):</Text>
+                              <Text style={styles.cardMaterialsTitle}>{tr("Materials Used (")}{mats.length}):</Text>
                             </View>
                             <View style={styles.cardMaterialChips}>
                               {mats.map((m, mIdx) => (
                                 <View key={mIdx} style={styles.cardMaterialChip}>
                                   <Text style={styles.cardMaterialChipText}>
-                                    {m.name}: <Text style={{ fontFamily: 'Inter-SemiBold', color: '#065F46' }}>{m.quantity} {m.unit}</Text>
+                                    {tr(m.name)}: <Text style={{ fontFamily: 'Inter-SemiBold', color: '#065F46' }}>{m.quantity} {tr(m.unit)}</Text>
                                   </Text>
                                 </View>
                               ))}
@@ -963,7 +964,7 @@ export default function MilestoneTaskDetail() {
         {totalCount === 0 && (
           <View style={styles.emptyState}>
             <Feather name="list" size={48} color="#CBD5E1" />
-            <Text style={styles.emptyText}>No tasks assigned yet.{"\n"}Tap the + button to add one.</Text>
+            <Text style={styles.emptyText}>{tr("No tasks assigned yet.")}{"\n"}{tr("Tap the + button to add one.")}</Text>
           </View>
         )}
       </ScrollView>
@@ -986,8 +987,8 @@ export default function MilestoneTaskDetail() {
             <View style={styles.dragHandle} />
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Original Snag Report</Text>
-                <Text style={styles.modalSub}>Primary inspection data that triggered this task</Text>
+                <Text style={styles.modalTitle}>{tr("Original Snag Report")}</Text>
+                <Text style={styles.modalSub}>{tr("Primary inspection data that triggered this task")}</Text>
               </View>
               <TouchableOpacity style={styles.closeBtn} onPress={() => setIsSnagModalVisible(false)}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -997,7 +998,7 @@ export default function MilestoneTaskDetail() {
             {isFetchingSnag ? (
               <View style={{ paddingVertical: 60, alignItems: 'center' }}>
                 <ActivityIndicator size="large" color="#3B82F6" />
-                <Text style={{ marginTop: 12, color: '#64748B', fontFamily: 'Inter-Medium' }}>Fetching snag details...</Text>
+                <Text style={{ marginTop: 12, color: '#64748B', fontFamily: 'Inter-Medium' }}>{tr("Fetching snag details...")}</Text>
               </View>
             ) : selectedSnag ? (
               <ScrollView showsVerticalScrollIndicator={false}>
@@ -1006,17 +1007,17 @@ export default function MilestoneTaskDetail() {
                     <Image source={{ uri: selectedSnag.images[0] }} style={styles.snagFullImage} />
                     <View style={styles.priorityFloatingBadge}>
                       <View style={[styles.priorityDot, { backgroundColor: selectedSnag.priority === 'Critical' ? '#EF4444' : '#F59E0B' }]} />
-                      <Text style={styles.priorityText}>{selectedSnag.priority} Priority</Text>
+                      <Text style={styles.priorityText}>{tr(selectedSnag.priority)}{tr(" Priority")}</Text>
                     </View>
                   </View>
                 )}
 
                 <View style={styles.snagDetailSection}>
-                  <Text style={styles.snagDetailTitle}>{selectedSnag.title}</Text>
+                  <Text style={styles.snagDetailTitle}>{tr(selectedSnag.title)}</Text>
                   <View style={styles.snagMetaRow}>
                     <View style={styles.metaBadge}>
                       <Feather name="user" size={12} color="#64748B" />
-                      <Text style={styles.metaText}>By {selectedSnag.createdBy?.name || 'Unknown'}</Text>
+                      <Text style={styles.metaText}>{tr("By ")}{selectedSnag.createdBy?.name || tr("Unknown")}</Text>
                     </View>
                     <View style={styles.metaBadge}>
                       <Feather name="calendar" size={12} color="#64748B" />
@@ -1025,14 +1026,14 @@ export default function MilestoneTaskDetail() {
                   </View>
 
                   <View style={styles.snagDescBox}>
-                    <Text style={styles.snagDescLabel}>DESCRIPTION</Text>
-                    <Text style={styles.snagDescText}>{selectedSnag.description}</Text>
+                    <Text style={styles.snagDescLabel}>{tr("DESCRIPTION")}</Text>
+                    <Text style={styles.snagDescText}>{tr(selectedSnag.description)}</Text>
                   </View>
 
                   {selectedSnag.location && (
                     <View style={styles.snagDescBox}>
-                      <Text style={styles.snagDescLabel}>LOCATION</Text>
-                      <Text style={styles.snagDescText}>{selectedSnag.location}</Text>
+                      <Text style={styles.snagDescLabel}>{tr("LOCATION")}</Text>
+                      <Text style={styles.snagDescText}>{tr(selectedSnag.location)}</Text>
                     </View>
                   )}
                 </View>
@@ -1041,13 +1042,13 @@ export default function MilestoneTaskDetail() {
                   style={styles.snagCloseAction} 
                   onPress={() => setIsSnagModalVisible(false)}
                 >
-                  <Text style={styles.snagCloseActionText}>Close Details</Text>
+                  <Text style={styles.snagCloseActionText}>{tr("Close Details")}</Text>
                 </TouchableOpacity>
               </ScrollView>
             ) : (
               <View style={{ paddingVertical: 40, alignItems: 'center' }}>
                 <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-                <Text style={{ marginTop: 12, color: '#64748B', fontFamily: 'Inter-Medium' }}>Snag details unavailable</Text>
+                <Text style={{ marginTop: 12, color: '#64748B', fontFamily: 'Inter-Medium' }}>{tr("Snag details unavailable")}</Text>
               </View>
             )}
           </View>
@@ -1078,7 +1079,7 @@ export default function MilestoneTaskDetail() {
         <View style={styles.uploadOverlay}>
           <AdaptiveGlass intensity={40} tint="dark" style={styles.uploadLoader}>
             <ActivityIndicator size="large" color="#FFF" />
-            <Text style={styles.uploadText}>Uploading Proof...</Text>
+            <Text style={styles.uploadText}>{tr("Uploading Proof...")}</Text>
           </AdaptiveGlass>
         </View>
       )}
@@ -1107,14 +1108,14 @@ export default function MilestoneTaskDetail() {
             <View style={styles.dragHandle} />
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>{editingTaskIndex !== null ? 'Edit Task' : 'Add New Task'}</Text>
+                <Text style={styles.modalTitle}>{editingTaskIndex !== null ? tr("Edit Task") : tr("Add New Task")}</Text>
                 {editingTaskIndex !== null && milestone?.tasks?.[editingTaskIndex]?.sourceSnag && (
                   <TouchableOpacity 
                     style={styles.modalSnagLinkHeader}
                     onPress={() => handleViewSnag(milestone.tasks[editingTaskIndex].sourceSnag)}
                   >
                     <Feather name="external-link" size={12} color="#3B82F6" />
-                    <Text style={styles.modalSnagLinkText}>View Original Snag Report</Text>
+                    <Text style={styles.modalSnagLinkText}>{tr("View Original Snag Report")}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -1129,12 +1130,12 @@ export default function MilestoneTaskDetail() {
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Task Title <Text style={{ color: '#EF4444' }}>*</Text></Text>
+                <Text style={styles.inputLabel}>{tr("Task Title ")}<Text style={{ color: '#EF4444' }}>*</Text></Text>
                 <View style={styles.inputContainer}>
                   <Feather name="edit-2" size={18} color="#94A3B8" style={styles.inputIcon} />
                   <TextInput
                     style={styles.inputFlex}
-                    placeholder="e.g. Install flooring"
+                    placeholder={tr("e.g. Install flooring")}
                     value={newTask.title}
                     onChangeText={(v) => setNewTask({ ...newTask, title: v })}
                     placeholderTextColor="#94A3B8"
@@ -1145,12 +1146,12 @@ export default function MilestoneTaskDetail() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Description (Optional)</Text>
+                <Text style={styles.inputLabel}>{tr("Description (Optional)")}</Text>
                 <View style={[styles.inputContainer, styles.textAreaContainer]}>
                   <Feather name="align-left" size={18} color="#94A3B8" style={styles.inputIconTop} />
                   <TextInput
                     style={[styles.inputFlex, styles.textArea]}
-                    placeholder="Describe the task details..."
+                    placeholder={tr("Describe the task details...")}
                     value={newTask.description}
                     onChangeText={(v) => setNewTask({ ...newTask, description: v })}
                     placeholderTextColor="#94A3B8"
@@ -1163,7 +1164,7 @@ export default function MilestoneTaskDetail() {
 
               <View style={styles.row}>
                 <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
-                  <Text style={styles.inputLabel}>Start Date <Text style={{ color: '#EF4444' }}>*</Text></Text>
+                  <Text style={styles.inputLabel}>{tr("Start Date ")}<Text style={{ color: '#EF4444' }}>*</Text></Text>
                   <TouchableOpacity
                     style={[styles.datePickerBtn, taskDetailsLocked && { opacity: 0.5 }]}
                     disabled={taskDetailsLocked}
@@ -1171,7 +1172,7 @@ export default function MilestoneTaskDetail() {
                   >
                     <Feather name="calendar" size={16} color="#3B82F6" />
                     <Text style={styles.datePickerText}>
-                      {newTask.startDate ? newTask.startDate.toLocaleDateString() : 'Select'}
+                      {newTask.startDate ? newTask.startDate.toLocaleDateString() : tr("Select")}
                     </Text>
                   </TouchableOpacity>
                   {showStartDate && (
@@ -1188,7 +1189,7 @@ export default function MilestoneTaskDetail() {
                 </View>
 
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>End Date <Text style={{ color: '#EF4444' }}>*</Text></Text>
+                  <Text style={styles.inputLabel}>{tr("End Date ")}<Text style={{ color: '#EF4444' }}>*</Text></Text>
                   <TouchableOpacity
                     style={[styles.datePickerBtn, taskDetailsLocked && { opacity: 0.5 }]}
                     disabled={taskDetailsLocked}
@@ -1196,7 +1197,7 @@ export default function MilestoneTaskDetail() {
                   >
                     <Feather name="calendar" size={16} color="#3B82F6" />
                     <Text style={styles.datePickerText}>
-                      {newTask.endDate ? newTask.endDate.toLocaleDateString() : 'Select'}
+                      {newTask.endDate ? newTask.endDate.toLocaleDateString() : tr("Select")}
                     </Text>
                   </TouchableOpacity>
                   {showEndDate && (
@@ -1214,7 +1215,7 @@ export default function MilestoneTaskDetail() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Assign To *</Text>
+                <Text style={styles.inputLabel}>{tr("Assign To *")}</Text>
                 <TouchableOpacity
                   style={[styles.assigneeSelector, taskAssigneeLocked && { opacity: 0.5 }]}
                   disabled={taskAssigneeLocked}
@@ -1233,7 +1234,7 @@ export default function MilestoneTaskDetail() {
                     <Text style={[styles.selectedMemberText, !newTask.assignedTo && { color: '#94A3B8' }]}>
                       {newTask.assignedTo 
                         ? projectMembers.find(m => m._id === newTask.assignedTo)?.name 
-                        : 'Select a member to assign'}
+                        : tr("Select a member to assign")}
                     </Text>
                   </View>
                   <Feather name="chevron-right" size={18} color="#64748B" />
@@ -1249,7 +1250,7 @@ export default function MilestoneTaskDetail() {
                   />
                   <AdaptiveGlass intensity={95} tint="light" style={styles.assignModalCard}>
                     <View style={styles.assignModalHeader}>
-                      <Text style={styles.assignModalTitle}>Assign Task</Text>
+                      <Text style={styles.assignModalTitle}>{tr("Assign Task")}</Text>
                       <TouchableOpacity 
                         onPress={() => setIsAssignModalVisible(false)}
                         style={styles.assignCloseBtn}
@@ -1257,14 +1258,14 @@ export default function MilestoneTaskDetail() {
                         <Ionicons name="close" size={20} color="#64748B" />
                       </TouchableOpacity>
                     </View>
-                    <Text style={styles.assignModalSub}>Select an existing team member to assign this task.</Text>
+                    <Text style={styles.assignModalSub}>{tr("Select an existing team member to assign this task.")}</Text>
                     
                     <ScrollView style={styles.memberList} showsVerticalScrollIndicator={false}>
                       {projectMembers.length === 0 ? (
                         <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
                           <Feather name="users" size={36} color="#CBD5E1" />
                           <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', marginTop: 10 }}>
-                            No team members found
+                            {tr("No team members found")}
                           </Text>
                         </View>
                       ) : (
@@ -1286,8 +1287,8 @@ export default function MilestoneTaskDetail() {
                             </Text>
                           </View>
                           <View style={styles.memberInfoCol}>
-                            <Text style={styles.memberNameText}>{member.name}</Text>
-                            <Text style={styles.memberRoleText}>{member.role?.name || 'Member'}</Text>
+                            <Text style={styles.memberNameText}>{tr(member.name)}</Text>
+                            <Text style={styles.memberRoleText}>{member.role?.name || tr("Member")}</Text>
                           </View>
                           {newTask.assignedTo === member._id && (
                             <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
@@ -1310,7 +1311,7 @@ export default function MilestoneTaskDetail() {
                   <ActivityIndicator color="#FFF" size="small" />
                 ) : (
                   <>
-                    <Text style={styles.submitBtnText}>{editingTaskIndex !== null ? 'Save Changes' : 'Create Task'}</Text>
+                    <Text style={styles.submitBtnText}>{editingTaskIndex !== null ? tr("Save Changes") : tr("Create Task")}</Text>
                     <Feather name="plus" size={18} color="#FFF" style={{ marginLeft: 8 }} />
                   </>
                 )}
@@ -1332,8 +1333,8 @@ export default function MilestoneTaskDetail() {
               <View style={styles.proofIconCircle}>
                 <Ionicons name="camera" size={24} color="#3B82F6" />
               </View>
-              <Text style={styles.proofModalTitle}>Work Proof Required</Text>
-              <Text style={styles.proofModalSub}>How would you like to provide proof for this task?</Text>
+              <Text style={styles.proofModalTitle}>{tr("Work Proof Required")}</Text>
+              <Text style={styles.proofModalSub}>{tr("How would you like to provide proof for this task?")}</Text>
             </View>
 
             <View style={styles.proofOptions}>
@@ -1345,8 +1346,8 @@ export default function MilestoneTaskDetail() {
                   <Ionicons name="camera" size={20} color="#2563EB" />
                 </View>
                 <View style={styles.optionTextCol}>
-                  <Text style={styles.optionTitle}>Open Camera</Text>
-                  <Text style={styles.optionSub}>Take a live photo of the work</Text>
+                  <Text style={styles.optionTitle}>{tr("Open Camera")}</Text>
+                  <Text style={styles.optionSub}>{tr("Take a live photo of the work")}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
               </TouchableOpacity>
@@ -1359,8 +1360,8 @@ export default function MilestoneTaskDetail() {
                   <Ionicons name="image" size={20} color="#16A34A" />
                 </View>
                 <View style={styles.optionTextCol}>
-                  <Text style={styles.optionTitle}>Photo Gallery</Text>
-                  <Text style={styles.optionSub}>Choose from your existing photos</Text>
+                  <Text style={styles.optionTitle}>{tr("Photo Gallery")}</Text>
+                  <Text style={styles.optionSub}>{tr("Choose from your existing photos")}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
               </TouchableOpacity>
@@ -1378,8 +1379,8 @@ export default function MilestoneTaskDetail() {
                   <Ionicons name="arrow-forward-circle" size={20} color="#64748B" />
                 </View>
                 <View style={styles.optionTextCol}>
-                  <Text style={styles.optionTitle}>Skip Photo</Text>
-                  <Text style={styles.optionSub}>Complete task without visual proof</Text>
+                  <Text style={styles.optionTitle}>{tr("Skip Photo")}</Text>
+                  <Text style={styles.optionSub}>{tr("Complete task without visual proof")}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
               </TouchableOpacity>
@@ -1389,7 +1390,7 @@ export default function MilestoneTaskDetail() {
               style={styles.proofCancelLink} 
               onPress={() => setProofModalVisible(false)}
             >
-              <Text style={styles.proofCancelText}>Cancel</Text>
+              <Text style={styles.proofCancelText}>{tr("Cancel")}</Text>
             </TouchableOpacity>
           </AdaptiveGlass>
         </View>
@@ -1402,7 +1403,7 @@ export default function MilestoneTaskDetail() {
           <AdaptiveGlass intensity={95} tint="light" style={styles.completionConfirmCard}>
             <View style={styles.dragHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Confirm Completion</Text>
+              <Text style={styles.modalTitle}>{tr("Confirm Completion")}</Text>
               <TouchableOpacity onPress={() => setIsCompletionConfirmVisible(false)} style={styles.closeBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
@@ -1411,23 +1412,23 @@ export default function MilestoneTaskDetail() {
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {tempImageUri ? (
                 <View style={styles.confirmPreviewContainer}>
-                  <Text style={styles.confirmLabel}>WORK PROOF PREVIEW</Text>
+                  <Text style={styles.confirmLabel}>{tr("WORK PROOF PREVIEW")}</Text>
                   <Image source={{ uri: tempImageUri }} style={styles.confirmPreviewImage} />
                 </View>
               ) : (
                 <View style={styles.noProofWarning}>
                   <Feather name="alert-circle" size={20} color="#F59E0B" />
-                  <Text style={styles.noProofText}>Completing without visual proof.</Text>
+                  <Text style={styles.noProofText}>{tr("Completing without visual proof.")}</Text>
                 </View>
               )}
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Completion Note (Optional)</Text>
+                <Text style={styles.inputLabel}>{tr("Completion Note (Optional)")}</Text>
                 <View style={[styles.inputContainer, styles.textAreaContainer]}>
                   <Feather name="edit-3" size={18} color="#94A3B8" style={styles.inputIconTop} />
                   <TextInput
                     style={[styles.inputFlex, styles.textArea]}
-                    placeholder="Describe any specific details about the work completed..."
+                    placeholder={tr("Describe any specific details about the work completed...")}
                     value={completionNote}
                     onChangeText={setCompletionNote}
                     multiline
@@ -1442,21 +1443,21 @@ export default function MilestoneTaskDetail() {
                 <View style={styles.usageHeader}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Ionicons name="cube-outline" size={16} color="#2563EB" />
-                    <Text style={styles.usageLabel}>MATERIALS USED (OPTIONAL)</Text>
+                    <Text style={styles.usageLabel}>{tr("MATERIALS USED (OPTIONAL)")}</Text>
                   </View>
                   {inventory.length > 0 && (
-                    <Text style={styles.usageCountBadge}>{inventory.length} in stock</Text>
+                    <Text style={styles.usageCountBadge}>{inventory.length}{tr(" in stock")}</Text>
                   )}
                 </View>
                 <Text style={styles.usageSubtitle}>
-                  Select materials from site inventory and enter quantities used for this task. Stock will be auto-deducted.
+                  {tr("Select materials from site inventory and enter quantities used for this task. Stock will be auto-deducted.")}
                 </Text>
                 {inventory.length > 0 && (
                   <View style={styles.materialSearchBox}>
                     <Feather name="search" size={16} color="#94A3B8" />
                     <TextInput
                       style={styles.materialSearchInput}
-                      placeholder="Search material..."
+                      placeholder={tr("Search material...")}
                       value={materialSearchQuery}
                       onChangeText={setMaterialSearchQuery}
                       placeholderTextColor="#94A3B8"
@@ -1473,13 +1474,13 @@ export default function MilestoneTaskDetail() {
                       parseFloat(materialUsage[item._id] || 0) > item.balance && styles.usageRowError
                     ]}>
                       <View style={styles.usageInfo}>
-                        <Text style={styles.usageName}>{item.name}</Text>
+                        <Text style={styles.usageName}>{tr(item.name)}</Text>
                         <Text style={[
                           styles.usageStock,
                           parseFloat(materialUsage[item._id] || 0) > item.balance && { color: '#EF4444' }
                         ]}>
-                          Avail: {item.balance} {item.unit}
-                          {parseFloat(materialUsage[item._id] || 0) > item.balance && " (Insufficient)"}
+                          {tr("Avail: ")}{tr(item.balance)} {tr(item.unit)}
+                          {parseFloat(materialUsage[item._id] || 0) > item.balance && tr(" (Insufficient)")}
                         </Text>
                       </View>
                       <View style={[
@@ -1493,12 +1494,12 @@ export default function MilestoneTaskDetail() {
                           value={materialUsage[item._id] || ''}
                           onChangeText={(v) => setMaterialUsage({ ...materialUsage, [item._id]: v })}
                         />
-                        <Text style={styles.usageUnit}>{item.unit}</Text>
+                        <Text style={styles.usageUnit}>{tr(item.unit)}</Text>
                       </View>
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.noMaterialsText}>No inventory found for this project.</Text>
+                  <Text style={styles.noMaterialsText}>{tr("No inventory found for this project.")}</Text>
                 )}
               </View>
 
@@ -1507,7 +1508,7 @@ export default function MilestoneTaskDetail() {
                   style={styles.confirmFinalBtn} 
                   onPress={() => finalizeToggle(activeTaskIndex, tempImageUri, completionNote)}
                 >
-                  <Text style={styles.confirmFinalBtnText}>Finalize & Mark Completed</Text>
+                  <Text style={styles.confirmFinalBtnText}>{tr("Finalize & Mark Completed")}</Text>
                   <Feather name="check-circle" size={18} color="#FFF" />
                 </TouchableOpacity>
               </View>
@@ -1538,13 +1539,13 @@ export default function MilestoneTaskDetail() {
               <View style={{ flex: 1, paddingRight: 10 }}>
                 <View style={styles.verifiedHeaderBadge}>
                   <Feather name="check-circle" size={13} color="#059669" />
-                  <Text style={styles.verifiedHeaderBadgeText}>COMPLETED & SUBMITTED</Text>
+                  <Text style={styles.verifiedHeaderBadgeText}>{tr("COMPLETED & SUBMITTED")}</Text>
                 </View>
                 <Text style={styles.submittedDetailTitle} numberOfLines={2}>
-                  {selectedCompletedTask?.title || 'Task Details'}
+                  {selectedCompletedTask?.title || tr("Task Details")}
                 </Text>
                 <Text style={styles.submittedDetailSub}>
-                  {milestone?.name ? `Milestone: ${milestone.name}` : 'Milestone Task Submission'}
+                  {milestone?.name ? `Milestone: ${milestone.name}` : tr("Milestone Task Submission")}
                 </Text>
               </View>
               <TouchableOpacity 
@@ -1567,14 +1568,14 @@ export default function MilestoneTaskDetail() {
                     <Feather name="calendar" size={16} color="#059669" />
                   </View>
                   <View style={styles.auditCol}>
-                    <Text style={styles.auditLabel}>Submitted Date</Text>
+                    <Text style={styles.auditLabel}>{tr("Submitted Date")}</Text>
                     <Text style={styles.auditVal}>
                       {selectedCompletedTask?.completedAt 
                         ? new Date(selectedCompletedTask.completedAt).toLocaleString(undefined, { 
                             dateStyle: 'medium', 
                             timeStyle: 'short' 
                           })
-                        : 'Recorded'}
+                        : tr("Recorded")}
                     </Text>
                   </View>
                 </View>
@@ -1590,8 +1591,8 @@ export default function MilestoneTaskDetail() {
                         <Feather name="user-check" size={16} color="#0284C7" />
                       </View>
                       <View style={styles.auditCol}>
-                        <Text style={styles.auditLabel}>Submitted By</Text>
-                        <Text style={styles.auditVal}>{submitterName}</Text>
+                        <Text style={styles.auditLabel}>{tr("Submitted By")}</Text>
+                        <Text style={styles.auditVal}>{tr(submitterName)}</Text>
                       </View>
                     </View>
                   );
@@ -1601,14 +1602,14 @@ export default function MilestoneTaskDetail() {
               {/* Task Description (if any) */}
               {selectedCompletedTask?.description ? (
                 <View style={styles.detailSectionBox}>
-                  <Text style={styles.detailSectionLabel}>TASK SCOPE / DESCRIPTION</Text>
-                  <Text style={styles.detailSectionText}>{selectedCompletedTask.description}</Text>
+                  <Text style={styles.detailSectionLabel}>{tr("TASK SCOPE / DESCRIPTION")}</Text>
+                  <Text style={styles.detailSectionText}>{tr(selectedCompletedTask.description)}</Text>
                 </View>
               ) : null}
 
               {/* Proof Photo Section */}
               <View style={styles.detailSectionBox}>
-                <Text style={styles.detailSectionLabel}>WORK PROOF PHOTO</Text>
+                <Text style={styles.detailSectionLabel}>{tr("WORK PROOF PHOTO")}</Text>
                 {selectedCompletedTask?.proofImage?.url ? (
                   <View style={styles.proofFullWrapper}>
                     <TouchableOpacity 
@@ -1623,28 +1624,28 @@ export default function MilestoneTaskDetail() {
                       />
                       <View style={styles.proofZoomOverlay}>
                         <Feather name="maximize-2" size={14} color="#FFF" />
-                        <Text style={styles.proofZoomText}>Tap to zoom</Text>
+                        <Text style={styles.proofZoomText}>{tr("Tap to zoom")}</Text>
                       </View>
                     </TouchableOpacity>
                   </View>
                 ) : (
                   <View style={styles.noProofDetailBox}>
                     <Feather name="image" size={24} color="#94A3B8" />
-                    <Text style={styles.noProofDetailText}>No visual photo proof was uploaded for this task.</Text>
+                    <Text style={styles.noProofDetailText}>{tr("No visual photo proof was uploaded for this task.")}</Text>
                   </View>
                 )}
               </View>
 
               {/* Completion Notes Section */}
               <View style={styles.detailSectionBox}>
-                <Text style={styles.detailSectionLabel}>COMPLETION NOTES</Text>
+                <Text style={styles.detailSectionLabel}>{tr("COMPLETION NOTES")}</Text>
                 {selectedCompletedTask?.completionNote ? (
                   <View style={styles.noteCallout}>
                     <Feather name="message-square" size={16} color="#2563EB" style={{ marginTop: 2 }} />
-                    <Text style={styles.noteCalloutText}>{selectedCompletedTask.completionNote}</Text>
+                    <Text style={styles.noteCalloutText}>{tr(selectedCompletedTask.completionNote)}</Text>
                   </View>
                 ) : (
-                  <Text style={styles.noNoteDetailText}>No additional completion notes provided.</Text>
+                  <Text style={styles.noNoteDetailText}>{tr("No additional completion notes provided.")}</Text>
                 )}
               </View>
 
@@ -1657,11 +1658,11 @@ export default function MilestoneTaskDetail() {
                       <View style={styles.materialsSectionHeader}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Ionicons name="cube" size={16} color="#EA580C" />
-                          <Text style={styles.detailSectionLabel}>MATERIALS USED</Text>
+                          <Text style={styles.detailSectionLabel}>{tr("MATERIALS USED")}</Text>
                         </View>
                         <View style={[styles.matsCountBadge, { backgroundColor: usedMats.length > 0 ? '#FFEDD5' : '#F1F5F9' }]}>
                           <Text style={[styles.matsCountBadgeText, { color: usedMats.length > 0 ? '#C2410C' : '#64748B' }]}>
-                            {usedMats.length} {usedMats.length === 1 ? 'item' : 'items'}
+                            {usedMats.length} {usedMats.length === 1 ? tr("item") : tr("items")}
                           </Text>
                         </View>
                       </View>
@@ -1674,12 +1675,12 @@ export default function MilestoneTaskDetail() {
                                 <Ionicons name="cube-outline" size={18} color="#EA580C" />
                               </View>
                               <View style={styles.matDetailInfo}>
-                                <Text style={styles.matDetailName}>{mat.name || 'Site Material'}</Text>
-                                <Text style={styles.matDetailSub}>Consumed for this milestone task</Text>
+                                <Text style={styles.matDetailName}>{mat.name || tr("Site Material")}</Text>
+                                <Text style={styles.matDetailSub}>{tr("Consumed for this milestone task")}</Text>
                               </View>
                               <View style={styles.matDetailQtyBox}>
                                 <Text style={styles.matDetailQtyNum}>{mat.quantity}</Text>
-                                <Text style={styles.matDetailQtyUnit}>{mat.unit || 'Units'}</Text>
+                                <Text style={styles.matDetailQtyUnit}>{mat.unit || tr("Units")}</Text>
                               </View>
                             </View>
                           ))}
@@ -1687,8 +1688,8 @@ export default function MilestoneTaskDetail() {
                       ) : (
                         <View style={styles.emptyMaterialsBox}>
                           <Ionicons name="cube-outline" size={32} color="#CBD5E1" />
-                          <Text style={styles.emptyMaterialsTitle}>No Materials Logged</Text>
-                          <Text style={styles.emptyMaterialsSub}>No inventory materials were recorded for this task completion.</Text>
+                          <Text style={styles.emptyMaterialsTitle}>{tr("No Materials Logged")}</Text>
+                          <Text style={styles.emptyMaterialsSub}>{tr("No inventory materials were recorded for this task completion.")}</Text>
                         </View>
                       )}
                     </>
@@ -1699,7 +1700,7 @@ export default function MilestoneTaskDetail() {
               {/* Source Snag if any */}
               {selectedCompletedTask?.sourceSnag ? (
                 <View style={styles.detailSectionBox}>
-                  <Text style={styles.detailSectionLabel}>ORIGINATING SNAG</Text>
+                  <Text style={styles.detailSectionLabel}>{tr("ORIGINATING SNAG")}</Text>
                   <TouchableOpacity 
                     style={styles.snagLinkBtn}
                     onPress={() => {
@@ -1711,7 +1712,7 @@ export default function MilestoneTaskDetail() {
                     }}
                   >
                     <Feather name="alert-circle" size={16} color="#3B82F6" />
-                    <Text style={styles.snagLinkBtnText}>View Linked Snag Inspection</Text>
+                    <Text style={styles.snagLinkBtnText}>{tr("View Linked Snag Inspection")}</Text>
                     <Feather name="arrow-right" size={14} color="#3B82F6" />
                   </TouchableOpacity>
                 </View>
@@ -1722,7 +1723,7 @@ export default function MilestoneTaskDetail() {
                 style={styles.detailCloseActionBtn}
                 onPress={() => setIsCompletedTaskDetailVisible(false)}
               >
-                <Text style={styles.detailCloseActionBtnText}>Close Details</Text>
+                <Text style={styles.detailCloseActionBtnText}>{tr("Close Details")}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1731,8 +1732,8 @@ export default function MilestoneTaskDetail() {
 
       <ConfirmModal 
         visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={tr(confirmModal.title)}
+        message={tr(confirmModal.message)}
         confirmText={confirmModal.confirmText}
         type={confirmModal.type}
         onConfirm={confirmModal.onConfirm}

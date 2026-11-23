@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, Alert, Linking, Platform, KeyboardAvoidingView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -154,11 +155,11 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
           });
 
           if (res.ok) {
-            showToast(`Budget ${action.toLowerCase()} successfully`, 'success');
+            showToast(tr("Budget {{action}} successfully", { action: action.toLowerCase() }), 'success');
             if (fetchProjectData) await fetchProjectData();
           } else {
             const err = await res.json();
-            showToast(err.message || 'Action failed', 'error');
+            showToast(err.message || tr("Action failed"), 'error');
           }
         } catch (e) {
           showToast(t('networkError', 'Network Error'), 'error');
@@ -173,11 +174,11 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
   const handleRequestBudget = async () => {
     const addedAmount = Number(requestAmount);
     if (!requestAmount || isNaN(addedAmount) || addedAmount <= 0) {
-      showToast('Please enter a valid change request budget amount', 'error');
+      showToast(tr("Please enter a valid change request budget amount"), 'error');
       return;
     }
     if (!requestReason.trim()) {
-      showToast('Please provide a reason / justification', 'error');
+      showToast(tr("Please provide a reason / justification"), 'error');
       return;
     }
 
@@ -203,14 +204,14 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
       });
 
       if (res.ok) {
-        showToast(`Change request submitted: +${formatCompact(addedAmount)} (New Total: ${formatCompact(calculatedTotalBudget)})`, 'success');
+        showToast(tr("Change request submitted: +{{formatCompact}} (New Total: {{formatCompact2}})", { formatCompact: formatCompact(addedAmount), formatCompact2: formatCompact(calculatedTotalBudget) }), 'success');
         setShowRequestModal(false);
         setRequestAmount('');
         setRequestReason('');
         if (fetchProjectData) await fetchProjectData();
       } else {
         const err = await res.json();
-        showToast(err.message || 'Failed to submit request', 'error');
+        showToast(err.message || tr("Failed to submit request"), 'error');
       }
     } catch (e) {
       showToast(t('networkError', 'Network Error'), 'error');
@@ -233,7 +234,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
             </Text>
             <Text style={styles.surveyBannerDesc}>
               {project?.siteSurveyor?.name ? (
-                <>{t('assignedTo', 'Assigned to: ')}<Text style={{fontFamily: 'Inter-Bold', color: '#0F172A'}}>{project.siteSurveyor.name}</Text></>
+                <>{t('assignedTo', 'Assigned to: ')}<Text style={{fontFamily: 'Inter-Bold', color: '#0F172A'}}>{tr(project.siteSurveyor.name)}</Text></>
               ) : t('siteSurveyorAssigned', 'Site survey in progress')}
             </Text>
           </View>
@@ -274,16 +275,16 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
         <AdaptiveGlass intensity={20} tint="light" style={styles.pendingBudgetBanner}>
           <View style={styles.pendingHeader}>
             <Ionicons name="alert-circle" size={20} color="#DC2626" />
-            <Text style={styles.pendingTitle}>Pending Budget Change Request</Text>
+            <Text style={styles.pendingTitle}>{tr("Pending Budget Change Request")}</Text>
           </View>
           <Text style={styles.pendingDesc}>
-            {`+${formatCompact(pendingAddedAmount)} requested • Proposed Total: ${project?.currency || '$'} ${formatCompact(pendingTotalBudget)} (Current Base: ${project?.currency || '$'} ${formatCompact(currentBaseBudget)})`}
+            {tr("+{{formatCompact}} requested • Proposed Total: {{value}} {{formatCompact2}} (Current Base: {{value2}} {{formatCompact3}})", { formatCompact: formatCompact(pendingAddedAmount), value: project?.currency || '$', formatCompact2: formatCompact(pendingTotalBudget), value2: project?.currency || '$', formatCompact3: formatCompact(currentBaseBudget) })}
           </Text>
           <TouchableOpacity 
             style={styles.viewPendingBtn}
             onPress={() => setShowHistoryModal(true)}
           >
-            <Text style={styles.viewPendingText}>View & Take Action</Text>
+            <Text style={styles.viewPendingText}>{tr("View & Take Action")}</Text>
             <Ionicons name="arrow-forward" size={14} color="#DC2626" />
           </TouchableOpacity>
         </AdaptiveGlass>
@@ -329,11 +330,11 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 <Text style={styles.statusChipText}>{project?.status || t('planning', 'Planning')}</Text>
               </View>
               <View style={[styles.statusChip, {backgroundColor: '#F0F9FF'}]}>
-                <Text style={[styles.statusChipText, {color: '#2563EB'}]}>{project?.category?.name || 'General'}</Text>
+                <Text style={[styles.statusChipText, {color: '#2563EB'}]}>{project?.category?.name || tr("General")}</Text>
               </View>
             </View>
           </View>
-          <Text style={styles.heroTitle}>{project?.name || ''}{project?.projectCode ? <Text style={{ fontSize: 14, color: '#64748B', fontFamily: 'Inter-Medium' }}> ({project.projectCode})</Text> : null}</Text>
+          <Text style={styles.heroTitle}>{project?.name || ''}{project?.projectCode ? <Text style={{ fontSize: 14, color: '#64748B', fontFamily: 'Inter-Medium' }}> ({tr(project.projectCode)})</Text> : null}</Text>
           <View style={styles.locRow}>
             <Ionicons name="location" size={14} color="#64748B" />
             <Text style={styles.locText}>{project?.description || t('globalSite')}</Text>
@@ -370,7 +371,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
             <Text style={[styles.bentoSub, pendingRequests.length > 0 && { color: '#DC2626', fontFamily: 'Inter-SemiBold' }]}>
-              {pendingRequests.length > 0 ? `+${formatCompact(pendingAddedAmount)} Pending (Total: ${formatCompact(pendingTotalBudget)})` : t('latestApproved')}
+              {pendingRequests.length > 0 ? tr("+{{formatCompact}} Pending (Total: {{formatCompact2}})", { formatCompact: formatCompact(pendingAddedAmount), formatCompact2: formatCompact(pendingTotalBudget) }) : t('latestApproved')}
             </Text>
             <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
           </View>
@@ -420,7 +421,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 }}
               >
                 <Ionicons name="navigate" size={14} color="#3B82F6" />
-                <Text style={{ fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#3B82F6' }}>Map</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#3B82F6' }}>{tr("Map")}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -456,7 +457,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
             {canAssignMembers && (
               <TouchableOpacity onPress={handleOpenAddMember} style={styles.addMemberBtnSmall}>
                 <Ionicons name="add" size={16} color="#3B82F6" />
-                <Text style={styles.addMemberBtnText}>Add</Text>
+                <Text style={styles.addMemberBtnText}>{tr("Add")}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -468,7 +469,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               </View>
               <View style={styles.tInfo}>
                 <Text style={styles.tName}>{project?.createdBy?.name || t('manager')}</Text>
-                <Text style={[styles.tRole, { color: '#3B82F6', fontFamily: 'Inter-Bold', fontSize: 10, marginTop: 2, marginBottom: 1 }]}>Admin</Text>
+                <Text style={[styles.tRole, { color: '#3B82F6', fontFamily: 'Inter-Bold', fontSize: 10, marginTop: 2, marginBottom: 1 }]}>{tr("Admin")}</Text>
                 <Text style={styles.tRole}>{project?.createdBy?.email || t('adminCreator')}</Text>
               </View>
             </View>
@@ -491,7 +492,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 return (
                   <View style={styles.emptyMembersBox}>
                     <Ionicons name="people-outline" size={16} color="#94A3B8" />
-                    <Text style={styles.emptyMembersText}>No additional team members assigned yet</Text>
+                    <Text style={styles.emptyMembersText}>{tr("No additional team members assigned yet")}</Text>
                   </View>
                 );
               }
@@ -506,12 +507,12 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 return (
                   <View key={m._id || u?._id || i} style={styles.tMember}>
                     <View style={[styles.circleAvatar, { backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#DBEAFE' }]}>
-                      <Text style={[styles.cAvText, { color: '#2563EB' }]}>{initial}</Text>
+                      <Text style={[styles.cAvText, { color: '#2563EB' }]}>{tr(initial)}</Text>
                     </View>
                     <View style={styles.tInfo}>
-                      <Text style={styles.tName}>{name}</Text>
+                      <Text style={styles.tName}>{tr(name)}</Text>
                       <Text style={[styles.tRole, { color: '#2563EB', fontFamily: 'Inter-SemiBold', fontSize: 10, marginTop: 2, marginBottom: 1 }]}>
-                        {roleName}
+                        {tr(roleName)}
                       </Text>
                       {!!email && <Text style={styles.tRole}>{email}</Text>}
                     </View>
@@ -530,10 +531,10 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 <Ionicons name="wallet-outline" size={18} color="#3B82F6" />
               </View>
               <View>
-                <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>Budget Management</Text>
+                <Text style={{ fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr("Budget Management")}</Text>
                 <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#64748B' }}>
-                  Current: {project?.currency || '$'} {formatCompact(currentBaseBudget)}
-                  {pendingRequests.length > 0 && ` (+${formatCompact(pendingAddedAmount)} Pending)`}
+                  {tr("Current: ")}{project?.currency || '$'} {formatCompact(currentBaseBudget)}
+                  {pendingRequests.length > 0 && tr(" (+{{formatCompact}} Pending)", { formatCompact: formatCompact(pendingAddedAmount) })}
                 </Text>
               </View>
             </View>
@@ -543,7 +544,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#F1F5F9' }}
             >
               <Ionicons name="time-outline" size={14} color="#475569" />
-              <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#475569' }}>History</Text>
+              <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#475569' }}>{tr("History")}</Text>
             </TouchableOpacity>
           </View>
 
@@ -560,7 +561,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 style={styles.fullChangeReqGradient}
               >
                 <Ionicons name="git-pull-request-outline" size={18} color="#FFF" />
-                <Text style={styles.fullChangeReqBtnText}>Request Budget Change</Text>
+                <Text style={styles.fullChangeReqBtnText}>{tr("Request Budget Change")}</Text>
               </LinearGradient>
             </TouchableOpacity>
           )}
@@ -577,8 +578,8 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>Request Budget Change</Text>
-                <Text style={styles.modalSubSmall}>Propose budget modification for approval</Text>
+                <Text style={styles.modalTitle}>{tr("Request Budget Change")}</Text>
+                <Text style={styles.modalSubSmall}>{tr("Propose budget modification for approval")}</Text>
               </View>
               <TouchableOpacity 
                 style={styles.modalCloseBtn}
@@ -597,39 +598,39 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               {/* Live Calculation Preview Box */}
               <View style={styles.calcPreviewContainer}>
                 <View style={styles.calcStepBox}>
-                  <Text style={styles.calcStepLabel}>Current Budget</Text>
+                  <Text style={styles.calcStepLabel}>{tr("Current Budget")}</Text>
                   <Text style={styles.calcStepVal}>{formatCompact(currentBaseBudget)}</Text>
                 </View>
                 <Text style={styles.calcOp}>+</Text>
                 <View style={[styles.calcStepBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-                  <Text style={[styles.calcStepLabel, { color: '#2563EB' }]}>Change Req</Text>
+                  <Text style={[styles.calcStepLabel, { color: '#2563EB' }]}>{tr("Change Req")}</Text>
                   <Text style={[styles.calcStepVal, { color: '#1D4ED8' }]}>
                     +{formatCompact(Number(requestAmount) || 0)}
                   </Text>
                 </View>
                 <Text style={styles.calcOp}>=</Text>
                 <View style={[styles.calcStepBox, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
-                  <Text style={[styles.calcStepLabel, { color: '#16A34A' }]}>New Total</Text>
+                  <Text style={[styles.calcStepLabel, { color: '#16A34A' }]}>{tr("New Total")}</Text>
                   <Text style={[styles.calcStepVal, { color: '#15803D' }]}>
                     {formatCompact(currentBaseBudget + (Number(requestAmount) || 0))}
                   </Text>
                 </View>
               </View>
 
-              <Text style={styles.inputLabel}>Added Change Request Budget ({project?.currency || '$'})</Text>
+              <Text style={styles.inputLabel}>{tr("Added Change Request Budget (")}{project?.currency || '$'})</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. 50000 (amount to add to current budget)"
+                placeholder={tr("e.g. 50000 (amount to add to current budget)")}
                 placeholderTextColor="#94A3B8"
                 keyboardType="numeric"
                 value={requestAmount}
                 onChangeText={setRequestAmount}
               />
 
-              <Text style={styles.inputLabel}>Reason / Justification for Change</Text>
+              <Text style={styles.inputLabel}>{tr("Reason / Justification for Change")}</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                placeholder="Describe why the budget needs adjustment..."
+                placeholder={tr("Describe why the budget needs adjustment...")}
                 placeholderTextColor="#94A3B8"
                 multiline
                 numberOfLines={3}
@@ -641,11 +642,11 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               {isLoadingApprovers ? (
                 <View style={{ paddingVertical: 12, alignItems: 'center' }}>
                   <ActivityIndicator size="small" color="#3B82F6" />
-                  <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>Loading approvers...</Text>
+                  <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>{tr("Loading approvers...")}</Text>
                 </View>
               ) : budgetApprovers.length > 0 && (
                 <View style={{ marginBottom: 16 }}>
-                  <Text style={styles.inputLabel}>Assign Approver</Text>
+                  <Text style={styles.inputLabel}>{tr("Assign Approver")}</Text>
                   <View style={{ gap: 8 }}>
                     {budgetApprovers.map(a => {
                       const isSelected = selectedApproverId === a._id;
@@ -662,7 +663,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                             <Text style={styles.avatarLetter}>{(a.name || 'A').charAt(0)}</Text>
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={[styles.approverName, isSelected && { color: '#1D4ED8', fontFamily: 'Inter-Bold' }]}>{a.name}</Text>
+                            <Text style={[styles.approverName, isSelected && { color: '#1D4ED8', fontFamily: 'Inter-Bold' }]}>{tr(a.name)}</Text>
                             <Text style={styles.approverRole}>{a.role?.name || a.email}</Text>
                           </View>
                           {isSelected && <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />}
@@ -683,8 +684,8 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                 ) : (
                   <Text style={styles.submitBtnText}>
                     {Number(requestAmount) > 0 
-                      ? `Submit Change Request (+${formatCompact(Number(requestAmount))})`
-                      : 'Submit Change Request'}
+                      ? tr("Submit Change Request (+{{formatCompact}})", { formatCompact: formatCompact(Number(requestAmount)) })
+                      : tr("Submit Change Request")}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -700,8 +701,8 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
           <View style={[styles.modalContent, { minHeight: 320 }]}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>Budget Lifecycle</Text>
-                <Text style={styles.modalSubSmall}>Historical log & pending requests</Text>
+                <Text style={styles.modalTitle}>{tr("Budget Lifecycle")}</Text>
+                <Text style={styles.modalSubSmall}>{tr("Historical log & pending requests")}</Text>
               </View>
               <TouchableOpacity 
                 style={styles.modalCloseBtn}
@@ -717,7 +718,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               <Ionicons name="wallet-outline" size={18} color="#2563EB" />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 11, fontFamily: 'Inter-Medium', color: '#64748B' }}>
-                  Current Active Base Budget
+                  {tr("Current Active Base Budget")}
                 </Text>
                 <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' }}>
                   {project?.currency || '$'} {formatCompact(currentBaseBudget)}
@@ -726,7 +727,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
               {pendingRequests.length > 0 && (
                 <View style={{ backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA' }}>
                   <Text style={{ fontSize: 10, fontFamily: 'Inter-Bold', color: '#DC2626' }}>
-                    +{formatCompact(pendingAddedAmount)} PENDING
+                    +{formatCompact(pendingAddedAmount)}{tr(" PENDING")}
                   </Text>
                 </View>
               )}
@@ -761,7 +762,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                         {isPending && itemAdded > 0 && (
                           <View style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE' }}>
                             <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#1D4ED8' }}>
-                              +{formatCompact(itemAdded)} Change Req
+                              +{formatCompact(itemAdded)}{tr(" Change Req")}
                             </Text>
                           </View>
                         )}
@@ -778,12 +779,12 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                           isRejected && { color: '#B91C1C' },
                           isPending && { color: '#B45309' },
                         ]}>
-                          {item.approvalStatus || 'Approved'}
+                          {item.approvalStatus || tr("Approved")}
                         </Text>
                       </View>
                     </View>
 
-                    <Text style={styles.histReason}>{item.reason || 'No description provided'}</Text>
+                    <Text style={styles.histReason}>{item.reason || tr("No description provided")}</Text>
 
                     {isPending && canApproveBudget && (
                       <View style={styles.histActionRow}>
@@ -792,7 +793,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                           onPress={() => handleBudgetAction(item._id, 'Rejected')}
                           disabled={isProcessing}
                         >
-                          <Text style={styles.rejectBtnText}>Reject</Text>
+                          <Text style={styles.rejectBtnText}>{tr("Reject")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[styles.miniActionBtn, styles.approveBtn]}
@@ -800,7 +801,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                           disabled={isProcessing}
                         >
                           <Text style={styles.approveBtnText}>
-                            Approve (+{formatCompact(itemAdded)})
+                            {tr("Approve (+")}{formatCompact(itemAdded)})
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -808,7 +809,7 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
 
                     <View style={styles.histFooter}>
                       <Text style={styles.histMeta}>
-                        Updated by {item.updatedByName || 'System'} • {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Recorded'}
+                        {tr("Updated by ")}{item.updatedByName || tr("System")} • {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : tr("Recorded")}
                       </Text>
                     </View>
                   </View>
@@ -823,14 +824,14 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
                     </Text>
                     <View style={[styles.histStatus, { backgroundColor: '#DCFCE7' }]}>
                       <Text style={[styles.histStatusText, { color: '#15803D' }]}>
-                        Approved
+                        {tr("Approved")}
                       </Text>
                     </View>
                   </View>
-                  <Text style={styles.histReason}>Baseline project budget set upon creation.</Text>
+                  <Text style={styles.histReason}>{tr("Baseline project budget set upon creation.")}</Text>
                   <View style={styles.histFooter}>
                     <Text style={styles.histMeta}>
-                      Created by {project?.createdBy?.name || 'Project Admin'} • {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : 'Initial'}
+                      {tr("Created by ")}{project?.createdBy?.name || tr("Project Admin")} • {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : tr("Initial")}
                     </Text>
                   </View>
                 </View>
@@ -843,8 +844,8 @@ export default function ProjectDetailsTab({ project, fetchProjectData }) {
       {/* Confirmation Modal */}
       <ConfirmModal
         visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={tr(confirmModal.title)}
+        message={tr(confirmModal.message)}
         confirmText={confirmModal.confirmText}
         type={confirmModal.type}
         onConfirm={confirmModal.onConfirm}

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -83,7 +84,7 @@ export default function InteriorMembersScreen() {
       const res = await interiorApiClient.get(`/projects/${projectId}/members`);
       setMembers(res?.success ? res.data || [] : []);
     } catch (e) {
-      showToast(e.message || 'Failed to load members', 'error');
+      showToast(e.message || tr("Failed to load members"), 'error');
     } finally {
       setLoading(false);
     }
@@ -123,7 +124,7 @@ export default function InteriorMembersScreen() {
       const list = res?.success ? res.data || [] : Array.isArray(res) ? res : [];
       setOrgUsers(list);
     } catch (e) {
-      showToast(e.message || 'Failed to load organisation users', 'error');
+      showToast(e.message || tr("Failed to load organisation users"), 'error');
     } finally {
       setOrgUsersLoading(false);
     }
@@ -139,7 +140,7 @@ export default function InteriorMembersScreen() {
 
   const handleAddExistingMember = async () => {
     if (!addMemberUserId) {
-      showToast('Please select a user', 'error');
+      showToast(tr("Please select a user"), 'error');
       return;
     }
     setIsAddingMember(true);
@@ -148,11 +149,11 @@ export default function InteriorMembersScreen() {
         `/projects/${projectId}/members`,
         addMemberRole ? { userId: addMemberUserId, roleId: addMemberRole } : { userId: addMemberUserId, projectRole: 'viewer' }
       );
-      showToast('Member added to project', 'success');
+      showToast(tr("Member added to project"), 'success');
       setIsAddMemberOpen(false);
       fetchMembers();
     } catch (e) {
-      showToast(e.message || 'Failed to add member', 'error');
+      showToast(e.message || tr("Failed to add member"), 'error');
     } finally {
       setIsAddingMember(false);
     }
@@ -168,7 +169,7 @@ export default function InteriorMembersScreen() {
 
   const handleInvite = async () => {
     if (!inviteForm.firstName || !inviteForm.lastName || !inviteForm.email) {
-      showToast('Please fill all required fields', 'error');
+      showToast(tr("Please fill all required fields"), 'error');
       return;
     }
     setInviting(true);
@@ -180,12 +181,12 @@ export default function InteriorMembersScreen() {
         ...(password.trim() ? { password: password.trim() } : {}),
         ...(roleId || viewerRoleId ? { roleId: roleId || viewerRoleId } : { projectRole: 'viewer' }),
       });
-      showToast('User created and added to project', 'success');
+      showToast(tr("User created and added to project"), 'success');
       setIsInviteOpen(false);
       setInviteForm(emptyInvite);
       fetchMembers();
     } catch (e) {
-      showToast(e.message || 'Failed to invite member', 'error');
+      showToast(e.message || tr("Failed to invite member"), 'error');
     } finally {
       setInviting(false);
     }
@@ -193,11 +194,11 @@ export default function InteriorMembersScreen() {
 
   const confirmDelete = (member) => {
     Alert.alert(
-      'Remove Member',
-      'They will lose access to all tasks and documents in this project.',
+      tr("Remove Member"),
+      tr("They will lose access to all tasks and documents in this project."),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => handleDelete(member) },
+        { text: tr("Cancel"), style: 'cancel' },
+        { text: tr("Remove"), style: 'destructive', onPress: () => handleDelete(member) },
       ]
     );
   };
@@ -205,10 +206,10 @@ export default function InteriorMembersScreen() {
   const handleDelete = async (member) => {
     try {
       await interiorApiClient.delete(`/projects/${projectId}/members/${member._id}`);
-      showToast('Member removed from project', 'delete');
+      showToast(tr("Member removed from project"), 'delete');
       fetchMembers();
     } catch (e) {
-      showToast(e.message || 'Failed to remove member', 'error');
+      showToast(e.message || tr("Failed to remove member"), 'error');
     }
   };
 
@@ -257,7 +258,7 @@ export default function InteriorMembersScreen() {
     setEditedRole(roleId);
     setEditedPermissions(JSON.parse(JSON.stringify(role?.permissions || [])));
     setPermMode('role');
-    if (role) showToast(`Using the "${role.name}" role's permissions`, 'success');
+    if (role) showToast(tr("Using the \"{{name}}\" role's permissions", { name: role.name }), 'success');
   };
 
   const savePermissions = async () => {
@@ -267,14 +268,14 @@ export default function InteriorMembersScreen() {
       // Role mode → link the org role (its permissions apply live); custom → these exact permissions
       const payload = permMode === 'role' && editedRole ? { roleId: editedRole } : { permissions: editedPermissions };
       await interiorApiClient.patch(`/projects/${projectId}/members/${permMember._id}`, payload);
-      showToast('Permissions updated successfully', 'success');
+      showToast(tr("Permissions updated successfully"), 'success');
       // Apply the change to open screens right away
       invalidateProjectPermissions(projectId);
       refreshUser?.();
       closePermissions();
       fetchMembers();
     } catch (e) {
-      showToast(e.message || 'Failed to update permissions', 'error');
+      showToast(e.message || tr("Failed to update permissions"), 'error');
     } finally {
       setSavingPerms(false);
     }
@@ -291,7 +292,7 @@ export default function InteriorMembersScreen() {
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Team & Access Control</Text>
+            <Text style={s.headerTitle}>{tr("Team & Access Control")}</Text>
           </View>
         </View>
 
@@ -301,15 +302,15 @@ export default function InteriorMembersScreen() {
             <TouchableOpacity style={s.addMemberBtn} onPress={openAddMemberModal} activeOpacity={0.8}>
               <Ionicons name="person-add-outline" size={16} color="#0F172A" />
               <View style={{ flexShrink: 1 }}>
-                <Text style={s.addMemberBtnText}>Add Member</Text>
-                <Text style={s.memberBtnHint} numberOfLines={1}>Existing user</Text>
+                <Text style={s.addMemberBtnText}>{tr("Add Member")}</Text>
+                <Text style={s.memberBtnHint} numberOfLines={1}>{tr("Existing user")}</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity style={s.createMemberBtn} onPress={() => setIsInviteOpen(true)} activeOpacity={0.8}>
               <Ionicons name="add" size={18} color="#FFFFFF" />
               <View style={{ flexShrink: 1 }}>
-                <Text style={s.createMemberBtnText}>Create Member</Text>
-                <Text style={[s.memberBtnHint, { color: '#DBEAFE' }]} numberOfLines={1}>New account</Text>
+                <Text style={s.createMemberBtnText}>{tr("Create Member")}</Text>
+                <Text style={[s.memberBtnHint, { color: '#DBEAFE' }]} numberOfLines={1}>{tr("New account")}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -317,8 +318,8 @@ export default function InteriorMembersScreen() {
 
         <View style={s.searchRow}>
           <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
-          <TextInput style={s.searchInput} placeholder="Search team members..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
-          <Text style={s.countText}>{members.length} {members.length === 1 ? 'Member' : 'Members'}</Text>
+          <TextInput style={s.searchInput} placeholder={tr("Search team members...")} placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
+          <Text style={s.countText}>{members.length} {members.length === 1 ? tr("Member") : tr("Members")}</Text>
         </View>
 
         {loading ? (
@@ -328,7 +329,7 @@ export default function InteriorMembersScreen() {
             {filteredMembers.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="people-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No members found</Text>
+                <Text style={s.emptyTitle}>{tr("No members found")}</Text>
               </View>
             ) : (
               filteredMembers.map((member) => {
@@ -342,12 +343,12 @@ export default function InteriorMembersScreen() {
                   <View key={member._id} style={s.memberCard}>
                     <View style={s.memberTopRow}>
                       <View style={s.avatar}>
-                        <Text style={s.avatarText}>{member.userId?.firstName?.[0]}{member.userId?.lastName?.[0]}</Text>
+                        <Text style={s.avatarText}>{tr(member.userId?.firstName?.[0])}{tr(member.userId?.lastName?.[0])}</Text>
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={s.memberName} numberOfLines={1}>{member.userId?.firstName} {member.userId?.lastName}</Text>
+                        <Text style={s.memberName} numberOfLines={1}>{tr(member.userId?.firstName)} {tr(member.userId?.lastName)}</Text>
                         <Text style={s.memberEmail} numberOfLines={1}>{member.userId?.email}</Text>
-                        {!!member.userId?.designation && <Text style={s.memberDesignation} numberOfLines={1}>{member.userId.designation}</Text>}
+                        {!!member.userId?.designation && <Text style={s.memberDesignation} numberOfLines={1}>{tr(member.userId.designation)}</Text>}
                       </View>
                       <View style={{ gap: 6, alignItems: 'flex-end' }}>
                         {editable && canDo('users', 'update') && (
@@ -365,11 +366,11 @@ export default function InteriorMembersScreen() {
 
                     <View style={s.memberBottomRow}>
                       <View style={[s.roleBadge, { backgroundColor: role.bg }]}>
-                        <Text style={[s.roleBadgeText, { color: role.color }]}>{role.label}</Text>
+                        <Text style={[s.roleBadgeText, { color: role.color }]}>{tr(role.label)}</Text>
                       </View>
                       <TouchableOpacity style={s.permCountBtn} disabled={!editable || !canDo('users', 'update')} onPress={() => openPermissions(member)}>
                         <Ionicons name="shield-checkmark-outline" size={11} color="#64748B" />
-                        <Text style={s.permCountText}>{permCount} permissions</Text>
+                        <Text style={s.permCountText}>{tr(permCount)}{tr(" permissions")}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -388,8 +389,8 @@ export default function InteriorMembersScreen() {
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>Add Existing Member</Text>
-                <Text style={s.headerSub}>Select a user from your organisation</Text>
+                <Text style={s.modalTitle}>{tr("Add Existing Member")}</Text>
+                <Text style={s.headerSub}>{tr("Select a user from your organisation")}</Text>
               </View>
               <TouchableOpacity onPress={() => setIsAddMemberOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
@@ -400,7 +401,7 @@ export default function InteriorMembersScreen() {
               <Ionicons name="search" size={15} color="#94A3B8" style={{ marginRight: 8 }} />
               <TextInput
                 style={s.searchInput}
-                placeholder="Search by name or email..."
+                placeholder={tr("Search by name or email...")}
                 placeholderTextColor="#94A3B8"
                 value={addMemberSearch}
                 onChangeText={(t) => { setAddMemberSearch(t); setAddMemberUserId(''); }}
@@ -415,7 +416,7 @@ export default function InteriorMembersScreen() {
               <ScrollView style={{ maxHeight: 260, marginTop: 10 }} showsVerticalScrollIndicator={false}>
                 {filteredOrgUsers.length === 0 ? (
                   <Text style={s.emptyTitle}>
-                    {addMemberSearch ? 'No users match your search.' : 'All organisation users are already members.'}
+                    {addMemberSearch ? tr("No users match your search.") : tr("All organisation users are already members.")}
                   </Text>
                 ) : (
                   filteredOrgUsers.map((u) => (
@@ -425,10 +426,10 @@ export default function InteriorMembersScreen() {
                       onPress={() => setAddMemberUserId(u._id)}
                     >
                       <View style={s.avatar}>
-                        <Text style={s.avatarText}>{u.firstName?.[0]}{u.lastName?.[0]}</Text>
+                        <Text style={s.avatarText}>{tr(u.firstName?.[0])}{tr(u.lastName?.[0])}</Text>
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={s.memberName} numberOfLines={1}>{u.firstName} {u.lastName}</Text>
+                        <Text style={s.memberName} numberOfLines={1}>{tr(u.firstName)} {tr(u.lastName)}</Text>
                         <Text style={s.memberEmail} numberOfLines={1}>{u.email}</Text>
                       </View>
                       {addMemberUserId === u._id && <Ionicons name="checkmark-circle" size={18} color="#2563EB" />}
@@ -438,11 +439,11 @@ export default function InteriorMembersScreen() {
               </ScrollView>
             )}
 
-            <Text style={[s.label, { marginTop: 14 }]}>Project Role</Text>
+            <Text style={[s.label, { marginTop: 14 }]}>{tr("Project Role")}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
               {orgRoles.map((r) => (
                 <TouchableOpacity key={r._id} style={[s.chip, addMemberRole === r._id && s.chipActive]} onPress={() => setAddMemberRole(r._id)}>
-                  <Text style={[s.chipText, addMemberRole === r._id && s.chipTextActive]}>{r.name}</Text>
+                  <Text style={[s.chipText, addMemberRole === r._id && s.chipTextActive]}>{tr(r.name)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -452,7 +453,7 @@ export default function InteriorMembersScreen() {
               onPress={handleAddExistingMember}
               disabled={!addMemberUserId || isAddingMember}
             >
-              {isAddingMember ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Add to Project</Text>}
+              {isAddingMember ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Add to Project")}</Text>}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -463,7 +464,7 @@ export default function InteriorMembersScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Create Project Member</Text>
+              <Text style={s.modalTitle}>{tr("Create Project Member")}</Text>
               <TouchableOpacity onPress={() => setIsInviteOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
@@ -472,47 +473,47 @@ export default function InteriorMembersScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>First Name *</Text>
+                  <Text style={s.label}>{tr("First Name *")}</Text>
                   <TextInput style={s.input} placeholderTextColor="#94A3B8" value={inviteForm.firstName} onChangeText={(v) => setInviteForm({ ...inviteForm, firstName: v })} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Last Name *</Text>
+                  <Text style={s.label}>{tr("Last Name *")}</Text>
                   <TextInput style={s.input} placeholderTextColor="#94A3B8" value={inviteForm.lastName} onChangeText={(v) => setInviteForm({ ...inviteForm, lastName: v })} />
                 </View>
               </View>
 
-              <Text style={s.label}>Email Address *</Text>
-              <TextInput style={s.input} placeholder="user@example.com" placeholderTextColor="#94A3B8" keyboardType="email-address" autoCapitalize="none" value={inviteForm.email} onChangeText={(v) => setInviteForm({ ...inviteForm, email: v })} />
+              <Text style={s.label}>{tr("Email Address *")}</Text>
+              <TextInput style={s.input} placeholder={tr("user@example.com")} placeholderTextColor="#94A3B8" keyboardType="email-address" autoCapitalize="none" value={inviteForm.email} onChangeText={(v) => setInviteForm({ ...inviteForm, email: v })} />
 
-              <Text style={s.label}>Temporary Password (optional)</Text>
-              <TextInput style={s.input} placeholder="Leave blank to use welcome123" placeholderTextColor="#94A3B8" secureTextEntry value={inviteForm.password} onChangeText={(v) => setInviteForm({ ...inviteForm, password: v })} />
+              <Text style={s.label}>{tr("Temporary Password (optional)")}</Text>
+              <TextInput style={s.input} placeholder={tr("Leave blank to use welcome123")} placeholderTextColor="#94A3B8" secureTextEntry value={inviteForm.password} onChangeText={(v) => setInviteForm({ ...inviteForm, password: v })} />
 
-              <Text style={s.label}>Project Role *</Text>
+              <Text style={s.label}>{tr("Project Role *")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
                 {orgRoles.map((r) => {
                   const active = (inviteForm.roleId || viewerRoleId) === r._id;
                   return (
                     <TouchableOpacity key={r._id} style={[s.chip, active && s.chipActive]} onPress={() => setInviteForm({ ...inviteForm, roleId: r._id })}>
-                      <Text style={[s.chipText, active && s.chipTextActive]}>{r.name}</Text>
+                      <Text style={[s.chipText, active && s.chipTextActive]}>{tr(r.name)}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
-              <Text style={s.hintText}>The member gets this role&apos;s permissions. Customize afterwards via Settings.</Text>
+              <Text style={s.hintText}>{tr("The member gets this role's permissions. Customize afterwards via Settings.")}</Text>
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Designation</Text>
-                  <TextInput style={s.input} placeholder="e.g. Lead Architect" placeholderTextColor="#94A3B8" value={inviteForm.designation} onChangeText={(v) => setInviteForm({ ...inviteForm, designation: v })} />
+                  <Text style={s.label}>{tr("Designation")}</Text>
+                  <TextInput style={s.input} placeholder={tr("e.g. Lead Architect")} placeholderTextColor="#94A3B8" value={inviteForm.designation} onChangeText={(v) => setInviteForm({ ...inviteForm, designation: v })} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Department</Text>
-                  <TextInput style={s.input} placeholder="e.g. Engineering" placeholderTextColor="#94A3B8" value={inviteForm.department} onChangeText={(v) => setInviteForm({ ...inviteForm, department: v })} />
+                  <Text style={s.label}>{tr("Department")}</Text>
+                  <TextInput style={s.input} placeholder={tr("e.g. Engineering")} placeholderTextColor="#94A3B8" value={inviteForm.department} onChangeText={(v) => setInviteForm({ ...inviteForm, department: v })} />
                 </View>
               </View>
 
               <TouchableOpacity style={[s.saveBtn, inviting && { opacity: 0.7 }]} onPress={handleInvite} disabled={inviting}>
-                {inviting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Create User</Text>}
+                {inviting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Create User")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -528,10 +529,10 @@ export default function InteriorMembersScreen() {
                 <View style={s.modalHeader}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                     <View style={s.avatar}>
-                      <Text style={s.avatarText}>{permMember.userId?.firstName?.[0]}{permMember.userId?.lastName?.[0]}</Text>
+                      <Text style={s.avatarText}>{tr(permMember.userId?.firstName?.[0])}{tr(permMember.userId?.lastName?.[0])}</Text>
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={s.modalTitle} numberOfLines={1}>{permMember.userId?.firstName} {permMember.userId?.lastName}</Text>
+                      <Text style={s.modalTitle} numberOfLines={1}>{tr(permMember.userId?.firstName)} {tr(permMember.userId?.lastName)}</Text>
                       <Text style={s.memberEmail} numberOfLines={1}>{permMember.userId?.email}</Text>
                     </View>
                   </View>
@@ -540,21 +541,21 @@ export default function InteriorMembersScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <Text style={s.label}>Project Role</Text>
+                <Text style={s.label}>{tr("Project Role")}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.roleScroll} contentContainerStyle={s.roleScrollContent}>
                   {orgRoles.map((r) => (
                     <TouchableOpacity key={r._id} style={[s.chip, permMode === 'role' && editedRole === r._id && s.chipActive]} onPress={() => handleRoleChange(r._id)}>
-                      <Text style={[s.chipText, permMode === 'role' && editedRole === r._id && s.chipTextActive]}>{r.name}</Text>
+                      <Text style={[s.chipText, permMode === 'role' && editedRole === r._id && s.chipTextActive]}>{tr(r.name)}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
                 {permMode === 'custom' ? (
-                  <Text style={s.roleChangedTag}>Custom permissions (this member only)</Text>
+                  <Text style={s.roleChangedTag}>{tr("Custom permissions (this member only)")}</Text>
                 ) : editedRole !== memberRoleId(permMember) ? (
-                  <Text style={s.roleChangedTag}>Role changed</Text>
+                  <Text style={s.roleChangedTag}>{tr("Role changed")}</Text>
                 ) : null}
 
-                <Text style={[s.label, { marginTop: 14 }]}>Module Permissions</Text>
+                <Text style={[s.label, { marginTop: 14 }]}>{tr("Module Permissions")}</Text>
                 <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, marginBottom: 8 }}>
                   {PROJECT_MODULES.map((mod) => {
                     const offered = moduleActions(mod.module);
@@ -563,11 +564,11 @@ export default function InteriorMembersScreen() {
                     return (
                       <View key={mod.module} style={s.moduleRow}>
                         <TouchableOpacity style={s.moduleHeaderRow} onPress={() => setExpandedModule(expanded ? null : mod.module)}>
-                          <Text style={s.moduleLabel}>{mod.label}</Text>
+                          <Text style={s.moduleLabel}>{tr(mod.label)}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             {activeCount > 0 && (
                               <View style={s.moduleCountBadge}>
-                                <Text style={s.moduleCountText}>{activeCount}</Text>
+                                <Text style={s.moduleCountText}>{tr(activeCount)}</Text>
                               </View>
                             )}
                             <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color="#94A3B8" />
@@ -592,9 +593,9 @@ export default function InteriorMembersScreen() {
                 </ScrollView>
 
                 <View style={s.permFooter}>
-                  <Text style={s.permFooterText}>{totalPerms} total permissions across {editedPermissions.length} modules</Text>
+                  <Text style={s.permFooterText}>{tr(totalPerms)}{tr(" total permissions across ")}{editedPermissions.length}{tr(" modules")}</Text>
                   <TouchableOpacity style={[s.saveBtn, { marginTop: 10 }, savingPerms && { opacity: 0.7 }]} onPress={savePermissions} disabled={savingPerms}>
-                    {savingPerms ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Save Permissions</Text>}
+                    {savingPerms ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Save Permissions")}</Text>}
                   </TouchableOpacity>
                 </View>
               </>

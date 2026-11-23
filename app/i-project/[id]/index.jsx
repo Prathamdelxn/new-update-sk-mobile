@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -13,6 +14,7 @@ import { queryKeys, useRefreshOnFocus } from '../../context/QueryProvider';
 import CategoryNav from './_components/CategoryNav';
 import SkeletonList from '../../components/common/SkeletonList';
 import { formatCompactCurrency } from '../../utils/common/format';
+import { useOrgCurrency } from '../../utils/interior/orgCurrency';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 import ProjectActionItems from './_components/ProjectActionItems';
 import HealthReasonsSheet from './_components/HealthReasonsSheet';
@@ -33,6 +35,7 @@ function formatDate(d) {
 }
 
 export default function InteriorProjectOverviewScreen() {
+  const orgCurrency = useOrgCurrency();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -70,7 +73,7 @@ export default function InteriorProjectOverviewScreen() {
 
   useRefreshOnFocus([queryKeys.interiorProject(id), queryKeys.interiorProjectMetrics(id)]);
 
-  const comingSoon = (label) => showToast(`${label} — coming soon.`, 'success');
+  const comingSoon = (label) => showToast(tr("{{label}} — coming soon.", { label: label }), 'success');
   const openTasks = () => router.push(`/i-project/${id}/tasks`);
   const openMilestones = () => router.push(`/i-project/${id}/milestones`);
   const openSnags = () => router.push(`/i-project/${id}/snags`);
@@ -122,7 +125,7 @@ export default function InteriorProjectOverviewScreen() {
           <View style={{ flex: 1, minWidth: 0 }}>
             {p.name ? (
               <>
-                <Text style={s.projectTitle} numberOfLines={1}>{p.name}</Text>
+                <Text style={s.projectTitle} numberOfLines={1}>{tr(p.name)}</Text>
                 <Text style={s.projectClient} numberOfLines={1}>
                   {[p.code, p.client || 'No client', p.location?.city].filter(Boolean).join(' · ')}
                 </Text>
@@ -136,7 +139,7 @@ export default function InteriorProjectOverviewScreen() {
           </View>
           {!!p.name && (p.status && p.status !== 'active' ? (
             <View style={[s.badge, { backgroundColor: '#FFFBEB' }]}>
-              <Text style={[s.badgeText, { color: '#D97706' }]}>On Hold</Text>
+              <Text style={[s.badgeText, { color: '#D97706' }]}>{tr("On Hold")}</Text>
             </View>
           ) : (
             <TouchableOpacity
@@ -146,7 +149,7 @@ export default function InteriorProjectOverviewScreen() {
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               {p.health && p.health !== 'on-track' && <Ionicons name="warning-outline" size={12} color={health.color} />}
-              <Text style={[s.badgeText, { color: health.color }]}>{health.label}</Text>
+              <Text style={[s.badgeText, { color: health.color }]}>{tr(health.label)}</Text>
               <Ionicons name="chevron-forward" size={12} color={health.color} />
             </TouchableOpacity>
           ))}
@@ -159,8 +162,8 @@ export default function InteriorProjectOverviewScreen() {
           {/* Progress card: one headline number (progress) + bar, then 3 secondary figures */}
           <View style={s.card}>
             <View style={s.progressHead}>
-              <Text style={s.progressLabel}>Overall progress</Text>
-              {!!p.endDate && <Text style={s.progressDue}>Due {formatDate(p.endDate)}</Text>}
+              <Text style={s.progressLabel}>{tr("Overall progress")}</Text>
+              {!!p.endDate && <Text style={s.progressDue}>{tr("Due ")}{formatDate(p.endDate)}</Text>}
             </View>
             <Text style={s.progressValue}>{p.progress || 0}%</Text>
             <View style={s.progressTrack}>
@@ -168,17 +171,17 @@ export default function InteriorProjectOverviewScreen() {
             </View>
             <View style={s.factsRow}>
               <View style={s.factCell}>
-                <Text style={s.factValue} numberOfLines={1} adjustsFontSizeToFit>{formatBudget(p.budget?.amount, p.budget?.currency)}</Text>
-                <Text style={s.factLabel}>Contract</Text>
+                <Text style={s.factValue} numberOfLines={1} adjustsFontSizeToFit>{formatBudget(p.budget?.amount, orgCurrency.code)}</Text>
+                <Text style={s.factLabel}>{tr("Contract")}</Text>
               </View>
               <TouchableOpacity style={s.factCell} onPress={() => canDo('tasks', 'read') && openTasks()} activeOpacity={0.7}>
-                <Text style={s.factValue}>{taskStats.completed}/{taskStats.total}</Text>
-                <Text style={s.factLabel}>Tasks done</Text>
+                <Text style={s.factValue}>{tr(taskStats.completed)}/{taskStats.total}</Text>
+                <Text style={s.factLabel}>{tr("Tasks done")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.factCell} onPress={() => canDo('milestones', 'read') && openMilestones()} activeOpacity={0.7}>
-                <Text style={[s.factValue, milestones.delayed > 0 && { color: '#DC2626' }]}>{milestones.achieved}/{milestones.total}</Text>
+                <Text style={[s.factValue, milestones.delayed > 0 && { color: '#DC2626' }]}>{tr(milestones.achieved)}/{milestones.total}</Text>
                 <Text style={[s.factLabel, milestones.delayed > 0 && { color: '#DC2626' }]}>
-                  {milestones.delayed > 0 ? `${milestones.delayed} delayed` : 'Milestones'}
+                  {milestones.delayed > 0 ? `${milestones.delayed} delayed` : tr("Milestones")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -190,14 +193,14 @@ export default function InteriorProjectOverviewScreen() {
           {/* Quick access */}
           {quickLinks.length > 0 && (
             <>
-              <Text style={s.sectionTitle}>Quick access</Text>
+              <Text style={s.sectionTitle}>{tr("Quick access")}</Text>
               <View style={s.quickGrid}>
                 {quickLinks.map((q) => (
                   <TouchableOpacity key={q.path} style={s.quickTile} onPress={() => router.push(`/i-project/${id}/${q.path}`)} activeOpacity={0.8}>
                     <View style={[s.quickIcon, { backgroundColor: q.bg }]}>
                       <Ionicons name={q.icon} size={22} color={q.color} />
                     </View>
-                    <Text style={s.quickLabel} numberOfLines={1}>{q.label}</Text>
+                    <Text style={s.quickLabel} numberOfLines={1}>{tr(q.label)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -205,7 +208,7 @@ export default function InteriorProjectOverviewScreen() {
           )}
 
           {/* Needs attention */}
-          <Text style={s.sectionTitle}>Needs attention</Text>
+          <Text style={s.sectionTitle}>{tr("Needs attention")}</Text>
           <View style={s.card}>
             {qualityRows.map((row, i) => (
               <TouchableOpacity
@@ -215,7 +218,7 @@ export default function InteriorProjectOverviewScreen() {
                 activeOpacity={0.7}
               >
                 <View style={[s.qualityDot, { backgroundColor: row.color }]} />
-                <Text style={s.qualityLabel}>{row.label}</Text>
+                <Text style={s.qualityLabel}>{tr(row.label)}</Text>
                 <View style={[s.countPill, { backgroundColor: row.value > 0 ? row.color + '18' : '#F1F5F9' }]}>
                   <Text style={[s.countPillText, { color: row.value > 0 ? row.color : '#94A3B8' }]}>{row.value || 0}</Text>
                 </View>
@@ -225,12 +228,12 @@ export default function InteriorProjectOverviewScreen() {
           </View>
 
           {/* Task breakdown */}
-          <Text style={s.sectionTitle}>Tasks by status</Text>
+          <Text style={s.sectionTitle}>{tr("Tasks by status")}</Text>
           <View style={s.card}>
             {breakdownRows.map((row, i) => (
               <View key={row.label} style={i < breakdownRows.length - 1 && { marginBottom: 14 }}>
                 <View style={s.breakdownTopRow}>
-                  <Text style={s.breakdownLabel}>{row.label}</Text>
+                  <Text style={s.breakdownLabel}>{tr(row.label)}</Text>
                   <Text style={s.breakdownValue}>{row.value || 0}</Text>
                 </View>
                 <View style={s.progressTrack}>

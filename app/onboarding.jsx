@@ -1,3 +1,4 @@
+import { tr } from './utils/i18n/tr';
 import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, useWindowDimensions,
@@ -200,12 +201,12 @@ export default function OnboardingScreen() {
             lineHeight: isSmallScreen ? 30 : (isTallScreen ? 34 : 32),
             marginBottom: isSmallScreen ? 8 : (isTallScreen ? 16 : 12),
           }]}>
-            {currentSlide.title}
+            {tr(currentSlide.title)}
           </Text>
           <Text style={[styles.description, {
             fontSize: isSmallScreen ? 13 : (isTallScreen ? 15 : 14),
             lineHeight: isSmallScreen ? 20 : (isTallScreen ? 24 : 22),
-          }]}>{currentSlide.description}</Text>
+          }]}>{tr(currentSlide.description)}</Text>
         </Animated.View>
       </Animated.View>
  

@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import { useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import {
@@ -101,7 +102,7 @@ export default function LoginScreen() {
         onLongPress={async () => {
           await SecureStore.deleteItemAsync('hasSeenOnboarding');
           await SecureStore.deleteItemAsync('hasSelectedLanguage');
-          alert('App state reset! Restart the app to see the intro sequence again.');
+          alert(tr("App state reset! Restart the app to see the intro sequence again."));
         }}
         activeOpacity={0.7}
       >
@@ -132,11 +133,11 @@ export default function LoginScreen() {
               style={styles.centeredLogo}
               contentFit="contain"
             />
-            <Text style={styles.mainTitle}>Welcome Back</Text>
+            <Text style={styles.mainTitle}>{tr("Welcome Back")}</Text>
             <Text style={styles.subTitle}>
               {industryType === 'interior'
-                ? 'Sign in to manage your interior projects'
-                : 'Sign in to manage your construction projects'}
+                ? tr("Sign in to manage your interior projects")
+                : tr("Sign in to manage your construction projects")}
             </Text>
           </View>
 
@@ -145,7 +146,7 @@ export default function LoginScreen() {
             <View style={styles.errorContainer}>
               <Ionicons name="alert-circle" size={15} color="#DC2626" style={{ marginRight: 6 }} />
               <Text style={styles.errorText} numberOfLines={2}>
-                {error}
+                {tr(error)}
               </Text>
             </View>
           ) : null}
@@ -173,7 +174,7 @@ export default function LoginScreen() {
                   ]}
                   numberOfLines={1}
                 >
-                  Construction
+                  {tr("Construction")}
                 </Text>
               </TouchableOpacity>
 
@@ -196,7 +197,7 @@ export default function LoginScreen() {
                   ]}
                   numberOfLines={1}
                 >
-                  Interior Design
+                  {tr("Interior Design")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -208,7 +209,7 @@ export default function LoginScreen() {
                 <Ionicons name="mail-outline" size={16} color="#94A3B8" style={styles.fieldIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="name@company.com"
+                  placeholder={tr("name@company.com")}
                   placeholderTextColor="#94A3B8"
                   value={email}
                   onChangeText={(val) => {
@@ -284,7 +285,7 @@ export default function LoginScreen() {
               {isLoading ? (
                 <View style={styles.loadingRow}>
                   <ActivityIndicator color="#FFFFFF" size="small" />
-                  <Text style={styles.submitBtnText}>Signing in...</Text>
+                  <Text style={styles.submitBtnText}>{tr("Signing in...")}</Text>
                 </View>
               ) : (
                 <Text style={styles.submitBtnText}>{t('loginUpper', 'Sign in')}</Text>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, ActivityIndicator, Modal, TextInput, Platform, RefreshControl, LayoutAnimation, Image, Alert, Linking, Keyboard } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -125,7 +126,7 @@ export default function ProjectIssuesTab({ project }) {
 
     } catch (error) {
       console.error("Fetch error:", error);
-      showToast("Failed to load data", "error");
+      showToast(tr("Failed to load data"), "error");
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -147,12 +148,12 @@ export default function ProjectIssuesTab({ project }) {
         body: JSON.stringify({ levels: formattedLevels })
       });
       if (res.ok) {
-        showToast("Matrix updated", "success");
+        showToast(tr("Matrix updated"), "success");
         setIsEditMatrixModalVisible(false);
         fetchData();
       }
     } catch (error) {
-      showToast("Update failed", "error");
+      showToast(tr("Update failed"), "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -199,14 +200,14 @@ export default function ProjectIssuesTab({ project }) {
 
   const handlePickImage = async () => {
     Alert.alert(
-      "Attach Image",
-      "Choose a source",
+      tr("Attach Image"),
+      tr("Choose a source"),
       [
         {
-          text: "Camera",
+          text: tr("Camera"),
           onPress: async () => {
             const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-            if (permissionResult.granted === false) return showToast("Camera access required", "error");
+            if (permissionResult.granted === false) return showToast(tr("Camera access required"), "error");
             
             const result = await ImagePicker.launchCameraAsync({
               allowsEditing: false,
@@ -222,10 +223,10 @@ export default function ProjectIssuesTab({ project }) {
           }
         },
         {
-          text: "Gallery",
+          text: tr("Gallery"),
           onPress: async () => {
             const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (permissionResult.granted === false) return showToast("Gallery access required", "error");
+            if (permissionResult.granted === false) return showToast(tr("Gallery access required"), "error");
 
             const result = await ImagePicker.launchImageLibraryAsync({
               mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -241,14 +242,14 @@ export default function ProjectIssuesTab({ project }) {
             }
           }
         },
-        { text: "Cancel", style: "cancel" }
+        { text: tr("Cancel"), style: "cancel" }
       ]
     );
   };
 
   const handleCreateIssue = async () => {
-    if (!title.trim()) return showToast("Title required", "error");
-    if (!description.trim()) return showToast("Description required", "error");
+    if (!title.trim()) return showToast(tr("Title required"), "error");
+    if (!description.trim()) return showToast(tr("Description required"), "error");
     
     try {
       setIsSubmitting(true);
@@ -274,7 +275,7 @@ export default function ProjectIssuesTab({ project }) {
         body: JSON.stringify({ title, description, priority, category, assignedTo, images: uploadedUrls })
       });
       if (res.ok) {
-        showToast(selectedIssue ? "Snag updated" : "Snag reported successfully", "success");
+        showToast(selectedIssue ? tr("Snag updated") : tr("Snag reported successfully"), "success");
         setIsAddIssueModalVisible(false);
         setSelectedIssue(null);
         setTitle(''); 
@@ -286,7 +287,7 @@ export default function ProjectIssuesTab({ project }) {
         fetchData();
       } else {
         const errorData = await res.json();
-        showToast(errorData.message || `Failed to ${selectedIssue ? 'update' : 'create'} snag`, "error");
+        showToast(errorData.message || tr("Failed to {{value}} snag", { value: selectedIssue ? 'update' : 'create' }), "error");
       }
     } catch (error) {
       showToast(t('networkErrorTryAgain'), "error");
@@ -305,16 +306,16 @@ export default function ProjectIssuesTab({ project }) {
         body: JSON.stringify({ assignedTo: memberId })
       });
       if (res.ok) {
-        showToast("Assigned successfully", "success");
+        showToast(tr("Assigned successfully"), "success");
         setIsAssignModalVisible(false);
         setAssignedTo(null);
         setSelectedIssue(null);
         fetchData();
       } else {
-        showToast("Failed to assign snag", "error");
+        showToast(tr("Failed to assign snag"), "error");
       }
     } catch (error) {
-      showToast("Network Error", "error");
+      showToast(tr("Network Error"), "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -326,7 +327,7 @@ export default function ProjectIssuesTab({ project }) {
       
       let finalResolutionImage = resolutionImage;
       if (resolutionImage && !resolutionImage.startsWith('http')) {
-        showToast("Uploading proof...", "default");
+        showToast(tr("Uploading proof..."), "default");
         finalResolutionImage = await cloudinaryService.uploadFile(resolutionImage, 'issue_resolution');
       }
 
@@ -350,17 +351,17 @@ export default function ProjectIssuesTab({ project }) {
       });
       
       if (res.ok) {
-        showToast(`Snag marked as ${updateStatus}`, "success");
+        showToast(tr("Snag marked as {{updateStatus}}", { updateStatus: updateStatus }), "success");
         setIsUpdateModalVisible(false);
         setResolutionImage(null);
         setUpdateNote('');
         fetchData();
       } else {
         const errorData = await res.json();
-        showToast(errorData.message || "Update failed", "error");
+        showToast(errorData.message || tr("Update failed"), "error");
       }
     } catch (error) {
-      showToast("Update failed", "error");
+      showToast(tr("Update failed"), "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -375,13 +376,13 @@ export default function ProjectIssuesTab({ project }) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        showToast("Snag removed", "delete");
+        showToast(tr("Snag removed"), "delete");
         setIsConfirmDeleteVisible(false);
         setIssueToDelete(null);
         fetchData();
       }
     } catch (error) {
-      showToast("Delete failed", "error");
+      showToast(tr("Delete failed"), "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -410,13 +411,13 @@ export default function ProjectIssuesTab({ project }) {
           style={[styles.subTab, activeSubTab === 'Issues' && styles.subTabActive]} 
           onPress={() => { LayoutAnimation.easeInEaseOut(); setActiveSubTab('Issues'); }}
         >
-          <Text style={[styles.subTabText, activeSubTab === 'Issues' && styles.subTabTextActive]}>Active Snags</Text>
+          <Text style={[styles.subTabText, activeSubTab === 'Issues' && styles.subTabTextActive]}>{tr("Active Snags")}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.subTab, activeSubTab === 'Matrix' && styles.subTabActive]} 
           onPress={() => { LayoutAnimation.easeInEaseOut(); setActiveSubTab('Matrix'); }}
         >
-          <Text style={[styles.subTabText, activeSubTab === 'Matrix' && styles.subTabTextActive]}>Escalation Matrix</Text>
+          <Text style={[styles.subTabText, activeSubTab === 'Matrix' && styles.subTabTextActive]}>{tr("Escalation Matrix")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -424,9 +425,9 @@ export default function ProjectIssuesTab({ project }) {
         !hasPermission('snags', 'view') ? (
           <View style={[styles.empty, { marginTop: 40 }]}>
             <Feather name="lock" size={48} color="#CBD5E1" />
-            <Text style={styles.emptyText}>Restricted Access</Text>
+            <Text style={styles.emptyText}>{tr("Restricted Access")}</Text>
             <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 }}>
-              You don't have permission to view Snags. Contact your administrator.
+              {tr("You don't have permission to view Snags. Contact your administrator.")}
             </Text>
           </View>
         ) : (
@@ -438,19 +439,19 @@ export default function ProjectIssuesTab({ project }) {
           >
             <View style={[styles.headerRow, { width: '100%' }]}>
               <View style={{ flex: 1, flexShrink: 1, paddingRight: 10 }}>
-                <Text style={styles.title} numberOfLines={1}>Snags</Text>
-                <Text style={styles.countText}>{issues.length} active {issues.length === 1 ? 'snag' : 'snags'}</Text>
+                <Text style={styles.title} numberOfLines={1}>{tr("Snags")}</Text>
+                <Text style={styles.countText}>{issues.length}{tr(" active ")}{issues.length === 1 ? tr("snag") : tr("snags")}</Text>
               </View>
               <TouchableOpacity style={styles.addBtn} onPress={() => {
                 if (!hasPermission('snags', 'create')) {
-                  showToast("You don't have permission to report snags.", "error");
+                  showToast(tr("You don't have permission to report snags."), "error");
                   return;
                 }
                 setAssignedTo(null);
                 setIsAddIssueModalVisible(true);
               }}>
                 <Feather name="plus" size={16} color="#FFF" />
-                <Text style={styles.addBtnText}>Report Snag</Text>
+                <Text style={styles.addBtnText}>{tr("Report Snag")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -461,7 +462,7 @@ export default function ProjectIssuesTab({ project }) {
                   onPress={() => setFilterStatus(s)}
                   style={[styles.filterChip, filterStatus === s && styles.filterChipActive]}
                 >
-                  <Text style={[styles.filterChipText, filterStatus === s && styles.filterChipTextActive]}>{s}</Text>
+                  <Text style={[styles.filterChipText, filterStatus === s && styles.filterChipTextActive]}>{tr(s)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -469,7 +470,7 @@ export default function ProjectIssuesTab({ project }) {
             {issues.length === 0 ? (
               <View style={styles.empty}>
                 <MaterialCommunityIcons name="check-circle-outline" size={48} color="#CBD5E1" />
-                <Text style={styles.emptyText}>No active snags</Text>
+                <Text style={styles.emptyText}>{tr("No active snags")}</Text>
               </View>
             ) : (
               issues
@@ -485,27 +486,27 @@ export default function ProjectIssuesTab({ project }) {
                   <View style={styles.cardHeader}>
                     <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                       <View style={[styles.statusBadge, { backgroundColor: getStatusColor(issue.status) + '15' }]}>
-                        <Text style={[styles.statusText, { color: getStatusColor(issue.status) }]}>{issue.status}</Text>
+                        <Text style={[styles.statusText, { color: getStatusColor(issue.status) }]}>{tr(issue.status)}</Text>
                       </View>
                     
                       {issue.priority && (
                         <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(issue.priority) + '15' }]}>
                           <View style={[styles.dot, { backgroundColor: getPriorityColor(issue.priority) }]} />
-                          <Text style={[styles.priorityText, { color: getPriorityColor(issue.priority) }]}>{issue.priority}</Text>
+                          <Text style={[styles.priorityText, { color: getPriorityColor(issue.priority) }]}>{tr(issue.priority)}</Text>
                         </View>
                       )}
                     </View>
                   </View>
 
                   {/* Body: Title, Desc, Assigner */}
-                  <Text style={styles.issueTitle}>{issue.title}</Text>
-                  {issue.description ? <Text style={styles.issueDesc} numberOfLines={3}>{issue.description}</Text> : null}
+                  <Text style={styles.issueTitle}>{tr(issue.title)}</Text>
+                  {issue.description ? <Text style={styles.issueDesc} numberOfLines={3}>{tr(issue.description)}</Text> : null}
 
                   {issue.assignedTo && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F8FAFF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
                       <Feather name="user" size={12} color="#64748B" />
                       <Text style={{ fontSize: 12, color: '#475569', fontFamily: 'Inter-Medium' }}>
-                        Assigned to <Text style={{ fontFamily: 'Inter-Bold' }}>{typeof issue.assignedTo === 'object' ? (issue.assignedTo.name || issue.assignedTo._id) : (allProjectMembers.find(m => m._id === issue.assignedTo)?.name || issue.assignedTo)}</Text>
+                        {tr("Assigned to ")}<Text style={{ fontFamily: 'Inter-Bold' }}>{typeof issue.assignedTo === 'object' ? (issue.assignedTo.name || issue.assignedTo._id) : (allProjectMembers.find(m => m._id === issue.assignedTo)?.name || issue.assignedTo)}</Text>
                       </Text>
                     </View>
                   )}
@@ -526,10 +527,10 @@ export default function ProjectIssuesTab({ project }) {
                     <View style={styles.resolutionProofBox}>
                       <View style={styles.proofHeader}>
                         <Ionicons name="shield-checkmark" size={14} color="#10B981" />
-                        <Text style={styles.proofTitle}>Resolution Proof</Text>
+                        <Text style={styles.proofTitle}>{tr("Resolution Proof")}</Text>
                       </View>
                       {issue.resolutionDetails && (
-                        <Text style={styles.proofDesc}>{issue.resolutionDetails}</Text>
+                        <Text style={styles.proofDesc}>{tr(issue.resolutionDetails)}</Text>
                       )}
                       {issue.resolutionImage && (
                         <TouchableOpacity onPress={() => setFullScreenViewer({ images: [issue.resolutionImage], index: 0 })} activeOpacity={0.8}>
@@ -547,7 +548,7 @@ export default function ProjectIssuesTab({ project }) {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.ownerName} numberOfLines={1}>
-                          {(typeof issue.createdBy === 'object' ? issue.createdBy.name : (allProjectMembers.find(m => m._id === issue.createdBy)?.name || issue.createdBy || 'Unknown'))}
+                          {(typeof issue.createdBy === 'object' ? issue.createdBy.name : (allProjectMembers.find(m => m._id === issue.createdBy)?.name || issue.createdBy || tr("Unknown")))}
                         </Text>
                         <Text style={styles.issueDate}>{new Date(issue.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
                       </View>
@@ -572,7 +573,7 @@ export default function ProjectIssuesTab({ project }) {
                         <TouchableOpacity 
                           style={styles.updateLink} 
                           onPress={() => {
-                            if (!hasPermission('snags', 'update')) return showToast("You don't have permission.", "error");
+                            if (!hasPermission('snags', 'update')) return showToast(tr("You don't have permission."), "error");
                             setSelectedIssue(issue);
                             setUpdateStatus(issue.status);
                             setUpdateNote(issue.status === 'Resolved' || issue.status === 'Closed' ? issue.resolutionDetails : '');
@@ -588,7 +589,7 @@ export default function ProjectIssuesTab({ project }) {
                           <TouchableOpacity 
                             style={styles.updateLink} 
                             onPress={() => {
-                              if (!hasPermission('snags', 'update')) return showToast("You don't have permission.", "error");
+                              if (!hasPermission('snags', 'update')) return showToast(tr("You don't have permission."), "error");
                               setSelectedIssue(issue);
                               setTitle(issue.title);
                               setDescription(issue.description);
@@ -606,7 +607,7 @@ export default function ProjectIssuesTab({ project }) {
                         <TouchableOpacity 
                           style={styles.deleteBtn}
                           onPress={() => {
-                            if (!hasPermission('snags', 'delete')) return showToast("You don't have permission.", "error");
+                            if (!hasPermission('snags', 'delete')) return showToast(tr("You don't have permission."), "error");
                             setIssueToDelete(issue);
                             setIsConfirmDeleteVisible(true);
                           }}
@@ -625,17 +626,17 @@ export default function ProjectIssuesTab({ project }) {
         !hasPermission('risks', 'view') ? (
           <View style={[styles.empty, { marginTop: 40 }]}>
             <Feather name="lock" size={48} color="#CBD5E1" />
-            <Text style={styles.emptyText}>Restricted Access</Text>
+            <Text style={styles.emptyText}>{tr("Restricted Access")}</Text>
             <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 }}>
-              You don't have permission to view the Escalation Matrix. Contact your administrator.
+              {tr("You don't have permission to view the Escalation Matrix. Contact your administrator.")}
             </Text>
           </View>
         ) : (
           <ScrollView style={styles.list} contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
             <View style={[styles.headerRow, { width: '100%' }]}>
               <View style={{ flex: 1, flexShrink: 1, paddingRight: 10 }}>
-                <Text style={styles.title} numberOfLines={2}>Hierarchy of Responsibility</Text>
-                <Text style={styles.subtitle} numberOfLines={1}>Contact paths for snag resolution</Text>
+                <Text style={styles.title} numberOfLines={2}>{tr("Hierarchy of Responsibility")}</Text>
+                <Text style={styles.subtitle} numberOfLines={1}>{tr("Contact paths for snag resolution")}</Text>
               </View>
               <TouchableOpacity 
                 style={[styles.addBtn, { flexShrink: 0 }]} 
@@ -649,7 +650,7 @@ export default function ProjectIssuesTab({ project }) {
                 }}
               >
                 <Feather name="settings" size={16} color="#FFF" />
-                <Text style={styles.addBtnText}>Setup</Text>
+                <Text style={styles.addBtnText}>{tr("Setup")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -657,9 +658,9 @@ export default function ProjectIssuesTab({ project }) {
               {(!matrix?.levels || matrix.levels.filter(lv => lv.user).length === 0) ? (
                 <View style={styles.empty}>
                   <Feather name="git-merge" size={48} color="#CBD5E1" />
-                  <Text style={styles.emptyText}>No Matrix Configured</Text>
+                  <Text style={styles.emptyText}>{tr("No Matrix Configured")}</Text>
                   <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 }}>
-                    Set up escalation levels to automatically escalate unresolved snags.
+                    {tr("Set up escalation levels to automatically escalate unresolved snags.")}
                   </Text>
                   <TouchableOpacity 
                     style={[styles.addBtn, { marginTop: 24, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }]}
@@ -673,7 +674,7 @@ export default function ProjectIssuesTab({ project }) {
                     }}
                   >
                     <Feather name="plus" size={16} color="#FFF" />
-                    <Text style={[styles.addBtnText, { fontSize: 14 }]}>Configure Matrix</Text>
+                    <Text style={[styles.addBtnText, { fontSize: 14 }]}>{tr("Configure Matrix")}</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -681,7 +682,7 @@ export default function ProjectIssuesTab({ project }) {
                   <View key={idx} style={styles.matrixRow}>
                     <View style={styles.levelIndicator}>
                       <View style={styles.levelCircle}>
-                        <Text style={styles.levelNum}>L{lv.level}</Text>
+                        <Text style={styles.levelNum}>L{tr(lv.level)}</Text>
                       </View>
                       {idx !== filteredArr.length - 1 && <View style={styles.line} />}
                     </View>
@@ -692,14 +693,14 @@ export default function ProjectIssuesTab({ project }) {
                       </View>
                       <View style={{ flex: 1, justifyContent: 'center' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
-                          <Text style={[styles.userNameText, { flexShrink: 1, color: lv.user ? '#0F172A' : '#94A3B8' }]} numberOfLines={1}>{lv.user?.name || "Unassigned"}</Text>
+                          <Text style={[styles.userNameText, { flexShrink: 1, color: lv.user ? '#0F172A' : '#94A3B8' }]} numberOfLines={1}>{lv.user?.name || tr("Unassigned")}</Text>
                           {(lv.user?.role?.name || lv.role) && (
                             <View style={styles.miniRoleBadge}>
                               <Text style={styles.miniRoleText}>{lv.user?.role?.name || lv.role}</Text>
                             </View>
                           )}
                         </View>
-                        <Text style={[styles.userEmailText, { marginTop: 0 }]} numberOfLines={1}>{lv.user?.email || "Click Setup to assign a team member"}</Text>
+                        <Text style={[styles.userEmailText, { marginTop: 0 }]} numberOfLines={1}>{lv.user?.email || tr("Click Setup to assign a team member")}</Text>
                       </View>
                       <TouchableOpacity 
                         style={[styles.contactBtn, !lv.user?.phoneNumber && { opacity: 0.5 }]}
@@ -724,7 +725,7 @@ export default function ProjectIssuesTab({ project }) {
           <AdaptiveGlass intensity={40} tint="light" style={[styles.bottomSheet, keyboardHeight > 0 && { paddingBottom: keyboardHeight + 10 }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
-              <Text style={styles.modalTitle}>{selectedIssue ? 'Edit Snag Details' : 'Report New Snag'}</Text>
+              <Text style={styles.modalTitle}>{selectedIssue ? tr("Edit Snag Details") : tr("Report New Snag")}</Text>
               <TouchableOpacity onPress={() => {
                 setIsAddIssueModalVisible(false);
                 setSelectedIssue(null);
@@ -738,14 +739,14 @@ export default function ProjectIssuesTab({ project }) {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetContent}>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Reference Photos ({selectedImages.length})</Text>
+                <Text style={styles.label}>{tr("Reference Photos (")}{selectedImages.length})</Text>
                 {selectedImages.length === 0 ? (
                   <TouchableOpacity 
                     style={[styles.imageAddBtn, { width: '100%', height: 100, flexDirection: 'column', gap: 8 }]} 
                     onPress={handlePickImage}
                   >
                     <Feather name="camera" size={24} color="#3B82F6" />
-                    <Text style={{ color: '#3B82F6', fontFamily: 'Inter-Medium' }}>Add Photos</Text>
+                    <Text style={{ color: '#3B82F6', fontFamily: 'Inter-Medium' }}>{tr("Add Photos")}</Text>
                   </TouchableOpacity>
                 ) : (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
@@ -772,17 +773,17 @@ export default function ProjectIssuesTab({ project }) {
                 )}
               </View>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Snag Title</Text>
-                <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="What is the problem?" placeholderTextColor="#94A3B8" />
+                <Text style={styles.label}>{tr("Snag Title")}</Text>
+                <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder={tr("What is the problem?")} placeholderTextColor="#94A3B8" />
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Detailed Description</Text>
-                <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} placeholder="Provide more context..." placeholderTextColor="#94A3B8" multiline numberOfLines={4} />
+                <Text style={styles.label}>{tr("Detailed Description")}</Text>
+                <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} placeholder={tr("Provide more context...")} placeholderTextColor="#94A3B8" multiline numberOfLines={4} />
               </View>
 
               <TouchableOpacity style={styles.submitBtn} onPress={handleCreateIssue} disabled={isSubmitting}>
-                {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>{selectedIssue ? 'Save Changes' : 'Submit Report'}</Text>}
+                {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>{selectedIssue ? tr("Save Changes") : tr("Submit Report")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </AdaptiveGlass>
@@ -793,17 +794,17 @@ export default function ProjectIssuesTab({ project }) {
         <View style={styles.modalOverlayCenter}>
           <TouchableOpacity style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setIsAssignModalVisible(false)} />
           <View style={styles.smallModal}>
-            <Text style={styles.modalTitleSmall}>Assign Snag</Text>
+            <Text style={styles.modalTitleSmall}>{tr("Assign Snag")}</Text>
             
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Select Member</Text>
+              <Text style={styles.label}>{tr("Select Member")}</Text>
               <ScrollView style={{ maxHeight: 300 }}>
                 <View style={styles.userSelectionContainer}>
                   <TouchableOpacity 
                     onPress={() => handleAssignIssue(null)}
                     style={[styles.userChip, assignedTo === null && styles.userChipActive]}
                   >
-                    <Text style={[styles.userChipText, assignedTo === null && styles.userChipTextActive]}>Unassigned</Text>
+                    <Text style={[styles.userChipText, assignedTo === null && styles.userChipTextActive]}>{tr("Unassigned")}</Text>
                   </TouchableOpacity>
                   {projectMembers.map(m => (
                     <TouchableOpacity 
@@ -814,7 +815,7 @@ export default function ProjectIssuesTab({ project }) {
                       <View style={[styles.miniAvatar, { width: 18, height: 18, backgroundColor: assignedTo === m._id ? '#FFFFFF40' : '#3B82F610' }]}>
                         <Text style={[styles.avatarTxt, { fontSize: 8, color: assignedTo === m._id ? '#FFF' : '#3B82F6' }]}>{m.name?.charAt(0)}</Text>
                       </View>
-                      <Text style={[styles.userChipText, assignedTo === m._id && styles.userChipTextActive]}>{m.name}</Text>
+                      <Text style={[styles.userChipText, assignedTo === m._id && styles.userChipTextActive]}>{tr(m.name)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -822,7 +823,7 @@ export default function ProjectIssuesTab({ project }) {
             </View>
 
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsAssignModalVisible(false)}>
-              <Text style={{ color: '#64748B', fontFamily: 'Inter-Bold' }}>Cancel</Text>
+              <Text style={{ color: '#64748B', fontFamily: 'Inter-Bold' }}>{tr("Cancel")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -834,7 +835,7 @@ export default function ProjectIssuesTab({ project }) {
           <AdaptiveGlass intensity={40} tint="light" style={[styles.bottomSheet, keyboardHeight > 0 && { paddingBottom: keyboardHeight + 10 }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
-              <Text style={styles.modalTitle}>Update Status</Text>
+              <Text style={styles.modalTitle}>{tr("Update Status")}</Text>
               <TouchableOpacity onPress={() => setIsUpdateModalVisible(false)}>
                 <Ionicons name="close-circle" size={24} color="#64748B" />
               </TouchableOpacity>
@@ -842,7 +843,7 @@ export default function ProjectIssuesTab({ project }) {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetContent}>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Select New Status</Text>
+                <Text style={styles.label}>{tr("Select New Status")}</Text>
                 <View style={styles.statusRow}>
                   {STATUSES.map(s => (
                     <TouchableOpacity 
@@ -850,27 +851,27 @@ export default function ProjectIssuesTab({ project }) {
                       onPress={() => setUpdateStatus(s)} 
                       style={[styles.statusChip, updateStatus === s && { backgroundColor: getStatusColor(s), borderColor: getStatusColor(s) }]}
                     >
-                      <Text style={[styles.statusChipText, updateStatus === s && { color: '#FFF' }]}>{s}</Text>
+                      <Text style={[styles.statusChipText, updateStatus === s && { color: '#FFF' }]}>{tr(s)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Resolution / Progress Note</Text>
-                <TextInput style={[styles.input, styles.textArea]} value={updateNote} onChangeText={setUpdateNote} placeholder={updateStatus === 'Resolved' || updateStatus === 'Closed' ? "Describe the resolution steps..." : "What has been done so far?"} placeholderTextColor="#94A3B8" multiline numberOfLines={3} />
+                <Text style={styles.label}>{tr("Resolution / Progress Note")}</Text>
+                <TextInput style={[styles.input, styles.textArea]} value={updateNote} onChangeText={setUpdateNote} placeholder={updateStatus === 'Resolved' || updateStatus === 'Closed' ? tr("Describe the resolution steps...") : tr("What has been done so far?")} placeholderTextColor="#94A3B8" multiline numberOfLines={3} />
               </View>
 
               {(updateStatus === 'Resolved' || updateStatus === 'Closed') && (
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Proof of Resolution (Photo)</Text>
+                  <Text style={styles.label}>{tr("Proof of Resolution (Photo)")}</Text>
                   <View style={styles.imagePickerRow}>
                     {!resolutionImage ? (
                       <TouchableOpacity 
                         style={[styles.imageAddBtn, { width: '100%', height: 120, flexDirection: 'column', gap: 8 }]} 
                         onPress={async () => {
                           const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-                          if (permissionResult.granted === false) return showToast("Camera access required", "error");
+                          if (permissionResult.granted === false) return showToast(tr("Camera access required"), "error");
 
                           const result = await ImagePicker.launchCameraAsync({
                             allowsEditing: true,
@@ -884,7 +885,7 @@ export default function ProjectIssuesTab({ project }) {
                         }}
                       >
                         <Feather name="camera" size={24} color="#3B82F6" />
-                        <Text style={{ color: '#3B82F6', fontFamily: 'Inter-Bold' }}>Capture Proof Photo</Text>
+                        <Text style={{ color: '#3B82F6', fontFamily: 'Inter-Bold' }}>{tr("Capture Proof Photo")}</Text>
                       </TouchableOpacity>
                     ) : (
                       <View style={[styles.imageWrapper, { width: '100%', height: 200, backgroundColor: '#F1F5F9', borderRadius: 16, overflow: 'hidden' }]}>
@@ -911,13 +912,13 @@ export default function ProjectIssuesTab({ project }) {
 
               {hasPermission('snags', 'assign') && (
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Re-assign (Optional)</Text>
+                  <Text style={styles.label}>{tr("Re-assign (Optional)")}</Text>
                   <View style={styles.userSelectionContainer}>
                     <TouchableOpacity 
                       onPress={() => setAssignedTo(null)}
                       style={[styles.userChip, assignedTo === null && styles.userChipActive]}
                     >
-                      <Text style={[styles.userChipText, assignedTo === null && styles.userChipTextActive]}>Unassigned</Text>
+                      <Text style={[styles.userChipText, assignedTo === null && styles.userChipTextActive]}>{tr("Unassigned")}</Text>
                     </TouchableOpacity>
                     {projectMembers.map(m => (
                       <TouchableOpacity 
@@ -928,7 +929,7 @@ export default function ProjectIssuesTab({ project }) {
                         <View style={[styles.miniAvatar, { width: 18, height: 18, backgroundColor: assignedTo === m._id ? '#FFFFFF40' : '#3B82F610' }]}>
                           <Text style={[styles.avatarTxt, { fontSize: 8, color: assignedTo === m._id ? '#FFF' : '#3B82F6' }]}>{m.name?.charAt(0)}</Text>
                         </View>
-                        <Text style={[styles.userChipText, assignedTo === m._id && styles.userChipTextActive]}>{m.name}</Text>
+                        <Text style={[styles.userChipText, assignedTo === m._id && styles.userChipTextActive]}>{tr(m.name)}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -936,7 +937,7 @@ export default function ProjectIssuesTab({ project }) {
               )}
 
               <TouchableOpacity style={styles.submitBtn} onPress={handleUpdateIssue} disabled={isSubmitting}>
-                {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Update Snag</Text>}
+                {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>{tr("Update Snag")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </AdaptiveGlass>
@@ -950,8 +951,8 @@ export default function ProjectIssuesTab({ project }) {
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <View>
-                <Text style={styles.modalTitle}>Configure Matrix</Text>
-                <Text style={styles.countText}>{matrixForm.length} Escalation Levels</Text>
+                <Text style={styles.modalTitle}>{tr("Configure Matrix")}</Text>
+                <Text style={styles.countText}>{matrixForm.length}{tr(" Escalation Levels")}</Text>
               </View>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TouchableOpacity 
@@ -959,7 +960,7 @@ export default function ProjectIssuesTab({ project }) {
                   style={styles.addLevelBtn}
                 >
                   <Feather name="plus-circle" size={16} color="#3B82F6" />
-                  <Text style={styles.addLevelBtnText}>Add</Text>
+                  <Text style={styles.addLevelBtnText}>{tr("Add")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setIsEditMatrixModalVisible(false)}>
                   <Ionicons name="close-circle" size={24} color="#64748B" />
@@ -975,7 +976,7 @@ export default function ProjectIssuesTab({ project }) {
                       <View style={[styles.levelCircle, { width: 28, height: 28, borderRadius: 14 }]}>
                         <Text style={[styles.levelNum, { fontSize: 12 }]}>{idx + 1}</Text>
                       </View>
-                      <Text style={styles.levelLabel}>Escalation Level {idx + 1}</Text>
+                      <Text style={styles.levelLabel}>{tr("Escalation Level ")}{idx + 1}</Text>
                     </View>
                     
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -1018,14 +1019,14 @@ export default function ProjectIssuesTab({ project }) {
 
                   <View style={styles.userSelectionSection}>
                     <View style={styles.labelRow}>
-                      <Text style={styles.labelSmall}>Assigned Person</Text>
+                      <Text style={styles.labelSmall}>{tr("Assigned Person")}</Text>
                       {lv.user && (
                         <TouchableOpacity onPress={() => {
                           const newForm = [...matrixForm];
                           newForm[idx].user = null;
                           setMatrixForm(newForm);
                         }}>
-                          <Text style={styles.clearTxt}>Clear selection</Text>
+                          <Text style={styles.clearTxt}>{tr("Clear selection")}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -1047,9 +1048,9 @@ export default function ProjectIssuesTab({ project }) {
                               <Text style={[styles.avatarTxt, { fontSize: 9, color: isSelected ? '#FFF' : '#3B82F6' }]}>{m.name?.charAt(0)}</Text>
                             </View>
                             <View style={{ flex: 1 }}>
-                              <Text style={[styles.memberNameSmall, isSelected && { color: '#FFF' }]} numberOfLines={1}>{m.name}</Text>
+                              <Text style={[styles.memberNameSmall, isSelected && { color: '#FFF' }]} numberOfLines={1}>{tr(m.name)}</Text>
                               {m.role?.name && (
-                                <Text style={[styles.miniRoleText, { fontSize: 7, color: isSelected ? '#FFFFFF90' : '#64748B' }]} numberOfLines={1}>{m.role.name}</Text>
+                                <Text style={[styles.miniRoleText, { fontSize: 7, color: isSelected ? '#FFFFFF90' : '#64748B' }]} numberOfLines={1}>{tr(m.role.name)}</Text>
                               )}
                             </View>
                             {isSelected && <Feather name="check-circle" size={12} color="#FFF" />}
@@ -1060,7 +1061,7 @@ export default function ProjectIssuesTab({ project }) {
                     {projectMembers.length === 0 && (
                       <View style={styles.emptyMembers}>
                         <Feather name="users" size={20} color="#94A3B8" />
-                        <Text style={styles.noMembersTxt}>No authorized members found.</Text>
+                        <Text style={styles.noMembersTxt}>{tr("No authorized members found.")}</Text>
                       </View>
                     )}
                   </View>
@@ -1068,7 +1069,7 @@ export default function ProjectIssuesTab({ project }) {
               ))}
 
               <TouchableOpacity style={styles.submitBtn} onPress={handleUpdateMatrix} disabled={isSubmitting}>
-                {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Save Matrix Configuration</Text>}
+                {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>{tr("Save Matrix Configuration")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </AdaptiveGlass>
@@ -1077,10 +1078,10 @@ export default function ProjectIssuesTab({ project }) {
 
       <ConfirmModal 
         visible={isConfirmDeleteVisible}
-        title="Delete Snag"
-        message="Are you sure you want to remove this report? This action cannot be undone."
+        title={tr("Delete Snag")}
+        message={tr("Are you sure you want to remove this report? This action cannot be undone.")}
         type="destructive"
-        confirmText="Delete"
+        confirmText={tr("Delete")}
         onConfirm={handleDeleteIssue}
         onCancel={() => setIsConfirmDeleteVisible(false)}
       />
@@ -1091,10 +1092,10 @@ export default function ProjectIssuesTab({ project }) {
           {/* Top Bar */}
           <View style={{ paddingTop: insets.top + 10, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 16 }}>
             <TouchableOpacity onPress={() => { setIsMarkupVisible(false); setImageToMark(null); }}>
-              <Text style={{ color: '#FFF', fontSize: 17, fontFamily: 'Inter-Medium' }}>Cancel</Text>
+              <Text style={{ color: '#FFF', fontSize: 17, fontFamily: 'Inter-Medium' }}>{tr("Cancel")}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => signatureRef.current?.readSignature()}>
-              <Text style={{ color: '#3B82F6', fontSize: 17, fontFamily: 'Inter-Bold' }}>Done</Text>
+              <Text style={{ color: '#3B82F6', fontSize: 17, fontFamily: 'Inter-Bold' }}>{tr("Done")}</Text>
             </TouchableOpacity>
           </View>
 
@@ -1189,8 +1190,8 @@ export default function ProjectIssuesTab({ project }) {
           <View style={{ position: 'absolute', top: Platform.OS === 'ios' ? 60 : 40, width: '100%', paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }} pointerEvents="box-none">
             
             <View pointerEvents="none">
-              <Text style={{ color: '#FFF', fontSize: 18, fontFamily: 'Inter-Bold', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: {width: 0, height: 1}, textShadowRadius: 4 }}>Preview Photo</Text>
-              <Text style={{ color: '#CBD5E1', fontSize: 13, fontFamily: 'Inter-Medium', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: {width: 0, height: 1}, textShadowRadius: 4, marginTop: 2 }}>Pinch to zoom & review</Text>
+              <Text style={{ color: '#FFF', fontSize: 18, fontFamily: 'Inter-Bold', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: {width: 0, height: 1}, textShadowRadius: 4 }}>{tr("Preview Photo")}</Text>
+              <Text style={{ color: '#CBD5E1', fontSize: 13, fontFamily: 'Inter-Medium', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: {width: 0, height: 1}, textShadowRadius: 4, marginTop: 2 }}>{tr("Pinch to zoom & review")}</Text>
             </View>
 
             <TouchableOpacity 
@@ -1227,7 +1228,7 @@ export default function ProjectIssuesTab({ project }) {
               style={{ paddingVertical: 8, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}
               onPress={() => setPreviewNewImage(null)}
             >
-              <Text style={{ color: '#FFF', fontSize: 15, fontFamily: 'Inter-Medium' }}>Cancel</Text>
+              <Text style={{ color: '#FFF', fontSize: 15, fontFamily: 'Inter-Medium' }}>{tr("Cancel")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -1237,7 +1238,7 @@ export default function ProjectIssuesTab({ project }) {
                 setPreviewNewImage(null);
               }}
             >
-              <Text style={{ color: '#FFF', fontSize: 15, fontFamily: 'Inter-Bold' }}>Next</Text>
+              <Text style={{ color: '#FFF', fontSize: 15, fontFamily: 'Inter-Bold' }}>{tr("Next")}</Text>
             </TouchableOpacity>
           </View>
 
@@ -1262,7 +1263,7 @@ export default function ProjectIssuesTab({ project }) {
                     onPress={() => setFullScreenViewer(null)}
                   >
                     <Ionicons name="close" size={24} color="#FFF" style={{ marginRight: 4 }} />
-                    <Text style={{ color: '#FFF', fontSize: 16, fontFamily: 'Inter-Medium' }}>Close</Text>
+                    <Text style={{ color: '#FFF', fontSize: 16, fontFamily: 'Inter-Medium' }}>{tr("Close")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={{ width: 44, height: 44, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 22, justifyContent: 'center', alignItems: 'center' }} 

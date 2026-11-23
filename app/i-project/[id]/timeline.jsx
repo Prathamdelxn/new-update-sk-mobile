@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator,
@@ -144,9 +145,9 @@ export default function InteriorTimelineScreen() {
     setTasks((prev) => prev.map((t) => (t._id === task._id ? { ...t, status, progress, completedAt } : t)));
     try {
       await interiorApiClient.put(`/projects/${projectId}/tasks/${task._id}`, { status, progress, completedAt });
-      showToast(reopening ? 'Activity reopened' : `Activity completed! (${fmtShort(new Date())})`, 'success');
+      showToast(reopening ? tr("Activity reopened") : tr("Activity completed! ({{fmtShort}})", { fmtShort: fmtShort(new Date()) }), 'success');
     } catch (e) {
-      showToast(e?.message || 'Failed to update the activity', 'error');
+      showToast(e?.message || tr("Failed to update the activity"), 'error');
       fetchData();
     }
   };
@@ -288,8 +289,8 @@ export default function InteriorTimelineScreen() {
     const isLabel = side === 'label';
     const header = isLabel ? (
       <>
-        <View style={s.monthRow}><View style={{ width: LABEL_WIDTH_WBS, height: 24, justifyContent: 'center', paddingLeft: 8 }}><Text style={s.monthCellText}>Activity</Text></View></View>
-        <View style={s.dayRow}><View style={{ width: LABEL_WIDTH_WBS, height: 24, justifyContent: 'center', paddingLeft: 8 }}><Text style={s.dayCellText}>Plan / Done</Text></View></View>
+        <View style={s.monthRow}><View style={{ width: LABEL_WIDTH_WBS, height: 24, justifyContent: 'center', paddingLeft: 8 }}><Text style={s.monthCellText}>{tr("Activity")}</Text></View></View>
+        <View style={s.dayRow}><View style={{ width: LABEL_WIDTH_WBS, height: 24, justifyContent: 'center', paddingLeft: 8 }}><Text style={s.dayCellText}>{tr("Plan / Done")}</Text></View></View>
       </>
     ) : (
       <>
@@ -311,7 +312,7 @@ export default function InteriorTimelineScreen() {
             if (currentMonth) months.push({ label: currentMonth, days: currentCount });
             return months.map((m, i) => (
               <View key={i} style={[s.monthCell, { width: m.days * DAY_WIDTH }]}>
-                <Text style={s.monthCellText} numberOfLines={1}>{m.label}</Text>
+                <Text style={s.monthCellText} numberOfLines={1}>{tr(m.label)}</Text>
               </View>
             ));
           })()}
@@ -343,8 +344,8 @@ export default function InteriorTimelineScreen() {
                   <View style={[s.wbsLabelCell, { width: LABEL_WIDTH_WBS }]}>
                     <Ionicons name={wbsExpanded ? 'chevron-down' : 'chevron-forward'} size={13} color="#94A3B8" />
                     <Ionicons name="cube-outline" size={13} color="#7C3AED" style={{ marginLeft: 4 }} />
-                    <Text style={s.wbsLabelText} numberOfLines={1}>{w.name}</Text>
-                    {!!w.trade && <Text style={s.wbsTradeTag}>{w.trade}</Text>}
+                    <Text style={s.wbsLabelText} numberOfLines={1}>{tr(w.name)}</Text>
+                    {!!w.trade && <Text style={s.wbsTradeTag}>{tr(w.trade)}</Text>}
                     <TouchableOpacity onPress={() => openWbs(w._id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 'auto', paddingLeft: 4 }}>
                       <Ionicons name="open-outline" size={14} color="#2563EB" />
                     </TouchableOpacity>
@@ -364,7 +365,7 @@ export default function InteriorTimelineScreen() {
                         <View style={[s.msLabelCell, { width: LABEL_WIDTH_WBS }]}>
                           <Ionicons name={msExpanded ? 'chevron-down' : 'chevron-forward'} size={12} color="#94A3B8" />
                           <Ionicons name="flag-outline" size={12} color="#D97706" style={{ marginLeft: 4 }} />
-                          <Text style={s.msLabelText} numberOfLines={1}>{mg.name}</Text>
+                          <Text style={s.msLabelText} numberOfLines={1}>{tr(mg.name)}</Text>
                         </View>
                       ) : (
                         <View style={{ width: gridWidth, height: '100%' }}>
@@ -413,7 +414,7 @@ export default function InteriorTimelineScreen() {
                                 />
                               </TouchableOpacity>
                               <View style={{ flex: 1, minWidth: 0 }}>
-                                <Text style={[s.taskLabelText, done && s.taskLabelTextDone]} numberOfLines={1} onPress={() => openBarItem({ kind: 'task', id: t._id })}>{t.name}</Text>
+                                <Text style={[s.taskLabelText, done && s.taskLabelTextDone]} numberOfLines={1} onPress={() => openBarItem({ kind: 'task', id: t._id })}>{tr(t.name)}</Text>
                                 {done ? (
                                   <View style={s.doneLine}>
                                     <View style={s.donePill}>
@@ -421,7 +422,7 @@ export default function InteriorTimelineScreen() {
                                     </View>
                                     {!!end && (
                                       <Text style={[s.planText, isLate && { color: '#B45309' }, isEarly && { color: '#047857' }]} numberOfLines={1}>
-                                        {isLate ? `${diff}d late` : isEarly ? `${Math.abs(diff)}d early` : 'on time'} · plan {fmtShort(end)}
+                                        {isLate ? tr("{{diff}}d late", { diff: diff }) : isEarly ? tr("{{Math}}d early", { Math: Math.abs(diff) }) : tr("on time")}{tr(" · plan ")}{fmtShort(end)}
                                       </Text>
                                     )}
                                   </View>
@@ -496,7 +497,7 @@ export default function InteriorTimelineScreen() {
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Project Timeline</Text>
+            <Text style={s.headerTitle}>{tr("Project Timeline")}</Text>
           </View>
         </View>
 
@@ -505,8 +506,8 @@ export default function InteriorTimelineScreen() {
         ) : timelineData.length === 0 ? (
           <View style={s.empty}>
             <Ionicons name="calendar-outline" size={44} color="#CBD5E1" />
-            <Text style={s.emptyTitle}>No Timeline Data</Text>
-            <Text style={s.emptySub}>Create tasks and milestones in the Execution tabs to see them here.</Text>
+            <Text style={s.emptyTitle}>{tr("No Timeline Data")}</Text>
+            <Text style={s.emptySub}>{tr("Create tasks and milestones in the Execution tabs to see them here.")}</Text>
           </View>
         ) : (
           <View style={{ flex: 1 }} onLayout={(e) => setViewportH(e.nativeEvent.layout.height)}>
@@ -537,7 +538,7 @@ export default function InteriorTimelineScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
                   <Ionicons name={barInfo.kind === 'milestone' ? 'flag' : 'reorder-two'} size={16} color={barInfo.kind === 'milestone' ? '#D97706' : '#2563EB'} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={s.infoTitle} numberOfLines={2}>{barInfo.name}</Text>
+                    <Text style={s.infoTitle} numberOfLines={2}>{tr(barInfo.name)}</Text>
                     <Text style={s.infoStatus}>{String(barInfo.status || '').replace('_', ' ')}</Text>
                   </View>
                   <TouchableOpacity onPress={() => setBarInfo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -546,31 +547,31 @@ export default function InteriorTimelineScreen() {
                 </View>
                 {barInfo.kind === 'milestone' ? (
                   <View style={s.infoGrid}>
-                    <View style={s.infoCell}><Text style={s.infoLabel}>DUE DATE</Text><Text style={s.infoValue}>{fmtLongDate(barInfo.due)}</Text></View>
+                    <View style={s.infoCell}><Text style={s.infoLabel}>{tr("DUE DATE")}</Text><Text style={s.infoValue}>{fmtLongDate(barInfo.due)}</Text></View>
                   </View>
                 ) : (
                   <View style={s.infoGrid}>
-                    <View style={s.infoCell}><Text style={s.infoLabel}>START</Text><Text style={s.infoValue}>{fmtLongDate(barInfo.start)}</Text></View>
-                    <View style={s.infoCell}><Text style={s.infoLabel}>END</Text><Text style={s.infoValue}>{fmtLongDate(barInfo.end)}</Text></View>
+                    <View style={s.infoCell}><Text style={s.infoLabel}>{tr("START")}</Text><Text style={s.infoValue}>{fmtLongDate(barInfo.start)}</Text></View>
+                    <View style={s.infoCell}><Text style={s.infoLabel}>{tr("END")}</Text><Text style={s.infoValue}>{fmtLongDate(barInfo.end)}</Text></View>
                     <View style={s.infoCell}>
-                      <Text style={s.infoLabel}>DURATION</Text>
+                      <Text style={s.infoLabel}>{tr("DURATION")}</Text>
                       <Text style={s.infoValue}>
                         {barInfo.start && barInfo.end ? `${differenceInDays(barInfo.end, barInfo.start) + 1} days` : '—'}
                       </Text>
                     </View>
                     {barInfo.done && (
                       <View style={s.infoCell}>
-                        <Text style={s.infoLabel}>COMPLETED</Text>
+                        <Text style={s.infoLabel}>{tr("COMPLETED")}</Text>
                         <Text style={[s.infoValue, { color: barInfo.diff > 0 ? '#B45309' : '#047857' }]}>
                           {fmtLongDate(barInfo.done)}
-                          {barInfo.diff > 0 ? ` (${barInfo.diff}d late)` : barInfo.diff < 0 ? ` (${Math.abs(barInfo.diff)}d early)` : ' (on time)'}
+                          {barInfo.diff > 0 ? tr(" ({{diff}}d late)", { diff: barInfo.diff }) : barInfo.diff < 0 ? tr(" ({{Math}}d early)", { Math: Math.abs(barInfo.diff) }) : tr(" (on time)")}
                         </Text>
                       </View>
                     )}
                   </View>
                 )}
                 <TouchableOpacity style={s.infoOpenBtn} onPress={() => openBarItem(barInfo)} activeOpacity={0.8}>
-                  <Text style={s.infoOpenText}>{barInfo.kind === 'milestone' ? 'Open milestones' : 'Open activity'}</Text>
+                  <Text style={s.infoOpenText}>{barInfo.kind === 'milestone' ? tr("Open milestones") : tr("Open activity")}</Text>
                   <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>

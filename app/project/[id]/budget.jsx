@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -102,11 +103,11 @@ export default function ProjectBudgetTab({ project, fetchProjectData }) {
           });
 
           if (res.ok) {
-            showToast(`Budget ${action.toLowerCase()} successfully`, 'success');
+            showToast(tr("Budget {{action}} successfully", { action: action.toLowerCase() }), 'success');
             if (fetchProjectData) await fetchProjectData();
           } else {
             const err = await res.json();
-            showToast(err.message || 'Action failed', 'error');
+            showToast(err.message || tr("Action failed"), 'error');
           }
         } catch (e) {
           showToast(t('networkError', 'Network Error'), 'error');
@@ -121,11 +122,11 @@ export default function ProjectBudgetTab({ project, fetchProjectData }) {
   const handleRequestBudget = async () => {
     const addedAmount = Number(requestAmount);
     if (!requestAmount || isNaN(addedAmount) || addedAmount <= 0) {
-      showToast('Please enter a valid change request budget amount', 'error');
+      showToast(tr("Please enter a valid change request budget amount"), 'error');
       return;
     }
     if (!requestReason.trim()) {
-      showToast('Please provide a reason / justification', 'error');
+      showToast(tr("Please provide a reason / justification"), 'error');
       return;
     }
 
@@ -150,14 +151,14 @@ export default function ProjectBudgetTab({ project, fetchProjectData }) {
       });
 
       if (res.ok) {
-        showToast(`Change request submitted: +${formatCompact(addedAmount)} (New Total: ${formatCompact(calculatedTotalBudget)})`, 'success');
+        showToast(tr("Change request submitted: +{{formatCompact}} (New Total: {{formatCompact2}})", { formatCompact: formatCompact(addedAmount), formatCompact2: formatCompact(calculatedTotalBudget) }), 'success');
         setShowRequestModal(false);
         setRequestAmount('');
         setRequestReason('');
         if (fetchProjectData) await fetchProjectData();
       } else {
         const err = await res.json();
-        showToast(err.message || 'Failed to submit request', 'error');
+        showToast(err.message || tr("Failed to submit request"), 'error');
       }
     } catch (e) {
       showToast(t('networkError', 'Network Error'), 'error');
@@ -179,7 +180,7 @@ export default function ProjectBudgetTab({ project, fetchProjectData }) {
           </Text>
           {pendingRequests.length > 0 && (
             <Text style={{ fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#FEF08A', marginTop: 4 }}>
-              +{formatCompact(pendingAddedAmount)} Pending (Total: {formatCompact(pendingTotalBudget)})
+              +{formatCompact(pendingAddedAmount)}{tr(" Pending (Total: ")}{formatCompact(pendingTotalBudget)})
             </Text>
           )}
         </View>
@@ -202,7 +203,7 @@ export default function ProjectBudgetTab({ project, fetchProjectData }) {
             <Text style={styles.pendingTitle}>{t('pendingBudgetTitle', { count: pendingRequests.length })}</Text>
           </View>
           <Text style={styles.pendingDesc}>
-            {`+${formatCompact(pendingAddedAmount)} requested • Proposed Total: ${project?.currency || '$'} ${formatCompact(pendingTotalBudget)} (Current Base: ${project?.currency || '$'} ${formatCompact(currentBaseBudget)})`}
+            {tr("+{{formatCompact}} requested • Proposed Total: {{value}} {{formatCompact2}} (Current Base: {{value2}} {{formatCompact3}})", { formatCompact: formatCompact(pendingAddedAmount), value: project?.currency || '$', formatCompact2: formatCompact(pendingTotalBudget), value2: project?.currency || '$', formatCompact3: formatCompact(currentBaseBudget) })}
           </Text>
         </AdaptiveGlass>
       )}
@@ -236,7 +237,7 @@ export default function ProjectBudgetTab({ project, fetchProjectData }) {
                     {isPending && itemAdded > 0 && (
                       <View style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE' }}>
                         <Text style={{ fontSize: 11, fontFamily: 'Inter-Bold', color: '#1D4ED8' }}>
-                          +{formatCompact(itemAdded)} Change Req
+                          +{formatCompact(itemAdded)}{tr(" Change Req")}
                         </Text>
                       </View>
                     )}
@@ -255,7 +256,7 @@ export default function ProjectBudgetTab({ project, fetchProjectData }) {
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.histReason}>{bh.reason || 'No description provided'}</Text>
+                <Text style={styles.histReason}>{bh.reason || tr("No description provided")}</Text>
                 
                 {bh.approvalStatus === 'Pending' && canApproveBudget && (
                   <View style={styles.histActionRow}>
@@ -282,7 +283,7 @@ export default function ProjectBudgetTab({ project, fetchProjectData }) {
 
                 <View style={styles.histFooter}>
                   <Text style={styles.histMeta}>
-                    {bh.updatedByName || 'System'} • {bh.timestamp ? new Date(bh.timestamp).toLocaleDateString() : 'Recorded'}
+                    {bh.updatedByName || tr("System")} • {bh.timestamp ? new Date(bh.timestamp).toLocaleDateString() : tr("Recorded")}
                   </Text>
                 </View>
               </View>
@@ -312,19 +313,19 @@ export default function ProjectBudgetTab({ project, fetchProjectData }) {
             {/* Live Calculation Preview Box */}
             <View style={styles.calcPreviewContainer}>
               <View style={styles.calcStepBox}>
-                <Text style={styles.calcStepLabel}>Current Budget</Text>
+                <Text style={styles.calcStepLabel}>{tr("Current Budget")}</Text>
                 <Text style={styles.calcStepVal}>{formatCompact(currentBaseBudget)}</Text>
               </View>
               <Text style={styles.calcOp}>+</Text>
               <View style={[styles.calcStepBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-                <Text style={[styles.calcStepLabel, { color: '#2563EB' }]}>Change Req</Text>
+                <Text style={[styles.calcStepLabel, { color: '#2563EB' }]}>{tr("Change Req")}</Text>
                 <Text style={[styles.calcStepVal, { color: '#1D4ED8' }]}>
                   +{formatCompact(Number(requestAmount) || 0)}
                 </Text>
               </View>
               <Text style={styles.calcOp}>=</Text>
               <View style={[styles.calcStepBox, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
-                <Text style={[styles.calcStepLabel, { color: '#16A34A' }]}>New Total</Text>
+                <Text style={[styles.calcStepLabel, { color: '#16A34A' }]}>{tr("New Total")}</Text>
                 <Text style={[styles.calcStepVal, { color: '#15803D' }]}>
                   {formatCompact(currentBaseBudget + (Number(requestAmount) || 0))}
                 </Text>
@@ -380,8 +381,8 @@ export default function ProjectBudgetTab({ project, fetchProjectData }) {
 
       <ConfirmModal 
         visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={tr(confirmModal.title)}
+        message={tr(confirmModal.message)}
         confirmText={confirmModal.confirmText}
         type={confirmModal.type}
         isSubmitting={isProcessing}

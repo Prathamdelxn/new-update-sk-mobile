@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -121,7 +122,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setSnags(res?.success && res?.data ? res.data : []);
     } catch (e) {
       console.error('Failed to load snags', e);
-      showToast('Failed to fetch Snag registry', 'error');
+      showToast(tr("Failed to fetch Snag registry"), 'error');
     } finally {
       setLoading(false);
     }
@@ -131,7 +132,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleSubmitSnag = async () => {
     if (!form.description.trim() || !form.location.trim()) {
-      showToast('Please fill in description and location', 'error');
+      showToast(tr("Please fill in description and location"), 'error');
       return;
     }
     setSubmitting(true);
@@ -145,15 +146,15 @@ const { can: canDo } = useProjectPermissions(projectId);
       };
       if (editSnagId) {
         await interiorApiClient.put(`/projects/${projectId}/snags`, { snagId: editSnagId, ...payload });
-        showToast('Snag updated successfully!', 'success');
+        showToast(tr("Snag updated successfully!"), 'success');
       } else {
         await interiorApiClient.post(`/projects/${projectId}/snags`, payload);
-        showToast('Snag logged successfully!', 'success');
+        showToast(tr("Snag logged successfully!"), 'success');
       }
       closeModal();
       fetchSnags();
     } catch (e) {
-      showToast(e.message || (editSnagId ? 'Failed to update snag' : 'Failed to log snag'), 'error');
+      showToast(e.message || (editSnagId ? tr("Failed to update snag") : tr("Failed to log snag")), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -187,7 +188,7 @@ const { can: canDo } = useProjectPermissions(projectId);
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        showToast('Camera roll permission is required to attach photos', 'error');
+        showToast(tr("Camera roll permission is required to attach photos"), 'error');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -204,24 +205,24 @@ const { can: canDo } = useProjectPermissions(projectId);
         setForm((f) => ({ ...f, photos: [...f.photos, dataUri] }));
       }
     } catch (e) {
-      showToast(e.message || 'Failed to attach photo', 'error');
+      showToast(e.message || tr("Failed to attach photo"), 'error');
     }
   };
 
   const removePhoto = (idx) => setForm((f) => ({ ...f, photos: f.photos.filter((_, i) => i !== idx) }));
 
   const handleDeleteSnag = (snag) => {
-    Alert.alert('Delete Snag', 'Are you sure you want to delete this snag? This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete Snag"), tr("Are you sure you want to delete this snag? This cannot be undone."), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: tr("Delete"), style: 'destructive', onPress: async () => {
           try {
             await interiorApiClient.delete(`/projects/${projectId}/snags?snagId=${snag._id}`);
-            showToast('Snag deleted successfully', 'delete');
+            showToast(tr("Snag deleted successfully"), 'delete');
             setDetailSnag(null);
             fetchSnags();
           } catch (e) {
-            showToast(e.message || 'Failed to delete snag', 'error');
+            showToast(e.message || tr("Failed to delete snag"), 'error');
           }
         },
       },
@@ -232,11 +233,11 @@ const { can: canDo } = useProjectPermissions(projectId);
     const status = nextStatus(snag.status);
     try {
       await interiorApiClient.put(`/projects/${projectId}/snags`, { snagId: snag._id, status });
-      showToast(`Snag status updated to: ${status}`, 'success');
+      showToast(tr("Snag status updated to: {{status}}", { status: status }), 'success');
       setDetailSnag((prev) => (prev && prev._id === snag._id ? { ...prev, status } : prev));
       fetchSnags();
     } catch (e) {
-      showToast(e.message || 'Failed to update status', 'error');
+      showToast(e.message || tr("Failed to update status"), 'error');
     }
   };
 
@@ -249,7 +250,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Quality Snag Register</Text>
+            <Text style={s.headerTitle}>{tr("Quality Snag Register")}</Text>
           </View>
         </View>
 
@@ -260,7 +261,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             {snags.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="bug-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No quality snags raised yet</Text>
+                <Text style={s.emptyTitle}>{tr("No quality snags raised yet")}</Text>
               </View>
             ) : (
               snags.map((snag) => {
@@ -271,11 +272,11 @@ const { can: canDo } = useProjectPermissions(projectId);
                     <View style={s.snagTopRow}>
                       <View style={s.locationRow}>
                         <Ionicons name="location-outline" size={13} color="#3B82F6" />
-                        <Text style={s.locationText} numberOfLines={1}>{snag.location}</Text>
+                        <Text style={s.locationText} numberOfLines={1}>{tr(snag.location)}</Text>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <View style={[s.pill, { backgroundColor: priority.bg }]}>
-                          <Text style={[s.pillText, { color: priority.color }]}>{snag.priority}</Text>
+                          <Text style={[s.pillText, { color: priority.color }]}>{tr(snag.priority)}</Text>
                         </View>
                         <View style={[s.pill, { backgroundColor: status.bg }]}>
                           <Text style={[s.pillText, { color: status.color }]}>{String(snag.status || '').replace('_', ' ')}</Text>
@@ -283,13 +284,13 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </View>
                     </View>
 
-                    <Text style={s.snagDesc} numberOfLines={2}>{snag.description}</Text>
+                    <Text style={s.snagDesc} numberOfLines={2}>{tr(snag.description)}</Text>
 
                     <View style={s.snagBottomRow}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                           <Ionicons name="calendar-outline" size={12} color="#94A3B8" />
-                          <Text style={s.dueText}>Due: {formatDate(snag.dueDate)}</Text>
+                          <Text style={s.dueText}>{tr("Due: ")}{formatDate(snag.dueDate)}</Text>
                         </View>
                         {snag.photos?.length > 0 && (
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
@@ -299,7 +300,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                         )}
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                        <Text style={s.detailsLink}>Details</Text>
+                        <Text style={s.detailsLink}>{tr("Details")}</Text>
                         <Ionicons name="chevron-forward" size={13} color="#2563EB" />
                       </View>
                     </View>
@@ -322,20 +323,20 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{editSnagId ? 'Edit Punch List Snag' : 'Log Punch List Snag'}</Text>
+              <Text style={s.modalTitle}>{editSnagId ? tr("Edit Punch List Snag") : tr("Log Punch List Snag")}</Text>
               <TouchableOpacity onPress={closeModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Defect Description *</Text>
-              <TextInput style={s.input} placeholder="e.g. Scratched premium wall paint near main pantry" placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} />
+              <Text style={s.label}>{tr("Defect Description *")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Scratched premium wall paint near main pantry")} placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} />
 
-              <Text style={s.label}>Defect Location / Area *</Text>
-              <TextInput style={s.input} placeholder="e.g. Floor 4, Cafeteria Pantry Zone" placeholderTextColor="#94A3B8" value={form.location} onChangeText={(v) => setForm({ ...form, location: v })} />
+              <Text style={s.label}>{tr("Defect Location / Area *")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Floor 4, Cafeteria Pantry Zone")} placeholderTextColor="#94A3B8" value={form.location} onChangeText={(v) => setForm({ ...form, location: v })} />
 
-              <Text style={s.label}>Priority</Text>
+              <Text style={s.label}>{tr("Priority")}</Text>
               <SelectField
                 value={form.priority}
                 onChange={(p) => setForm({ ...form, priority: p })}
@@ -343,14 +344,14 @@ const { can: canDo } = useProjectPermissions(projectId);
                 style={{ marginBottom: 8 }}
               />
 
-              <Text style={s.label}>Target Resolve Date</Text>
+              <Text style={s.label}>{tr("Target Resolve Date")}</Text>
               <DateField value={form.dueDate} onChange={(v) => setForm({ ...form, dueDate: v })} inputStyle={s.input} />
 
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 8 }}>
-                <Text style={[s.label, { marginTop: 0 }]}>Attachments ({form.photos.length})</Text>
+                <Text style={[s.label, { marginTop: 0 }]}>{tr("Attachments (")}{form.photos.length})</Text>
                 <TouchableOpacity style={s.addPhotoBtn} onPress={handlePickPhoto}>
                   <Ionicons name="camera" size={13} color="#2563EB" />
-                  <Text style={s.addPhotoBtnText}>+ Add Photo</Text>
+                  <Text style={s.addPhotoBtnText}>{tr("+ Add Photo")}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -368,12 +369,12 @@ const { can: canDo } = useProjectPermissions(projectId);
               ) : (
                 <TouchableOpacity style={s.photoPickerBox} onPress={handlePickPhoto}>
                   <Ionicons name="images-outline" size={22} color="#94A3B8" />
-                  <Text style={s.photoPickerBoxText}>Tap to attach defect photos from device</Text>
+                  <Text style={s.photoPickerBoxText}>{tr("Tap to attach defect photos from device")}</Text>
                 </TouchableOpacity>
               )}
 
               <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmitSnag} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editSnagId ? 'Save Changes' : 'Log Snag'}</Text>}
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editSnagId ? tr("Save Changes") : tr("Log Snag")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -390,7 +391,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               return (
                 <>
                   <View style={s.modalHeader}>
-                    <Text style={s.modalTitle}>Snag Details</Text>
+                    <Text style={s.modalTitle}>{tr("Snag Details")}</Text>
                     <TouchableOpacity onPress={() => setDetailSnag(null)}>
                       <Ionicons name="close" size={22} color="#64748B" />
                     </TouchableOpacity>
@@ -398,17 +399,17 @@ const { can: canDo } = useProjectPermissions(projectId);
                   <ScrollView showsVerticalScrollIndicator={false}>
                     <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
                       <View style={[s.pill, { backgroundColor: pr.bg }]}>
-                        <Text style={[s.pillText, { color: pr.color }]}>{detailSnag.priority}</Text>
+                        <Text style={[s.pillText, { color: pr.color }]}>{tr(detailSnag.priority)}</Text>
                       </View>
                       <View style={[s.pill, { backgroundColor: st.bg }]}>
                         <Text style={[s.pillText, { color: st.color }]}>{String(detailSnag.status || '').replace('_', ' ')}</Text>
                       </View>
                     </View>
 
-                    <Text style={s.label}>Defect Description</Text>
+                    <Text style={s.label}>{tr("Defect Description")}</Text>
                     <Text style={s.detailText}>{detailSnag.description || '—'}</Text>
 
-                    <Text style={s.label}>Location / Area</Text>
+                    <Text style={s.label}>{tr("Location / Area")}</Text>
                     <View style={s.locationRow}>
                       <Ionicons name="location-outline" size={13} color="#3B82F6" />
                       <Text style={s.detailText}>{detailSnag.location || '—'}</Text>
@@ -416,16 +417,16 @@ const { can: canDo } = useProjectPermissions(projectId);
 
                     <View style={{ flexDirection: 'row', gap: 12 }}>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.label}>Target Resolve Date</Text>
+                        <Text style={s.label}>{tr("Target Resolve Date")}</Text>
                         <Text style={s.detailText}>{formatDate(detailSnag.dueDate)}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.label}>Logged On</Text>
+                        <Text style={s.label}>{tr("Logged On")}</Text>
                         <Text style={s.detailText}>{formatDate(detailSnag.createdAt)}</Text>
                       </View>
                     </View>
 
-                    <Text style={s.label}>Photos ({detailSnag.photos?.length || 0})</Text>
+                    <Text style={s.label}>{tr("Photos (")}{detailSnag.photos?.length || 0})</Text>
                     {detailSnag.photos?.length > 0 ? (
                       <View style={s.photoRow}>
                         {detailSnag.photos.map((photo, idx) => (
@@ -435,7 +436,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                         ))}
                       </View>
                     ) : (
-                      <Text style={s.dueText}>No photos attached.</Text>
+                      <Text style={s.dueText}>{tr("No photos attached.")}</Text>
                     )}
 
                     <View style={s.detailActions}>
@@ -451,13 +452,13 @@ const { can: canDo } = useProjectPermissions(projectId);
                             onPress={() => { const sn = detailSnag; setDetailSnag(null); openEditModal(sn); }}
                           >
                             <Ionicons name="pencil-outline" size={14} color="#334155" />
-                            <Text style={s.detailSecondaryText}>Edit</Text>
+                            <Text style={s.detailSecondaryText}>{tr("Edit")}</Text>
                           </TouchableOpacity>
                         )}
                         {canDo('snags', 'delete') && (
                           <TouchableOpacity style={[s.detailSecondaryBtn, { borderColor: '#FECDD3', backgroundColor: '#FFF1F2' }]} onPress={() => handleDeleteSnag(detailSnag)}>
                             <Ionicons name="trash-outline" size={14} color="#E11D48" />
-                            <Text style={[s.detailSecondaryText, { color: '#E11D48' }]}>Delete</Text>
+                            <Text style={[s.detailSecondaryText, { color: '#E11D48' }]}>{tr("Delete")}</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -471,7 +472,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <View style={[StyleSheet.absoluteFill, s.lightboxOverlay]}>
               <SafeAreaView style={{ flex: 1 }}>
                 <View style={s.lightboxHeader}>
-                  <Text style={s.lightboxTitle}>Snag Photo</Text>
+                  <Text style={s.lightboxTitle}>{tr("Snag Photo")}</Text>
                   <TouchableOpacity style={s.lightboxCloseBtn} onPress={() => setLightboxPhoto(null)}>
                     <Ionicons name="close" size={22} color="#FFFFFF" />
                   </TouchableOpacity>
@@ -490,7 +491,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         <View style={s.lightboxOverlay}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={s.lightboxHeader}>
-              <Text style={s.lightboxTitle}>Snag Photo</Text>
+              <Text style={s.lightboxTitle}>{tr("Snag Photo")}</Text>
               <TouchableOpacity style={s.lightboxCloseBtn} onPress={() => setLightboxPhoto(null)}>
                 <Ionicons name="close" size={22} color="#FFFFFF" />
               </TouchableOpacity>

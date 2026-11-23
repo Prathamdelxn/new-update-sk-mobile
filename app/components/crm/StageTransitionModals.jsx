@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, TextInput,
@@ -40,8 +41,8 @@ function ModalShell({ isOpen, onClose, icon, iconColor, title, subtitle, childre
               <Ionicons name={icon} size={20} color={iconColor} />
             </View>
             <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={s.title}>{title}</Text>
-              <Text style={s.subtitle}>{subtitle}</Text>
+              <Text style={s.title}>{tr(title)}</Text>
+              <Text style={s.subtitle}>{tr(subtitle)}</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
               <Ionicons name="close" size={18} color="#64748B" />
@@ -60,9 +61,9 @@ const REMARKS_MAX = 500;
 function RemarksLabel({ label, length }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-      <Text style={s.label}>{label}</Text>
+      <Text style={s.label}>{tr(label)}</Text>
       <Text style={[s.label, { fontFamily: 'Inter-Regular', fontSize: 11.5, color: length >= REMARKS_MAX ? '#F43F5E' : '#94A3B8' }]}>
-        {length}/{REMARKS_MAX}
+        {length}/{tr(REMARKS_MAX)}
       </Text>
     </View>
   );
@@ -74,10 +75,10 @@ function PreviousScheduleBox({ color, phaseLabel, scheduledDate, assignedLabel, 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
           <Ionicons name="time-outline" size={12} color={color} />
-          <Text style={[s.prevBoxLabel, { color }]}>PREVIOUS SCHEDULE (REFERENCE)</Text>
+          <Text style={[s.prevBoxLabel, { color }]}>{tr("PREVIOUS SCHEDULE (REFERENCE)")}</Text>
         </View>
         <View style={s.prevBoxPill}>
-          <Text style={s.prevBoxPillText}>{phaseLabel}</Text>
+          <Text style={s.prevBoxPillText}>{tr(phaseLabel)}</Text>
         </View>
       </View>
       {!!scheduledDate && (
@@ -89,11 +90,11 @@ function PreviousScheduleBox({ color, phaseLabel, scheduledDate, assignedLabel, 
       {!!assignedLabel && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
           <Ionicons name="person-outline" size={12} color={color} />
-          <Text style={s.prevBoxSub}>Assigned: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{assignedLabel}</Text></Text>
+          <Text style={s.prevBoxSub}>{tr("Assigned: ")}<Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr(assignedLabel)}</Text></Text>
         </View>
       )}
       {!!remarks && (
-        <Text style={s.prevBoxNote} numberOfLines={2}>&quot;{remarks}&quot;</Text>
+        <Text style={s.prevBoxNote} numberOfLines={2}>&quot;{tr(remarks)}&quot;</Text>
       )}
     </View>
   );
@@ -159,19 +160,19 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
 
   const handleSubmit = async () => {
     if (!isFollowUpCompleted && !isRescheduling) {
-      Alert.alert('Follow-up Required', 'Please complete the follow-up before passing to the Site Visit stage.');
+      Alert.alert(tr("Follow-up Required"), tr("Please complete the follow-up before passing to the Site Visit stage."));
       return;
     }
     if (!assignedExecutive) {
-      Alert.alert('Assignee Required', 'Please select a site executive before scheduling the site visit.');
+      Alert.alert(tr("Assignee Required"), tr("Please select a site executive before scheduling the site visit."));
       return;
     }
     if (!scheduledDate) {
-      Alert.alert('Date Required', 'Please select a target visit date.');
+      Alert.alert(tr("Date Required"), tr("Please select a target visit date."));
       return;
     }
     if (isDateInPast) {
-      Alert.alert('Invalid Date', 'Target visit date cannot be in the past.');
+      Alert.alert(tr("Invalid Date"), tr("Target visit date cannot be in the past."));
       return;
     }
 
@@ -218,7 +219,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
       onSuccess();
       onClose();
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to move lead to Site Visit.');
+      Alert.alert(tr("Error"), e.message || tr("Failed to move lead to Site Visit."));
     } finally {
       setSubmitting(false);
     }
@@ -230,8 +231,8 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
       onClose={onClose}
       icon="location-outline"
       iconColor="#7C3AED"
-      title={isRescheduling ? 'Reschedule Site Visit' : 'Pass to Site Visit'}
-      subtitle={isRescheduling ? 'Update scheduled visit date & assigned member' : 'Schedule site measurement and inspection'}
+      title={isRescheduling ? tr("Reschedule Site Visit") : tr("Pass to Site Visit")}
+      subtitle={isRescheduling ? tr("Update scheduled visit date & assigned member") : tr("Schedule site measurement and inspection")}
     >
       <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         {isRescheduling && (
@@ -244,13 +245,13 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
           />
         )}
 
-        <Text style={s.label}>Assign Site Executive *</Text>
+        <Text style={s.label}>{tr("Assign Site Executive *")}</Text>
         <TouchableOpacity
            style={s.input}
            onPress={() => setShowExecutiveDropdown(!showExecutiveDropdown)}
         >
           <Text style={{ color: assignedExecutive ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
-            {assignedExecutive ? userLabel(users.find(u => (u._id || u.id) === assignedExecutive) || {}) : "Select Executive *"}
+            {assignedExecutive ? userLabel(users.find(u => (u._id || u.id) === assignedExecutive) || {}) : tr("Select Executive *")}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
@@ -278,10 +279,10 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
         )}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={s.label}>Target Visit Date *</Text>
+          <Text style={s.label}>{tr("Target Visit Date *")}</Text>
           {isDateInPast && (
             <View style={s.pastDateBadge}>
-              <Text style={s.pastDateBadgeText}>Past date</Text>
+              <Text style={s.pastDateBadgeText}>{tr("Past date")}</Text>
             </View>
           )}
         </View>
@@ -290,7 +291,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
           onPress={openDatePicker}
         >
           <Text style={{ color: scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
-            {scheduledDate ? fmtScheduleDisplay(scheduledDate) : 'Select date'}
+            {scheduledDate ? fmtScheduleDisplay(scheduledDate) : tr("Select date")}
           </Text>
           <Ionicons name="calendar-outline" size={16} color={isDateInPast ? '#D97706' : '#7C3AED'} />
         </TouchableOpacity>
@@ -306,7 +307,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
           />
         )}
 
-        <RemarksLabel label="Visit Instructions / Notes" length={remarks.length} />
+        <RemarksLabel label={tr("Visit Instructions / Notes")} length={remarks.length} />
         <TextInput
           maxLength={REMARKS_MAX}
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
@@ -314,7 +315,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
           numberOfLines={2}
           value={remarks}
           onChangeText={setRemarks}
-          placeholder="Keys with security, measure carpet area..."
+          placeholder={tr("Keys with security, measure carpet area...")}
           placeholderTextColor="#94A3B8"
         />
 
@@ -326,7 +327,7 @@ export function SendToSiteVisitModal({ isOpen, onClose, customerId, onSuccess, u
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={s.actionBtnText}>{isRescheduling ? 'Confirm Reschedule' : 'Schedule Site Visit'}</Text>
+            <Text style={s.actionBtnText}>{isRescheduling ? tr("Confirm Reschedule") : tr("Schedule Site Visit")}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -391,15 +392,15 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
 
   const handleSubmit = async () => {
     if (!assignedDesigner) {
-      Alert.alert('Assignee Required', 'Please select an interior designer before starting the requirements phase.');
+      Alert.alert(tr("Assignee Required"), tr("Please select an interior designer before starting the requirements phase."));
       return;
     }
     if (!scheduledDate) {
-      Alert.alert('Date Required', 'Please select a session date.');
+      Alert.alert(tr("Date Required"), tr("Please select a session date."));
       return;
     }
     if (isDateInPast) {
-      Alert.alert('Invalid Date', 'Session target date cannot be in the past.');
+      Alert.alert(tr("Invalid Date"), tr("Session target date cannot be in the past."));
       return;
     }
 
@@ -426,7 +427,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
       onSuccess();
       onClose();
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to move lead to Requirements.');
+      Alert.alert(tr("Error"), e.message || tr("Failed to move lead to Requirements."));
     } finally {
       setSubmitting(false);
     }
@@ -438,8 +439,8 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
       onClose={onClose}
       icon="create-outline"
       iconColor="#4F46E5"
-      title={isRescheduling ? 'Reschedule Requirements Session' : 'Pass to Requirements'}
-      subtitle={isRescheduling ? 'Update session date & assigned designer' : 'Gather room preferences, styling & functional specs'}
+      title={isRescheduling ? tr("Reschedule Requirements Session") : tr("Pass to Requirements")}
+      subtitle={isRescheduling ? tr("Update session date & assigned designer") : tr("Gather room preferences, styling & functional specs")}
     >
       <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         {isRescheduling && (
@@ -452,13 +453,13 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
           />
         )}
 
-        <Text style={s.label}>Assign Interior Designer *</Text>
+        <Text style={s.label}>{tr("Assign Interior Designer *")}</Text>
         <TouchableOpacity
            style={s.input}
            onPress={() => setShowDropdown(!showDropdown)}
         >
           <Text style={{ color: assignedDesigner ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
-            {assignedDesigner ? userLabel(users.find(u => (u._id || u.id) === assignedDesigner) || {}) : "Select Designer *"}
+            {assignedDesigner ? userLabel(users.find(u => (u._id || u.id) === assignedDesigner) || {}) : tr("Select Designer *")}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
@@ -486,10 +487,10 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
         )}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={s.label}>Session Target Date *</Text>
+          <Text style={s.label}>{tr("Session Target Date *")}</Text>
           {isDateInPast && (
             <View style={s.pastDateBadge}>
-              <Text style={s.pastDateBadgeText}>Past date</Text>
+              <Text style={s.pastDateBadgeText}>{tr("Past date")}</Text>
             </View>
           )}
         </View>
@@ -498,7 +499,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
           onPress={openDatePicker}
         >
           <Text style={{ color: scheduledDate ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
-            {scheduledDate ? fmtScheduleDisplay(scheduledDate) : 'Select date'}
+            {scheduledDate ? fmtScheduleDisplay(scheduledDate) : tr("Select date")}
           </Text>
           <Ionicons name="calendar-outline" size={16} color={isDateInPast ? '#D97706' : '#4F46E5'} />
         </TouchableOpacity>
@@ -514,7 +515,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
           />
         )}
 
-        <RemarksLabel label="Client Brief / Onboarding Remarks" length={remarks.length} />
+        <RemarksLabel label={tr("Client Brief / Onboarding Remarks")} length={remarks.length} />
         <TextInput
           maxLength={REMARKS_MAX}
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
@@ -522,7 +523,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
           numberOfLines={2}
           value={remarks}
           onChangeText={setRemarks}
-          placeholder="Client prefers minimalist, wooden textures..."
+          placeholder={tr("Client prefers minimalist, wooden textures...")}
           placeholderTextColor="#94A3B8"
         />
 
@@ -534,7 +535,7 @@ export function SendToRequirementsModal({ isOpen, onClose, customerId, onSuccess
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={s.actionBtnText}>{isRescheduling ? 'Reschedule Session' : 'Start Requirements'}</Text>
+            <Text style={s.actionBtnText}>{isRescheduling ? tr("Reschedule Session") : tr("Start Requirements")}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -570,7 +571,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
 
   const handleSubmit = async () => {
     if (!assignedArchitect) {
-      Alert.alert('Assignee Required', 'Please assign a designer');
+      Alert.alert(tr("Assignee Required"), tr("Please assign a designer"));
       return;
     }
 
@@ -599,7 +600,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
       onSuccess();
       onClose();
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to move lead to Drawing.');
+      Alert.alert(tr("Error"), e.message || tr("Failed to move lead to Drawing."));
     } finally {
       setSubmitting(false);
     }
@@ -611,8 +612,8 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
       onClose={onClose}
       icon="pencil-outline"
       iconColor="#0284C7"
-      title={isRescheduling ? 'Reassign Drawing Phase' : 'Pass to 2D/3D Drawing'}
-      subtitle={isRescheduling ? 'Update assigned designer and handover brief notes.' : 'Assign a 2D/3D designer and handover requirements.'}
+      title={isRescheduling ? tr("Reassign Drawing Phase") : tr("Pass to 2D/3D Drawing")}
+      subtitle={isRescheduling ? tr("Update assigned designer and handover brief notes.") : tr("Assign a 2D/3D designer and handover requirements.")}
     >
       <ScrollView style={{ maxHeight: 420 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         {isRescheduling && (
@@ -624,13 +625,13 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
           />
         )}
 
-        <Text style={s.label}>Assign Draftsperson / Architect *</Text>
+        <Text style={s.label}>{tr("Assign Draftsperson / Architect *")}</Text>
         <TouchableOpacity
            style={s.input}
            onPress={() => setShowDropdown(!showDropdown)}
         >
           <Text style={{ color: assignedArchitect ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
-            {assignedArchitect ? userLabel(users.find(u => (u._id || u.id) === assignedArchitect) || {}) : "Select Architect *"}
+            {assignedArchitect ? userLabel(users.find(u => (u._id || u.id) === assignedArchitect) || {}) : tr("Select Architect *")}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
@@ -657,7 +658,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
           </View>
         )}
 
-        <RemarksLabel label="Drawing Brief & Handover Notes" length={remarks.length} />
+        <RemarksLabel label={tr("Drawing Brief & Handover Notes")} length={remarks.length} />
         <TextInput
           maxLength={REMARKS_MAX}
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
@@ -665,7 +666,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
           numberOfLines={2}
           value={remarks}
           onChangeText={setRemarks}
-          placeholder="2D furniture layout + 3D living room renders..."
+          placeholder={tr("2D furniture layout + 3D living room renders...")}
           placeholderTextColor="#94A3B8"
         />
 
@@ -677,7 +678,7 @@ export function SendToDrawingModal({ isOpen, onClose, customerId, onSuccess, use
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={s.actionBtnText}>{isRescheduling ? 'Confirm Reassign' : 'Pass to Drawing'}</Text>
+            <Text style={s.actionBtnText}>{isRescheduling ? tr("Confirm Reassign") : tr("Pass to Drawing")}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -704,11 +705,11 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
 
   const handleSubmit = async () => {
     if (isBoqBlocked) {
-      Alert.alert('Drawings Pending Approval', `${pendingDrawings.length} drawing(s) must be internally approved before passing to BOQ.`);
+      Alert.alert(tr("Drawings Pending Approval"), tr("{{pendingDrawingsCount}} drawing(s) must be internally approved before passing to BOQ.", { pendingDrawingsCount: pendingDrawings.length }));
       return;
     }
     if (!assignedEstimator) {
-      Alert.alert('Assignee Required', 'Please select a quantity surveyor or estimator before moving to BOQ.');
+      Alert.alert(tr("Assignee Required"), tr("Please select a quantity surveyor or estimator before moving to BOQ."));
       return;
     }
 
@@ -733,7 +734,7 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
       onSuccess();
       onClose();
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to move lead to BOQ.');
+      Alert.alert(tr("Error"), e.message || tr("Failed to move lead to BOQ."));
     } finally {
       setSubmitting(false);
     }
@@ -745,27 +746,27 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
       onClose={onClose}
       icon="calculator-outline"
       iconColor="#059669"
-      title="Pass to BOQ Estimation"
-      subtitle="Generate itemized bill of quantities and cost sheets"
+      title={tr("Pass to BOQ Estimation")}
+      subtitle={tr("Generate itemized bill of quantities and cost sheets")}
     >
       <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         {isBoqBlocked && (
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10, padding: 10, marginBottom: 10 }}>
             <Ionicons name="alert-circle" size={16} color="#B45309" style={{ marginTop: 1 }} />
             <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Inter-Medium', color: '#92400E' }}>
-              Cannot pass to BOQ — {pendingDrawings.length} drawing{pendingDrawings.length === 1 ? '' : 's'} pending approval. Approve all drawings first.
+              {tr("Cannot pass to BOQ — ")}{pendingDrawings.length}{tr(" drawing")}{pendingDrawings.length === 1 ? '' : 's'}{tr(" pending approval. Approve all drawings first.")}
             </Text>
           </View>
         )}
 
-        <Text style={s.label}>Assign Quantity Surveyor / Estimator *</Text>
+        <Text style={s.label}>{tr("Assign Quantity Surveyor / Estimator *")}</Text>
         <TouchableOpacity
            style={s.input}
            onPress={() => !isBoqBlocked && setShowDropdown(!showDropdown)}
            disabled={isBoqBlocked}
         >
           <Text style={{ color: assignedEstimator ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
-            {assignedEstimator ? userLabel(users.find(u => (u._id || u.id) === assignedEstimator) || {}) : "Select Estimator *"}
+            {assignedEstimator ? userLabel(users.find(u => (u._id || u.id) === assignedEstimator) || {}) : tr("Select Estimator *")}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
@@ -792,7 +793,7 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
           </View>
         )}
 
-        <RemarksLabel label="Estimation Notes" length={remarks.length} />
+        <RemarksLabel label={tr("Estimation Notes")} length={remarks.length} />
         <TextInput
           maxLength={REMARKS_MAX}
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
@@ -801,7 +802,7 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
           editable={!isBoqBlocked}
           value={remarks}
           onChangeText={setRemarks}
-          placeholder="Target budget under 15 Lakhs, premium fittings..."
+          placeholder={tr("Target budget under 15 Lakhs, premium fittings...")}
           placeholderTextColor="#94A3B8"
         />
 
@@ -813,7 +814,7 @@ export function SendToBoqModal({ isOpen, onClose, customerId, onSuccess, users =
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={s.actionBtnText}>{isBoqBlocked ? 'Drawings Pending Approval' : 'Pass to BOQ Phase'}</Text>
+            <Text style={s.actionBtnText}>{isBoqBlocked ? tr("Drawings Pending Approval") : tr("Pass to BOQ Phase")}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -832,11 +833,11 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
 
   const handleSubmit = async () => {
     if (!assignedSalesExecutive) {
-      Alert.alert('Assignee Required', 'Please select a member to assign before passing to Quotations.');
+      Alert.alert(tr("Assignee Required"), tr("Please select a member to assign before passing to Quotations."));
       return;
     }
     if (!remarks.trim()) {
-      Alert.alert('Handover Notes Required', 'Handover notes & pricing assumptions are required before passing to quotations.');
+      Alert.alert(tr("Handover Notes Required"), tr("Handover notes & pricing assumptions are required before passing to quotations."));
       return;
     }
 
@@ -863,7 +864,7 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
       onSuccess();
       onClose();
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to move lead to Quotations.');
+      Alert.alert(tr("Error"), e.message || tr("Failed to move lead to Quotations."));
     } finally {
       setSubmitting(false);
     }
@@ -875,17 +876,17 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
       onClose={onClose}
       icon="document-text-outline"
       iconColor="#E11D48"
-      title="Pass to Quotations"
-      subtitle="Assign a team member and document handover requirements"
+      title={tr("Pass to Quotations")}
+      subtitle={tr("Assign a team member and document handover requirements")}
     >
       <ScrollView style={{ maxHeight: 380 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-        <Text style={s.label}>Assign Sales / Quotation Executive *</Text>
+        <Text style={s.label}>{tr("Assign Sales / Quotation Executive *")}</Text>
         <TouchableOpacity
           style={s.input}
           onPress={() => setShowDropdown(!showDropdown)}
         >
           <Text style={{ color: assignedSalesExecutive ? '#0F172A' : '#94A3B8', fontFamily: 'Inter-Medium', fontSize: 14 }}>
-            {assignedSalesExecutive ? userLabel(users.find((u) => (u._id || u.id) === assignedSalesExecutive) || {}) : "Select Sales Executive *"}
+            {assignedSalesExecutive ? userLabel(users.find((u) => (u._id || u.id) === assignedSalesExecutive) || {}) : tr("Select Sales Executive *")}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#64748B" style={{ position: 'absolute', right: 12, top: 12 }} />
         </TouchableOpacity>
@@ -912,7 +913,7 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
           </View>
         )}
 
-        <RemarksLabel label="Handover Notes & Pricing Assumptions *" length={remarks.length} />
+        <RemarksLabel label={tr("Handover Notes & Pricing Assumptions *")} length={remarks.length} />
         <TextInput
           maxLength={REMARKS_MAX}
           style={[s.input, { minHeight: 70, textAlignVertical: 'top' }]}
@@ -920,7 +921,7 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
           numberOfLines={3}
           value={remarks}
           onChangeText={setRemarks}
-          placeholder="Enter client payment terms, target discount constraints, milestone breakdown requirements..."
+          placeholder={tr("Enter client payment terms, target discount constraints, milestone breakdown requirements...")}
           placeholderTextColor="#94A3B8"
         />
 
@@ -932,7 +933,7 @@ export function SendToQuotationsModal({ isOpen, onClose, customerId, onSuccess, 
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={s.actionBtnText}>Move to Quotation</Text>
+            <Text style={s.actionBtnText}>{tr("Move to Quotation")}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -956,11 +957,11 @@ export function ConvertToProjectModal({ isOpen, onClose, customerId, onSuccess }
         remarks: remarks.trim() || 'Lead won and converted to active project.',
       });
 
-      Alert.alert('Congratulations! 🎉', 'Lead successfully converted into an Active Interior Project!');
+      Alert.alert(tr("Congratulations! 🎉"), tr("Lead successfully converted into an Active Interior Project!"));
       onSuccess();
       onClose();
     } catch (e) {
-      Alert.alert('Conversion Failed', e.message || 'Failed to convert lead to project.');
+      Alert.alert(tr("Conversion Failed"), e.message || tr("Failed to convert lead to project."));
     } finally {
       setSubmitting(false);
     }
@@ -972,27 +973,27 @@ export function ConvertToProjectModal({ isOpen, onClose, customerId, onSuccess }
       onClose={onClose}
       icon="trophy-outline"
       iconColor="#16A34A"
-      title="Win & Convert to Project"
-      subtitle="Finalize deal and initialize construction workspace"
+      title={tr("Win & Convert to Project")}
+      subtitle={tr("Finalize deal and initialize construction workspace")}
     >
       <ScrollView style={{ maxHeight: 340 }}>
-        <Text style={s.label}>Project Kickoff Date (YYYY-MM-DD)</Text>
+        <Text style={s.label}>{tr("Project Kickoff Date (YYYY-MM-DD)")}</Text>
         <TextInput
           style={s.input}
           value={startDate}
           onChangeText={setStartDate}
-          placeholder="YYYY-MM-DD"
+          placeholder={tr("YYYY-MM-DD")}
           placeholderTextColor="#94A3B8"
         />
 
-        <Text style={s.label}>Handover Remarks for Execution Team</Text>
+        <Text style={s.label}>{tr("Handover Remarks for Execution Team")}</Text>
         <TextInput
           style={[s.input, { minHeight: 60, textAlignVertical: 'top' }]}
           multiline
           numberOfLines={2}
           value={remarks}
           onChangeText={setRemarks}
-          placeholder="Advance received, site keys available at gate..."
+          placeholder={tr("Advance received, site keys available at gate...")}
           placeholderTextColor="#94A3B8"
         />
 
@@ -1006,7 +1007,7 @@ export function ConvertToProjectModal({ isOpen, onClose, customerId, onSuccess }
           ) : (
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <Ionicons name="trophy-outline" size={16} color="#FFFFFF" />
-              <Text style={s.actionBtnText}>Convert to Project</Text>
+              <Text style={s.actionBtnText}>{tr("Convert to Project")}</Text>
             </View>
           )}
         </TouchableOpacity>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // Construction settings: Profile Details / Organization / Change Password sheets
 // (same actions as the web construction-dashboard settings page)
 
@@ -70,23 +71,23 @@ export default function AccountSheet({ mode, onClose }) {
     if (saving) return;
     try {
       if (mode === 'profile') {
-        if (!name.trim()) return showToast('Full name is required', 'error');
+        if (!name.trim()) return showToast(tr("Full name is required"), 'error');
         setSaving(true);
         await call(`/users/${user?._id || user?.id}`, 'PATCH', { name: name.trim(), phoneNumber: phone.trim() });
-        showToast('Profile details saved successfully!', 'success');
+        showToast(tr("Profile details saved successfully!"), 'success');
       } else if (mode === 'organization') {
-        if (!orgName.trim()) return showToast('Organization name cannot be empty', 'error');
+        if (!orgName.trim()) return showToast(tr("Organization name cannot be empty"), 'error');
         setSaving(true);
         await call('/organization', 'PATCH', { name: orgName.trim() });
-        showToast('Organization updated successfully!', 'success');
+        showToast(tr("Organization updated successfully!"), 'success');
       } else {
-        if (!currentPassword) return showToast('Please enter your current password', 'error');
-        if (!newPassword) return showToast('Please enter a new password', 'error');
-        if (newPassword.length < 8) return showToast('New password must be at least 8 characters long', 'error');
-        if (newPassword !== confirmPassword) return showToast('New passwords do not match', 'error');
+        if (!currentPassword) return showToast(tr("Please enter your current password"), 'error');
+        if (!newPassword) return showToast(tr("Please enter a new password"), 'error');
+        if (newPassword.length < 8) return showToast(tr("New password must be at least 8 characters long"), 'error');
+        if (newPassword !== confirmPassword) return showToast(tr("New passwords do not match"), 'error');
         setSaving(true);
         await call('/auth/change-password', 'POST', { currentPassword, newPassword });
-        showToast('Password changed successfully!', 'success');
+        showToast(tr("Password changed successfully!"), 'success');
       }
       refreshUser?.();
       onClose();
@@ -101,14 +102,14 @@ export default function AccountSheet({ mode, onClose }) {
 
   const field = (label, value, onChange, opts = {}) => (
     <View style={{ marginBottom: 14 }}>
-      <Text style={s.label}>{label}</Text>
+      <Text style={s.label}>{tr(label)}</Text>
       <View style={s.inputRow}>
         <TextInput
           style={[s.input, opts.disabled && { color: '#94A3B8' }]}
           value={value}
           onChangeText={onChange}
           editable={!opts.disabled}
-          placeholder={opts.placeholder}
+          placeholder={tr(opts.placeholder)}
           placeholderTextColor="#94A3B8"
           secureTextEntry={opts.secure && !showPwd}
           autoCapitalize={opts.secure ? 'none' : 'words'}

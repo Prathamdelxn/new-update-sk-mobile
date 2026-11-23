@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -6,6 +7,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useOrgCurrency } from '../../utils/interior/orgCurrency';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
@@ -26,10 +28,6 @@ const STATUS_META = {
   draft: { color: '#64748B', bg: '#F1F5F9' },
 };
 
-function fmtMoney(n) {
-  return `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
-}
-
 function computeMetrics(list) {
   const approved = list.filter((v) => v.status === 'approved' || v.status === 'executed');
   const pending = list.filter((v) => ['submitted', 'pm_review', 'commercial_review', 'management_approval', 'client_approval'].includes(v.status));
@@ -47,14 +45,16 @@ function ImpactRow({ done, title, sub }) {
         {done && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={s.impactTitle}>{title}</Text>
-        <Text style={s.impactSub}>{sub}</Text>
+        <Text style={s.impactTitle}>{tr(title)}</Text>
+        <Text style={s.impactSub}>{tr(sub)}</Text>
       </View>
     </View>
   );
 }
 
 export default function InteriorVariationOrdersScreen() {
+  const orgCurrency = useOrgCurrency();
+  const fmtMoney = orgCurrency.money;
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
@@ -84,7 +84,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setVos(list);
     } catch (e) {
       console.error('Failed to load variation orders', e);
-      showToast('Failed to load variation orders', 'error');
+      showToast(tr("Failed to load variation orders"), 'error');
     } finally {
       setLoading(false);
     }
@@ -95,7 +95,7 @@ const { can: canDo } = useProjectPermissions(projectId);
   const metrics = computeMetrics(vos);
 
   const handleCreate = async () => {
-    if (!form.description.trim()) return showToast('Please describe the scope of variation', 'error');
+    if (!form.description.trim()) return showToast(tr("Please describe the scope of variation"), 'error');
     setActionLoading(true);
     try {
       const materialCost = parseFloat(form.materialCost) || 0;
@@ -110,12 +110,12 @@ const { can: canDo } = useProjectPermissions(projectId);
         impactAnalysis: { materialCost, laborCost, vendorCost, overheadCost, timelineImpactDays: parseInt(form.timelineImpactDays, 10) || 0 },
         financialSummary: { originalCost: projectBudget, variationCost: totalDiff, netDifference: totalDiff, revisedProjectCost: projectBudget + totalDiff },
       });
-      showToast('Variation Order created successfully', 'success');
+      showToast(tr("Variation Order created successfully"), 'success');
       setIsCreateOpen(false);
       setForm(emptyForm);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to create Variation Order', 'error');
+      showToast(e.message || tr("Failed to create Variation Order"), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -126,11 +126,11 @@ const { can: canDo } = useProjectPermissions(projectId);
     setActionLoading(true);
     try {
       await interiorApiClient.post(`/projects/${projectId}/variation-orders/${detailVo._id}/approve`);
-      showToast('Variation Order approved', 'success');
+      showToast(tr("Variation Order approved"), 'success');
       setDetailVo(null);
       fetchData();
     } catch (e) {
-      showToast(e.message || 'Failed to approve Variation Order', 'error');
+      showToast(e.message || tr("Failed to approve Variation Order"), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -145,7 +145,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Variation Order Dashboard</Text>
+            <Text style={s.headerTitle}>{tr("Variation Order Dashboard")}</Text>
           </View>
         </View>
 
@@ -155,31 +155,31 @@ const { can: canDo } = useProjectPermissions(projectId);
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             <View style={s.kpiGrid}>
               <View style={s.kpiCard}>
-                <Text style={s.kpiLabel}>Total VOs</Text>
+                <Text style={s.kpiLabel}>{tr("Total VOs")}</Text>
                 <Text style={s.kpiValue}>{metrics.total}</Text>
               </View>
               <View style={s.kpiCard}>
-                <Text style={s.kpiLabel}>Approved</Text>
-                <Text style={[s.kpiValue, { color: '#16A34A' }]}>{metrics.approved}</Text>
+                <Text style={s.kpiLabel}>{tr("Approved")}</Text>
+                <Text style={[s.kpiValue, { color: '#16A34A' }]}>{tr(metrics.approved)}</Text>
               </View>
               <View style={s.kpiCard}>
-                <Text style={s.kpiLabel}>Pending Review</Text>
-                <Text style={[s.kpiValue, { color: '#D97706' }]}>{metrics.pending}</Text>
+                <Text style={s.kpiLabel}>{tr("Pending Review")}</Text>
+                <Text style={[s.kpiValue, { color: '#D97706' }]}>{tr(metrics.pending)}</Text>
               </View>
               <View style={s.kpiCard}>
-                <Text style={s.kpiLabel}>Timeline Delay</Text>
-                <Text style={s.kpiValue}>+{metrics.days}d</Text>
+                <Text style={s.kpiLabel}>{tr("Timeline Delay")}</Text>
+                <Text style={s.kpiValue}>+{tr(metrics.days)}d</Text>
               </View>
             </View>
             <View style={s.revenueCard}>
-              <Text style={s.revenueLabel}>ADDITIONAL REVENUE GENERATED</Text>
+              <Text style={s.revenueLabel}>{tr("ADDITIONAL REVENUE GENERATED")}</Text>
               <Text style={s.revenueValue}>{fmtMoney(metrics.revenue)}</Text>
             </View>
 
             {vos.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="document-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No variation orders yet</Text>
+                <Text style={s.emptyTitle}>{tr("No variation orders yet")}</Text>
               </View>
             ) : (
               vos.map((vo) => {
@@ -187,12 +187,12 @@ const { can: canDo } = useProjectPermissions(projectId);
                 return (
                   <TouchableOpacity key={vo._id} style={s.voCard} onPress={() => setDetailVo(vo)}>
                     <View style={s.voTopRow}>
-                      <Text style={s.voNumber}>{vo.voNumber}</Text>
+                      <Text style={s.voNumber}>{tr(vo.voNumber)}</Text>
                       <View style={[s.statusBadge, { backgroundColor: statusMeta.bg }]}>
                         <Text style={[s.statusBadgeText, { color: statusMeta.color }]}>{String(vo.status).replace('_', ' ')}</Text>
                       </View>
                     </View>
-                    <Text style={s.voDesc} numberOfLines={2}>{vo.description}</Text>
+                    <Text style={s.voDesc} numberOfLines={2}>{tr(vo.description)}</Text>
                     <View style={s.voBottomRow}>
                       <View style={[s.typeTag, { backgroundColor: (TYPE_COLOR[vo.type] || '#7C3AED') + '1A' }]}>
                         <Text style={[s.typeTagText, { color: TYPE_COLOR[vo.type] || '#7C3AED' }]}>{String(vo.type).replace('_', ' ')}</Text>
@@ -219,60 +219,60 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Create Variation Order</Text>
+              <Text style={s.modalTitle}>{tr("Create Variation Order")}</Text>
               <TouchableOpacity onPress={() => setIsCreateOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>VO Type</Text>
+              <Text style={s.label}>{tr("VO Type")}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                 {VO_TYPES.map((t) => (
                   <TouchableOpacity key={t.value} style={[s.chip, form.type === t.value && s.chipActive]} onPress={() => setForm({ ...form, type: t.value })}>
-                    <Text style={[s.chipText, form.type === t.value && s.chipTextActive]}>{t.label}</Text>
+                    <Text style={[s.chipText, form.type === t.value && s.chipTextActive]}>{tr(t.label)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.label}>Category</Text>
+              <Text style={s.label}>{tr("Category")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
                 {CATEGORIES.map((c) => (
                   <TouchableOpacity key={c} style={[s.chip, form.category === c && s.chipActive]} onPress={() => setForm({ ...form, category: c })}>
-                    <Text style={[s.chipText, form.category === c && s.chipTextActive]}>{c}</Text>
+                    <Text style={[s.chipText, form.category === c && s.chipTextActive]}>{tr(c)}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
 
-              <Text style={s.label}>Scope of Variation Description *</Text>
-              <TextInput style={[s.input, { height: 70, textAlignVertical: 'top', paddingTop: 12 }]} placeholder="Describe the scope changes and execution instructions..." placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} multiline />
+              <Text style={s.label}>{tr("Scope of Variation Description *")}</Text>
+              <TextInput style={[s.input, { height: 70, textAlignVertical: 'top', paddingTop: 12 }]} placeholder={tr("Describe the scope changes and execution instructions...")} placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} multiline />
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Material Cost (₹)</Text>
+                  <Text style={s.label}>{tr("Material Cost (")}{orgCurrency.code})</Text>
                   <TextInput style={s.input} keyboardType="numeric" value={form.materialCost} onChangeText={(v) => setForm({ ...form, materialCost: v })} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Labor Cost (₹)</Text>
+                  <Text style={s.label}>{tr("Labor Cost (")}{orgCurrency.code})</Text>
                   <TextInput style={s.input} keyboardType="numeric" value={form.laborCost} onChangeText={(v) => setForm({ ...form, laborCost: v })} />
                 </View>
               </View>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Vendor Cost (₹)</Text>
+                  <Text style={s.label}>{tr("Vendor Cost (")}{orgCurrency.code})</Text>
                   <TextInput style={s.input} keyboardType="numeric" value={form.vendorCost} onChangeText={(v) => setForm({ ...form, vendorCost: v })} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Overhead Cost (₹)</Text>
+                  <Text style={s.label}>{tr("Overhead Cost (")}{orgCurrency.code})</Text>
                   <TextInput style={s.input} keyboardType="numeric" value={form.overheadCost} onChangeText={(v) => setForm({ ...form, overheadCost: v })} />
                 </View>
               </View>
 
-              <Text style={s.label}>Timeline Impact (Days Added)</Text>
+              <Text style={s.label}>{tr("Timeline Impact (Days Added)")}</Text>
               <TextInput style={s.input} keyboardType="numeric" value={form.timelineImpactDays} onChangeText={(v) => setForm({ ...form, timelineImpactDays: v })} />
 
               <TouchableOpacity style={[s.saveBtn, actionLoading && { opacity: 0.7 }]} onPress={handleCreate} disabled={actionLoading}>
-                {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Create VO</Text>}
+                {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Create VO")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -288,12 +288,12 @@ const { can: canDo } = useProjectPermissions(projectId);
                 <View style={s.modalHeader}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <Text style={s.modalTitle}>{detailVo.voNumber}</Text>
+                      <Text style={s.modalTitle}>{tr(detailVo.voNumber)}</Text>
                       <View style={[s.typeTag, { backgroundColor: (TYPE_COLOR[detailVo.type] || '#7C3AED') + '1A' }]}>
                         <Text style={[s.typeTagText, { color: TYPE_COLOR[detailVo.type] || '#7C3AED' }]}>{String(detailVo.type).replace('_', ' ')}</Text>
                       </View>
                     </View>
-                    <Text style={s.headerSub}>Category: {detailVo.category}</Text>
+                    <Text style={s.headerSub}>{tr("Category: ")}{tr(detailVo.category)}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <View style={[s.statusBadge, { backgroundColor: (STATUS_META[detailVo.status] || { bg: '#FFFBEB' }).bg }]}>
@@ -309,71 +309,71 @@ const { can: canDo } = useProjectPermissions(projectId);
 
                 <ScrollView showsVerticalScrollIndicator={false}>
                   <View style={s.descBox}>
-                    <Text style={s.sectionLabel}>SCOPE OF VARIATION</Text>
-                    <Text style={s.descText}>{detailVo.description}</Text>
+                    <Text style={s.sectionLabel}>{tr("SCOPE OF VARIATION")}</Text>
+                    <Text style={s.descText}>{tr(detailVo.description)}</Text>
                   </View>
 
-                  <Text style={s.sectionLabel}>FINANCIAL SUMMARY</Text>
+                  <Text style={s.sectionLabel}>{tr("FINANCIAL SUMMARY")}</Text>
                   <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                     <View style={s.finCard}>
-                      <Text style={s.finLabel}>ORIGINAL COST</Text>
+                      <Text style={s.finLabel}>{tr("ORIGINAL COST")}</Text>
                       <Text style={s.finValue}>{fmtMoney(detailVo.financialSummary?.originalCost)}</Text>
                     </View>
                     <View style={[s.finCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
-                      <Text style={[s.finLabel, { color: '#16A34A' }]}>NET DIFFERENCE</Text>
+                      <Text style={[s.finLabel, { color: '#16A34A' }]}>{tr("NET DIFFERENCE")}</Text>
                       <Text style={[s.finValue, { color: '#16A34A' }]}>{fmtMoney(detailVo.financialSummary?.netDifference)}</Text>
                     </View>
                   </View>
                   <View style={[s.finCard, { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE', marginBottom: 8 }]}>
-                    <Text style={[s.finLabel, { color: '#2563EB' }]}>REVISED PROJECT COST</Text>
+                    <Text style={[s.finLabel, { color: '#2563EB' }]}>{tr("REVISED PROJECT COST")}</Text>
                     <Text style={[s.finValue, { color: '#2563EB' }]}>{fmtMoney(detailVo.financialSummary?.revisedProjectCost)}</Text>
                   </View>
 
-                  <Text style={s.sectionLabel}>COST IMPACT ANALYSIS</Text>
+                  <Text style={s.sectionLabel}>{tr("COST IMPACT ANALYSIS")}</Text>
                   <View style={s.impactGrid}>
                     <View style={s.impactCard}>
-                      <Text style={s.impactCardLabel}>Material</Text>
+                      <Text style={s.impactCardLabel}>{tr("Material")}</Text>
                       <Text style={s.impactCardValue}>{fmtMoney(detailVo.impactAnalysis?.materialCost)}</Text>
                     </View>
                     <View style={s.impactCard}>
-                      <Text style={s.impactCardLabel}>Labor</Text>
+                      <Text style={s.impactCardLabel}>{tr("Labor")}</Text>
                       <Text style={s.impactCardValue}>{fmtMoney(detailVo.impactAnalysis?.laborCost)}</Text>
                     </View>
                     <View style={s.impactCard}>
-                      <Text style={s.impactCardLabel}>Vendor</Text>
+                      <Text style={s.impactCardLabel}>{tr("Vendor")}</Text>
                       <Text style={s.impactCardValue}>{fmtMoney(detailVo.impactAnalysis?.vendorCost)}</Text>
                     </View>
                     <View style={s.impactCard}>
-                      <Text style={s.impactCardLabel}>Overhead</Text>
+                      <Text style={s.impactCardLabel}>{tr("Overhead")}</Text>
                       <Text style={s.impactCardValue}>{fmtMoney(detailVo.impactAnalysis?.overheadCost)}</Text>
                     </View>
                   </View>
 
-                  <Text style={s.sectionLabel}>AUTO-IMPACT SYSTEM ADJUSTMENTS</Text>
+                  <Text style={s.sectionLabel}>{tr("AUTO-IMPACT SYSTEM ADJUSTMENTS")}</Text>
                   <View style={s.impactBox}>
                     <ImpactRow
                       done={detailVo.status === 'approved' || detailVo.status === 'executed'}
-                      title="Project Budget Revised"
+                      title={tr("Project Budget Revised")}
                       sub={detailVo.status === 'approved' || detailVo.status === 'executed' ? `Updated by +${fmtMoney(detailVo.financialSummary?.netDifference)}` : 'Awaiting approval...'}
                     />
                     <ImpactRow
                       done={detailVo.status === 'approved' || detailVo.status === 'executed'}
-                      title="BOQ Line Items Appended"
+                      title={tr("BOQ Line Items Appended")}
                       sub={detailVo.status === 'approved' || detailVo.status === 'executed' ? `Added line item 'VO Item - ${detailVo.voNumber}'` : 'Awaiting approval...'}
                     />
                     <ImpactRow
                       done={detailVo.status === 'approved' || detailVo.status === 'executed'}
-                      title="WBS Schedule Recalculated"
+                      title={tr("WBS Schedule Recalculated")}
                       sub={detailVo.status === 'approved' || detailVo.status === 'executed' ? `Created task 'Execute VO: ${detailVo.voNumber}' (+${detailVo.impactAnalysis?.timelineImpactDays} days)` : 'Awaiting approval...'}
                     />
                     <ImpactRow
                       done={(detailVo.status === 'approved' || detailVo.status === 'executed') && detailVo.impactAnalysis?.materialCost > 0}
-                      title="Procurement Requisitions Created"
+                      title={tr("Procurement Requisitions Created")}
                       sub={(detailVo.status === 'approved' || detailVo.status === 'executed') && detailVo.impactAnalysis?.materialCost > 0 ? `Created PO-VO-${detailVo.voNumber}` : 'No material adjustments required.'}
                     />
                     <ImpactRow
                       done={!!detailVo.billingGenerated}
-                      title="Client Variation Billing Logs Updated"
+                      title={tr("Client Variation Billing Logs Updated")}
                       sub={detailVo.billingGenerated ? `Invoice generated ${new Date(detailVo.billingGeneratedAt).toLocaleDateString('en-IN')}` : 'Awaiting execution approval...'}
                     />
                   </View>
@@ -384,7 +384,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                         {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
                           <>
                             <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
-                            <Text style={s.approveBtnText}>Approve & Run Auto Impact Updates</Text>
+                            <Text style={s.approveBtnText}>{tr("Approve & Run Auto Impact Updates")}</Text>
                           </>
                         )}
                       </TouchableOpacity>

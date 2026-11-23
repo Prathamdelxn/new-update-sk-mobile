@@ -1,3 +1,4 @@
+import { tr } from '../../../utils/i18n/tr';
 import React, { memo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -61,18 +62,18 @@ const BOQItem = memo(({
         }}
       >
         <View style={styles.nameRow}>
-          <Text style={styles.itemNum} numberOfLines={1}>{item.itemNumber}</Text>
-          <Text style={styles.boqName} numberOfLines={1}>{item.itemDescription}</Text>
+          <Text style={styles.itemNum} numberOfLines={1}>{tr(item.itemNumber)}</Text>
+          <Text style={styles.boqName} numberOfLines={1}>{tr(item.itemDescription)}</Text>
         </View>
         <View style={styles.qtyStatusRow}>
           <View style={{ flexDirection: 'column', flex: 1, marginRight: 8, marginTop: 2 }}>
-            <Text style={styles.boqQty} numberOfLines={1}>Qty: {item.quantity} {item.unit}</Text>
-            <Text style={styles.boqQty} numberOfLines={1}>Rate: {currency} {item.unitCost}</Text>
+            <Text style={styles.boqQty} numberOfLines={1}>{tr("Qty: ")}{item.quantity} {tr(item.unit)}</Text>
+            <Text style={styles.boqQty} numberOfLines={1}>{tr("Rate: ")}{tr(currency)} {tr(item.unitCost)}</Text>
           </View>
           <View style={[styles.statusBadge, styles[`status${item.status || 'Pending'}`]]}>
             <View style={[styles.statusDot, { backgroundColor: item.status === 'Approved' ? '#10B981' : item.status === 'Rejected' ? '#EF4444' : '#F59E0B' }]} />
             <Text style={[styles.statusText, { color: item.status === 'Approved' ? '#059669' : item.status === 'Rejected' ? '#DC2626' : '#D97706' }]}>
-              {item.status || 'Pending'}
+              {item.status || tr("Pending")}
             </Text>
           </View>
         </View>
@@ -88,7 +89,7 @@ const BOQItem = memo(({
                 <Text style={styles.versionText}>v{item.version || 1}</Text>
               </TouchableOpacity>
             )}
-            <Text style={styles.boqPrice} numberOfLines={1} adjustsFontSizeToFit>Total: {currency} {formatCompact(item.totalCost)}</Text>
+            <Text style={styles.boqPrice} numberOfLines={1} adjustsFontSizeToFit>{tr("Total: ")}{tr(currency)} {formatCompact(item.totalCost)}</Text>
             <View style={styles.rowActions}>
               {(item.status === 'Draft' || item.status === 'Rejected') && (
                 <>

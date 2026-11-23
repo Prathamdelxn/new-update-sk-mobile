@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -71,7 +72,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setCrs(res?.success && res?.data ? res.data : []);
     } catch (e) {
       console.error('Failed to load change requests', e);
-      showToast('Failed to fetch change request list', 'error');
+      showToast(tr("Failed to fetch change request list"), 'error');
     } finally {
       setLoading(false);
     }
@@ -80,16 +81,16 @@ const { can: canDo } = useProjectPermissions(projectId);
   useFocusEffect(useCallback(() => { fetchCrs(); }, [fetchCrs]));
 
   const handleCreate = async () => {
-    if (!form.description.trim()) return showToast('Please describe the change', 'error');
+    if (!form.description.trim()) return showToast(tr("Please describe the change"), 'error');
     setActionLoading(true);
     try {
       await interiorApiClient.post(`/projects/${projectId}/change-requests`, form);
-      showToast('Change request created successfully!', 'success');
+      showToast(tr("Change request created successfully!"), 'success');
       setIsCreateOpen(false);
       setForm(emptyForm);
       fetchCrs();
     } catch (e) {
-      showToast(e.message || 'Failed to create change request', 'error');
+      showToast(e.message || tr("Failed to create change request"), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -105,7 +106,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         setCrs((prev) => prev.map((c) => (c._id === detailCr._id ? res.data : c)));
       }
     } catch (e) {
-      showToast(e.message || 'Failed to update change request status', 'error');
+      showToast(e.message || tr("Failed to update change request status"), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -116,11 +117,11 @@ const { can: canDo } = useProjectPermissions(projectId);
     setActionLoading(true);
     try {
       await interiorApiClient.post(`/projects/${projectId}/change-requests/${detailCr._id}/approve`);
-      showToast('Change request approved! Variation order generated.', 'success');
+      showToast(tr("Change request approved! Variation order generated."), 'success');
       setDetailCr(null);
       fetchCrs();
     } catch (e) {
-      showToast(e.message || 'Failed to approve change request', 'error');
+      showToast(e.message || tr("Failed to approve change request"), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -137,7 +138,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Change Request Management</Text>
+            <Text style={s.headerTitle}>{tr("Change Request Management")}</Text>
           </View>
         </View>
 
@@ -148,7 +149,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             {crs.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="layers-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No change requests logged yet</Text>
+                <Text style={s.emptyTitle}>{tr("No change requests logged yet")}</Text>
               </View>
             ) : (
               crs.map((cr) => {
@@ -156,14 +157,14 @@ const { can: canDo } = useProjectPermissions(projectId);
                 return (
                   <TouchableOpacity key={cr._id} style={s.crCard} onPress={() => setDetailCr(cr)}>
                     <View style={s.crTopRow}>
-                      <Text style={s.crNumber}>{cr.crNumber}</Text>
+                      <Text style={s.crNumber}>{tr(cr.crNumber)}</Text>
                       <View style={[s.statusBadge, { backgroundColor: meta.bg }]}>
                         <Text style={[s.statusBadgeText, { color: meta.color }]}>{String(cr.status).replace('_', ' ')}</Text>
                       </View>
                     </View>
-                    <Text style={s.crDesc} numberOfLines={2}>{cr.description}</Text>
+                    <Text style={s.crDesc} numberOfLines={2}>{tr(cr.description)}</Text>
                     <View style={s.crBottomRow}>
-                      <Text style={s.crMeta}>{cr.category} · Priority: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{cr.priority}</Text></Text>
+                      <Text style={s.crMeta}>{tr(cr.category)}{tr(" · Priority: ")}<Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr(cr.priority)}</Text></Text>
                       <Text style={s.crDate}>{new Date(cr.requestedDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</Text>
                     </View>
                   </TouchableOpacity>
@@ -186,48 +187,48 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Create Change Request</Text>
+              <Text style={s.modalTitle}>{tr("Create Change Request")}</Text>
               <TouchableOpacity onPress={() => setIsCreateOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Category</Text>
+              <Text style={s.label}>{tr("Category")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
                 {CATEGORIES.map((c) => (
                   <TouchableOpacity key={c.value} style={[s.chip, form.category === c.value && s.chipActive]} onPress={() => setForm({ ...form, category: c.value })}>
-                    <Text style={[s.chipText, form.category === c.value && s.chipTextActive]}>{c.label}</Text>
+                    <Text style={[s.chipText, form.category === c.value && s.chipTextActive]}>{tr(c.label)}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
 
-              <Text style={s.label}>Priority</Text>
+              <Text style={s.label}>{tr("Priority")}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                 {PRIORITIES.map((p) => (
                   <TouchableOpacity key={p} style={[s.chip, form.priority === p && s.chipActive]} onPress={() => setForm({ ...form, priority: p })}>
-                    <Text style={[s.chipText, form.priority === p && s.chipTextActive]}>{p}</Text>
+                    <Text style={[s.chipText, form.priority === p && s.chipTextActive]}>{tr(p)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.label}>Area Affected</Text>
-              <TextInput style={s.input} placeholder="e.g. Master Bedroom, Kitchen Counter" placeholderTextColor="#94A3B8" value={form.areaAffected} onChangeText={(v) => setForm({ ...form, areaAffected: v })} />
+              <Text style={s.label}>{tr("Area Affected")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Master Bedroom, Kitchen Counter")} placeholderTextColor="#94A3B8" value={form.areaAffected} onChangeText={(v) => setForm({ ...form, areaAffected: v })} />
 
-              <Text style={s.label}>Description of Change *</Text>
-              <TextInput style={[s.input, { height: 60, textAlignVertical: 'top', paddingTop: 12 }]} placeholder="Describe the requested change..." placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} multiline />
+              <Text style={s.label}>{tr("Description of Change *")}</Text>
+              <TextInput style={[s.input, { height: 60, textAlignVertical: 'top', paddingTop: 12 }]} placeholder={tr("Describe the requested change...")} placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} multiline />
 
-              <Text style={s.label}>Current Design / Material</Text>
-              <TextInput style={[s.input, { height: 60, textAlignVertical: 'top', paddingTop: 12 }]} placeholder="Currently approved specifications..." placeholderTextColor="#94A3B8" value={form.currentDesign} onChangeText={(v) => setForm({ ...form, currentDesign: v })} multiline />
+              <Text style={s.label}>{tr("Current Design / Material")}</Text>
+              <TextInput style={[s.input, { height: 60, textAlignVertical: 'top', paddingTop: 12 }]} placeholder={tr("Currently approved specifications...")} placeholderTextColor="#94A3B8" value={form.currentDesign} onChangeText={(v) => setForm({ ...form, currentDesign: v })} multiline />
 
-              <Text style={s.label}>Proposed Design / Material</Text>
-              <TextInput style={[s.input, { height: 60, textAlignVertical: 'top', paddingTop: 12 }]} placeholder="Proposed alternative specifications..." placeholderTextColor="#94A3B8" value={form.proposedDesign} onChangeText={(v) => setForm({ ...form, proposedDesign: v })} multiline />
+              <Text style={s.label}>{tr("Proposed Design / Material")}</Text>
+              <TextInput style={[s.input, { height: 60, textAlignVertical: 'top', paddingTop: 12 }]} placeholder={tr("Proposed alternative specifications...")} placeholderTextColor="#94A3B8" value={form.proposedDesign} onChangeText={(v) => setForm({ ...form, proposedDesign: v })} multiline />
 
-              <Text style={s.label}>Reason for Change</Text>
-              <TextInput style={[s.input, { height: 60, textAlignVertical: 'top', paddingTop: 12 }]} placeholder="Why is this change necessary?" placeholderTextColor="#94A3B8" value={form.reasonForChange} onChangeText={(v) => setForm({ ...form, reasonForChange: v })} multiline />
+              <Text style={s.label}>{tr("Reason for Change")}</Text>
+              <TextInput style={[s.input, { height: 60, textAlignVertical: 'top', paddingTop: 12 }]} placeholder={tr("Why is this change necessary?")} placeholderTextColor="#94A3B8" value={form.reasonForChange} onChangeText={(v) => setForm({ ...form, reasonForChange: v })} multiline />
 
               <TouchableOpacity style={[s.saveBtn, actionLoading && { opacity: 0.7 }]} onPress={handleCreate} disabled={actionLoading}>
-                {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Create Request</Text>}
+                {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Create Request")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -243,12 +244,12 @@ const { can: canDo } = useProjectPermissions(projectId);
                 <View style={s.modalHeader}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={s.modalTitle}>{detailCr.crNumber}</Text>
+                      <Text style={s.modalTitle}>{tr(detailCr.crNumber)}</Text>
                       <View style={[s.priorityDot, { backgroundColor: PRIORITY_COLOR[detailCr.priority] || '#64748B' }]}>
-                        <Text style={s.priorityDotText}>{detailCr.priority}</Text>
+                        <Text style={s.priorityDotText}>{tr(detailCr.priority)}</Text>
                       </View>
                     </View>
-                    <Text style={s.headerSub}>Requested by {detailCr.requestedBy?.firstName} {detailCr.requestedBy?.lastName}</Text>
+                    <Text style={s.headerSub}>{tr("Requested by ")}{tr(detailCr.requestedBy?.firstName)} {tr(detailCr.requestedBy?.lastName)}</Text>
                   </View>
                   <TouchableOpacity onPress={() => setDetailCr(null)}>
                     <Ionicons name="close" size={22} color="#64748B" />
@@ -256,7 +257,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false}>
-                  <Text style={s.sectionLabel}>APPROVAL WORKFLOW</Text>
+                  <Text style={s.sectionLabel}>{tr("APPROVAL WORKFLOW")}</Text>
                   <View style={s.workflowRow}>
                     {WORKFLOW_STEPS.map((step, idx) => {
                       const currentIdx = WORKFLOW_STEPS.findIndex((st) => st.key === detailCr.status);
@@ -271,40 +272,40 @@ const { can: canDo } = useProjectPermissions(projectId);
                               <Text style={s.workflowDotText}>{idx + 1}</Text>
                             )}
                           </View>
-                          <Text style={[s.workflowLabel, isActive && { color: '#2563EB' }]} numberOfLines={2}>{step.label}</Text>
+                          <Text style={[s.workflowLabel, isActive && { color: '#2563EB' }]} numberOfLines={2}>{tr(step.label)}</Text>
                         </View>
                       );
                     })}
                   </View>
 
-                  <Text style={s.sectionLabel}>SCOPE & DESIGN CHANGES</Text>
+                  <Text style={s.sectionLabel}>{tr("SCOPE & DESIGN CHANGES")}</Text>
                   <View style={s.scopeBox}>
-                    <Text style={s.scopeLabel}>CURRENT APPROVED DESIGN</Text>
-                    <Text style={s.scopeText}>{detailCr.currentDesign || 'No description provided.'}</Text>
+                    <Text style={s.scopeLabel}>{tr("CURRENT APPROVED DESIGN")}</Text>
+                    <Text style={s.scopeText}>{detailCr.currentDesign || tr("No description provided.")}</Text>
                   </View>
                   <View style={[s.scopeBox, { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE' }]}>
-                    <Text style={[s.scopeLabel, { color: '#2563EB' }]}>PROPOSED VARIATION DESIGN</Text>
-                    <Text style={s.scopeText}>{detailCr.proposedDesign || 'No description provided.'}</Text>
+                    <Text style={[s.scopeLabel, { color: '#2563EB' }]}>{tr("PROPOSED VARIATION DESIGN")}</Text>
+                    <Text style={s.scopeText}>{detailCr.proposedDesign || tr("No description provided.")}</Text>
                   </View>
 
-                  <Text style={s.sectionLabel}>DESCRIPTION OF CHANGE</Text>
-                  <Text style={s.bodyText}>{detailCr.description}</Text>
+                  <Text style={s.sectionLabel}>{tr("DESCRIPTION OF CHANGE")}</Text>
+                  <Text style={s.bodyText}>{tr(detailCr.description)}</Text>
 
-                  <Text style={s.sectionLabel}>REASON FOR MODIFICATION</Text>
-                  <Text style={s.bodyText}>{detailCr.reasonForChange || 'No reason specified.'}</Text>
+                  <Text style={s.sectionLabel}>{tr("REASON FOR MODIFICATION")}</Text>
+                  <Text style={s.bodyText}>{detailCr.reasonForChange || tr("No reason specified.")}</Text>
 
                   {detailCr.status !== 'approved' && detailCr.status !== 'rejected' ? (
                     <View style={{ marginTop: 16, gap: 8 }}>
                       {nextStep && (
                         canDo('change_requests', 'update') && (
                           <TouchableOpacity style={s.workflowActionBtn} onPress={() => updateStatus(nextStep.next)} disabled={actionLoading}>
-                            <Text style={s.workflowActionBtnText}>{nextStep.label}</Text>
+                            <Text style={s.workflowActionBtnText}>{tr(nextStep.label)}</Text>
                           </TouchableOpacity>
                         )
                       )}
                       {canDo('change_requests', 'approve') && (
                         <TouchableOpacity style={[s.workflowActionBtn, { borderColor: '#FECDD3' }]} onPress={() => updateStatus('rejected')} disabled={actionLoading}>
-                          <Text style={[s.workflowActionBtnText, { color: '#E11D48' }]}>Reject Request</Text>
+                          <Text style={[s.workflowActionBtnText, { color: '#E11D48' }]}>{tr("Reject Request")}</Text>
                         </TouchableOpacity>
                       )}
                       {canDo('change_requests', 'approve') && (
@@ -312,7 +313,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                           {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
                             <>
                               <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
-                              <Text style={s.approveBtnText}>Approve & Generate VO</Text>
+                              <Text style={s.approveBtnText}>{tr("Approve & Generate VO")}</Text>
                             </>
                           )}
                         </TouchableOpacity>
@@ -322,7 +323,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     <View style={s.resolvedRow}>
                       <Ionicons name={detailCr.status === 'approved' ? 'checkmark-circle' : 'close-circle'} size={16} color={detailCr.status === 'approved' ? '#16A34A' : '#E11D48'} />
                       <Text style={s.resolvedText}>
-                        {detailCr.status === 'approved' ? 'This request was approved and generated a Variation Order.' : 'This request was rejected.'}
+                        {detailCr.status === 'approved' ? tr("This request was approved and generated a Variation Order.") : tr("This request was rejected.")}
                       </Text>
                     </View>
                   )}

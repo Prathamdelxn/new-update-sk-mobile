@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -112,7 +113,7 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { showToast('Room name is required', 'error'); return; }
+    if (!form.name.trim()) { showToast(tr("Room name is required"), 'error'); return; }
     setIsSubmitting(true);
     try {
       const payload = { name: form.name.trim(), type: form.type, floor: parseInt(form.floor) || 1, area: form.area ? parseFloat(form.area) : undefined, areaUnit: form.areaUnit, notes: form.notes.trim() || undefined };
@@ -120,9 +121,9 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
       const url = editingRoom ? `${API_BASE_URL}/projects/${projectId}/rooms/${editingRoom._id}` : `${API_BASE_URL}/projects/${projectId}/rooms`;
       const res = await fetch(url, { method: editingRoom ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
       const data = await res.json();
-      if (res.ok) { showToast(editingRoom ? 'Room updated' : 'Room added', 'success'); setModalVisible(false); fetchData(); }
-      else if (data.code === 'ROOM_LIMIT_REACHED') { showToast(data.message, 'error'); setModalVisible(false); }
-      else showToast(data.message || 'Failed to save room', 'error');
+      if (res.ok) { showToast(editingRoom ? tr("Room updated") : tr("Room added"), 'success'); setModalVisible(false); fetchData(); }
+      else if (data.code === 'ROOM_LIMIT_REACHED') { showToast(tr(data.message), 'error'); setModalVisible(false); }
+      else showToast(data.message || tr("Failed to save room"), 'error');
     } catch { showToast(t('networkError'), 'error'); }
     finally { setIsSubmitting(false); }
   };
@@ -133,8 +134,8 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
     setConfirmModal({ visible: false, room: null });
     try {
       const res = await fetch(`${API_BASE_URL}/projects/${projectId}/rooms/${room._id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { showToast('Room deleted', 'success'); fetchData(); }
-      else { const d = await res.json(); showToast(d.message || 'Failed to delete', 'error'); }
+      if (res.ok) { showToast(tr("Room deleted"), 'success'); fetchData(); }
+      else { const d = await res.json(); showToast(d.message || tr("Failed to delete"), 'error'); }
     } catch { showToast(t('networkError'), 'error'); }
   };
 
@@ -146,13 +147,13 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
       {/* Header Row */}
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.sectionTitle}>Rooms</Text>
-          <Text style={styles.sectionSubtitle}>{rooms.length} rooms tracked</Text>
+          <Text style={styles.sectionTitle}>{tr("Rooms")}</Text>
+          <Text style={styles.sectionSubtitle}>{rooms.length}{tr(" rooms tracked")}</Text>
         </View>
         {hasPermission('rooms', 'create') && (
           <TouchableOpacity style={styles.addBtn} activeOpacity={0.8} onPress={openAddModal}>
             <Feather name="plus" size={16} color="#FFF" />
-            <Text style={styles.addBtnText}>Add Room</Text>
+            <Text style={styles.addBtnText}>{tr("Add Room")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -162,12 +163,12 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
         <AdaptiveGlass intensity={20} tint="light" style={styles.progressBanner}>
           <View style={styles.progressBannerTop}>
             <View style={styles.progressBannerLeft}>
-              <Text style={styles.progressBannerLabel}>OVERALL FFE PROGRESS</Text>
-              <Text style={styles.progressBannerVal}>{totalInstalled} / {ffeItems.length} items installed</Text>
+              <Text style={styles.progressBannerLabel}>{tr("OVERALL FFE PROGRESS")}</Text>
+              <Text style={styles.progressBannerVal}>{tr(totalInstalled)} / {ffeItems.length}{tr(" items installed")}</Text>
             </View>
             <View style={styles.progressBannerRight}>
-              <Text style={styles.progressPct}>{overallProgress}%</Text>
-              <Text style={styles.progressCostLabel}>{formatCost(totalFFECost, project?.currency)} total</Text>
+              <Text style={styles.progressPct}>{tr(overallProgress)}%</Text>
+              <Text style={styles.progressCostLabel}>{formatCost(totalFFECost, project?.currency)}{tr(" total")}</Text>
             </View>
           </View>
           <View style={styles.progressBarBg}>
@@ -176,8 +177,8 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
           {unassignedFFE > 0 && (
             <TouchableOpacity style={styles.unassignedBanner} onPress={onSwitchToFFE} activeOpacity={0.8}>
               <Ionicons name="warning-outline" size={14} color="#D97706" />
-              <Text style={styles.unassignedText}>{unassignedFFE} FFE item{unassignedFFE > 1 ? 's' : ''} not assigned to any room</Text>
-              <Text style={styles.unassignedLink}>Assign →</Text>
+              <Text style={styles.unassignedText}>{tr(unassignedFFE)}{tr(" FFE item")}{unassignedFFE > 1 ? 's' : ''}{tr(" not assigned to any room")}</Text>
+              <Text style={styles.unassignedLink}>{tr("Assign →")}</Text>
             </TouchableOpacity>
           )}
         </AdaptiveGlass>
@@ -188,14 +189,14 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
         <View style={styles.summaryStat}>
           <MaterialIcons name="meeting-room" size={14} color="#3B82F6" />
           <Text style={styles.summaryStatNum}>{rooms.length}</Text>
-          <Text style={styles.summaryStatLabel}>Total</Text>
+          <Text style={styles.summaryStatLabel}>{tr("Total")}</Text>
         </View>
         {STATUS_OPTIONS.map((s, i) => (
           <View key={s} style={{ flexDirection: 'row', flex: 1 }}>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryStat}>
               <Text style={[styles.summaryStatNum, { color: STATUS_STYLE[s].text }]}>{rooms.filter(r => r.status === s).length}</Text>
-              <Text style={styles.summaryStatLabel}>{s}</Text>
+              <Text style={styles.summaryStatLabel}>{tr(s)}</Text>
             </View>
           </View>
         ))}
@@ -205,7 +206,7 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100 }}>
           <Feather name="lock" size={48} color="#CBD5E1" />
           <Text style={{ marginTop: 16, fontSize: 16, fontFamily: 'Inter-Medium', color: '#64748B' }}>
-            You don't have permission to view Rooms.
+            {tr("You don't have permission to view Rooms.")}
           </Text>
         </View>
       ) : isLoading ? (
@@ -217,16 +218,16 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
               <AdaptiveGlass intensity={20} tint="light" style={styles.emptyIconWrap}>
                 <MaterialIcons name="weekend" size={40} color="#93C5FD" />
               </AdaptiveGlass>
-              <Text style={styles.emptyTitle}>No rooms added yet</Text>
-              <Text style={styles.emptySubtitle}>Add rooms to track FFE progress per space. Each room shows furniture, fixtures and installation status.</Text>
+              <Text style={styles.emptyTitle}>{tr("No rooms added yet")}</Text>
+              <Text style={styles.emptySubtitle}>{tr("Add rooms to track FFE progress per space. Each room shows furniture, fixtures and installation status.")}</Text>
             </View>
           ) : (
             floors.map(floor => (
               <View key={floor}>
                 <View style={styles.floorHeaderRow}>
                   <View style={styles.floorAccent} />
-                  <Text style={styles.floorHeader}>Floor {floor}</Text>
-                  <Text style={styles.floorRoomCount}>{rooms.filter(r => r.floor === floor).length} rooms</Text>
+                  <Text style={styles.floorHeader}>{tr("Floor ")}{tr(floor)}</Text>
+                  <Text style={styles.floorRoomCount}>{rooms.filter(r => r.floor === floor).length}{tr(" rooms")}</Text>
                 </View>
 
                 {rooms.filter(r => r.floor === floor).map(room => {
@@ -242,15 +243,15 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
                           <MaterialIcons name="meeting-room" size={22} color={sc.text} />
                         </View>
                         <View style={styles.roomInfo}>
-                          <Text style={styles.roomName}>{room.name}</Text>
+                          <Text style={styles.roomName}>{tr(room.name)}</Text>
                           <View style={styles.roomMetaRow}>
-                            <Text style={styles.roomType}>{room.type}</Text>
-                            {room.area ? (<><View style={styles.metaDot} /><Text style={styles.roomArea}>{room.area} {room.areaUnit}</Text></>) : null}
+                            <Text style={styles.roomType}>{tr(room.type)}</Text>
+                            {room.area ? (<><View style={styles.metaDot} /><Text style={styles.roomArea}>{tr(room.area)} {tr(room.areaUnit)}</Text></>) : null}
                           </View>
                         </View>
                         <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
                           <MaterialIcons name={sc.icon} size={12} color={sc.text} />
-                          <Text style={[styles.statusPillText, { color: sc.text }]}>{room.status}</Text>
+                          <Text style={[styles.statusPillText, { color: sc.text }]}>{tr(room.status)}</Text>
                         </View>
                       </View>
 
@@ -261,41 +262,41 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
                             <View style={styles.ffeStatRow}>
                               <View style={styles.ffeStat}>
                                 <Text style={styles.ffeStatNum}>{stats.total}</Text>
-                                <Text style={styles.ffeStatLabel}>FFE Items</Text>
+                                <Text style={styles.ffeStatLabel}>{tr("FFE Items")}</Text>
                               </View>
                               <View style={styles.ffeStatDivider} />
                               <View style={styles.ffeStat}>
-                                <Text style={[styles.ffeStatNum, { color: '#059669' }]}>{stats.installed}</Text>
-                                <Text style={styles.ffeStatLabel}>Installed</Text>
+                                <Text style={[styles.ffeStatNum, { color: '#059669' }]}>{tr(stats.installed)}</Text>
+                                <Text style={styles.ffeStatLabel}>{tr("Installed")}</Text>
                               </View>
                               <View style={styles.ffeStatDivider} />
                               <View style={styles.ffeStat}>
                                 <Text style={[styles.ffeStatNum, { color: '#D97706' }]}>{stats.total - stats.installed}</Text>
-                                <Text style={styles.ffeStatLabel}>Pending</Text>
+                                <Text style={styles.ffeStatLabel}>{tr("Pending")}</Text>
                               </View>
                               <View style={styles.ffeStatDivider} />
                               <View style={styles.ffeStat}>
                                 <Text style={[styles.ffeStatNum, { color: '#3B82F6' }]}>{formatCost(stats.cost, project?.currency)}</Text>
-                                <Text style={styles.ffeStatLabel}>Cost</Text>
+                                <Text style={styles.ffeStatLabel}>{tr("Cost")}</Text>
                               </View>
                             </View>
                           </View>
                           <View style={styles.roomProgressBg}>
                             <View style={[styles.roomProgressFill, { width: `${roomProgress}%`, backgroundColor: roomProgress === 100 ? '#059669' : '#3B82F6' }]} />
                           </View>
-                          <Text style={styles.progressCaption}>{roomProgress}% installed</Text>
+                          <Text style={styles.progressCaption}>{tr(roomProgress)}{tr("% installed")}</Text>
                         </View>
                       ) : (
                         <TouchableOpacity style={styles.noFFEBanner} onPress={onSwitchToFFE} activeOpacity={0.8}>
                           <Ionicons name="add-circle-outline" size={16} color="#3B82F6" />
-                          <Text style={styles.noFFEText}>No FFE items assigned — tap to add items in the FFE tab</Text>
+                          <Text style={styles.noFFEText}>{tr("No FFE items assigned — tap to add items in the FFE tab")}</Text>
                         </TouchableOpacity>
                       )}
 
                       {room.notes ? (
                         <View style={styles.notesRow}>
                           <Ionicons name="document-text-outline" size={13} color="#94A3B8" />
-                          <Text style={styles.roomNotes} numberOfLines={2}>{room.notes}</Text>
+                          <Text style={styles.roomNotes} numberOfLines={2}>{tr(room.notes)}</Text>
                         </View>
                       ) : null}
 
@@ -304,7 +305,7 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
                         {onSwitchToFFE && (
                           <TouchableOpacity style={styles.viewFFEBtn} onPress={onSwitchToFFE} activeOpacity={0.8}>
                             <MaterialIcons name="chair" size={15} color="#3B82F6" />
-                            <Text style={styles.viewFFEBtnText}>View Items</Text>
+                            <Text style={styles.viewFFEBtnText}>{tr("View Items")}</Text>
                           </TouchableOpacity>
                         )}
                         {hasPermission('rooms', 'update') && (
@@ -336,8 +337,8 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalPre}>{editingRoom ? 'MODIFY ROOM' : 'NEW ROOM'}</Text>
-                <Text style={styles.modalTitle}>{editingRoom ? `Edit "${editingRoom.name}"` : 'Add Room / Space'}</Text>
+                <Text style={styles.modalPre}>{editingRoom ? tr("MODIFY ROOM") : tr("NEW ROOM")}</Text>
+                <Text style={styles.modalTitle}>{editingRoom ? tr("Edit \"{{name}}\"", { name: editingRoom.name }) : tr("Add Room / Space")}</Text>
               </View>
               <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -346,33 +347,33 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Room Name <Text style={{ color: '#EF4444' }}>*</Text></Text>
-                <TextInput style={styles.input} placeholder="e.g. Master Bedroom" placeholderTextColor="#94A3B8" value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} />
+                <Text style={styles.fieldLabel}>{tr("Room Name ")}<Text style={{ color: '#EF4444' }}>*</Text></Text>
+                <TextInput style={styles.input} placeholder={tr("e.g. Master Bedroom")} placeholderTextColor="#94A3B8" value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} />
               </View>
 
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Room Type</Text>
+                <Text style={styles.fieldLabel}>{tr("Room Type")}</Text>
                 <TouchableOpacity style={[styles.input, styles.pickerInput]} onPress={() => setShowTypePicker(true)} activeOpacity={0.8}>
-                  <Text style={styles.pickerInputText}>{form.type}</Text>
+                  <Text style={styles.pickerInputText}>{tr(form.type)}</Text>
                   <Ionicons name="chevron-down" size={18} color="#64748B" />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.fieldRow}>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Floor</Text>
+                  <Text style={styles.fieldLabel}>{tr("Floor")}</Text>
                   <TextInput style={styles.input} placeholder="1" placeholderTextColor="#94A3B8" keyboardType="numeric" value={form.floor} onChangeText={v => setForm(f => ({ ...f, floor: v }))} />
                 </View>
                 <View style={[styles.field, { flex: 1.5 }]}>
-                  <Text style={styles.fieldLabel}>Area</Text>
+                  <Text style={styles.fieldLabel}>{tr("Area")}</Text>
                   <TextInput style={styles.input} placeholder="e.g. 250" placeholderTextColor="#94A3B8" keyboardType="numeric" value={form.area} onChangeText={v => setForm(f => ({ ...f, area: v }))} />
                 </View>
                 <View style={[styles.field, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Unit</Text>
+                  <Text style={styles.fieldLabel}>{tr("Unit")}</Text>
                   <View style={styles.unitToggle}>
                     {AREA_UNITS.map(u => (
                       <TouchableOpacity key={u} style={[styles.unitBtn, form.areaUnit === u && styles.unitBtnActive]} onPress={() => setForm(f => ({ ...f, areaUnit: u }))} activeOpacity={0.8}>
-                        <Text style={[styles.unitBtnText, form.areaUnit === u && styles.unitBtnTextActive]}>{u}</Text>
+                        <Text style={[styles.unitBtnText, form.areaUnit === u && styles.unitBtnTextActive]}>{tr(u)}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -381,11 +382,11 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
 
               {editingRoom && (
                 <View style={styles.field}>
-                  <Text style={styles.fieldLabel}>Status</Text>
+                  <Text style={styles.fieldLabel}>{tr("Status")}</Text>
                   <TouchableOpacity style={[styles.input, styles.pickerInput]} onPress={() => setShowStatusPicker(true)} activeOpacity={0.8}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <View style={[styles.statusDot, { backgroundColor: STATUS_STYLE[form.status]?.text || '#94A3B8' }]} />
-                      <Text style={styles.pickerInputText}>{form.status}</Text>
+                      <Text style={styles.pickerInputText}>{tr(form.status)}</Text>
                     </View>
                     <Ionicons name="chevron-down" size={18} color="#64748B" />
                   </TouchableOpacity>
@@ -393,13 +394,13 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
               )}
 
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Notes</Text>
-                <TextInput style={[styles.input, styles.textArea]} placeholder="Optional notes about this room..." placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={form.notes} onChangeText={v => setForm(f => ({ ...f, notes: v }))} />
+                <Text style={styles.fieldLabel}>{tr("Notes")}</Text>
+                <TextInput style={[styles.input, styles.textArea]} placeholder={tr("Optional notes about this room...")} placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={form.notes} onChangeText={v => setForm(f => ({ ...f, notes: v }))} />
               </View>
 
               <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSubmitting} activeOpacity={0.85}>
                 <LinearGradient colors={['#3B82F6', '#3B82F6']} style={styles.saveBtnGradient}>
-                  {isSubmitting ? <ActivityIndicator color="#FFF" /> : <><Ionicons name={editingRoom ? 'checkmark-done' : 'add-circle-outline'} size={20} color="#FFF" /><Text style={styles.saveBtnText}>{editingRoom ? 'Update Room' : 'Add Room'}</Text></>}
+                  {isSubmitting ? <ActivityIndicator color="#FFF" /> : <><Ionicons name={editingRoom ? 'checkmark-done' : 'add-circle-outline'} size={20} color="#FFF" /><Text style={styles.saveBtnText}>{editingRoom ? tr("Update Room") : tr("Add Room")}</Text></>}
                 </LinearGradient>
               </TouchableOpacity>
             </ScrollView>
@@ -412,11 +413,11 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
         <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowTypePicker(false)}>
           <AdaptiveGlass intensity={80} tint="light" style={styles.pickerSheet}>
             <View style={styles.modalHandle} />
-            <Text style={styles.pickerTitle}>Select Room Type</Text>
+            <Text style={styles.pickerTitle}>{tr("Select Room Type")}</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
               {ROOM_TYPES.map(t => (
                 <TouchableOpacity key={t} style={[styles.pickerItem, form.type === t && styles.pickerItemActive]} onPress={() => { setForm(f => ({ ...f, type: t })); setShowTypePicker(false); }} activeOpacity={0.8}>
-                  <Text style={[styles.pickerItemText, form.type === t && styles.pickerItemTextActive]}>{t}</Text>
+                  <Text style={[styles.pickerItemText, form.type === t && styles.pickerItemTextActive]}>{tr(t)}</Text>
                   {form.type === t && <Ionicons name="checkmark-circle" size={18} color="#3B82F6" />}
                 </TouchableOpacity>
               ))}
@@ -430,14 +431,14 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
         <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowStatusPicker(false)}>
           <AdaptiveGlass intensity={80} tint="light" style={styles.pickerSheet}>
             <View style={styles.modalHandle} />
-            <Text style={styles.pickerTitle}>Select Status</Text>
+            <Text style={styles.pickerTitle}>{tr("Select Status")}</Text>
             {STATUS_OPTIONS.map(s => {
               const sc = STATUS_STYLE[s];
               return (
                 <TouchableOpacity key={s} style={[styles.pickerItem, form.status === s && styles.pickerItemActive]} onPress={() => { setForm(f => ({ ...f, status: s })); setShowStatusPicker(false); }} activeOpacity={0.8}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <View style={[styles.statusDot, { backgroundColor: sc.text }]} />
-                    <Text style={[styles.pickerItemText, form.status === s && styles.pickerItemTextActive]}>{s}</Text>
+                    <Text style={[styles.pickerItemText, form.status === s && styles.pickerItemTextActive]}>{tr(s)}</Text>
                   </View>
                   {form.status === s && <Ionicons name="checkmark-circle" size={18} color="#3B82F6" />}
                 </TouchableOpacity>
@@ -449,9 +450,9 @@ export default function ProjectRoomsTab({ projectId, project, onSwitchToFFE }) {
 
       <ConfirmModal
         visible={confirmModal.visible}
-        title="Delete Room"
-        message={`Remove "${confirmModal.room?.name}"? FFE items linked to this room will be unlinked.`}
-        confirmText="Delete"
+        title={tr("Delete Room")}
+        message={tr("Remove \"{{name}}\"? FFE items linked to this room will be unlinked.", { name: confirmModal.room?.name })}
+        confirmText={tr("Delete")}
         type="danger"
         onConfirm={handleDelete}
         onCancel={() => setConfirmModal({ visible: false, room: null })}

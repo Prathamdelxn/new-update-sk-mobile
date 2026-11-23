@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
@@ -119,7 +120,7 @@ export default function InteriorAuditScreen() {
           setAccessDenied(true);
         } else {
           console.error('Failed to load audit logs:', err);
-          showToast('Failed to load audit logs.', 'error');
+          showToast(tr("Failed to load audit logs."), 'error');
         }
       } finally {
         setLoading(false);
@@ -136,7 +137,7 @@ export default function InteriorAuditScreen() {
   // Export to CSV
   const handleExportCSV = async () => {
     if (!logs.length) {
-      showToast('No audit records to export.', 'info');
+      showToast(tr("No audit records to export."), 'info');
       return;
     }
     setExporting(true);
@@ -171,11 +172,11 @@ export default function InteriorAuditScreen() {
         });
       } else {
         await Clipboard.setStringAsync(csvContent);
-        showToast('CSV copied to clipboard!', 'success');
+        showToast(tr("CSV copied to clipboard!"), 'success');
       }
     } catch (err) {
       console.error('CSV export failed:', err);
-      showToast('Export failed. Please try again.', 'error');
+      showToast(tr("Export failed. Please try again."), 'error');
     } finally {
       setExporting(false);
     }
@@ -185,9 +186,9 @@ export default function InteriorAuditScreen() {
     if (!selectedLog) return;
     try {
       await Clipboard.setStringAsync(JSON.stringify(selectedLog, null, 2));
-      showToast('Payload copied to clipboard!', 'success');
+      showToast(tr("Payload copied to clipboard!"), 'success');
     } catch {
-      showToast('Failed to copy payload', 'error');
+      showToast(tr("Failed to copy payload"), 'error');
     }
   };
 
@@ -236,12 +237,12 @@ export default function InteriorAuditScreen() {
           <View style={s.badgeGroup}>
             <View style={[s.actionBadge, { backgroundColor: theme.bg, borderColor: theme.border }]}>
               <Ionicons name={theme.icon} size={12} color={theme.color} style={{ marginRight: 4 }} />
-              <Text style={[s.actionBadgeText, { color: theme.color }]}>{theme.label}</Text>
+              <Text style={[s.actionBadgeText, { color: theme.color }]}>{tr(theme.label)}</Text>
             </View>
 
             {item.entity && (
               <View style={s.entityBadge}>
-                <Text style={s.entityBadgeText}>{item.entity}</Text>
+                <Text style={s.entityBadgeText}>{tr(item.entity)}</Text>
               </View>
             )}
           </View>
@@ -262,11 +263,11 @@ export default function InteriorAuditScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.operatorName} numberOfLines={1}>
-                {operatorName}
+                {tr(operatorName)}
               </Text>
               {operatorEmail ? (
                 <Text style={s.operatorEmail} numberOfLines={1}>
-                  {operatorEmail}
+                  {tr(operatorEmail)}
                 </Text>
               ) : null}
             </View>
@@ -289,13 +290,13 @@ export default function InteriorAuditScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <View style={s.headerBadgeRow}>
-              <Text style={s.headerSubtitle}>Workspace Security</Text>
+              <Text style={s.headerSubtitle}>{tr("Workspace Security")}</Text>
               <View style={s.liveSyncPill}>
                 <View style={s.liveDot} />
-                <Text style={s.liveSyncText}>Live Audit</Text>
+                <Text style={s.liveSyncText}>{tr("Live Audit")}</Text>
               </View>
             </View>
-            <Text style={s.pageTitle}>Audit Ledger</Text>
+            <Text style={s.pageTitle}>{tr("Audit Ledger")}</Text>
           </View>
           <View style={s.headerRight}>
             <TouchableOpacity
@@ -332,9 +333,9 @@ export default function InteriorAuditScreen() {
             <View style={s.restrictedIconBox}>
               <Ionicons name="shield-outline" size={36} color="#DC2626" />
             </View>
-            <Text style={s.restrictedTitle}>Access Restricted</Text>
+            <Text style={s.restrictedTitle}>{tr("Access Restricted")}</Text>
             <Text style={s.restrictedDesc}>
-              You do not have permission to view the audit management section. Ask an administrator for the Audit Logs permission.
+              {tr("You do not have permission to view the audit management section. Ask an administrator for the Audit Logs permission.")}
             </Text>
           </View>
         ) : (
@@ -355,7 +356,7 @@ export default function InteriorAuditScreen() {
                       <Ionicons name="pulse-outline" size={16} color="#2563EB" />
                     </View>
                     <Text style={s.statVal}>{stats?.totalLogs ?? meta.total ?? 0}</Text>
-                    <Text style={s.statLabel}>Total Events</Text>
+                    <Text style={s.statLabel}>{tr("Total Events")}</Text>
                   </View>
 
                   <View style={s.statCard}>
@@ -363,7 +364,7 @@ export default function InteriorAuditScreen() {
                       <Ionicons name="today-outline" size={16} color="#10B981" />
                     </View>
                     <Text style={s.statVal}>{stats?.todayLogs ?? 0}</Text>
-                    <Text style={s.statLabel}>Today</Text>
+                    <Text style={s.statLabel}>{tr("Today")}</Text>
                   </View>
 
                   <View style={s.statCard}>
@@ -371,7 +372,7 @@ export default function InteriorAuditScreen() {
                       <Ionicons name="people-outline" size={16} color="#7C3AED" />
                     </View>
                     <Text style={s.statVal}>{stats?.uniqueUsersCount ?? 0}</Text>
-                    <Text style={s.statLabel}>Operators</Text>
+                    <Text style={s.statLabel}>{tr("Operators")}</Text>
                   </View>
 
                   <View style={s.statCard}>
@@ -379,7 +380,7 @@ export default function InteriorAuditScreen() {
                       <Ionicons name="alert-circle-outline" size={16} color="#EF4444" />
                     </View>
                     <Text style={[s.statVal, { color: '#DC2626' }]}>{stats?.criticalActionsCount ?? 0}</Text>
-                    <Text style={s.statLabel}>Critical</Text>
+                    <Text style={s.statLabel}>{tr("Critical")}</Text>
                   </View>
                 </View>
 
@@ -390,7 +391,7 @@ export default function InteriorAuditScreen() {
                     style={s.searchInput}
                     value={searchTerm}
                     onChangeText={setSearchTerm}
-                    placeholder="Search logs by user, action, or details..."
+                    placeholder={tr("Search logs by user, action, or details...")}
                     placeholderTextColor="#94A3B8"
                     autoCapitalize="none"
                   />
@@ -415,7 +416,7 @@ export default function InteriorAuditScreen() {
                         style={[s.segmentPill, isSel && s.segmentPillActive]}
                         activeOpacity={0.7}
                       >
-                        <Text style={[s.segmentPillText, isSel && s.segmentPillTextActive]}>{seg.label}</Text>
+                        <Text style={[s.segmentPillText, isSel && s.segmentPillTextActive]}>{tr(seg.label)}</Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -428,8 +429,8 @@ export default function InteriorAuditScreen() {
               ) : (
                 <View style={s.emptyBox}>
                   <Ionicons name="document-text-outline" size={44} color="#CBD5E1" />
-                  <Text style={s.emptyTitle}>No Audit Records Found</Text>
-                  <Text style={s.emptyDesc}>Try adjusting your search terms or segment filters.</Text>
+                  <Text style={s.emptyTitle}>{tr("No Audit Records Found")}</Text>
+                  <Text style={s.emptyDesc}>{tr("Try adjusting your search terms or segment filters.")}</Text>
                 </View>
               )
             }
@@ -442,12 +443,12 @@ export default function InteriorAuditScreen() {
                     disabled={page <= 1}
                   >
                     <Ionicons name="chevron-back" size={16} color={page <= 1 ? '#94A3B8' : '#2563EB'} />
-                    <Text style={[s.pageBtnText, page <= 1 && s.pageBtnTextDisabled]}>Previous</Text>
+                    <Text style={[s.pageBtnText, page <= 1 && s.pageBtnTextDisabled]}>{tr("Previous")}</Text>
                   </TouchableOpacity>
 
                   <Text style={s.pageInfoText}>
-                    Page <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{page}</Text> of{' '}
-                    <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{meta.totalPages}</Text>
+                    {tr("Page ")}<Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr(page)}</Text>{tr(" of")}{' '}
+                    <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{tr(meta.totalPages)}</Text>
                   </Text>
 
                   <TouchableOpacity
@@ -455,7 +456,7 @@ export default function InteriorAuditScreen() {
                     onPress={() => setPage((p) => Math.min(p + 1, meta.totalPages))}
                     disabled={page >= meta.totalPages}
                   >
-                    <Text style={[s.pageBtnText, page >= meta.totalPages && s.pageBtnTextDisabled]}>Next</Text>
+                    <Text style={[s.pageBtnText, page >= meta.totalPages && s.pageBtnTextDisabled]}>{tr("Next")}</Text>
                     <Ionicons name="chevron-forward" size={16} color={page >= meta.totalPages ? '#94A3B8' : '#2563EB'} />
                   </TouchableOpacity>
                 </View>
@@ -482,8 +483,8 @@ export default function InteriorAuditScreen() {
             {/* Modal Header */}
             <View style={s.sheetHeaderRow}>
               <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={s.sheetTitle}>Audit Inspection</Text>
-                <Text style={s.sheetSubtitle}>Record ID: {selectedLog?._id || 'N/A'}</Text>
+                <Text style={s.sheetTitle}>{tr("Audit Inspection")}</Text>
+                <Text style={s.sheetSubtitle}>{tr("Record ID: ")}{selectedLog?._id || 'N/A'}</Text>
               </View>
               <TouchableOpacity onPress={() => setSelectedLog(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close-circle" size={24} color="#94A3B8" />
@@ -496,19 +497,19 @@ export default function InteriorAuditScreen() {
                 style={[s.modalTabBtn, detailTab === 'overview' && s.modalTabBtnActive]}
                 onPress={() => setDetailTab('overview')}
               >
-                <Text style={[s.modalTabBtnText, detailTab === 'overview' && s.modalTabBtnTextActive]}>Overview</Text>
+                <Text style={[s.modalTabBtnText, detailTab === 'overview' && s.modalTabBtnTextActive]}>{tr("Overview")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.modalTabBtn, detailTab === 'changes' && s.modalTabBtnActive]}
                 onPress={() => setDetailTab('changes')}
               >
-                <Text style={[s.modalTabBtnText, detailTab === 'changes' && s.modalTabBtnTextActive]}>Changes</Text>
+                <Text style={[s.modalTabBtnText, detailTab === 'changes' && s.modalTabBtnTextActive]}>{tr("Changes")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.modalTabBtn, detailTab === 'json' && s.modalTabBtnActive]}
                 onPress={() => setDetailTab('json')}
               >
-                <Text style={[s.modalTabBtnText, detailTab === 'json' && s.modalTabBtnTextActive]}>Raw JSON</Text>
+                <Text style={[s.modalTabBtnText, detailTab === 'json' && s.modalTabBtnTextActive]}>{tr("Raw JSON")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -517,56 +518,56 @@ export default function InteriorAuditScreen() {
               {detailTab === 'overview' && (
                 <View style={s.modalDetailSection}>
                   <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>Action</Text>
+                    <Text style={s.detailLabel}>{tr("Action")}</Text>
                     <Text style={[s.detailValue, { textTransform: 'capitalize', color: '#2563EB', fontFamily: 'Inter-Bold' }]}>
-                      {selectedLog?.action}
+                      {tr(selectedLog?.action)}
                     </Text>
                   </View>
 
                   <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>Entity Module</Text>
+                    <Text style={s.detailLabel}>{tr("Entity Module")}</Text>
                     <Text style={s.detailValue}>{selectedLog?.entity || 'N/A'}</Text>
                   </View>
 
                   <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>Target Record</Text>
+                    <Text style={s.detailLabel}>{tr("Target Record")}</Text>
                     <Text style={s.detailValue}>{selectedLog?.entityName || selectedLog?.entityId || 'N/A'}</Text>
                   </View>
 
                   <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>Timestamp</Text>
+                    <Text style={s.detailLabel}>{tr("Timestamp")}</Text>
                     <Text style={s.detailValue}>{formatTimestamp(selectedLog?.createdAt)}</Text>
                   </View>
 
                   <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>Operator</Text>
+                    <Text style={s.detailLabel}>{tr("Operator")}</Text>
                     <Text style={s.detailValue}>
                       {typeof selectedLog?.userId === 'object' && selectedLog?.userId !== null
                         ? [selectedLog.userId.firstName, selectedLog.userId.lastName].filter(Boolean).join(' ') ||
                           selectedLog.userId.email
-                        : 'System'}
+                        : tr("System")}
                     </Text>
                   </View>
 
                   {selectedLog?.ipAddress ? (
                     <View style={s.detailRow}>
-                      <Text style={s.detailLabel}>IP Address</Text>
-                      <Text style={[s.detailValue, { fontFamily: 'Courier' }]}>{selectedLog.ipAddress}</Text>
+                      <Text style={s.detailLabel}>{tr("IP Address")}</Text>
+                      <Text style={[s.detailValue, { fontFamily: 'Courier' }]}>{tr(selectedLog.ipAddress)}</Text>
                     </View>
                   ) : null}
 
                   {selectedLog?.userAgent ? (
                     <View style={s.detailRow}>
-                      <Text style={s.detailLabel}>Client / Device</Text>
+                      <Text style={s.detailLabel}>{tr("Client / Device")}</Text>
                       <Text style={s.detailValue} numberOfLines={2}>
-                        {selectedLog.userAgent}
+                        {tr(selectedLog.userAgent)}
                       </Text>
                     </View>
                   ) : null}
 
                   <View style={s.descBox}>
-                    <Text style={s.descBoxLabel}>Detailed Description</Text>
-                    <Text style={s.descBoxText}>{selectedLog?.description || 'No description recorded.'}</Text>
+                    <Text style={s.descBoxLabel}>{tr("Detailed Description")}</Text>
+                    <Text style={s.descBoxText}>{selectedLog?.description || tr("No description recorded.")}</Text>
                   </View>
                 </View>
               )}
@@ -581,7 +582,7 @@ export default function InteriorAuditScreen() {
                   ) : (
                     <View style={s.emptyChangesBox}>
                       <Ionicons name="information-circle-outline" size={28} color="#94A3B8" />
-                      <Text style={s.emptyChangesText}>No direct state diff was captured for this event.</Text>
+                      <Text style={s.emptyChangesText}>{tr("No direct state diff was captured for this event.")}</Text>
                     </View>
                   )}
                 </View>
@@ -592,7 +593,7 @@ export default function InteriorAuditScreen() {
                 <View style={s.modalDetailSection}>
                   <TouchableOpacity style={s.copyBtn} onPress={handleCopyPayload} activeOpacity={0.7}>
                     <Ionicons name="copy-outline" size={16} color="#2563EB" />
-                    <Text style={s.copyBtnText}>Copy JSON Payload</Text>
+                    <Text style={s.copyBtnText}>{tr("Copy JSON Payload")}</Text>
                   </TouchableOpacity>
                   <View style={s.codeBlock}>
                     <Text style={s.codeText}>{JSON.stringify(selectedLog, null, 2)}</Text>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator,
@@ -6,6 +7,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useOrgCurrency } from '../../utils/interior/orgCurrency';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissions';
@@ -14,16 +16,14 @@ import SkeletonList from '../../components/common/SkeletonList';
 
 const VENDOR_CATEGORIES = ['Raw Materials', 'Furniture', 'Electrical', 'Labour', 'Paint', 'Other'];
 
-function formatCost(amount) {
-  return `₹${Math.round(amount || 0).toLocaleString('en-IN')}`;
-}
-
 const emptyVendorForm = {
   name: '', vendorCategory: VENDOR_CATEGORIES[0], contactPerson: '',
   phoneNumber: '', email: '', address: '', gstNumber: '',
 };
 
 export default function InteriorVendorsScreen() {
+  const orgCurrency = useOrgCurrency();
+  const formatCost = orgCurrency.money;
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
@@ -87,7 +87,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
 
   const handleSaveVendor = async () => {
     if (!vendorForm.name.trim()) {
-      showToast('Vendor name is required', 'error');
+      showToast(tr("Vendor name is required"), 'error');
       return;
     }
     // Same cleanup as the web form: trim everything and leave out empty optional fields,
@@ -101,33 +101,33 @@ const { hasPermission: canDo } = useInteriorPermissions();
     try {
       if (editingVendor) {
         await interiorApiClient.patch(`/vendors/${editingVendor._id}`, payload);
-        showToast('Vendor updated successfully', 'success');
+        showToast(tr("Vendor updated successfully"), 'success');
       } else {
         await interiorApiClient.post('/vendors', payload);
-        showToast('Vendor added successfully', 'success');
+        showToast(tr("Vendor added successfully"), 'success');
       }
       setVendorModalOpen(false);
       setEditingVendor(null);
       setVendorForm(emptyVendorForm);
       load();
     } catch (e) {
-      showToast(e.message || 'Failed to save vendor', 'error');
+      showToast(e.message || tr("Failed to save vendor"), 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDeleteVendor = (vendor) => {
-    Alert.alert('Delete Vendor', `Are you sure you want to remove "${vendor.name}"? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete Vendor"), tr("Are you sure you want to remove \"{{name}}\"? This cannot be undone.", { name: vendor.name }), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: tr("Delete"), style: 'destructive', onPress: async () => {
           try {
             await interiorApiClient.delete(`/vendors/${vendor._id}`);
-            showToast(`Vendor "${vendor.name}" deleted successfully.`, 'success');
+            showToast(tr("Vendor \"{{name}}\" deleted successfully.", { name: vendor.name }), 'success');
             load();
           } catch (e) {
-            showToast(e.message || 'Failed to delete vendor', 'error');
+            showToast(e.message || tr("Failed to delete vendor"), 'error');
           }
         },
       },
@@ -182,12 +182,12 @@ const { hasPermission: canDo } = useInteriorPermissions();
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>{isOrgView ? 'Vendor Management' : 'Vendors & Subcontractors'}</Text>
+            <Text style={s.headerTitle}>{isOrgView ? tr("Vendor Management") : tr("Vendors & Subcontractors")}</Text>
           </View>
           {canDo('vendors', 'create') && (
             <TouchableOpacity style={s.addVendorBtn} onPress={openAddModal}>
               <Ionicons name="add" size={16} color="#FFFFFF" />
-              <Text style={s.addVendorBtnText}>Add Vendor</Text>
+              <Text style={s.addVendorBtnText}>{tr("Add Vendor")}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -205,7 +205,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                       style={s.searchInput}
                       value={searchQuery}
                       onChangeText={setSearchQuery}
-                      placeholder="Search vendors by name, category, contact, GSTIN..."
+                      placeholder={tr("Search vendors by name, category, contact, GSTIN...")}
                       placeholderTextColor="#94A3B8"
                     />
                     {!!searchQuery && (
@@ -219,21 +219,21 @@ const { hasPermission: canDo } = useInteriorPermissions();
                     onPress={() => setShowFilters((v) => !v)}
                   >
                     <Ionicons name="options-outline" size={17} color={(showFilters || activeFiltersCount > 0) ? '#FFFFFF' : '#475569'} />
-                    {activeFiltersCount > 0 && <View style={s.filterCount}><Text style={s.filterCountText}>{activeFiltersCount}</Text></View>}
+                    {activeFiltersCount > 0 && <View style={s.filterCount}><Text style={s.filterCountText}>{tr(activeFiltersCount)}</Text></View>}
                   </TouchableOpacity>
                 </View>
                 {showFilters && (
                   <View style={s.filterPanel}>
                     <View style={s.filterCell}>
-                      <Text style={s.label}>Vendor Category</Text>
+                      <Text style={s.label}>{tr("Vendor Category")}</Text>
                       <SelectField value={categoryFilter} onChange={setCategoryFilter} options={[{ value: 'All', label: 'All Categories' }, ...categoryOptions]} />
                     </View>
                     <View style={s.filterCell}>
-                      <Text style={s.label}>Partner Status</Text>
+                      <Text style={s.label}>{tr("Partner Status")}</Text>
                       <SelectField value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Statuses' }, { value: 'Active', label: 'Active Only' }, { value: 'Inactive', label: 'Inactive' }]} />
                     </View>
                     <View style={s.filterCell}>
-                      <Text style={s.label}>Sort Order</Text>
+                      <Text style={s.label}>{tr("Sort Order")}</Text>
                       <SelectField
                         value={sortBy}
                         onChange={setSortBy}
@@ -247,7 +247,7 @@ const { hasPermission: canDo } = useInteriorPermissions();
                     </View>
                     {activeFiltersCount > 0 && (
                       <TouchableOpacity onPress={resetFilters} style={{ alignSelf: 'flex-end' }}>
-                        <Text style={s.resetText}>Reset Filters</Text>
+                        <Text style={s.resetText}>{tr("Reset Filters")}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -257,15 +257,15 @@ const { hasPermission: canDo } = useInteriorPermissions();
             {dbVendors.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="car-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No vendors registered yet</Text>
+                <Text style={s.emptyTitle}>{tr("No vendors registered yet")}</Text>
               </View>
             ) : vendors.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="search-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No matching vendors found</Text>
-                <Text style={s.emptySub}>Try adjusting your search query or filters.</Text>
+                <Text style={s.emptyTitle}>{tr("No matching vendors found")}</Text>
+                <Text style={s.emptySub}>{tr("Try adjusting your search query or filters.")}</Text>
                 <TouchableOpacity onPress={() => { resetFilters(); setSearchQuery(''); }}>
-                  <Text style={[s.resetText, { marginTop: 8 }]}>Reset Filters</Text>
+                  <Text style={[s.resetText, { marginTop: 8 }]}>{tr("Reset Filters")}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -276,11 +276,11 @@ const { hasPermission: canDo } = useInteriorPermissions();
                       <Ionicons name="car-outline" size={18} color="#2563EB" />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={s.vendorName} numberOfLines={1}>{vendor.name}</Text>
+                      <Text style={s.vendorName} numberOfLines={1}>{tr(vendor.name)}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <Text style={s.vendorTrade}>{vendor.trade}</Text>
+                        <Text style={s.vendorTrade}>{tr(vendor.trade)}</Text>
                         {!!vendor.gstNumber && (
-                          <View style={s.gstBadge}><Text style={s.gstBadgeText}>GST: {vendor.gstNumber}</Text></View>
+                          <View style={s.gstBadge}><Text style={s.gstBadgeText}>{tr("GST: ")}{tr(vendor.gstNumber)}</Text></View>
                         )}
                       </View>
                     </View>
@@ -299,19 +299,19 @@ const { hasPermission: canDo } = useInteriorPermissions();
                   {isOrgView ? (
                     <View style={{ gap: 5, marginTop: 10 }}>
                       {!!vendor.raw.contactPerson && (
-                        <View style={s.contactRow}><Ionicons name="person-outline" size={13} color="#64748B" /><Text style={s.contactText}>{vendor.raw.contactPerson}</Text></View>
+                        <View style={s.contactRow}><Ionicons name="person-outline" size={13} color="#64748B" /><Text style={s.contactText}>{tr(vendor.raw.contactPerson)}</Text></View>
                       )}
                       {!!vendor.raw.phoneNumber && (
                         <View style={s.contactRow}>
                           <Ionicons name="call-outline" size={13} color="#64748B" />
-                          <Text style={[s.contactText, { flex: 1 }]}>{vendor.raw.phoneNumber}</Text>
+                          <Text style={[s.contactText, { flex: 1 }]}>{tr(vendor.raw.phoneNumber)}</Text>
                           <TouchableOpacity
                             onPress={() => {
                               const digits = String(vendor.raw.phoneNumber).replace(/\D/g, '');
                               Linking.openURL(`https://wa.me/${digits.length === 10 ? `91${digits}` : digits}`).catch(() => {});
                             }}
                             hitSlop={6}
-                            accessibilityLabel="Chat on WhatsApp"
+                            accessibilityLabel={tr("Chat on WhatsApp")}
                           >
                             <Ionicons name="logo-whatsapp" size={15} color="#16A34A" />
                           </TouchableOpacity>
@@ -321,21 +321,21 @@ const { hasPermission: canDo } = useInteriorPermissions();
                         <View style={s.contactRow}><Ionicons name="mail-outline" size={13} color="#64748B" /><Text style={s.contactText} numberOfLines={1}>{vendor.raw.email}</Text></View>
                       )}
                       {!!vendor.raw.address && (
-                        <View style={s.contactRow}><Ionicons name="location-outline" size={13} color="#64748B" /><Text style={s.contactText} numberOfLines={2}>{vendor.raw.address}</Text></View>
+                        <View style={s.contactRow}><Ionicons name="location-outline" size={13} color="#64748B" /><Text style={s.contactText} numberOfLines={2}>{tr(vendor.raw.address)}</Text></View>
                       )}
                       {!vendor.raw.contactPerson && !vendor.raw.phoneNumber && !vendor.raw.email && !vendor.raw.address && (
-                        <Text style={s.contactText}>No contact details added.</Text>
+                        <Text style={s.contactText}>{tr("No contact details added.")}</Text>
                       )}
                     </View>
                   ) : (
                   <>
                   <View style={s.statsRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.statLabel}>Contracts Held</Text>
-                      <Text style={s.statValue}>{vendor.contractsCount} Purchase Orders</Text>
+                      <Text style={s.statLabel}>{tr("Contracts Held")}</Text>
+                      <Text style={s.statValue}>{tr(vendor.contractsCount)}{tr(" Purchase Orders")}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.statLabel}>Total Contract Value</Text>
+                      <Text style={s.statLabel}>{tr("Total Contract Value")}</Text>
                       <Text style={[s.statValue, { color: '#2563EB' }]}>{formatCost(vendor.totalValue)}</Text>
                     </View>
                   </View>
@@ -353,41 +353,41 @@ const { hasPermission: canDo } = useInteriorPermissions();
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{editingVendor ? 'Edit Vendor' : 'Add New Vendor'}</Text>
+              <Text style={s.modalTitle}>{editingVendor ? tr("Edit Vendor") : tr("Add New Vendor")}</Text>
               <TouchableOpacity onPress={() => setVendorModalOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Vendor Name *</Text>
-              <TextInput style={s.input} placeholder="e.g. BuildTech Suppliers" placeholderTextColor="#94A3B8" value={vendorForm.name} onChangeText={(v) => setVendorForm({ ...vendorForm, name: v })} />
+              <Text style={s.label}>{tr("Vendor Name *")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. BuildTech Suppliers")} placeholderTextColor="#94A3B8" value={vendorForm.name} onChangeText={(v) => setVendorForm({ ...vendorForm, name: v })} />
 
-              <Text style={s.label}>Category</Text>
+              <Text style={s.label}>{tr("Category")}</Text>
               <View style={s.pillWrap}>
                 {VENDOR_CATEGORIES.map((c) => (
                   <TouchableOpacity key={c} style={[s.pill, vendorForm.vendorCategory === c && s.pillActive]} onPress={() => setVendorForm({ ...vendorForm, vendorCategory: c })}>
-                    <Text style={[s.pillText, vendorForm.vendorCategory === c && s.pillTextActive]}>{c}</Text>
+                    <Text style={[s.pillText, vendorForm.vendorCategory === c && s.pillTextActive]}>{tr(c)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.label}>GST Number</Text>
-              <TextInput style={s.input} placeholder="e.g. 27AAAPL1234C1ZV" placeholderTextColor="#94A3B8" autoCapitalize="characters" value={vendorForm.gstNumber} onChangeText={(v) => setVendorForm({ ...vendorForm, gstNumber: v })} />
+              <Text style={s.label}>{tr("GST Number")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. 27AAAPL1234C1ZV")} placeholderTextColor="#94A3B8" autoCapitalize="characters" value={vendorForm.gstNumber} onChangeText={(v) => setVendorForm({ ...vendorForm, gstNumber: v })} />
 
-              <Text style={s.label}>Billing Address</Text>
-              <TextInput style={s.input} placeholder="Full physical or billing address" placeholderTextColor="#94A3B8" value={vendorForm.address} onChangeText={(v) => setVendorForm({ ...vendorForm, address: v })} />
+              <Text style={s.label}>{tr("Billing Address")}</Text>
+              <TextInput style={s.input} placeholder={tr("Full physical or billing address")} placeholderTextColor="#94A3B8" value={vendorForm.address} onChangeText={(v) => setVendorForm({ ...vendorForm, address: v })} />
 
-              <Text style={s.label}>Contact Person</Text>
-              <TextInput style={s.input} placeholder="e.g. Ramesh" placeholderTextColor="#94A3B8" value={vendorForm.contactPerson} onChangeText={(v) => setVendorForm({ ...vendorForm, contactPerson: v })} />
+              <Text style={s.label}>{tr("Contact Person")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Ramesh")} placeholderTextColor="#94A3B8" value={vendorForm.contactPerson} onChangeText={(v) => setVendorForm({ ...vendorForm, contactPerson: v })} />
 
-              <Text style={s.label}>Phone</Text>
+              <Text style={s.label}>{tr("Phone")}</Text>
               <TextInput style={s.input} placeholder="+91..." placeholderTextColor="#94A3B8" keyboardType="phone-pad" value={vendorForm.phoneNumber} onChangeText={(v) => setVendorForm({ ...vendorForm, phoneNumber: v })} />
 
-              <Text style={s.label}>Email</Text>
-              <TextInput style={s.input} placeholder="supplier@mail.com" placeholderTextColor="#94A3B8" keyboardType="email-address" autoCapitalize="none" value={vendorForm.email} onChangeText={(v) => setVendorForm({ ...vendorForm, email: v })} />
+              <Text style={s.label}>{tr("Email")}</Text>
+              <TextInput style={s.input} placeholder={tr("supplier@mail.com")} placeholderTextColor="#94A3B8" keyboardType="email-address" autoCapitalize="none" value={vendorForm.email} onChangeText={(v) => setVendorForm({ ...vendorForm, email: v })} />
 
               <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.6 }]} onPress={handleSaveVendor} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingVendor ? 'Save Changes' : 'Add Vendor'}</Text>}
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingVendor ? tr("Save Changes") : tr("Add Vendor")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

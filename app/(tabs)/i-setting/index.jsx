@@ -14,6 +14,8 @@ import {
   FlatList,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { tr, isArabic } from '../../utils/i18n/tr';
+import { changeAppLanguage } from '../../utils/i18n/changeAppLanguage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import HeaderNotification from '../../components/HeaderNotification';
@@ -205,7 +207,7 @@ export default function InteriorSettingsScreen() {
 
   // Handlers
   const handleSaveProfile = async () => {
-    if (!firstName.trim()) return showToast('First name is required.', 'error');
+    if (!firstName.trim()) return showToast(tr("First name is required."), 'error');
     setIsSavingProfile(true);
     try {
       const userId = user?._id || user?.id;
@@ -214,17 +216,17 @@ export default function InteriorSettingsScreen() {
         lastName: lastName.trim(),
         phone: phone.trim(),
       });
-      showToast('Profile updated successfully!', 'success');
+      showToast(tr("Profile updated successfully!"), 'success');
       refreshUser?.();
     } catch (e) {
-      showToast(e?.response?.data?.message || e.message || 'Failed to update profile.', 'error');
+      showToast(e?.response?.data?.message || e.message || tr("Failed to update profile."), 'error');
     } finally {
       setIsSavingProfile(false);
     }
   };
 
   const handleSaveOrganization = async () => {
-    if (!orgForm.name.trim()) return showToast('Organization name is required.', 'error');
+    if (!orgForm.name.trim()) return showToast(tr("Organization name is required."), 'error');
     setIsSavingOrg(true);
     try {
       await interiorApiClient.patch('/organizations/settings', {
@@ -234,10 +236,10 @@ export default function InteriorSettingsScreen() {
         timezone: orgForm.timezone,
         dateFormat: orgForm.dateFormat,
       });
-      showToast('Organization settings updated successfully!', 'success');
+      showToast(tr("Organization settings updated successfully!"), 'success');
       refreshUser?.();
     } catch (e) {
-      showToast(e?.response?.data?.message || e.message || 'Failed to update organization.', 'error');
+      showToast(e?.response?.data?.message || e.message || tr("Failed to update organization."), 'error');
     } finally {
       setIsSavingOrg(false);
     }
@@ -256,19 +258,19 @@ export default function InteriorSettingsScreen() {
   };
 
   const handleChangePassword = async () => {
-    if (!currentPassword) return showToast('Please enter your current password.', 'error');
-    if (newPassword.length < 8) return showToast('New password must be at least 8 characters.', 'error');
-    if (newPassword !== confirmPassword) return showToast('New passwords do not match.', 'error');
+    if (!currentPassword) return showToast(tr("Please enter your current password."), 'error');
+    if (newPassword.length < 8) return showToast(tr("New password must be at least 8 characters."), 'error');
+    if (newPassword !== confirmPassword) return showToast(tr("New passwords do not match."), 'error');
 
     setIsChangingPassword(true);
     try {
       await interiorApiClient.patch('/auth/change-password', { currentPassword, newPassword });
-      showToast('Password updated successfully!', 'success');
+      showToast(tr("Password updated successfully!"), 'success');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (e) {
-      showToast(e?.response?.data?.error || e?.response?.data?.message || e.message || 'Failed to update password.', 'error');
+      showToast(e?.response?.data?.error || e?.response?.data?.message || e.message || tr("Failed to update password."), 'error');
     } finally {
       setIsChangingPassword(false);
     }
@@ -299,10 +301,10 @@ export default function InteriorSettingsScreen() {
         <View style={[s.header, { paddingTop: insets.top + 10 }]}>
           <View>
             <View style={s.headerBadgeRow}>
-              <Text style={s.headerSubtitle}>Workspace Settings</Text>
+              <Text style={s.headerSubtitle}>{tr("Workspace Settings")}</Text>
               
             </View>
-            <Text style={s.pageTitle}>Settings</Text>
+            <Text style={s.pageTitle}>{tr("Settings")}</Text>
           </View>
           <HeaderNotification />
         </View>
@@ -321,21 +323,21 @@ export default function InteriorSettingsScreen() {
               <View style={s.heroInfo}>
                 <View style={s.nameBadgeRow}>
                   <Text style={s.heroName} numberOfLines={1}>
-                    {displayName}
+                    {tr(displayName)}
                   </Text>
                   <View style={s.roleBadge}>
-                    <Text style={s.roleBadgeLabel}>{roleName}</Text>
+                    <Text style={s.roleBadgeLabel}>{tr(roleName)}</Text>
                   </View>
                 </View>
 
                 <View style={s.emailRow}>
                   <Ionicons name="mail-outline" size={13} color="#64748B" />
                   <Text style={s.heroEmail} numberOfLines={1}>
-                    {user?.email || 'No email provided'}
+                    {user?.email || tr("No email provided")}
                   </Text>
                   <View style={s.verifiedChip}>
                     <Ionicons name="checkmark-circle" size={12} color="#10B981" />
-                    <Text style={s.verifiedText}>Verified</Text>
+                    <Text style={s.verifiedText}>{tr("Verified")}</Text>
                   </View>
                 </View>
               </View>
@@ -346,20 +348,20 @@ export default function InteriorSettingsScreen() {
               <View style={s.heroFooterItem}>
                 <Ionicons name="business-outline" size={13} color="#2563EB" />
                 <Text style={s.heroFooterText} numberOfLines={1}>
-                  {orgForm.name || 'Workspace'}
+                  {orgForm.name || tr("Workspace")}
                 </Text>
               </View>
               <View style={s.heroFooterDivider} />
               <View style={s.heroFooterItem}>
                 {orgForm.currencySymbol !== orgForm.currency && (
-                  <Text style={s.currencyMiniBadge}>{orgForm.currencySymbol}</Text>
+                  <Text style={s.currencyMiniBadge}>{tr(orgForm.currencySymbol)}</Text>
                 )}
-                <Text style={s.heroFooterText}>{orgForm.currency}</Text>
+                <Text style={s.heroFooterText}>{tr(orgForm.currency)}</Text>
               </View>
               <View style={s.heroFooterDivider} />
               <View style={s.heroFooterItem}>
                 <Ionicons name="calendar-outline" size={13} color="#64748B" />
-                <Text style={s.heroFooterText}>{orgForm.dateFormat}</Text>
+                <Text style={s.heroFooterText}>{tr(orgForm.dateFormat)}</Text>
               </View>
             </View>
           </View>
@@ -382,7 +384,7 @@ export default function InteriorSettingsScreen() {
                       color={isSelected ? '#FFFFFF' : '#64748B'}
                       style={{ marginRight: 6 }}
                     />
-                    <Text style={[s.tabPillText, isSelected && s.tabPillTextActive]}>{item.label}</Text>
+                    <Text style={[s.tabPillText, isSelected && s.tabPillTextActive]}>{tr(item.label)}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -395,37 +397,37 @@ export default function InteriorSettingsScreen() {
               <View style={s.cardHeader}>
                 <Ionicons name="person-circle-outline" size={20} color="#2563EB" />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.cardTitle}>Personal Information</Text>
-                  <Text style={s.cardSubtitle}>Manage your personal profile details and contact number</Text>
+                  <Text style={s.cardTitle}>{tr("Personal Information")}</Text>
+                  <Text style={s.cardSubtitle}>{tr("Manage your personal profile details and contact number")}</Text>
                 </View>
               </View>
 
               <View style={s.formGroup}>
                 <View style={s.inputRow}>
                   <View style={[s.inputCol, { flex: 1 }]}>
-                    <Text style={s.inputLabel}>First Name *</Text>
+                    <Text style={s.inputLabel}>{tr("First Name *")}</Text>
                     <TextInput
                       style={s.textInput}
                       value={firstName}
                       onChangeText={setFirstName}
-                      placeholder="e.g. John"
+                      placeholder={tr("e.g. John")}
                       placeholderTextColor="#94A3B8"
                     />
                   </View>
                   <View style={[s.inputCol, { flex: 1 }]}>
-                    <Text style={s.inputLabel}>Last Name *</Text>
+                    <Text style={s.inputLabel}>{tr("Last Name *")}</Text>
                     <TextInput
                       style={s.textInput}
                       value={lastName}
                       onChangeText={setLastName}
-                      placeholder="e.g. Doe"
+                      placeholder={tr("e.g. Doe")}
                       placeholderTextColor="#94A3B8"
                     />
                   </View>
                 </View>
 
                 <View style={s.inputCol}>
-                  <Text style={s.inputLabel}>Account Email (Read-only)</Text>
+                  <Text style={s.inputLabel}>{tr("Account Email (Read-only)")}</Text>
                   <View style={[s.textInput, s.disabledInput]}>
                     <Ionicons name="lock-closed-outline" size={14} color="#94A3B8" style={{ marginRight: 8 }} />
                     <Text style={s.disabledInputText}>{user?.email || 'N/A'}</Text>
@@ -433,7 +435,7 @@ export default function InteriorSettingsScreen() {
                 </View>
 
                 <View style={s.inputCol}>
-                  <Text style={s.inputLabel}>Contact Number</Text>
+                  <Text style={s.inputLabel}>{tr("Contact Number")}</Text>
                   <View style={s.iconInputContainer}>
                     <Ionicons name="call-outline" size={16} color="#64748B" style={s.leadingIcon} />
                     <TextInput
@@ -458,7 +460,7 @@ export default function InteriorSettingsScreen() {
                   ) : (
                     <>
                       <Ionicons name="checkmark-outline" size={18} color="#FFFFFF" />
-                      <Text style={s.actionButtonText}>Save Profile Changes</Text>
+                      <Text style={s.actionButtonText}>{tr("Save Profile Changes")}</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -472,28 +474,28 @@ export default function InteriorSettingsScreen() {
               <View style={s.cardHeader}>
                 <Ionicons name="business-outline" size={20} color="#2563EB" />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.cardTitle}>Company Information</Text>
-                  <Text style={s.cardSubtitle}>Your organization details appear on client quotes and invoices</Text>
+                  <Text style={s.cardTitle}>{tr("Company Information")}</Text>
+                  <Text style={s.cardSubtitle}>{tr("Your organization details appear on client quotes and invoices")}</Text>
                 </View>
               </View>
 
               <View style={s.formGroup}>
                 <View style={s.inputCol}>
-                  <Text style={s.inputLabel}>Organization Legal Name *</Text>
+                  <Text style={s.inputLabel}>{tr("Organization Legal Name *")}</Text>
                   <TextInput
                     style={s.textInput}
                     value={orgForm.name}
                     onChangeText={(val) => setOrgForm({ ...orgForm, name: val })}
-                    placeholder="e.g. Acme Interior Design Studio"
+                    placeholder={tr("e.g. Acme Interior Design Studio")}
                     placeholderTextColor="#94A3B8"
                   />
                 </View>
 
                 <View style={s.inputCol}>
-                  <Text style={s.inputLabel}>Workspace Slug / ID</Text>
+                  <Text style={s.inputLabel}>{tr("Workspace Slug / ID")}</Text>
                   <View style={[s.textInput, s.disabledInput]}>
                     <Ionicons name="link-outline" size={14} color="#94A3B8" style={{ marginRight: 8 }} />
-                    <Text style={[s.disabledInputText, { fontFamily: 'Courier' }]}>{orgForm.slug || 'workspace'}</Text>
+                    <Text style={[s.disabledInputText, { fontFamily: 'Courier' }]}>{orgForm.slug || tr("workspace")}</Text>
                   </View>
                 </View>
 
@@ -502,19 +504,19 @@ export default function InteriorSettingsScreen() {
                   <View style={s.planHeader}>
                     <View style={s.planBadge}>
                       <Ionicons name="sparkles" size={13} color="#2563EB" />
-                      <Text style={s.planBadgeText}>Enterprise Pro</Text>
+                      <Text style={s.planBadgeText}>{tr("Enterprise Pro")}</Text>
                     </View>
                     <View style={s.activeStatusPill}>
-                      <Text style={s.activeStatusText}>Active</Text>
+                      <Text style={s.activeStatusText}>{tr("Active")}</Text>
                     </View>
                   </View>
                   <Text style={s.planDesc}>
-                    Full access to Interior BOQ Builder, 3D Drawings, CRM Pipeline, and Procurement workflows.
+                    {tr("Full access to Interior BOQ Builder, 3D Drawings, CRM Pipeline, and Procurement workflows.")}
                   </Text>
                 </View>
 
                 {!canUpdateSettings && (
-                  <Text style={s.readOnlyNote}>Read-only view. Organization admin or settings update permission required to modify.</Text>
+                  <Text style={s.readOnlyNote}>{tr("Read-only view. Organization admin or settings update permission required to modify.")}</Text>
                 )}
                 <TouchableOpacity
                   style={[s.actionButton, (isSavingOrg || !canUpdateSettings) && s.actionButtonDisabled]}
@@ -527,7 +529,7 @@ export default function InteriorSettingsScreen() {
                   ) : (
                     <>
                       <Ionicons name="save-outline" size={18} color="#FFFFFF" />
-                      <Text style={s.actionButtonText}>Save Company Changes</Text>
+                      <Text style={s.actionButtonText}>{tr("Save Company Changes")}</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -541,8 +543,8 @@ export default function InteriorSettingsScreen() {
               <View style={s.cardHeader}>
                 <Ionicons name="globe-outline" size={20} color="#2563EB" />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.cardTitle}>Currency & Regional Standards</Text>
-                  <Text style={s.cardSubtitle}>Configure default project currencies, symbols, and formatting</Text>
+                  <Text style={s.cardTitle}>{tr("Currency & Regional Standards")}</Text>
+                  <Text style={s.cardSubtitle}>{tr("Configure default project currencies, symbols, and formatting")}</Text>
                 </View>
               </View>
 
@@ -557,11 +559,11 @@ export default function InteriorSettingsScreen() {
                       adjustsFontSizeToFit
                       minimumFontScale={0.6}
                     >
-                      {orgForm.currencySymbol}
+                      {tr(orgForm.currencySymbol)}
                     </Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={s.currencyPreviewLabel} numberOfLines={1}>Standard Currency</Text>
+                    <Text style={s.currencyPreviewLabel} numberOfLines={1}>{tr("Standard Currency")}</Text>
                     <Text style={s.currencyPreviewVal} numberOfLines={1}>
                       {orgForm.currencySymbol && orgForm.currencySymbol !== orgForm.currency
                         ? `${orgForm.currency} (${orgForm.currencySymbol})`
@@ -569,14 +571,14 @@ export default function InteriorSettingsScreen() {
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={s.currencySampleLabel}>BOQ Sample</Text>
-                    <Text style={s.currencySampleVal}>{orgForm.currencySymbol} 1,250,000</Text>
+                    <Text style={s.currencySampleLabel}>{tr("BOQ Sample")}</Text>
+                    <Text style={s.currencySampleVal}>{tr(orgForm.currencySymbol)} 1,250,000</Text>
                   </View>
                 </View>
 
                 {/* Country / Jurisdiction Picker */}
                 <View style={s.inputCol}>
-                  <Text style={s.inputLabel}>Country / Jurisdiction</Text>
+                  <Text style={s.inputLabel}>{tr("Country / Jurisdiction")}</Text>
                   <TouchableOpacity
                     style={s.countryPickerButton}
                     onPress={() => setActiveModal('countryPicker')}
@@ -586,7 +588,7 @@ export default function InteriorSettingsScreen() {
                       <Text style={{ fontSize: 20 }}>
                         {getCountryByCode(orgForm.countryCode)?.flag || '🌐'}
                       </Text>
-                      <Text style={s.countryPickerText}>{orgForm.country} ({orgForm.currency})</Text>
+                      <Text style={s.countryPickerText}>{tr(orgForm.country)} ({tr(orgForm.currency)})</Text>
                     </View>
                     <Ionicons name="chevron-down" size={18} color="#64748B" />
                   </TouchableOpacity>
@@ -594,7 +596,7 @@ export default function InteriorSettingsScreen() {
 
                 {/* Date Format Picker */}
                 <View style={s.inputCol}>
-                  <Text style={s.inputLabel}>Date Format</Text>
+                  <Text style={s.inputLabel}>{tr("Date Format")}</Text>
                   <View style={s.chipRow}>
                     {DATE_FORMATS.map((df) => {
                       const isSel = orgForm.dateFormat === df;
@@ -605,7 +607,7 @@ export default function InteriorSettingsScreen() {
                           onPress={() => setOrgForm({ ...orgForm, dateFormat: df })}
                           activeOpacity={0.7}
                         >
-                          <Text style={[s.formatChipText, isSel && s.formatChipTextActive]}>{df}</Text>
+                          <Text style={[s.formatChipText, isSel && s.formatChipTextActive]}>{tr(df)}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -614,15 +616,15 @@ export default function InteriorSettingsScreen() {
 
                 {/* Timezone display */}
                 <View style={s.inputCol}>
-                  <Text style={s.inputLabel}>Primary Timezone</Text>
+                  <Text style={s.inputLabel}>{tr("Primary Timezone")}</Text>
                   <View style={[s.textInput, s.disabledInput]}>
                     <Ionicons name="time-outline" size={16} color="#64748B" style={{ marginRight: 8 }} />
-                    <Text style={s.disabledInputText}>{orgForm.timezone}</Text>
+                    <Text style={s.disabledInputText}>{tr(orgForm.timezone)}</Text>
                   </View>
                 </View>
 
                 {!canUpdateSettings && (
-                  <Text style={s.readOnlyNote}>Read-only view. Organization admin or settings update permission required to modify.</Text>
+                  <Text style={s.readOnlyNote}>{tr("Read-only view. Organization admin or settings update permission required to modify.")}</Text>
                 )}
                 <TouchableOpacity
                   style={[s.actionButton, (isSavingOrg || !canUpdateSettings) && s.actionButtonDisabled]}
@@ -635,7 +637,7 @@ export default function InteriorSettingsScreen() {
                   ) : (
                     <>
                       <Ionicons name="checkmark-done-outline" size={18} color="#FFFFFF" />
-                      <Text style={s.actionButtonText}>Apply Regional Settings</Text>
+                      <Text style={s.actionButtonText}>{tr("Apply Regional Settings")}</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -649,22 +651,22 @@ export default function InteriorSettingsScreen() {
               <View style={s.cardHeader}>
                 <Ionicons name="lock-closed-outline" size={20} color="#2563EB" />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.cardTitle}>Security & Credentials</Text>
-                  <Text style={s.cardSubtitle}>Ensure your account is protected with a strong credentials</Text>
+                  <Text style={s.cardTitle}>{tr("Security & Credentials")}</Text>
+                  <Text style={s.cardSubtitle}>{tr("Ensure your account is protected with a strong credentials")}</Text>
                 </View>
               </View>
 
               <View style={s.formGroup}>
                 {/* Current Password */}
                 <View style={s.inputCol}>
-                  <Text style={s.inputLabel}>Current Password *</Text>
+                  <Text style={s.inputLabel}>{tr("Current Password *")}</Text>
                   <View style={s.passwordInputContainer}>
                     <TextInput
                       style={s.passwordInput}
                       secureTextEntry={!showCurrentPwd}
                       value={currentPassword}
                       onChangeText={setCurrentPassword}
-                      placeholder="Enter current password"
+                      placeholder={tr("Enter current password")}
                       placeholderTextColor="#94A3B8"
                     />
                     <TouchableOpacity
@@ -679,14 +681,14 @@ export default function InteriorSettingsScreen() {
 
                 {/* New Password */}
                 <View style={s.inputCol}>
-                  <Text style={s.inputLabel}>New Password *</Text>
+                  <Text style={s.inputLabel}>{tr("New Password *")}</Text>
                   <View style={s.passwordInputContainer}>
                     <TextInput
                       style={s.passwordInput}
                       secureTextEntry={!showNewPwd}
                       value={newPassword}
                       onChangeText={setNewPassword}
-                      placeholder="At least 8 characters"
+                      placeholder={tr("At least 8 characters")}
                       placeholderTextColor="#94A3B8"
                     />
                     <TouchableOpacity
@@ -710,7 +712,7 @@ export default function InteriorSettingsScreen() {
                         />
                       </View>
                       <Text style={[s.strengthLabel, { color: passwordStrength.color }]}>
-                        {passwordStrength.label}
+                        {tr(passwordStrength.label)}
                       </Text>
                     </View>
                   )}
@@ -718,14 +720,14 @@ export default function InteriorSettingsScreen() {
 
                 {/* Confirm Password */}
                 <View style={s.inputCol}>
-                  <Text style={s.inputLabel}>Confirm New Password *</Text>
+                  <Text style={s.inputLabel}>{tr("Confirm New Password *")}</Text>
                   <View style={s.passwordInputContainer}>
                     <TextInput
                       style={s.passwordInput}
                       secureTextEntry={!showConfirmPwd}
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
-                      placeholder="Confirm new password"
+                      placeholder={tr("Confirm new password")}
                       placeholderTextColor="#94A3B8"
                     />
                     <TouchableOpacity
@@ -753,7 +755,7 @@ export default function InteriorSettingsScreen() {
                   ) : (
                     <>
                       <Ionicons name="key-outline" size={18} color="#FFFFFF" />
-                      <Text style={s.actionButtonText}>Update Password</Text>
+                      <Text style={s.actionButtonText}>{tr("Update Password")}</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -763,7 +765,7 @@ export default function InteriorSettingsScreen() {
 
           {/* Quick Shortcuts & Workspace Management */}
           <View style={s.managementSection}>
-            <Text style={s.managementSectionTitle}>WORKSPACE TOOLS</Text>
+            <Text style={s.managementSectionTitle}>{tr("WORKSPACE TOOLS")}</Text>
             <View style={s.managementCard}>
               {navAccess.usersRoles && (
                 <TouchableOpacity
@@ -775,8 +777,8 @@ export default function InteriorSettingsScreen() {
                     <Ionicons name="people-outline" size={19} color="#7C3AED" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.mgmtItemTitle}>Users & Roles Manager</Text>
-                    <Text style={s.mgmtItemSubtitle}>Team members, project access, & role matrix</Text>
+                    <Text style={s.mgmtItemTitle}>{tr("Users & Roles Manager")}</Text>
+                    <Text style={s.mgmtItemSubtitle}>{tr("Team members, project access, & role matrix")}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
                 </TouchableOpacity>
@@ -792,8 +794,8 @@ export default function InteriorSettingsScreen() {
                     <Ionicons name="car-outline" size={19} color="#059669" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.mgmtItemTitle}>Vendor Management</Text>
-                    <Text style={s.mgmtItemSubtitle}>Suppliers, contractors & contact details</Text>
+                    <Text style={s.mgmtItemTitle}>{tr("Vendor Management")}</Text>
+                    <Text style={s.mgmtItemSubtitle}>{tr("Suppliers, contractors & contact details")}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
                 </TouchableOpacity>
@@ -810,8 +812,8 @@ export default function InteriorSettingsScreen() {
                     <Ionicons name="shield-checkmark-outline" size={19} color="#2563EB" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.mgmtItemTitle}>Audit Management</Text>
-                    <Text style={s.mgmtItemSubtitle}>Activity log of logins, changes & deletions</Text>
+                    <Text style={s.mgmtItemTitle}>{tr("Audit Management")}</Text>
+                    <Text style={s.mgmtItemSubtitle}>{tr("Activity log of logins, changes & deletions")}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
                 </TouchableOpacity>
@@ -819,6 +821,21 @@ export default function InteriorSettingsScreen() {
 
               <TouchableOpacity
                 style={[s.managementItem, { borderTopWidth: navAccess.usersRoles || navAccess.vendors || navAccess.audit ? 1 : 0, borderTopColor: '#F1F5F9' }]}
+                onPress={() => setActiveModal('language')}
+                activeOpacity={0.7}
+              >
+                <View style={[s.mgmtIconBox, { backgroundColor: '#EFF6FF' }]}>
+                  <Ionicons name="language-outline" size={19} color="#2563EB" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.mgmtItemTitle}>{tr("Language")}</Text>
+                  <Text style={s.mgmtItemSubtitle}>{isArabic() ? 'العربية' : tr("English")}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[s.managementItem, { borderTopWidth: 1, borderTopColor: '#F1F5F9' }]}
                 onPress={() => setActiveModal('appInfo')}
                 activeOpacity={0.7}
               >
@@ -826,8 +843,8 @@ export default function InteriorSettingsScreen() {
                   <Ionicons name="information-circle-outline" size={19} color="#2563EB" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.mgmtItemTitle}>About Interior-OS Mobile</Text>
-                  <Text style={s.mgmtItemSubtitle}>v2.1.0 Arctic • Enterprise Engine</Text>
+                  <Text style={s.mgmtItemTitle}>{tr("About Interior-OS Mobile")}</Text>
+                  <Text style={s.mgmtItemSubtitle}>{tr("v2.1.0 Arctic • Enterprise Engine")}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
               </TouchableOpacity>
@@ -841,7 +858,7 @@ export default function InteriorSettingsScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="log-out-outline" size={19} color="#EF4444" />
-            <Text style={s.logoutButtonText}>Sign Out from Workspace</Text>
+            <Text style={s.logoutButtonText}>{tr("Sign Out from Workspace")}</Text>
           </TouchableOpacity>
 
           <View style={{ height: 100 }} />
@@ -864,7 +881,7 @@ export default function InteriorSettingsScreen() {
             <View style={[s.countrySheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
               <View style={s.sheetHandle} />
               <View style={s.sheetHeaderRow}>
-                <Text style={s.sheetTitle}>Select Country / Jurisdiction</Text>
+                <Text style={s.sheetTitle}>{tr("Select Country / Jurisdiction")}</Text>
                 <TouchableOpacity onPress={() => setActiveModal(null)}>
                   <Ionicons name="close-circle" size={24} color="#94A3B8" />
                 </TouchableOpacity>
@@ -877,7 +894,7 @@ export default function InteriorSettingsScreen() {
                   style={s.searchInput}
                   value={countrySearch}
                   onChangeText={setCountrySearch}
-                  placeholder="Search countries or currencies..."
+                  placeholder={tr("Search countries or currencies...")}
                   placeholderTextColor="#94A3B8"
                   autoCapitalize="none"
                 />
@@ -904,10 +921,10 @@ export default function InteriorSettingsScreen() {
                       <Text style={{ fontSize: 24, marginRight: 12 }}>{item.flag || '🌐'}</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={[s.countryNameText, isSelected && s.countryNameTextActive]}>
-                          {item.name}
+                          {tr(item.name)}
                         </Text>
                         <Text style={s.countryMetaText}>
-                          {item.currencyCode} ({item.currencySymbol || '$'}) • {item.primaryTimezone}
+                          {tr(item.currencyCode)} ({item.currencySymbol || '$'}) • {tr(item.primaryTimezone)}
                         </Text>
                       </View>
                       {isSelected && <Ionicons name="checkmark-circle" size={20} color="#2563EB" />}
@@ -921,6 +938,35 @@ export default function InteriorSettingsScreen() {
         </View>
       </Modal>
 
+      {/* Language Modal — changing it reloads the app (right-to-left layout) */}
+      <Modal visible={activeModal === 'language'} animationType="fade" transparent onRequestClose={() => setActiveModal(null)}>
+        <View style={s.centerModalOverlay}>
+          <View style={{ width: '100%', maxWidth: 360, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18 }}>
+            <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 12 }}>{tr("Language")}</Text>
+            {[['en', 'English'], ['ar', 'العربية']].map(([code, label]) => {
+              const selected = (code === 'ar') === isArabic();
+              return (
+                <TouchableOpacity
+                  key={code}
+                  activeOpacity={0.75}
+                  onPress={() => {
+                    setActiveModal(null);
+                    changeAppLanguage(code, () => showToast(tr("Language changed. Please restart the app."), 'info'));
+                  }}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, marginBottom: 8, borderColor: selected ? '#2563EB' : '#E2E8F0', backgroundColor: selected ? '#EFF6FF' : '#FFFFFF' }}
+                >
+                  <Text style={{ fontSize: 14.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' }}>{tr(label)}</Text>
+                  {selected && <Ionicons name="checkmark-circle" size={22} color="#2563EB" />}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity onPress={() => setActiveModal(null)} style={{ alignItems: 'center', paddingTop: 6 }}>
+              <Text style={{ fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>{tr("Cancel")}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* App Info Modal */}
       <Modal visible={activeModal === 'appInfo'} animationType="fade" transparent onRequestClose={() => setActiveModal(null)}>
         <View style={s.centerModalOverlay}>
@@ -928,17 +974,17 @@ export default function InteriorSettingsScreen() {
             <View style={s.infoIconBox}>
               <Ionicons name="sparkles" size={32} color="#2563EB" />
             </View>
-            <Text style={s.infoTitle}>Interior-OS Enterprise</Text>
-            <Text style={s.infoVersion}>v2.1.0 Arctic Mobile</Text>
+            <Text style={s.infoTitle}>{tr("Interior-OS Enterprise")}</Text>
+            <Text style={s.infoVersion}>{tr("v2.1.0 Arctic Mobile")}</Text>
             <Text style={s.infoDesc}>
-              Enterprise interior fit-out execution suite. Real-time synchronisation with web dashboard, client quotations, BOQ revisions, and site tracking.
+              {tr("Enterprise interior fit-out execution suite. Real-time synchronisation with web dashboard, client quotations, BOQ revisions, and site tracking.")}
             </Text>
             <TouchableOpacity
               style={s.infoCloseBtn}
               onPress={() => setActiveModal(null)}
               activeOpacity={0.8}
             >
-              <Text style={s.infoCloseBtnText}>Close</Text>
+              <Text style={s.infoCloseBtnText}>{tr("Close")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -951,22 +997,22 @@ export default function InteriorSettingsScreen() {
             <View style={[s.infoIconBox, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
               <Ionicons name="log-out-outline" size={32} color="#EF4444" />
             </View>
-            <Text style={s.infoTitle}>Sign Out</Text>
+            <Text style={s.infoTitle}>{tr("Sign Out")}</Text>
             <Text style={[s.infoDesc, { marginBottom: 24 }]}>
-              Are you sure you want to sign out from your Interior workspace?
+              {tr("Are you sure you want to sign out from your Interior workspace?")}
             </Text>
             <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
               <TouchableOpacity
                 style={[s.infoCloseBtn, { flex: 1, backgroundColor: '#F1F5F9' }]}
                 onPress={() => setActiveModal(null)}
               >
-                <Text style={[s.infoCloseBtnText, { color: '#64748B' }]}>Cancel</Text>
+                <Text style={[s.infoCloseBtnText, { color: '#64748B' }]}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.infoCloseBtn, { flex: 1, backgroundColor: '#EF4444' }]}
                 onPress={confirmLogout}
               >
-                <Text style={s.infoCloseBtnText}>Sign Out</Text>
+                <Text style={s.infoCloseBtnText}>{tr("Sign Out")}</Text>
               </TouchableOpacity>
             </View>
           </View>

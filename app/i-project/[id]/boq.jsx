@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -7,6 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useOrgCurrency } from '../../utils/interior/orgCurrency';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
@@ -36,11 +38,12 @@ const AVA_STATUS_META = {
   not_started: { color: '#64748B', bg: '#F1F5F9' },
 };
 
-function fmtMoney(n) { return `₹${Math.round(n || 0).toLocaleString('en-IN')}`; }
 
 const emptyItemRow = () => ({ category: 'Flooring', itemName: '', quantity: '1', unit: 'sqft', rate: '0', remarks: '' });
 
 export default function InteriorBoqScreen() {
+  const orgCurrency = useOrgCurrency();
+  const fmtMoney = orgCurrency.money;
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
@@ -89,7 +92,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       const res = await interiorApiClient.get(`/projects/${projectId}/boq/${boqId}`);
       if (res?.success && res?.data) setSelectedBoq(res.data);
     } catch (e) {
-      showToast('Failed to fetch BOQ details', 'error');
+      showToast(tr("Failed to fetch BOQ details"), 'error');
     }
   }, [projectId]);
 
@@ -102,7 +105,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       if (selectLatest && list.length > 0) await fetchBoqDetail(list[0]._id);
     } catch (e) {
       console.error('Failed to load BOQs', e);
-      showToast('Failed to fetch BOQ versions list', 'error');
+      showToast(tr("Failed to fetch BOQ versions list"), 'error');
     } finally {
       setLoading(false);
     }
@@ -141,20 +144,20 @@ const { can: canDo } = useProjectPermissions(projectId);
       assignedReviewerName: reviewerName,
       submissionNotes: notes || undefined,
     });
-    showToast(`BOQ (${selectedBoq.versionLabel}) submitted for approval to ${reviewerName}!`, 'success');
+    showToast(tr("BOQ ({{versionLabel}}) submitted for approval to {{reviewerName}}!", { versionLabel: selectedBoq.versionLabel, reviewerName: reviewerName }), 'success');
   };
 
   const handleDecision = async (action, reason) => {
     await runApprovalAction(action === 'reject' ? { action, reason } : { action });
     showToast(
       action === 'approve'
-        ? `BOQ (${selectedBoq.versionLabel}) approved successfully! Baseline project budget locked.`
-        : `BOQ (${selectedBoq.versionLabel}) rejected. Returned to draft status for revision.`,
+        ? tr("BOQ ({{versionLabel}}) approved successfully! Baseline project budget locked.", { versionLabel: selectedBoq.versionLabel })
+        : tr("BOQ ({{versionLabel}}) rejected. Returned to draft status for revision.", { versionLabel: selectedBoq.versionLabel }),
       action === 'approve' ? 'success' : 'info'
     );
   };
 
-  const boqCurrency = project?.budget?.currency || selectedBoq?.currency || 'INR';
+  const boqCurrency = orgCurrency.code;
   const money = (n) => formatExactCurrency(n, boqCurrency);
 
   const openDecision = (action) => {
@@ -182,13 +185,13 @@ const { can: canDo } = useProjectPermissions(projectId);
         <View style={approvalStyles.summaryBox}>
           <View style={approvalStyles.summaryRow}>
             <View style={{ flex: 1, gap: 4 }}>
-              <Text style={approvalStyles.summaryTitle}>BOQ {selectedBoq.versionLabel}</Text>
+              <Text style={approvalStyles.summaryTitle}>{tr("BOQ ")}{tr(selectedBoq.versionLabel)}</Text>
               <Text style={approvalStyles.summaryLabel}>
-                {sectionsCount} {sectionsCount === 1 ? 'Section' : 'Sections'} • {itemsCount} items
+                {tr(sectionsCount)} {sectionsCount === 1 ? tr("Section") : tr("Sections")} • {tr(itemsCount)}{tr(" items")}
               </Text>
               {variant === 'review' && !!selectedBoq.assignedReviewerName && (
                 <View style={approvalStyles.chipRow}>
-                  <Text style={approvalStyles.reviewerChip}>Reviewer: {selectedBoq.assignedReviewerName}</Text>
+                  <Text style={approvalStyles.reviewerChip}>{tr("Reviewer: ")}{tr(selectedBoq.assignedReviewerName)}</Text>
                 </View>
               )}
             </View>
@@ -207,9 +210,9 @@ const { can: canDo } = useProjectPermissions(projectId);
                 {overBy ? titles[0] : titles[1]}
               </Text>
               <Text style={s.budgetBannerText}>
-                Project Target Budget: <Text style={{ fontFamily: 'Inter-SemiBold' }}>{money(maxBudget)}</Text>
+                {tr("Project Target Budget: ")}<Text style={{ fontFamily: 'Inter-SemiBold' }}>{money(maxBudget)}</Text>
                 {overBy ? (
-                  <Text style={{ color: '#B45309', fontFamily: 'Inter-Bold' }}>{' • '}Exceeds by {money(overBy)}</Text>
+                  <Text style={{ color: '#B45309', fontFamily: 'Inter-Bold' }}>{' • '}{tr("Exceeds by ")}{money(overBy)}</Text>
                 ) : null}
               </Text>
             </View>
@@ -225,20 +228,20 @@ const { can: canDo } = useProjectPermissions(projectId);
     try {
       const res = await interiorApiClient.post(`/projects/${projectId}/boq/${selectedBoq._id}/revise`);
       if (res?.success && res?.data) {
-        showToast(`New draft revision created: ${res.data.versionLabel}`, 'success');
+        showToast(tr("New draft revision created: {{versionLabel}}", { versionLabel: res.data.versionLabel }), 'success');
         fetchBoqs(true);
       }
     } catch (e) {
-      showToast(e.message || 'Failed to create BOQ revision', 'error');
+      showToast(e.message || tr("Failed to create BOQ revision"), 'error');
     } finally {
       setActionLoading(false);
     }
   };
 
   const confirmDeleteBoq = () => {
-    Alert.alert('Delete BOQ Draft', 'Are you sure you want to delete this BOQ draft?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: handleDeleteBoq },
+    Alert.alert(tr("Delete BOQ Draft"), tr("Are you sure you want to delete this BOQ draft?"), [
+      { text: tr("Cancel"), style: 'cancel' },
+      { text: tr("Delete"), style: 'destructive', onPress: handleDeleteBoq },
     ]);
   };
 
@@ -247,11 +250,11 @@ const { can: canDo } = useProjectPermissions(projectId);
     setActionLoading(true);
     try {
       await interiorApiClient.delete(`/projects/${projectId}/boq/${selectedBoq._id}`);
-      showToast('Draft deleted successfully', 'delete');
+      showToast(tr("Draft deleted successfully"), 'delete');
       setSelectedBoq(null);
       fetchBoqs(true);
     } catch (e) {
-      showToast(e.message || 'Failed to delete BOQ', 'error');
+      showToast(e.message || tr("Failed to delete BOQ"), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -266,18 +269,18 @@ const { can: canDo } = useProjectPermissions(projectId);
   };
 
   const handleExcelImport = async () => {
-    if (!excelFile) return showToast('Please choose a valid Excel file first', 'error');
+    if (!excelFile) return showToast(tr("Please choose a valid Excel file first"), 'error');
     setImporting(true);
     try {
       const res = await interiorApiClient.postForm(`/projects/${projectId}/boq/import`, {
         file: { uri: excelFile.uri, name: excelFile.name, type: excelFile.mimeType || 'application/octet-stream' },
       });
-      showToast(res?.message || 'Excel BOQ Imported Successfully!', 'success');
+      showToast(res?.message || tr("Excel BOQ Imported Successfully!"), 'success');
       setIsImportOpen(false);
       setExcelFile(null);
       fetchBoqs(true);
     } catch (e) {
-      showToast(e.message || 'Failed to import Excel file', 'error');
+      showToast(e.message || tr("Failed to import Excel file"), 'error');
     } finally {
       setImporting(false);
     }
@@ -312,18 +315,18 @@ const { can: canDo } = useProjectPermissions(projectId);
   };
 
   const handleManualCreate = async () => {
-    if (newItems.some((it) => !it.itemName.trim())) return showToast('Please fill in all item names', 'error');
-    if (newItems.some((it) => !String(it.category || '').trim() || !String(it.unit || '').trim())) return showToast('Every item needs a category and a unit', 'error');
+    if (newItems.some((it) => !it.itemName.trim())) return showToast(tr("Please fill in all item names"), 'error');
+    if (newItems.some((it) => !String(it.category || '').trim() || !String(it.unit || '').trim())) return showToast(tr("Every item needs a category and a unit"), 'error');
     // Same limits as the web project BOQ builder
     for (const it of newItems) {
       const name = it.itemName.trim();
-      if (name.length > 120) return showToast(`Item title "${name.slice(0, 25)}..." exceeds maximum allowed length of 120 characters.`, 'error');
-      if (String(it.remarks || '').trim().length > 500) return showToast(`Remarks for "${name.slice(0, 25)}" exceeds maximum allowed length of 500 characters.`, 'error');
-      if (!(parseFloat(it.quantity) > 0)) return showToast(`Quantity must be greater than 0 for "${name.slice(0, 25)}".`, 'error');
-      if (parseFloat(it.quantity) > 999999999) return showToast(`Quantity is too large for "${name.slice(0, 25)}" (maximum 999,999,999).`, 'error');
-      if (parseFloat(it.rate) > 999999999) return showToast(`Rate is too large for "${name.slice(0, 25)}" (maximum 999,999,999).`, 'error');
+      if (name.length > 120) return showToast(tr("Item title \"{{name}}...\" exceeds maximum allowed length of 120 characters.", { name: name.slice(0, 25) }), 'error');
+      if (String(it.remarks || '').trim().length > 500) return showToast(tr("Remarks for \"{{name}}\" exceeds maximum allowed length of 500 characters.", { name: name.slice(0, 25) }), 'error');
+      if (!(parseFloat(it.quantity) > 0)) return showToast(tr("Quantity must be greater than 0 for \"{{name}}\".", { name: name.slice(0, 25) }), 'error');
+      if (parseFloat(it.quantity) > 999999999) return showToast(tr("Quantity is too large for \"{{name}}\" (maximum 999,999,999).", { name: name.slice(0, 25) }), 'error');
+      if (parseFloat(it.rate) > 999999999) return showToast(tr("Rate is too large for \"{{name}}\" (maximum 999,999,999).", { name: name.slice(0, 25) }), 'error');
     }
-    if (newBoqNotes.trim().length > 2000) return showToast('Overall BOQ terms/notes cannot exceed 2000 characters.', 'error');
+    if (newBoqNotes.trim().length > 2000) return showToast(tr("Overall BOQ terms/notes cannot exceed 2000 characters."), 'error');
     setActionLoading(true);
     try {
       const items = newItems.map((it, idx) => {
@@ -342,10 +345,10 @@ const { can: canDo } = useProjectPermissions(projectId);
       });
       if (editingBoqId) {
         await interiorApiClient.put(`/projects/${projectId}/boq/${editingBoqId}`, { notes: newBoqNotes, items });
-        showToast('BOQ updated', 'success');
+        showToast(tr("BOQ updated"), 'success');
       } else {
         await interiorApiClient.post(`/projects/${projectId}/boq`, { notes: newBoqNotes, items });
-        showToast('BOQ Created Successfully!', 'success');
+        showToast(tr("BOQ Created Successfully!"), 'success');
       }
       const editedId = editingBoqId;
       setIsCreateOpen(false);
@@ -359,7 +362,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         fetchBoqs(true);
       }
     } catch (e) {
-      showToast(e.message || (editingBoqId ? 'Failed to update BOQ' : 'Failed to create BOQ'), 'error');
+      showToast(e.message || (editingBoqId ? tr("Failed to update BOQ") : tr("Failed to create BOQ")), 'error');
     } finally {
       setActionLoading(false);
     }
@@ -409,7 +412,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Bill of Quantities</Text>
+            <Text style={s.headerTitle}>{tr("Bill of Quantities")}</Text>
           </View>
           {canDo('boq', 'create') && (
             <TouchableOpacity style={s.headerIconBtn} onPress={() => setIsImportOpen(true)}>
@@ -422,11 +425,11 @@ const { can: canDo } = useProjectPermissions(projectId);
           <SkeletonList />
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-            <Text style={s.sectionLabel}>VERSIONS</Text>
+            <Text style={s.sectionLabel}>{tr("VERSIONS")}</Text>
             {boqs.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="document-outline" size={36} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No BOQ registered</Text>
+                <Text style={s.emptyTitle}>{tr("No BOQ registered")}</Text>
               </View>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 14 }}>
@@ -438,7 +441,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                   return (
                     <TouchableOpacity key={boq._id} style={[s.versionCard, active && s.versionCardActive]} onPress={() => fetchBoqDetail(boq._id)}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={[s.versionLabel, active && { color: '#2563EB' }]}>{boq.versionLabel}</Text>
+                        <Text style={[s.versionLabel, active && { color: '#2563EB' }]}>{tr(boq.versionLabel)}</Text>
                         <View style={[s.versionStatusBadge, { backgroundColor: meta.bg }]}>
                           <Text style={[s.versionStatusText, { color: meta.color }]}>{String(boq.status).replace('_', ' ')}</Text>
                         </View>
@@ -446,7 +449,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                       <Text style={s.versionAmount}>{fmtMoney(boq.totalAmount)}</Text>
                       <View style={{ marginTop: 4 }}>
                         <Text style={{ fontSize: 11.5, color: active ? '#1D4ED8' : '#64748B', fontWeight: '500' }} numberOfLines={1}>
-                          {createdDate ? `${createdDate} • ` : ''}by {creatorName}
+                          {createdDate ? `${createdDate} • ` : ''}{tr("by ")}{tr(creatorName)}
                         </Text>
                       </View>
                     </TouchableOpacity>
@@ -458,15 +461,15 @@ const { can: canDo } = useProjectPermissions(projectId);
             {selectedBoq && (
               <View style={s.summaryCard}>
                 <View style={s.summaryRow}>
-                  <Text style={s.summaryLabel}>Total Cost</Text>
+                  <Text style={s.summaryLabel}>{tr("Total Cost")}</Text>
                   <Text style={s.summaryValue}>{fmtMoney(selectedBoq.totalAmount)}</Text>
                 </View>
                 <View style={s.summaryRow}>
-                  <Text style={s.summaryLabel}>Created By</Text>
-                  <Text style={s.summaryValue}>{[selectedBoq.createdBy?.firstName, selectedBoq.createdBy?.lastName].filter(Boolean).join(' ') || selectedBoq.createdByName || 'Estimator'}</Text>
+                  <Text style={s.summaryLabel}>{tr("Created By")}</Text>
+                  <Text style={s.summaryValue}>{[selectedBoq.createdBy?.firstName, selectedBoq.createdBy?.lastName].filter(Boolean).join(' ') || selectedBoq.createdByName || tr("Estimator")}</Text>
                 </View>
                 <View style={s.summaryRow}>
-                  <Text style={s.summaryLabel}>Created On</Text>
+                  <Text style={s.summaryLabel}>{tr("Created On")}</Text>
                   <Text style={s.summaryValue}>
                     {selectedBoq.createdAt
                       ? new Date(selectedBoq.createdAt).toLocaleDateString('en-IN', {
@@ -481,19 +484,19 @@ const { can: canDo } = useProjectPermissions(projectId);
                 </View>
                 {!!selectedBoq.notes && (
                   <View style={s.notesBox}>
-                    <Text style={s.notesText}>{selectedBoq.notes}</Text>
+                    <Text style={s.notesText}>{tr(selectedBoq.notes)}</Text>
                   </View>
                 )}
                 {!!selectedBoq.assignedReviewerName && (
                   <View style={s.reviewerChip}>
                     <Ionicons name="person-circle-outline" size={13} color="#B45309" />
-                    <Text style={s.reviewerChipText} numberOfLines={1}>Reviewer: {selectedBoq.assignedReviewerName}</Text>
+                    <Text style={s.reviewerChipText} numberOfLines={1}>{tr("Reviewer: ")}{tr(selectedBoq.assignedReviewerName)}</Text>
                   </View>
                 )}
                 {selectedBoq.status === 'rejected' && !!selectedBoq.rejectionReason && (
                   <View style={s.rejectionBox}>
                     <Ionicons name="close-circle-outline" size={13} color="#DC2626" />
-                    <Text style={s.rejectionText}>Changes Requested: {selectedBoq.rejectionReason}</Text>
+                    <Text style={s.rejectionText}>{tr("Changes Requested: ")}{tr(selectedBoq.rejectionReason)}</Text>
                   </View>
                 )}
 
@@ -501,7 +504,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                   {(selectedBoq.status === 'draft' || selectedBoq.status === 'rejected') && (
                     canDo('boq', 'update') && (
                       <TouchableOpacity style={s.outlineBtn} onPress={openEditBoq} disabled={actionLoading}>
-                        <Text style={s.outlineBtnText}>Edit BOQ</Text>
+                        <Text style={s.outlineBtnText}>{tr("Edit BOQ")}</Text>
                       </TouchableOpacity>
                     )
                   )}
@@ -509,7 +512,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     canDo('boq', 'update') && (
                       <TouchableOpacity style={[s.primaryBtn, s.iconBtnRow]} onPress={() => setIsSendOpen(true)} disabled={actionLoading}>
                         <Ionicons name="paper-plane-outline" size={14} color="#FFFFFF" />
-                        <Text style={s.primaryBtnText}>Submit for Approval</Text>
+                        <Text style={s.primaryBtnText}>{tr("Submit for Approval")}</Text>
                       </TouchableOpacity>
                     )
                   )}
@@ -518,13 +521,13 @@ const { can: canDo } = useProjectPermissions(projectId);
                       {canDo('boq', 'approve') && (
                         <TouchableOpacity style={[s.primaryBtn, s.iconBtnRow, { flex: 1, backgroundColor: '#059669' }]} onPress={() => openDecision('approve')} disabled={actionLoading}>
                           <Ionicons name="checkmark-circle-outline" size={15} color="#FFFFFF" />
-                          <Text style={s.primaryBtnText}>Approve</Text>
+                          <Text style={s.primaryBtnText}>{tr("Approve")}</Text>
                         </TouchableOpacity>
                       )}
                       {canDo('boq', 'approve') && (
                         <TouchableOpacity style={[s.primaryBtn, s.iconBtnRow, { flex: 1, backgroundColor: '#DC2626' }]} onPress={() => openDecision('reject')} disabled={actionLoading}>
                           <Ionicons name="close-circle-outline" size={15} color="#FFFFFF" />
-                          <Text style={s.primaryBtnText}>Reject</Text>
+                          <Text style={s.primaryBtnText}>{tr("Reject")}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -532,14 +535,14 @@ const { can: canDo } = useProjectPermissions(projectId);
                   {selectedBoq.status === 'approved' && (
                     canDo('boq', 'update') && (
                       <TouchableOpacity style={s.outlineBtn} onPress={handleCreateRevision} disabled={actionLoading}>
-                        <Text style={s.outlineBtnText}>Create New Revision</Text>
+                        <Text style={s.outlineBtnText}>{tr("Create New Revision")}</Text>
                       </TouchableOpacity>
                     )
                   )}
                   {(selectedBoq.status === 'draft' || selectedBoq.status === 'rejected') && (
                     canDo('boq', 'delete') && (
                       <TouchableOpacity style={[s.outlineBtn, { borderColor: '#FECACA' }]} onPress={confirmDeleteBoq} disabled={actionLoading}>
-                        <Text style={[s.outlineBtnText, { color: '#DC2626' }]}>Delete Draft</Text>
+                        <Text style={[s.outlineBtnText, { color: '#DC2626' }]}>{tr("Delete Draft")}</Text>
                       </TouchableOpacity>
                     )
                   )}
@@ -549,10 +552,10 @@ const { can: canDo } = useProjectPermissions(projectId);
 
             <View style={s.tabRow}>
               <TouchableOpacity style={[s.tabBtn, activeTab === 'items' && s.tabBtnActive]} onPress={() => switchTab('items')}>
-                <Text style={[s.tabBtnText, activeTab === 'items' && s.tabBtnTextActive]}>Line Items</Text>
+                <Text style={[s.tabBtnText, activeTab === 'items' && s.tabBtnTextActive]}>{tr("Line Items")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[s.tabBtn, activeTab === 'actual' && s.tabBtnActive]} onPress={() => switchTab('actual')}>
-                <Text style={[s.tabBtnText, activeTab === 'actual' && s.tabBtnTextActive]}>BOQ vs Actual</Text>
+                <Text style={[s.tabBtnText, activeTab === 'actual' && s.tabBtnTextActive]}>{tr("BOQ vs Actual")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -560,7 +563,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               selectedBoq ? (
                 groupedSections.length === 0 ? (
                   <View style={s.empty}>
-                    <Text style={s.emptyTitle}>No line items in this BOQ version.</Text>
+                    <Text style={s.emptyTitle}>{tr("No line items in this BOQ version.")}</Text>
                   </View>
                 ) : (
                   <>
@@ -569,14 +572,14 @@ const { can: canDo } = useProjectPermissions(projectId);
                         <View style={s.sectionHead}>
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                              <View style={s.sectionNumTag}><Text style={s.sectionNumText}>Section {section.sectionNumber || sIdx + 1}</Text></View>
-                              <Text style={s.sectionCount}>{section.items.length} items</Text>
+                              <View style={s.sectionNumTag}><Text style={s.sectionNumText}>{tr("Section ")}{section.sectionNumber || sIdx + 1}</Text></View>
+                              <Text style={s.sectionCount}>{section.items.length}{tr(" items")}</Text>
                             </View>
-                            <Text style={s.sectionTitle} numberOfLines={2}>{section.sectionTitle}</Text>
-                            {!!section.scopeDescription && <Text style={s.sectionScope}>{section.scopeDescription}</Text>}
+                            <Text style={s.sectionTitle} numberOfLines={2}>{tr(section.sectionTitle)}</Text>
+                            {!!section.scopeDescription && <Text style={s.sectionScope}>{tr(section.scopeDescription)}</Text>}
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={s.sectionSubLabel}>SUBTOTAL</Text>
+                            <Text style={s.sectionSubLabel}>{tr("SUBTOTAL")}</Text>
                             <Text style={s.sectionSubValue}>{fmtMoney(section.subTotal)}</Text>
                           </View>
                         </View>
@@ -584,22 +587,22 @@ const { can: canDo } = useProjectPermissions(projectId);
                           <View key={item._id || idx} style={[s.secItem, idx === section.items.length - 1 && { borderBottomWidth: 0 }]}>
                             <View style={s.itemTopRow}>
                               <Text style={s.itemSerial}>{item.itemCode || item.serialNumber || idx + 1}</Text>
-                              <Text style={[s.itemName, { marginLeft: 6 }]}>{item.itemName}</Text>
+                              <Text style={[s.itemName, { marginLeft: 6 }]}>{tr(item.itemName)}</Text>
                             </View>
-                            {!!item.description && <Text style={s.itemSpec}>{item.description}</Text>}
+                            {!!item.description && <Text style={s.itemSpec}>{tr(item.description)}</Text>}
                             <View style={s.itemBottomRow}>
-                              <Text style={s.itemMeta}>{item.quantity?.toLocaleString('en-IN')} {item.unit} @ {fmtMoney(item.rate)}</Text>
+                              <Text style={s.itemMeta}>{item.quantity?.toLocaleString('en-IN')} {tr(item.unit)} @ {fmtMoney(item.rate)}</Text>
                               <Text style={s.itemAmount}>{fmtMoney(item.amount)}</Text>
                             </View>
-                            <Text style={s.itemRemarks}>Remarks: {item.remarks || '—'}</Text>
+                            <Text style={s.itemRemarks}>{tr("Remarks: ")}{item.remarks || '—'}</Text>
                           </View>
                         ))}
                       </View>
                     ))}
                     <View style={s.grandStrip}>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.grandStripLabel}>TOTAL MASTER BOQ VALUE ({selectedBoq.versionLabel})</Text>
-                        <Text style={s.grandStripSub}>{groupedSections.length} Sections • {selectedBoq.items?.length || 0} Total Specifications</Text>
+                        <Text style={s.grandStripLabel}>{tr("TOTAL MASTER BOQ VALUE (")}{tr(selectedBoq.versionLabel)})</Text>
+                        <Text style={s.grandStripSub}>{groupedSections.length}{tr(" Sections • ")}{selectedBoq.items?.length || 0}{tr(" Total Specifications")}</Text>
                       </View>
                       <Text style={s.grandStripValue}>{fmtMoney(selectedBoq.totalAmount ?? groupedSections.reduce((a, sec) => a + sec.subTotal, 0))}</Text>
                     </View>
@@ -607,7 +610,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                 )
               ) : (
                 <View style={s.empty}>
-                  <Text style={s.emptyTitle}>Select or create a BOQ version to view items.</Text>
+                  <Text style={s.emptyTitle}>{tr("Select or create a BOQ version to view items.")}</Text>
                 </View>
               )
             ) : loadingActual ? (
@@ -616,23 +619,23 @@ const { can: canDo } = useProjectPermissions(projectId);
               </View>
             ) : !actualData ? (
               <View style={s.empty}>
-                <Text style={s.emptyTitle}>No approved BOQ found to compare. Approve a version first.</Text>
+                <Text style={s.emptyTitle}>{tr("No approved BOQ found to compare. Approve a version first.")}</Text>
               </View>
             ) : (
               <>
                 <View style={s.actualKpiRow}>
                   <View style={[s.actualKpiCard, { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE' }]}>
-                    <Text style={[s.actualKpiLabel, { color: '#2563EB' }]}>PLANNED</Text>
+                    <Text style={[s.actualKpiLabel, { color: '#2563EB' }]}>{tr("PLANNED")}</Text>
                     <Text style={s.actualKpiValue}>{fmtMoney(actualData.summary?.totalPlannedAmount)}</Text>
                   </View>
                   <View style={[s.actualKpiCard, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-                    <Text style={[s.actualKpiLabel, { color: '#D97706' }]}>CONSUMED</Text>
+                    <Text style={[s.actualKpiLabel, { color: '#D97706' }]}>{tr("CONSUMED")}</Text>
                     <Text style={s.actualKpiValue}>{fmtMoney(actualData.summary?.totalConsumedAmount)}</Text>
                   </View>
                   <View style={[s.actualKpiCard, actualData.summary?.overallVariance > 0 ? { backgroundColor: '#FEF2F2', borderColor: '#FECACA' } : { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
-                    <Text style={[s.actualKpiLabel, { color: actualData.summary?.overallVariance > 0 ? '#DC2626' : '#16A34A' }]}>VARIANCE</Text>
+                    <Text style={[s.actualKpiLabel, { color: actualData.summary?.overallVariance > 0 ? '#DC2626' : '#16A34A' }]}>{tr("VARIANCE")}</Text>
                     <Text style={[s.actualKpiValue, { color: actualData.summary?.overallVariance > 0 ? '#DC2626' : '#16A34A' }]}>
-                      {actualData.summary?.overallVariance > 0 ? '+' : ''}{actualData.summary?.overallVariance}%
+                      {actualData.summary?.overallVariance > 0 ? '+' : ''}{tr(actualData.summary?.overallVariance)}%
                     </Text>
                   </View>
                 </View>
@@ -642,25 +645,25 @@ const { can: canDo } = useProjectPermissions(projectId);
                   return (
                     <View key={item._id || idx} style={s.itemCard}>
                       <View style={s.itemTopRow}>
-                        <Text style={s.itemName}>{item.itemName}</Text>
+                        <Text style={s.itemName}>{tr(item.itemName)}</Text>
                         <View style={[s.itemCategoryTag, { backgroundColor: meta.bg }]}>
                           <Text style={[s.itemCategoryTagText, { color: meta.color }]}>{String(item.status).replace('_', ' ')}</Text>
                         </View>
                       </View>
-                      <Text style={s.itemMeta}>{item.category} · {item.unit}</Text>
+                      <Text style={s.itemMeta}>{tr(item.category)} · {tr(item.unit)}</Text>
                       <View style={s.avaGrid}>
                         <View style={{ flex: 1 }}>
-                          <Text style={s.avaLabel}>Planned</Text>
+                          <Text style={s.avaLabel}>{tr("Planned")}</Text>
                           <Text style={s.avaValue}>{item.plannedQuantity?.toLocaleString('en-IN')}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={s.avaLabel}>Consumed</Text>
+                          <Text style={s.avaLabel}>{tr("Consumed")}</Text>
                           <Text style={s.avaValue}>{item.consumedQuantity?.toLocaleString('en-IN')}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={s.avaLabel}>Variance</Text>
+                          <Text style={s.avaLabel}>{tr("Variance")}</Text>
                           <Text style={[s.avaValue, { color: item.variancePercentage > 0 ? '#DC2626' : item.variancePercentage < 0 ? '#16A34A' : '#94A3B8' }]}>
-                            {item.variancePercentage > 0 ? '+' : ''}{item.variancePercentage}%
+                            {item.variancePercentage > 0 ? '+' : ''}{tr(item.variancePercentage)}%
                           </Text>
                         </View>
                       </View>
@@ -686,18 +689,18 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Import BOQ Excel Sheet</Text>
+              <Text style={s.modalTitle}>{tr("Import BOQ Excel Sheet")}</Text>
               <TouchableOpacity onPress={() => setIsImportOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
-            <Text style={s.hintText}>Upload a spreadsheet (.xlsx/.xls). Columns auto-map to Category, Item Name, Quantity, Unit, and Rate.</Text>
+            <Text style={s.hintText}>{tr("Upload a spreadsheet (.xlsx/.xls). Columns auto-map to Category, Item Name, Quantity, Unit, and Rate.")}</Text>
             <TouchableOpacity style={s.uploadBox} onPress={pickExcelFile}>
               <Ionicons name="document-outline" size={26} color="#94A3B8" />
-              <Text style={s.uploadBoxText} numberOfLines={1}>{excelFile ? excelFile.name : 'Tap to select Excel file'}</Text>
+              <Text style={s.uploadBoxText} numberOfLines={1}>{excelFile ? excelFile.name : tr("Tap to select Excel file")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.saveBtn, { backgroundColor: '#059669' }, importing && { opacity: 0.7 }]} onPress={handleExcelImport} disabled={importing}>
-              {importing ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Import & Process</Text>}
+              {importing ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Import & Process")}</Text>}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -708,21 +711,21 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={[s.modalCard, { maxHeight: '90%' }]}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{editingBoqId ? `Edit BOQ ${selectedBoq?.versionLabel || ''}`.trim() : 'Manual BOQ Entry'}</Text>
+              <Text style={s.modalTitle}>{editingBoqId ? `Edit BOQ ${selectedBoq?.versionLabel || ''}`.trim() : tr("Manual BOQ Entry")}</Text>
               <TouchableOpacity onPress={() => setIsCreateOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Revision Notes</Text>
-              <TextInput style={s.input} placeholder="e.g. Initial draft base price calculations" placeholderTextColor="#94A3B8" value={newBoqNotes} onChangeText={setNewBoqNotes} maxLength={2000} />
+              <Text style={s.label}>{tr("Revision Notes")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Initial draft base price calculations")} placeholderTextColor="#94A3B8" value={newBoqNotes} onChangeText={setNewBoqNotes} maxLength={2000} />
               <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8', alignSelf: 'flex-end', marginTop: 2 }}>{newBoqNotes.length}/2000</Text>
 
               <View style={s.sectionHeaderRow}>
-                <Text style={s.formSectionLabel}>BOQ LINE ITEMS ({newItems.length})</Text>
+                <Text style={s.formSectionLabel}>{tr("BOQ LINE ITEMS (")}{newItems.length})</Text>
                 <TouchableOpacity style={s.addRowBtn} onPress={addItemRow}>
-                  <Text style={s.addRowBtnText}>+ Add Row</Text>
+                  <Text style={s.addRowBtnText}>{tr("+ Add Row")}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -736,7 +739,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                   </View>
                   <TextInput
                     style={[s.input, { marginBottom: 6 }]}
-                    placeholder="Type or select category..."
+                    placeholder={tr("Type or select category...")}
                     placeholderTextColor="#94A3B8"
                     value={item.category}
                     onChangeText={(v) => updateItemRow(idx, 'category', v)}
@@ -744,19 +747,19 @@ const { can: canDo } = useProjectPermissions(projectId);
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
                     {ITEM_CATEGORIES.map((c) => (
                       <TouchableOpacity key={c} style={[s.miniChip, item.category === c && s.miniChipActive]} onPress={() => updateItemRow(idx, 'category', c)}>
-                        <Text style={[s.miniChipText, item.category === c && s.miniChipTextActive]}>{c}</Text>
+                        <Text style={[s.miniChipText, item.category === c && s.miniChipTextActive]}>{tr(c)}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
-                  <TextInput style={[s.input, { marginBottom: 6 }]} placeholder="Item / material specifications" placeholderTextColor="#94A3B8" value={item.itemName} onChangeText={(v) => updateItemRow(idx, 'itemName', v)} maxLength={120} />
+                  <TextInput style={[s.input, { marginBottom: 6 }]} placeholder={tr("Item / material specifications")} placeholderTextColor="#94A3B8" value={item.itemName} onChangeText={(v) => updateItemRow(idx, 'itemName', v)} maxLength={120} />
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TextInput style={[s.input, { flex: 1 }]} placeholder="Qty" placeholderTextColor="#94A3B8" keyboardType="numeric" value={item.quantity} onChangeText={(v) => updateItemRow(idx, 'quantity', v)} maxLength={9} />
-                    <TextInput style={[s.input, { flex: 1 }]} placeholder="Unit" placeholderTextColor="#94A3B8" value={item.unit} onChangeText={(v) => updateItemRow(idx, 'unit', v)} />
-                    <TextInput style={[s.input, { flex: 1 }]} placeholder="Rate ₹" placeholderTextColor="#94A3B8" keyboardType="numeric" value={item.rate} onChangeText={(v) => updateItemRow(idx, 'rate', v)} maxLength={9} />
+                    <TextInput style={[s.input, { flex: 1 }]} placeholder={tr("Qty")} placeholderTextColor="#94A3B8" keyboardType="numeric" value={item.quantity} onChangeText={(v) => updateItemRow(idx, 'quantity', v)} maxLength={9} />
+                    <TextInput style={[s.input, { flex: 1 }]} placeholder={tr("Unit")} placeholderTextColor="#94A3B8" value={item.unit} onChangeText={(v) => updateItemRow(idx, 'unit', v)} />
+                    <TextInput style={[s.input, { flex: 1 }]} placeholder={tr("Rate ({{code}})", { code: orgCurrency.code })} placeholderTextColor="#94A3B8" keyboardType="numeric" value={item.rate} onChangeText={(v) => updateItemRow(idx, 'rate', v)} maxLength={9} />
                   </View>
                   <TextInput
                     style={[s.input, { marginTop: 6 }]}
-                    placeholder="Remarks (optional)"
+                    placeholder={tr("Remarks (optional)")}
                     placeholderTextColor="#94A3B8"
                     value={item.remarks || ''}
                     maxLength={500}
@@ -766,7 +769,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               ))}
 
               <TouchableOpacity style={[s.saveBtn, actionLoading && { opacity: 0.7 }]} onPress={handleManualCreate} disabled={actionLoading}>
-                {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingBoqId ? 'Save Changes' : 'Create BOQ Version'}</Text>}
+                {actionLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingBoqId ? tr("Save Changes") : tr("Create BOQ Version")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -777,8 +780,8 @@ const { can: canDo } = useProjectPermissions(projectId);
       <SendForApprovalModal
         visible={isSendOpen}
         onClose={() => setIsSendOpen(false)}
-        title="Submit BOQ for Approval"
-        subtitle={selectedBoq ? `Request internal sign-off for ${selectedBoq.versionLabel} of project "${project?.name || 'Project'}"` : ''}
+        title={tr("Submit BOQ for Approval")}
+        subtitle={selectedBoq ? tr("Request internal sign-off for {{versionLabel}} of project \"{{value}}\"", { versionLabel: selectedBoq.versionLabel, value: project?.name || 'Project' }) : ''}
         users={reviewers}
         initialReviewer={selectedBoq?.assignedReviewer}
         reviewerLabel="Select Approver / Manager"
@@ -808,7 +811,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         rejectLabel="Reason for Rejection / Adjustments Required"
         rejectMaxLength={500}
         confirmTitle="Confirm Commercial Sign-off"
-        confirmText="Approving this BOQ will set it as the approved cost plan for the project. Site engineers and procurement heads will use these baseline quantities and rates for Purchase Orders (POs) and inventory tracking."
+        confirmText={tr("Approving this BOQ will set it as the approved cost plan for the project. Site engineers and procurement heads will use these baseline quantities and rates for Purchase Orders (POs) and inventory tracking.")}
         approveLabel={selectedBoq ? `Approve BOQ (${selectedBoq.versionLabel})` : 'Approve BOQ'}
         backLabel="← Switch to Approve"
         onDecision={handleDecision}

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // =============================================================================
 // Interior project — Commercial Quotations & Proposals
 // Mobile version of the web InteriorProjectQuotationView: every quotation of the
@@ -13,6 +14,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useOrgCurrency } from '../../utils/interior/orgCurrency';
 import interiorApiClient from '../../services/interiorApiClient';
 import { interiorCrmService } from '../../services/interiorCrmService';
 import { useToast } from '../../context/ToastContext';
@@ -36,6 +38,7 @@ const linkedProjectId = (c) =>
   typeof c?.linkedProject === 'object' && c.linkedProject?._id ? String(c.linkedProject._id) : String(c?.linkedProject || '');
 
 export default function InteriorProjectQuotationScreen() {
+  const orgCurrency = useOrgCurrency();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { showToast } = useToast();
@@ -88,7 +91,7 @@ export default function InteriorProjectQuotationScreen() {
         }
       );
     } catch (e) {
-      showToast(e?.message || 'Failed to load quotations', 'error');
+      showToast(e?.message || tr("Failed to load quotations"), 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -100,7 +103,8 @@ export default function InteriorProjectQuotationScreen() {
   const quotations = useMemo(() => lead?.quotations || [], [lead]);
   const hasQuotations = quotations.length > 0;
   const latestQuote = hasQuotations ? quotations[quotations.length - 1] : null;
-  const currency = lead?.currency || project?.budget?.currency || 'INR';
+  // A quote keeps its lead's currency; otherwise the organisation's
+  const currency = lead?.currency || orgCurrency.code;
   const smart = (n) => formatSmartCurrency(Number(n) || 0, getCurrencySymbol(currency));
 
   // Edits need a real CRM lead to save to
@@ -117,19 +121,19 @@ export default function InteriorProjectQuotationScreen() {
     const q = quotations[idx];
     const title = q?.title || `Quotation ${idx + 1}`;
     const displayTitle = title.length > 50 ? `${title.slice(0, 50)}...` : title;
-    Alert.alert('Delete Quotation', `Are you sure you want to delete "${displayTitle}" (v${q?.version || idx + 1})? This action cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete Quotation"), tr("Are you sure you want to delete \"{{displayTitle}}\" (v{{value}})? This action cannot be undone.", { displayTitle: displayTitle, value: q?.version || idx + 1 }), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete Quotation',
+        text: tr("Delete Quotation"),
         style: 'destructive',
         onPress: async () => {
           try {
             const updated = quotations.filter((_, i) => i !== idx);
             await interiorCrmService.updateCustomer(lead._id, { quotations: updated });
             setLead((prev) => ({ ...prev, quotations: updated }));
-            showToast(`Quotation "${title}" deleted successfully.`, 'success');
+            showToast(tr("Quotation \"{{title}}\" deleted successfully.", { title: title }), 'success');
           } catch (e) {
-            showToast(e?.message || 'Failed to delete quotation', 'error');
+            showToast(e?.message || tr("Failed to delete quotation"), 'error');
           }
         },
       },
@@ -149,7 +153,7 @@ export default function InteriorProjectQuotationScreen() {
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Commercial Quotations & Proposals</Text>
+            <Text style={s.headerTitle}>{tr("Commercial Quotations & Proposals")}</Text>
           </View>
         </View>
 
@@ -165,14 +169,14 @@ export default function InteriorProjectQuotationScreen() {
             <View style={s.summaryCard}>
               <View style={s.kpiGrid}>
                 <Kpi
-                  label="Grand Total"
+                  label={tr("Grand Total")}
                   value={latestQuote ? smart(latestQuote.grandTotal).display : '—'}
                   sub={latestQuote && smart(latestQuote.grandTotal).isLarge ? `(${smart(latestQuote.grandTotal).exact})` : null}
                   accent
                 />
-                <Kpi label="Breakdown" value={latestQuote ? `${latestQuote.taxPercentage || 0}% Tax • ${(latestQuote.items || []).length} Items` : 'No items'} />
-                <Kpi label="Latest Status" value={latestQuote?.status || (hasQuotations ? 'Generated' : 'Pending')} />
-                <Kpi label="Target Budget" value={targetBudget} />
+                <Kpi label={tr("Breakdown")} value={latestQuote ? `${latestQuote.taxPercentage || 0}% Tax • ${(latestQuote.items || []).length} Items` : 'No items'} />
+                <Kpi label={tr("Latest Status")} value={latestQuote?.status || (hasQuotations ? 'Generated' : 'Pending')} />
+                <Kpi label={tr("Target Budget")} value={targetBudget} />
               </View>
             </View>
 
@@ -181,24 +185,24 @@ export default function InteriorProjectQuotationScreen() {
                 <View style={s.emptyIcon}>
                   <Ionicons name="document-text-outline" size={26} color="#2563EB" />
                 </View>
-                <Text style={s.emptyTitle}>No Quotations Created Yet</Text>
+                <Text style={s.emptyTitle}>{tr("No Quotations Created Yet")}</Text>
                 {canCreate && (
                   <TouchableOpacity style={[s.createBtn, { marginTop: 6 }]} onPress={openCreate} activeOpacity={0.85}>
                     <Ionicons name="add" size={16} color="#FFFFFF" />
-                    <Text style={s.createBtnText}>Create First Quotation</Text>
+                    <Text style={s.createBtnText}>{tr("Create First Quotation")}</Text>
                   </TouchableOpacity>
                 )}
               </View>
             ) : (
               <>
                 <View style={s.listHeader}>
-                  <Text style={s.listTitle}>Quotation Versions & Options</Text>
+                  <Text style={s.listTitle}>{tr("Quotation Versions & Options")}</Text>
                   <View style={s.countPill}><Text style={s.countPillText}>{quotations.length}</Text></View>
                   <View style={{ flex: 1 }} />
                   {canCreate && (
                     <TouchableOpacity style={s.createBtn} onPress={openCreate} activeOpacity={0.85}>
                       <Ionicons name="add" size={15} color="#FFFFFF" />
-                      <Text style={s.createBtnText}>Create</Text>
+                      <Text style={s.createBtnText}>{tr("Create")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -214,7 +218,7 @@ export default function InteriorProjectQuotationScreen() {
                       <View style={s.quoteTop}>
                         <Text style={s.quoteTitle} numberOfLines={2}>{q.title || `Quotation ${idx + 1}`}</Text>
                         <View style={[s.statusTag, { backgroundColor: sty.bg }]}>
-                          <Text style={[s.statusTagText, { color: sty.color }]}>{st}</Text>
+                          <Text style={[s.statusTagText, { color: sty.color }]}>{tr(st)}</Text>
                         </View>
                       </View>
                       <Text style={s.quoteMeta} numberOfLines={1}>
@@ -231,18 +235,18 @@ export default function InteriorProjectQuotationScreen() {
                       {/* Three equal figures */}
                       <View style={s.figRow}>
                         <View style={s.figCol}>
-                          <Text style={s.figLabel}>Subtotal</Text>
-                          <Text style={s.figValue} numberOfLines={1}>{smart(q.subtotal || q.subTotal).display}</Text>
+                          <Text style={s.figLabel}>{tr("Subtotal")}</Text>
+                          <Text style={s.figValue} numberOfLines={1}>{tr(smart(q.subtotal || q.subTotal).display)}</Text>
                         </View>
                         <View style={[s.figCol, { alignItems: 'center' }]}>
-                          <Text style={s.figLabel}>{discount > 0 ? 'Discount' : 'Tax'}</Text>
+                          <Text style={s.figLabel}>{discount > 0 ? tr("Discount") : tr("Tax")}</Text>
                           <Text style={[s.figValue, discount > 0 && { color: '#059669' }]} numberOfLines={1}>
                             {discount > 0 ? `- ${smart(discount).display}` : `${q.taxPercentage || 0}%`}
                           </Text>
                         </View>
                         <View style={[s.figCol, { alignItems: 'flex-end' }]}>
-                          <Text style={s.figLabel}>Grand total</Text>
-                          <Text style={[s.figValue, { color: '#2563EB', fontFamily: 'Inter-Bold' }]} numberOfLines={1}>{smart(q.grandTotal).display}</Text>
+                          <Text style={s.figLabel}>{tr("Grand total")}</Text>
+                          <Text style={[s.figValue, { color: '#2563EB', fontFamily: 'Inter-Bold' }]} numberOfLines={1}>{tr(smart(q.grandTotal).display)}</Text>
                         </View>
                       </View>
 
@@ -250,12 +254,12 @@ export default function InteriorProjectQuotationScreen() {
                       <View style={s.actionsRow}>
                         <TouchableOpacity style={[s.actBtn, s.viewBtn]} onPress={() => setPreviewIndex(idx)}>
                           <Ionicons name="eye-outline" size={15} color="#1D4ED8" />
-                          <Text style={s.viewBtnText}>View</Text>
+                          <Text style={s.viewBtnText}>{tr("View")}</Text>
                         </TouchableOpacity>
                         {canUpdate && (
                           <TouchableOpacity style={[s.actBtn, s.editBtn]} onPress={() => openEdit(idx)}>
                             <Ionicons name="create-outline" size={15} color="#334155" />
-                            <Text style={s.editBtnText}>Edit</Text>
+                            <Text style={s.editBtnText}>{tr("Edit")}</Text>
                           </TouchableOpacity>
                         )}
                         {canDelete && (
@@ -296,7 +300,7 @@ export default function InteriorProjectQuotationScreen() {
           editingQuoteIndex={editingIndex}
           budgetRange={lead?.budgetRange || lead?.estimatedBudget || lead?.budget}
           onSuccess={() => {
-            showToast('Quotation saved successfully!', 'success');
+            showToast(tr("Quotation saved successfully!"), 'success');
             load();
           }}
         />
@@ -308,9 +312,9 @@ export default function InteriorProjectQuotationScreen() {
 function Kpi({ label, value, sub, accent }) {
   return (
     <View style={s.kpi}>
-      <Text style={s.kpiLabel}>{label}</Text>
-      <Text style={[s.kpiValue, accent && { color: '#2563EB' }]} numberOfLines={1}>{value}</Text>
-      {!!sub && <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8' }} numberOfLines={1}>{sub}</Text>}
+      <Text style={s.kpiLabel}>{tr(label)}</Text>
+      <Text style={[s.kpiValue, accent && { color: '#2563EB' }]} numberOfLines={1}>{tr(value)}</Text>
+      {!!sub && <Text style={{ fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#94A3B8' }} numberOfLines={1}>{tr(sub)}</Text>}
     </View>
   );
 }

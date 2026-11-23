@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // Project Site Details (web: InteriorSiteDetailsView).
 // The site profile is the CRM record linked to the project; the backend creates one for every
 // project, so there is always something to show. Tabs: Design Requirements (with the client
@@ -21,6 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useOrgCurrency } from '../../utils/interior/orgCurrency';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import cloudinaryService from '../../services/cloudinaryService';
@@ -72,6 +74,7 @@ const AESTHETIC_ROWS = [
 ];
 
 export default function InteriorSiteDetailsScreen() {
+  const orgCurrency = useOrgCurrency();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id: projectId } = useLocalSearchParams();
@@ -137,7 +140,7 @@ export default function InteriorSiteDetailsScreen() {
       setCustomer(found);
     } catch (e) {
       console.error('Failed to load site details', e);
-      showToast('Failed to load site details', 'error');
+      showToast(tr("Failed to load site details"), 'error');
     } finally {
       setLoading(false);
     }
@@ -191,16 +194,16 @@ export default function InteriorSiteDetailsScreen() {
 
   const getOrFetchUrl = async () => {
     if (isLinkStopped) {
-      showToast('Sharing link is currently stopped. Click "Reactivate" to enable it.', 'error');
+      showToast(tr("Sharing link is currently stopped. Click \"Reactivate\" to enable it."), 'error');
       return null;
     }
     if (isLinkExpired) {
-      showToast('Sharing link has expired. Click "Reactivate" to enable it.', 'error');
+      showToast(tr("Sharing link has expired. Click \"Reactivate\" to enable it."), 'error');
       return null;
     }
     if (clientFormUrl) return clientFormUrl;
     if (!customer?._id) {
-      showToast('Site profile ID is missing.', 'error');
+      showToast(tr("Site profile ID is missing."), 'error');
       return null;
     }
     setIsGeneratingLink(true);
@@ -211,7 +214,7 @@ export default function InteriorSiteDetailsScreen() {
       await loadSiteDetails(true);
       return `${WEB_APP_URL}/share/requirements/${token}`;
     } catch (e) {
-      showToast(e?.message || 'Failed to create share link', 'error');
+      showToast(e?.message || tr("Failed to create share link"), 'error');
       return null;
     } finally {
       setIsGeneratingLink(false);
@@ -224,10 +227,10 @@ export default function InteriorSiteDetailsScreen() {
     try {
       await Clipboard.setStringAsync(url);
       setCopiedLink(true);
-      showToast('Shareable Client Intake Link copied to clipboard!', 'success');
+      showToast(tr("Shareable Client Intake Link copied to clipboard!"), 'success');
       setTimeout(() => setCopiedLink(false), 2500);
     } catch {
-      showToast('Failed to copy to clipboard.', 'error');
+      showToast(tr("Failed to copy to clipboard."), 'error');
     }
   };
 
@@ -241,24 +244,24 @@ export default function InteriorSiteDetailsScreen() {
     const phone = String(customer?.mobileNumber || '').replace(/[^0-9]/g, '');
     // 9876543210 is the placeholder number on auto-created site profiles
     Linking.openURL(phone && phone !== '9876543210' ? `https://wa.me/${phone}?text=${message}` : `https://wa.me/?text=${message}`)
-      .catch(() => showToast('Could not open WhatsApp.', 'error'));
+      .catch(() => showToast(tr("Could not open WhatsApp."), 'error'));
   };
 
   const handleStopLink = () => {
     if (!customer?._id) return;
-    Alert.alert('Stop Client Intake Link?', 'The link will be deactivated immediately and clients opening it will be blocked.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Stop Client Intake Link?"), tr("The link will be deactivated immediately and clients opening it will be blocked."), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Stop',
+        text: tr("Stop"),
         style: 'destructive',
         onPress: async () => {
           setIsStoppingLink(true);
           try {
             await interiorCrmService.revokeShareLink(customer._id);
-            showToast('Client intake link stopped.', 'success');
+            showToast(tr("Client intake link stopped."), 'success');
             await loadSiteDetails(true);
           } catch (e) {
-            showToast(e?.message || 'Failed to stop link', 'error');
+            showToast(e?.message || tr("Failed to stop link"), 'error');
           } finally {
             setIsStoppingLink(false);
           }
@@ -275,7 +278,7 @@ export default function InteriorSiteDetailsScreen() {
       showToast(successMsg, 'success');
       await loadSiteDetails(true);
     } catch (e) {
-      showToast(e?.message || 'Failed to update link expiry', 'error');
+      showToast(e?.message || tr("Failed to update link expiry"), 'error');
     } finally {
       setIsUpdatingExpiry(false);
     }
@@ -288,7 +291,7 @@ export default function InteriorSiteDetailsScreen() {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        showToast('Photo library permission is required to upload site photos', 'error');
+        showToast(tr("Photo library permission is required to upload site photos"), 'error');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, quality: 0.8 });
@@ -314,10 +317,10 @@ export default function InteriorSiteDetailsScreen() {
         const updated = Array.from(new Set([...(customer.sitePhotos || []), ...urls]));
         await interiorApiClient.patch(`/crm/customers/${customer._id}`, { sitePhotos: updated });
       }
-      showToast(`Successfully uploaded ${urls.length} photo${urls.length > 1 ? 's' : ''}`, 'success');
+      showToast(tr("Successfully uploaded {{urlsCount}} photo{{value}}", { urlsCount: urls.length, value: urls.length > 1 ? 's' : '' }), 'success');
       await loadSiteDetails(true);
     } catch (e) {
-      showToast(e?.message || 'Failed to upload some or all photos', 'error');
+      showToast(e?.message || tr("Failed to upload some or all photos"), 'error');
     } finally {
       setUploadingPhotos(false);
     }
@@ -333,17 +336,17 @@ export default function InteriorSiteDetailsScreen() {
     const clientMap = new Map();
     clientRequirements.forEach((cr) => { if (cr.roomName) clientMap.set(cr.roomName.toLowerCase().trim(), cr); });
     const used = new Set();
-    const merged = teamRequirements.map((tr) => {
-      const key = (tr.roomName || '').toLowerCase().trim();
+    const merged = teamRequirements.map((teamReq) => {
+      const key = (teamReq.roomName || '').toLowerCase().trim();
       const cr = clientMap.get(key);
-      if (!cr) return { ...tr, source: 'team' };
+      if (!cr) return { ...teamReq, source: 'team' };
       used.add(key);
-      const pick = (k) => tr[k] || cr[k] || '';
+      const pick = (k) => teamReq[k] || cr[k] || '';
       return {
         ...cr,
-        ...tr,
+        ...teamReq,
         source: 'merged',
-        designStyle: tr.designStyle || cr.designStyle || tr.theme || cr.theme || '',
+        designStyle: teamReq.designStyle || cr.designStyle || teamReq.theme || cr.theme || '',
         furnitureRequirements: pick('furnitureRequirements'),
         storage: pick('storage'),
         lightingRequirements: pick('lightingRequirements'),
@@ -411,10 +414,10 @@ export default function InteriorSiteDetailsScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={s.headerTitle}>Site Details</Text>
+              <Text style={s.headerTitle}>{tr("Site Details")}</Text>
               {!!customer?.leadNumber && (
                 <View style={s.leadBadge}>
-                  <Text style={s.leadBadgeText}>Lead: {customer.leadNumber}</Text>
+                  <Text style={s.leadBadgeText}>{tr("Lead: ")}{tr(customer.leadNumber)}</Text>
                 </View>
               )}
             </View>
@@ -429,9 +432,9 @@ export default function InteriorSiteDetailsScreen() {
               return (
                 <TouchableOpacity key={t.id} style={[s.tab, active && { backgroundColor: t.color }]} onPress={() => setActiveTab(t.id)}>
                   <Ionicons name={t.icon} size={14} color={active ? '#FFFFFF' : '#64748B'} />
-                  <Text style={[s.tabText, active && { color: '#FFFFFF' }]}>{t.label}</Text>
+                  <Text style={[s.tabText, active && { color: '#FFFFFF' }]}>{tr(t.label)}</Text>
                   {!!t.badge && (
-                    <Text style={[s.tabBadge, active ? s.tabBadgeActive : { color: t.color, backgroundColor: `${t.color}1A` }]}>{t.badge}</Text>
+                    <Text style={[s.tabBadge, active ? s.tabBadgeActive : { color: t.color, backgroundColor: `${t.color}1A` }]}>{tr(t.badge)}</Text>
                   )}
                 </TouchableOpacity>
               );
@@ -444,11 +447,11 @@ export default function InteriorSiteDetailsScreen() {
         ) : !customer ? (
           <View style={s.center}>
             <Ionicons name="clipboard-outline" size={44} color="#CBD5E1" />
-            <Text style={s.emptyTitle}>Site profile unavailable</Text>
-            <Text style={s.emptySub}>The site profile for this project could not be loaded. Tap Retry to try again.</Text>
+            <Text style={s.emptyTitle}>{tr("Site profile unavailable")}</Text>
+            <Text style={s.emptySub}>{tr("The site profile for this project could not be loaded. Tap Retry to try again.")}</Text>
             <TouchableOpacity style={[s.pillBtn, s.pillBlue, { marginTop: 10 }]} onPress={() => loadSiteDetails()}>
               <Ionicons name="refresh" size={12} color="#2563EB" />
-              <Text style={[s.pillBtnText, { color: '#2563EB' }]}>Retry</Text>
+              <Text style={[s.pillBtnText, { color: '#2563EB' }]}>{tr("Retry")}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -458,18 +461,18 @@ export default function InteriorSiteDetailsScreen() {
               <>
                 <View style={s.card}>
                   <View style={s.sectionHead}>
-                    <Text style={s.cardTitle}>Requirements</Text>
+                    <Text style={s.cardTitle}>{tr("Requirements")}</Text>
                     {canEditReq && (
                       <TouchableOpacity style={[s.pillBtn, s.pillGreenBtn]} onPress={() => setShowReqModal(true)}>
                         <Ionicons name={hasRequirements ? 'pencil' : 'add'} size={13} color="#059669" />
-                        <Text style={[s.pillBtnText, { color: '#059669' }]}>{hasRequirements ? 'Edit' : 'Add'}</Text>
+                        <Text style={[s.pillBtnText, { color: '#059669' }]}>{hasRequirements ? tr("Edit") : tr("Add")}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
                   <Rows
                     groups={[{ rows: [
                       ['Spaces', hasRequirements ? `${requirements.length} ${requirements.length === 1 ? 'space' : 'spaces'}` : ''],
-                      ['Budget', customer?.budgetRange || (projectInfo?.budget?.amount ? formatCompactCurrency(Number(projectInfo.budget.amount), projectInfo.budget.currency || 'INR') : '')],
+                      ['Budget', customer?.budgetRange || (projectInfo?.budget?.amount ? formatCompactCurrency(Number(projectInfo.budget.amount), orgCurrency.code) : '')],
                       ['Interior type', requirements[0]?.interiorType || customer?.propertyType || projectInfo?.type],
                       ['Style', requirements.find((r) => r.designStyle)?.designStyle || requirements[0]?.theme],
                     ] }]}
@@ -479,14 +482,14 @@ export default function InteriorSiteDetailsScreen() {
                 {/* Client intake link */}
                 <View style={s.card}>
                   <View style={s.sectionHead}>
-                    <Text style={s.cardTitle}>Client intake link</Text>
+                    <Text style={s.cardTitle}>{tr("Client intake link")}</Text>
                     <View style={[s.statusPill, { backgroundColor: intakeStatus.bg, borderColor: intakeStatus.border }]}>
                       {intakeStatus.dot ? <View style={s.statusDot} /> : intakeStatus.icon ? <Ionicons name={intakeStatus.icon} size={12} color={intakeStatus.color} /> : null}
-                      <Text style={[s.statusPillText, { color: intakeStatus.color }]}>{intakeStatus.label}</Text>
+                      <Text style={[s.statusPillText, { color: intakeStatus.color }]}>{tr(intakeStatus.label)}</Text>
                     </View>
                   </View>
                   <Text style={s.intakeDesc}>
-                    {intakeDescription}
+                    {tr(intakeDescription)}
                     {isLinkActive ? `  ·  ${currentExpiry.label}` : ''}
                   </Text>
 
@@ -495,15 +498,15 @@ export default function InteriorSiteDetailsScreen() {
                       <>
                         <TouchableOpacity style={[s.linkBtn, s.linkBtnMuted]} onPress={handleCopyLink} disabled={isGeneratingLink}>
                           <Ionicons name={copiedLink ? 'checkmark' : 'copy-outline'} size={14} color={copiedLink ? '#10B981' : '#0F172A'} />
-                          <Text style={s.linkBtnTextDark}>{copiedLink ? 'Copied' : 'Copy'}</Text>
+                          <Text style={s.linkBtnTextDark}>{copiedLink ? tr("Copied") : tr("Copy")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={[s.linkBtn, { backgroundColor: '#059669' }]} onPress={handleShareWhatsApp} disabled={isGeneratingLink}>
                           <Ionicons name="logo-whatsapp" size={14} color="#FFFFFF" />
-                          <Text style={s.linkBtnText}>WhatsApp</Text>
+                          <Text style={s.linkBtnText}>{tr("WhatsApp")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={[s.linkBtn, { backgroundColor: '#2563EB' }]} onPress={() => setShowEmailModal(true)}>
                           <Ionicons name="mail-outline" size={14} color="#FFFFFF" />
-                          <Text style={s.linkBtnText}>Email</Text>
+                          <Text style={s.linkBtnText}>{tr("Email")}</Text>
                         </TouchableOpacity>
                         {!!clientFormUrl && (
                           <TouchableOpacity style={[s.iconBtn, s.linkBtnMuted]} onPress={() => Linking.openURL(clientFormUrl)}>
@@ -517,12 +520,12 @@ export default function InteriorSiteDetailsScreen() {
                     ) : (isLinkStopped || isLinkExpired) ? (
                       <TouchableOpacity style={[s.linkBtn, s.linkBtnGreen]} onPress={() => handleReactivateLink(168)} disabled={isUpdatingExpiry}>
                         <Ionicons name="refresh" size={14} color="#059669" />
-                        <Text style={[s.linkBtnText, { color: '#059669' }]}>Reactivate link</Text>
+                        <Text style={[s.linkBtnText, { color: '#059669' }]}>{tr("Reactivate link")}</Text>
                       </TouchableOpacity>
                     ) : (
                       <TouchableOpacity style={[s.linkBtn, { backgroundColor: '#4F46E5' }]} onPress={handleCopyLink} disabled={isGeneratingLink}>
                         {isGeneratingLink ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="share-social-outline" size={14} color="#FFFFFF" />}
-                        <Text style={s.linkBtnText}>Generate link</Text>
+                        <Text style={s.linkBtnText}>{tr("Generate link")}</Text>
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity style={[s.iconBtn, s.linkBtnMuted]} onPress={() => setShowShareModal(true)}>
@@ -532,7 +535,7 @@ export default function InteriorSiteDetailsScreen() {
 
                   {isLinkActive && (
                     <View style={s.expiryRow}>
-                      <Text style={s.expiryLabel}>Expires in</Text>
+                      <Text style={s.expiryLabel}>{tr("Expires in")}</Text>
                       {EXPIRY_CHOICES.map((c) => {
                         const active = currentExpiryChoice === c.hours;
                         return (
@@ -542,7 +545,7 @@ export default function InteriorSiteDetailsScreen() {
                             disabled={isUpdatingExpiry || active}
                             onPress={() => handleChangeExpiry(c.hours)}
                           >
-                            <Text style={[s.expiryChipText, active && s.expiryChipTextActive]}>{c.label}</Text>
+                            <Text style={[s.expiryChipText, active && s.expiryChipTextActive]}>{tr(c.label)}</Text>
                           </TouchableOpacity>
                         );
                       })}
@@ -552,8 +555,8 @@ export default function InteriorSiteDetailsScreen() {
 
                   {!!customer?.clientRequirementsNotes && (
                     <Text style={s.clientNote}>
-                      <Text style={{ fontFamily: 'Inter-SemiBold', fontStyle: 'normal', color: '#059669' }}>Client note: </Text>
-                      "{customer.clientRequirementsNotes}"
+                      <Text style={{ fontFamily: 'Inter-SemiBold', fontStyle: 'normal', color: '#059669' }}>{tr("Client note: ")}</Text>
+                      "{tr(customer.clientRequirementsNotes)}"
                     </Text>
                   )}
                 </View>
@@ -565,9 +568,9 @@ export default function InteriorSiteDetailsScreen() {
                       <View style={s.sectionHead}>
                         <View style={[s.rowCenter, { flex: 1 }]}>
                           <Text style={s.reqIndex}>{idx + 1}</Text>
-                          <Text style={s.cardTitle} numberOfLines={1}>{req.roomName || 'General space'}</Text>
+                          <Text style={s.cardTitle} numberOfLines={1}>{req.roomName || tr("General space")}</Text>
                         </View>
-                        {(req.source === 'client' || isClientSubmittedOnly) && <Text style={[s.tag, s.tagGreen]}>Client wishlist</Text>}
+                        {(req.source === 'client' || isClientSubmittedOnly) && <Text style={[s.tag, s.tagGreen]}>{tr("Client wishlist")}</Text>}
                       </View>
                       <Rows
                         groups={[
@@ -583,12 +586,12 @@ export default function InteriorSiteDetailsScreen() {
                 ) : (
                   <View style={[s.card, s.emptyBox]}>
                     <Ionicons name="clipboard-outline" size={28} color="#059669" />
-                    <Text style={s.emptyTitle}>No requirements yet</Text>
-                    <Text style={s.emptySub}>Add room-by-room requirements, or share the intake link with the client.</Text>
+                    <Text style={s.emptyTitle}>{tr("No requirements yet")}</Text>
+                    <Text style={s.emptySub}>{tr("Add room-by-room requirements, or share the intake link with the client.")}</Text>
                     {canEditReq && (
                       <TouchableOpacity style={[s.solidBtn, { backgroundColor: '#059669' }]} onPress={() => setShowReqModal(true)}>
                         <Ionicons name="add" size={15} color="#FFFFFF" />
-                        <Text style={s.solidBtnText}>Add requirements</Text>
+                        <Text style={s.solidBtnText}>{tr("Add requirements")}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -600,17 +603,17 @@ export default function InteriorSiteDetailsScreen() {
             {showMeasurements && (
               <View style={s.card}>
                 <View style={s.sectionHead}>
-                  <Text style={s.cardTitle}>Site measurements</Text>
+                  <Text style={s.cardTitle}>{tr("Site measurements")}</Text>
                   {canEditSiteVisit && (
                     <TouchableOpacity style={[s.pillBtn, s.pillPurple]} onPress={() => setShowSiteVisitModal(true)}>
                       <Ionicons name={hasMeasurements ? 'pencil' : 'add'} size={13} color="#7C3AED" />
-                      <Text style={[s.pillBtnText, { color: '#7C3AED' }]}>{hasMeasurements ? 'Edit' : 'Log'}</Text>
+                      <Text style={[s.pillBtnText, { color: '#7C3AED' }]}>{hasMeasurements ? tr("Edit") : tr("Log")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
                 {!!customer?.siteVisitScheduledDate && (
                   <Text style={s.intakeDesc}>
-                    Site visit {new Date(customer.siteVisitScheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {tr("Site visit ")}{new Date(customer.siteVisitScheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </Text>
                 )}
                 {hasMeasurements || customer?.remarks ? (
@@ -644,12 +647,12 @@ export default function InteriorSiteDetailsScreen() {
                 ) : (
                   <View style={s.emptyBox}>
                     <Ionicons name="resize-outline" size={28} color="#7C3AED" />
-                    <Text style={s.emptyTitle}>No measurements yet</Text>
-                    <Text style={s.emptySub}>Log carpet area, ceiling height, openings and services.</Text>
+                    <Text style={s.emptyTitle}>{tr("No measurements yet")}</Text>
+                    <Text style={s.emptySub}>{tr("Log carpet area, ceiling height, openings and services.")}</Text>
                     {canEditSiteVisit && (
                       <TouchableOpacity style={[s.solidBtn, { backgroundColor: '#7C3AED' }]} onPress={() => setShowSiteVisitModal(true)}>
                         <Ionicons name="add" size={15} color="#FFFFFF" />
-                        <Text style={s.solidBtnText}>Log measurements</Text>
+                        <Text style={s.solidBtnText}>{tr("Log measurements")}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -661,11 +664,11 @@ export default function InteriorSiteDetailsScreen() {
             {showPhotos && (
               <View style={s.card}>
                 <View style={s.sectionHead}>
-                  <Text style={s.cardTitle}>Site photos ({sitePhotos.length})</Text>
+                  <Text style={s.cardTitle}>{tr("Site photos (")}{sitePhotos.length})</Text>
                   {canEditPhotos && (
                     <TouchableOpacity style={[s.pillBtn, s.pillBlue]} onPress={handleDirectPhotoUpload} disabled={uploadingPhotos}>
                       {uploadingPhotos ? <ActivityIndicator size="small" color="#2563EB" /> : <Ionicons name="cloud-upload-outline" size={14} color="#2563EB" />}
-                      <Text style={[s.pillBtnText, { color: '#2563EB' }]}>{uploadingPhotos ? 'Uploading…' : 'Upload'}</Text>
+                      <Text style={[s.pillBtnText, { color: '#2563EB' }]}>{uploadingPhotos ? tr("Uploading…") : tr("Upload")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -680,8 +683,8 @@ export default function InteriorSiteDetailsScreen() {
                 ) : (
                   <View style={s.emptyBox}>
                     <Ionicons name="image-outline" size={28} color="#94A3B8" />
-                    <Text style={s.emptyTitle}>No site photos yet</Text>
-                    <Text style={s.emptySub}>Upload site inspection and progress photos.</Text>
+                    <Text style={s.emptyTitle}>{tr("No site photos yet")}</Text>
+                    <Text style={s.emptySub}>{tr("Upload site inspection and progress photos.")}</Text>
                   </View>
                 )}
               </View>
@@ -740,15 +743,15 @@ function Rows({ groups, empty = 'Nothing recorded yet.' }) {
   const shown = groups
     .map((g) => ({ ...g, rows: g.rows.filter(([, v]) => v != null && String(v).trim() !== '') }))
     .filter((g) => g.rows.length > 0);
-  if (shown.length === 0) return <Text style={s.emptyInline}>{empty}</Text>;
+  if (shown.length === 0) return <Text style={s.emptyInline}>{tr(empty)}</Text>;
   return (
     <View style={{ gap: 14 }}>
       {shown.map((g, gi) => (
         <View key={g.title || gi}>
-          {!!g.title && <Text style={s.groupTitle}>{g.title}</Text>}
+          {!!g.title && <Text style={s.groupTitle}>{tr(g.title)}</Text>}
           {g.rows.map(([label, value, warn], ri) => (
             <View key={label || ri} style={[s.kvRow, ri === g.rows.length - 1 && { borderBottomWidth: 0 }]}>
-              {!!label && <Text style={s.kvLabel}>{label}</Text>}
+              {!!label && <Text style={s.kvLabel}>{tr(label)}</Text>}
               <Text style={[s.kvValue, !label && { textAlign: 'left' }, warn && { color: '#B91C1C' }]}>{String(value)}</Text>
             </View>
           ))}

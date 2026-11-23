@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -6,6 +7,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useOrgCurrency } from '../../utils/interior/orgCurrency';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
@@ -67,7 +69,7 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', i
     <View>
       <TouchableOpacity style={[inputStyle, ctrlStyles.row]} onPress={() => setOpen((v) => !v)}>
         <Text style={[ctrlStyles.text, !selected && ctrlStyles.placeholder]} numberOfLines={1}>
-          {selected ? selected.label : placeholder}
+          {selected ? tr(selected.label) : placeholder}
         </Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
       </TouchableOpacity>
@@ -82,7 +84,7 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', i
                   style={[ctrlStyles.menuItem, active && ctrlStyles.menuItemActive]}
                   onPress={() => { onChange(o.value); setOpen(false); }}
                 >
-                  <Text style={[ctrlStyles.menuItemText, active && ctrlStyles.menuItemTextActive]} numberOfLines={1}>{o.label}</Text>
+                  <Text style={[ctrlStyles.menuItemText, active && ctrlStyles.menuItemTextActive]} numberOfLines={1}>{tr(o.label)}</Text>
                   {active && <Ionicons name="checkmark" size={14} color="#2563EB" />}
                 </TouchableOpacity>
               );
@@ -169,7 +171,8 @@ const { can: canDo } = useProjectPermissions(projectId);
   const [activeCategory, setActiveCategory] = useState('incoming');
   const [payments, setPayments] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
-  const [projectCurrency, setProjectCurrency] = useState('INR');
+  // Interior amounts are in the organisation's currency
+  const projectCurrency = useOrgCurrency().code;
   // Invoice / receipt for incoming payments (same as the web View / Download)
   const [project, setProject] = useState(null);
   const [previewInvoice, setPreviewInvoice] = useState(null);
@@ -196,9 +199,6 @@ const { can: canDo } = useProjectPermissions(projectId);
       setPayments(payRes.status === 'fulfilled' && payRes.value?.success ? payRes.value.data || [] : []);
       setPurchaseOrders(poRes.status === 'fulfilled' && poRes.value?.success ? poRes.value.data || [] : []);
       if (projRes.status === 'fulfilled' && projRes.value?.data) setProject(projRes.value.data);
-      if (projRes.status === 'fulfilled' && projRes.value?.data?.currency) {
-        setProjectCurrency(projRes.value.data.currency);
-      }
     } catch (e) {
       console.error('Failed to load payments', e);
       setPayments([]);
@@ -244,16 +244,16 @@ const { can: canDo } = useProjectPermissions(projectId);
   };
 
   const handleDeletePayment = (tx) => {
-    Alert.alert('Delete Payment Record', 'Are you sure you want to delete this payment record? This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete Payment Record"), tr("Are you sure you want to delete this payment record? This cannot be undone."), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: tr("Delete"), style: 'destructive', onPress: async () => {
           try {
             await interiorApiClient.delete(`/projects/${projectId}/payments/${tx._id}`);
-            showToast('Payment record deleted successfully', 'success');
+            showToast(tr("Payment record deleted successfully"), 'success');
             loadPayments();
           } catch (e) {
-            showToast(e.message || 'Failed to delete payment', 'error');
+            showToast(e.message || tr("Failed to delete payment"), 'error');
           }
         },
       },
@@ -266,11 +266,11 @@ const { can: canDo } = useProjectPermissions(projectId);
     setSubmitting(true);
     try {
       await interiorApiClient.post(`/projects/${projectId}/payments`, payload);
-      showToast('Payment recorded successfully', 'success');
+      showToast(tr("Payment recorded successfully"), 'success');
       onSuccess();
       loadPayments();
     } catch (e) {
-      showToast(e.message || 'Failed to record payment', 'error');
+      showToast(e.message || tr("Failed to record payment"), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -278,8 +278,8 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleIncomingSubmit = () => {
     const amt = parseFloat(incomingForm.amount);
-    if (!amt || amt <= 0) return showToast('Enter a valid payment amount', 'error');
-    if (!incomingForm.referenceNo.trim()) return showToast('Reference / UTR number is required', 'error');
+    if (!amt || amt <= 0) return showToast(tr("Enter a valid payment amount"), 'error');
+    if (!incomingForm.referenceNo.trim()) return showToast(tr("Reference / UTR number is required"), 'error');
     submitPayment(
       {
         type: 'incoming',
@@ -297,9 +297,9 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleOutgoingSubmit = () => {
     const amt = parseFloat(outgoingForm.amount);
-    if (!outgoingForm.vendorName.trim()) return showToast('Vendor / contractor name is required', 'error');
-    if (!amt || amt <= 0) return showToast('Enter a valid payout amount', 'error');
-    if (!outgoingForm.referenceNo.trim()) return showToast('Reference / UTR number is required', 'error');
+    if (!outgoingForm.vendorName.trim()) return showToast(tr("Vendor / contractor name is required"), 'error');
+    if (!amt || amt <= 0) return showToast(tr("Enter a valid payout amount"), 'error');
+    if (!outgoingForm.referenceNo.trim()) return showToast(tr("Reference / UTR number is required"), 'error');
     submitPayment(
       {
         type: 'outgoing',
@@ -316,13 +316,13 @@ const { can: canDo } = useProjectPermissions(projectId);
     );
   };
 
-  const invoiceSymbol = getCurrencySymbol(project?.budget?.currency || projectCurrency);
+  const invoiceSymbol = getCurrencySymbol(projectCurrency);
   const runInvoice = async (key, fn, tx) => {
     setInvoiceBusy(key);
     try {
       await fn(tx, project, invoiceSymbol);
     } catch (e) {
-      if (!/cancel/i.test(e?.message || '')) showToast(e?.message || 'Failed to generate the invoice', 'error');
+      if (!/cancel/i.test(e?.message || '')) showToast(e?.message || tr("Failed to generate the invoice"), 'error');
     } finally {
       setInvoiceBusy(null);
     }
@@ -340,22 +340,22 @@ const { can: canDo } = useProjectPermissions(projectId);
       ) : incoming.map((tx) => (
         <View key={tx._id} style={s.card}>
           <View style={s.cardTopRow}>
-            <Text style={s.cardTitle} numberOfLines={1}>{tx.invoiceNo}</Text>
+            <Text style={s.cardTitle} numberOfLines={1}>{tr(tx.invoiceNo)}</Text>
             <Text style={[s.cardAmount, { color: '#16A34A' }]}>+{fmt(tx.amount)}</Text>
           </View>
-          <Text style={s.cardSub}>{tx.milestoneName}</Text>
+          <Text style={s.cardSub}>{tr(tx.milestoneName)}</Text>
           <View style={s.cardBottomRow}>
-            <Text style={s.cardMeta}>{tx.paymentMethod} • Ref: {tx.referenceNo}</Text>
+            <Text style={s.cardMeta}>{tr(tx.paymentMethod)}{tr(" • Ref: ")}{tr(tx.referenceNo)}</Text>
             <Text style={s.cardMeta}>{formatDate(tx.paymentDate)}</Text>
           </View>
           <View style={s.cardFooterRow}>
             <View style={[s.statusPill, { backgroundColor: '#F0FDF4' }]}>
-              <Text style={[s.statusPillText, { color: '#16A34A' }]}>{tx.incomingStatus || 'Completed'}</Text>
+              <Text style={[s.statusPillText, { color: '#16A34A' }]}>{tx.incomingStatus || tr("Completed")}</Text>
             </View>
             <View style={s.invoiceActions}>
               <TouchableOpacity style={s.invoiceBtn} onPress={() => setPreviewInvoice(tx)}>
                 <Ionicons name="eye-outline" size={14} color="#1D4ED8" />
-                <Text style={s.invoiceBtnText}>View</Text>
+                <Text style={s.invoiceBtnText}>{tr("View")}</Text>
               </TouchableOpacity>
               {canDo('financials', 'export') && (
                 <TouchableOpacity
@@ -366,7 +366,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                   {invoiceBusy === `${tx._id}:pdf`
                     ? <ActivityIndicator size="small" color="#1D4ED8" />
                     : <Ionicons name="download-outline" size={14} color="#1D4ED8" />}
-                  <Text style={s.invoiceBtnText}>PDF</Text>
+                  <Text style={s.invoiceBtnText}>{tr("PDF")}</Text>
                 </TouchableOpacity>
               )}
               {canDo('financials', 'delete') && (
@@ -385,17 +385,17 @@ const { can: canDo } = useProjectPermissions(projectId);
       ) : outgoing.map((tx) => (
         <View key={tx._id} style={s.card}>
           <View style={s.cardTopRow}>
-            <Text style={s.cardTitle} numberOfLines={1}>{tx.vendorName}</Text>
+            <Text style={s.cardTitle} numberOfLines={1}>{tr(tx.vendorName)}</Text>
             <Text style={[s.cardAmount, { color: '#DC2626' }]}>-{fmt(tx.amount)}</Text>
           </View>
-          <Text style={s.cardSub}>{tx.poNo} • {tx.category}</Text>
+          <Text style={s.cardSub}>{tr(tx.poNo)} • {tr(tx.category)}</Text>
           <View style={s.cardBottomRow}>
-            <Text style={s.cardMeta}>{tx.paymentMethod} • Ref: {tx.referenceNo}</Text>
+            <Text style={s.cardMeta}>{tr(tx.paymentMethod)}{tr(" • Ref: ")}{tr(tx.referenceNo)}</Text>
             <Text style={s.cardMeta}>{formatDate(tx.paymentDate)}</Text>
           </View>
           <View style={s.cardFooterRow}>
             <View style={[s.statusPill, { backgroundColor: tx.outgoingStatus === 'Paid' ? '#F0FDF4' : '#FFFBEB' }]}>
-              <Text style={[s.statusPillText, { color: tx.outgoingStatus === 'Paid' ? '#16A34A' : '#D97706' }]}>{tx.outgoingStatus || 'Paid'}</Text>
+              <Text style={[s.statusPillText, { color: tx.outgoingStatus === 'Paid' ? '#16A34A' : '#D97706' }]}>{tx.outgoingStatus || tr("Paid")}</Text>
             </View>
             {canDo('financials', 'delete') && (
               <TouchableOpacity onPress={() => handleDeletePayment(tx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -418,7 +418,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Payments & Financial Ledger</Text>
+            <Text style={s.headerTitle}>{tr("Payments & Financial Ledger")}</Text>
           </View>
         </View>
 
@@ -428,15 +428,15 @@ const { can: canDo } = useProjectPermissions(projectId);
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.summaryRow}>
               <View style={s.summaryCard}>
-                <Text style={s.summaryLabel}>Net Balance</Text>
+                <Text style={s.summaryLabel}>{tr("Net Balance")}</Text>
                 <Text style={[s.summaryValue, { color: netBalance >= 0 ? '#16A34A' : '#DC2626' }]}>{fmt(Math.abs(netBalance))}</Text>
               </View>
               <View style={s.summaryCard}>
-                <Text style={s.summaryLabel}>Incoming</Text>
+                <Text style={s.summaryLabel}>{tr("Incoming")}</Text>
                 <Text style={[s.summaryValue, { color: '#16A34A' }]}>{fmt(allIncoming.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
               </View>
               <View style={s.summaryCard}>
-                <Text style={s.summaryLabel}>Outgoing</Text>
+                <Text style={s.summaryLabel}>{tr("Outgoing")}</Text>
                 <Text style={[s.summaryValue, { color: '#DC2626' }]}>{fmt(allOutgoing.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
               </View>
             </ScrollView>
@@ -446,7 +446,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                 const active = activeCategory === c.key;
                 return (
                   <TouchableOpacity key={c.key} style={[s.tabBtn, active && s.tabBtnActive]} onPress={() => setActiveCategory(c.key)} activeOpacity={0.8}>
-                    <Text style={[s.tabBtnText, active && { color: c.color }]} numberOfLines={1}>{c.label}</Text>
+                    <Text style={[s.tabBtnText, active && { color: c.color }]} numberOfLines={1}>{tr(c.label)}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -454,7 +454,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
             <View style={s.searchRow}>
               <Ionicons name="search" size={15} color="#94A3B8" style={{ marginRight: 8 }} />
-              <TextInput style={s.searchInput} placeholder="Search by reference, vendor, invoice..." placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
+              <TextInput style={s.searchInput} placeholder={tr("Search by reference, vendor, invoice...")} placeholderTextColor="#94A3B8" value={searchQuery} onChangeText={setSearchQuery} />
             </View>
 
             {renderList()}
@@ -474,44 +474,44 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Record Incoming Payment</Text>
+              <Text style={s.modalTitle}>{tr("Record Incoming Payment")}</Text>
               <TouchableOpacity onPress={() => setIncomingModalOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Contract Milestone</Text>
+              <Text style={s.label}>{tr("Contract Milestone")}</Text>
               <SelectDropdown
                 value={incomingForm.milestoneName}
                 options={MILESTONE_OPTIONS.map((m) => ({ value: m, label: m }))}
                 onChange={(v) => setIncomingForm({ ...incomingForm, milestoneName: v })}
-                placeholder="Select milestone"
+                placeholder={tr("Select milestone")}
                 inputStyle={s.input}
               />
 
-              <Text style={s.label}>Amount ({getCurrencySymbol(projectCurrency)})</Text>
+              <Text style={s.label}>{tr("Amount (")}{getCurrencySymbol(projectCurrency)})</Text>
               <TextInput style={s.input} placeholder="e.g. 250000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={incomingForm.amount} onChangeText={(v) => setIncomingForm({ ...incomingForm, amount: v })} />
 
-              <Text style={s.label}>Payment Date</Text>
+              <Text style={s.label}>{tr("Payment Date")}</Text>
               <DateField value={incomingForm.paymentDate} onChange={(v) => setIncomingForm({ ...incomingForm, paymentDate: v })} inputStyle={s.input} />
 
-              <Text style={s.label}>Payment Mode</Text>
+              <Text style={s.label}>{tr("Payment Mode")}</Text>
               <SelectDropdown
                 value={incomingForm.paymentMethod}
                 options={PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
                 onChange={(v) => setIncomingForm({ ...incomingForm, paymentMethod: v })}
-                placeholder="Select payment mode"
+                placeholder={tr("Select payment mode")}
                 inputStyle={s.input}
               />
 
-              <Text style={s.label}>Ref / Transaction Number</Text>
-              <TextInput style={s.input} placeholder="e.g. WIRE-89210928 / CHQ-4401" placeholderTextColor="#94A3B8" value={incomingForm.referenceNo} onChangeText={(v) => setIncomingForm({ ...incomingForm, referenceNo: v })} />
+              <Text style={s.label}>{tr("Ref / Transaction Number")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. WIRE-89210928 / CHQ-4401")} placeholderTextColor="#94A3B8" value={incomingForm.referenceNo} onChangeText={(v) => setIncomingForm({ ...incomingForm, referenceNo: v })} />
 
-              <Text style={s.label}>Remarks</Text>
-              <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholder="Enter transaction notes..." placeholderTextColor="#94A3B8" value={incomingForm.remarks} onChangeText={(v) => setIncomingForm({ ...incomingForm, remarks: v })} />
+              <Text style={s.label}>{tr("Remarks")}</Text>
+              <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholder={tr("Enter transaction notes...")} placeholderTextColor="#94A3B8" value={incomingForm.remarks} onChangeText={(v) => setIncomingForm({ ...incomingForm, remarks: v })} />
 
               <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.6 }]} onPress={handleIncomingSubmit} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Save Incoming Payment</Text>}
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Save Incoming Payment")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -523,7 +523,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Record Outgoing Payment</Text>
+              <Text style={s.modalTitle}>{tr("Record Outgoing Payment")}</Text>
               <TouchableOpacity onPress={() => setOutgoingModalOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
@@ -531,55 +531,55 @@ const { can: canDo } = useProjectPermissions(projectId);
             <ScrollView showsVerticalScrollIndicator={false}>
               {purchaseOrders.length > 0 && (
                 <>
-                  <Text style={s.label}>Link Purchase Order (Optional)</Text>
+                  <Text style={s.label}>{tr("Link Purchase Order (Optional)")}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
                     <TouchableOpacity style={[s.pill, !selectedPoId && s.pillActive]} onPress={() => handlePoSelect('')}>
-                      <Text style={[s.pillText, !selectedPoId && s.pillTextActive]}>Direct Payment (No PO)</Text>
+                      <Text style={[s.pillText, !selectedPoId && s.pillTextActive]}>{tr("Direct Payment (No PO)")}</Text>
                     </TouchableOpacity>
                     {purchaseOrders.map((po) => (
                       <TouchableOpacity key={po._id} style={[s.pill, selectedPoId === po._id && s.pillActive]} onPress={() => handlePoSelect(po._id)}>
-                        <Text style={[s.pillText, selectedPoId === po._id && s.pillTextActive]} numberOfLines={1}>{po.poNumber} · {po.materialName}</Text>
+                        <Text style={[s.pillText, selectedPoId === po._id && s.pillTextActive]} numberOfLines={1}>{tr(po.poNumber)} · {tr(po.materialName)}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
                 </>
               )}
 
-              <Text style={s.label}>Vendor / Contractor Name</Text>
-              <TextInput style={s.input} placeholder="e.g. Royal Wood Suppliers" placeholderTextColor="#94A3B8" value={outgoingForm.vendorName} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, vendorName: v })} />
+              <Text style={s.label}>{tr("Vendor / Contractor Name")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Royal Wood Suppliers")} placeholderTextColor="#94A3B8" value={outgoingForm.vendorName} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, vendorName: v })} />
 
-              <Text style={s.label}>Expense Category</Text>
+              <Text style={s.label}>{tr("Expense Category")}</Text>
               <View style={s.pillWrap}>
                 {EXPENSE_CATEGORIES.map((c) => (
                   <TouchableOpacity key={c} style={[s.pill, outgoingForm.category === c && s.pillActive]} onPress={() => setOutgoingForm({ ...outgoingForm, category: c })}>
-                    <Text style={[s.pillText, outgoingForm.category === c && s.pillTextActive]}>{c}</Text>
+                    <Text style={[s.pillText, outgoingForm.category === c && s.pillTextActive]}>{tr(c)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.label}>Amount ({getCurrencySymbol(projectCurrency)})</Text>
+              <Text style={s.label}>{tr("Amount (")}{getCurrencySymbol(projectCurrency)})</Text>
               <TextInput style={s.input} placeholder="e.g. 150000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={outgoingForm.amount} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, amount: v })} />
 
-              <Text style={s.label}>Payment Date</Text>
+              <Text style={s.label}>{tr("Payment Date")}</Text>
               <DateField value={outgoingForm.paymentDate} onChange={(v) => setOutgoingForm({ ...outgoingForm, paymentDate: v })} inputStyle={s.input} />
 
-              <Text style={s.label}>Payment Mode</Text>
+              <Text style={s.label}>{tr("Payment Mode")}</Text>
               <SelectDropdown
                 value={outgoingForm.paymentMethod}
                 options={PAYMENT_METHODS.map((m) => ({ value: m, label: m }))}
                 onChange={(v) => setOutgoingForm({ ...outgoingForm, paymentMethod: v })}
-                placeholder="Select payment mode"
+                placeholder={tr("Select payment mode")}
                 inputStyle={s.input}
               />
 
-              <Text style={s.label}>Ref / Transaction Number</Text>
-              <TextInput style={s.input} placeholder="e.g. TXN-9812401" placeholderTextColor="#94A3B8" value={outgoingForm.referenceNo} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, referenceNo: v })} />
+              <Text style={s.label}>{tr("Ref / Transaction Number")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. TXN-9812401")} placeholderTextColor="#94A3B8" value={outgoingForm.referenceNo} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, referenceNo: v })} />
 
-              <Text style={s.label}>Remarks</Text>
-              <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholder="Enter transaction notes..." placeholderTextColor="#94A3B8" value={outgoingForm.remarks} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, remarks: v })} />
+              <Text style={s.label}>{tr("Remarks")}</Text>
+              <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholder={tr("Enter transaction notes...")} placeholderTextColor="#94A3B8" value={outgoingForm.remarks} onChangeText={(v) => setOutgoingForm({ ...outgoingForm, remarks: v })} />
 
               <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.6 }]} onPress={handleOutgoingSubmit} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Save Outgoing Payment</Text>}
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Save Outgoing Payment")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -591,9 +591,9 @@ const { can: canDo } = useProjectPermissions(projectId);
         <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F5F9' }}>
           <View style={s.invoiceHeader}>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={s.invoiceHeaderTitle}>Payment Invoice & Receipt</Text>
+              <Text style={s.invoiceHeaderTitle}>{tr("Payment Invoice & Receipt")}</Text>
               <Text style={s.invoiceHeaderSub} numberOfLines={1}>
-                {previewInvoice?.invoiceNo || 'Invoice'} • {previewInvoice ? fmt(previewInvoice.amount) : ''}
+                {previewInvoice?.invoiceNo || tr("Invoice")} • {previewInvoice ? fmt(previewInvoice.amount) : ''}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setPreviewInvoice(null)} style={s.invoiceClose}>
@@ -610,7 +610,7 @@ const { can: canDo } = useProjectPermissions(projectId);
           <View style={s.invoiceFooter}>
             <TouchableOpacity style={s.invoiceFooterBtn} onPress={() => runInvoice('print', printInvoice, previewInvoice)} disabled={!!invoiceBusy}>
               {invoiceBusy === 'print' ? <ActivityIndicator size="small" color="#334155" /> : <Ionicons name="print-outline" size={16} color="#334155" />}
-              <Text style={s.invoiceFooterText}>Print</Text>
+              <Text style={s.invoiceFooterText}>{tr("Print")}</Text>
             </TouchableOpacity>
             {canDo('financials', 'export') && (
               <TouchableOpacity
@@ -619,7 +619,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                 disabled={!!invoiceBusy}
               >
                 {invoiceBusy === 'preview:pdf' ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="download-outline" size={16} color="#FFFFFF" />}
-                <Text style={[s.invoiceFooterText, { color: '#FFFFFF' }]}>Download PDF</Text>
+                <Text style={[s.invoiceFooterText, { color: '#FFFFFF' }]}>{tr("Download PDF")}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -633,7 +633,7 @@ function Empty({ icon, text }) {
   return (
     <View style={s.empty}>
       <Ionicons name={icon} size={40} color="#CBD5E1" />
-      <Text style={s.emptyTitle}>{text}</Text>
+      <Text style={s.emptyTitle}>{tr(text)}</Text>
     </View>
   );
 }

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
@@ -135,8 +136,8 @@ export default function DashboardScreen() {
         <SafeAreaView style={s.container} edges={['bottom']}>
           <View style={[s.header, { paddingTop: insets.top + 12 }]}>
             <View>
-              <Text style={s.headerGreeting}>Good {getTimeOfDay()}, {user?.name?.split(' ')[0] || 'there'}</Text>
-              <Text style={s.pageTitle}>Dashboard</Text>
+              <Text style={s.headerGreeting}>{tr("Good ")}{getTimeOfDay()}, {user?.name?.split(' ')[0] || tr("there")}</Text>
+              <Text style={s.pageTitle}>{tr("Dashboard")}</Text>
             </View>
             <View style={s.headerRight}>
               <View style={s.bellScale}>
@@ -179,7 +180,7 @@ export default function DashboardScreen() {
       label: label.length > 9 ? label.slice(0, 8) + '…' : label,
       frontColor: STATUS_META[label]?.color || '#94A3B8',
       topLabelComponent: () => (
-        <Text style={{ fontSize: 9, color: '#64748B', marginBottom: 2 }}>{value}</Text>
+        <Text style={{ fontSize: 9, color: '#64748B', marginBottom: 2 }}>{tr(value)}</Text>
       ),
     }));
 
@@ -205,26 +206,26 @@ export default function DashboardScreen() {
         <SafeAreaView style={s.container} edges={['bottom']}>
           <View style={[s.header, { paddingTop: insets.top + 12, backgroundColor: '#DBEAFE', borderBottomColor: '#DBEAFE' }]}>
             <View>
-              <Text style={[s.headerGreeting, { color: '#1D4ED8' }]}>Good {getTimeOfDay()}, {user?.firstName || user?.name?.split(' ')[0] || 'there'}</Text>
-              <Text style={s.pageTitle}>Interior Workspace</Text>
+              <Text style={[s.headerGreeting, { color: '#1D4ED8' }]}>{tr("Good ")}{getTimeOfDay()}, {user?.firstName || user?.name?.split(' ')[0] || tr("there")}</Text>
+              <Text style={s.pageTitle}>{tr("Interior Workspace")}</Text>
             </View>
             <HeaderNotification />
           </View>
           <View style={[s.card, { alignItems: 'center', paddingVertical: 36, margin: 16 }]}>
             <Ionicons name="grid-outline" size={34} color="#94A3B8" />
-            <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 10 }}>Dashboard not included in your role</Text>
+            <Text style={{ fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 10 }}>{tr("Dashboard not included in your role")}</Text>
             <Text style={{ fontSize: 13.5, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center', marginTop: 4, marginBottom: 14 }}>
-              Open the sections you work in:
+              {tr("Open the sections you work in:")}
             </Text>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               {interiorNav.projects && (
                 <TouchableOpacity style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, backgroundColor: '#2563EB' }} onPress={() => router.push('/i-project')}>
-                  <Text style={{ color: '#FFFFFF', fontFamily: 'Inter-Bold', fontSize: 14 }}>Projects</Text>
+                  <Text style={{ color: '#FFFFFF', fontFamily: 'Inter-Bold', fontSize: 14 }}>{tr("Projects")}</Text>
                 </TouchableOpacity>
               )}
               {interiorNav.crm && (
                 <TouchableOpacity style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE' }} onPress={() => router.push('/crm')}>
-                  <Text style={{ color: '#2563EB', fontFamily: 'Inter-Bold', fontSize: 14 }}>CRM</Text>
+                  <Text style={{ color: '#2563EB', fontFamily: 'Inter-Bold', fontSize: 14 }}>{tr("CRM")}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -267,8 +268,8 @@ export default function DashboardScreen() {
         <SafeAreaView style={s.container} edges={['bottom']}>
           <View style={[s.header, { paddingTop: insets.top + 12, backgroundColor: '#DBEAFE', borderBottomColor: '#DBEAFE' }]}>
             <View>
-              <Text style={[s.headerGreeting, { color: '#1D4ED8' }]}>Good {getTimeOfDay()}, {user?.firstName || user?.name?.split(' ')[0] || 'there'}</Text>
-              <Text style={s.pageTitle}>Interior Workspace</Text>
+              <Text style={[s.headerGreeting, { color: '#1D4ED8' }]}>{tr("Good ")}{getTimeOfDay()}, {user?.firstName || user?.name?.split(' ')[0] || tr("there")}</Text>
+              <Text style={s.pageTitle}>{tr("Interior Workspace")}</Text>
             </View>
             <HeaderNotification />
           </View>
@@ -282,26 +283,26 @@ export default function DashboardScreen() {
             }
           >
             {/* Stats */}
-            <SectionLabel title="Summary" />
+            <SectionLabel title={tr("Summary")} />
             <View style={s.interiorStatsGrid}>
-              <InteriorStatCard icon="people-outline" iconBg="#EFF6FF" iconColor="#2563EB" label="Total Leads" value={kpis.totalLeads || 0} />
-              <InteriorStatCard icon="person-add-outline" iconBg="#F5F3FF" iconColor="#7C3AED" label="New Leads" value={kpis.newLeads || 0} />
-              <InteriorStatCard icon="trending-up-outline" iconBg="#FFFBEB" iconColor="#D97706" label="Active Pipeline" value={kpis.activeLeads || 0} />
-              <InteriorStatCard icon="checkmark-circle-outline" iconBg="#F0FDF4" iconColor="#16A34A" label="Won Projects" value={kpis.wonLeads || 0} />
-              <InteriorStatCard icon="folder-outline" iconBg="#F0F9FF" iconColor="#0284C7" label="Active Projects" value={kpis.activeProjects || 0} />
-              <InteriorStatCard icon="bug-outline" iconBg="#FEF2F2" iconColor="#DC2626" label="Open Snags" value={kpis.openSnags || 0} />
+              <InteriorStatCard icon="people-outline" iconBg="#EFF6FF" iconColor="#2563EB" label={tr("Total Leads")} value={kpis.totalLeads || 0} />
+              <InteriorStatCard icon="person-add-outline" iconBg="#F5F3FF" iconColor="#7C3AED" label={tr("New Leads")} value={kpis.newLeads || 0} />
+              <InteriorStatCard icon="trending-up-outline" iconBg="#FFFBEB" iconColor="#D97706" label={tr("Active Pipeline")} value={kpis.activeLeads || 0} />
+              <InteriorStatCard icon="checkmark-circle-outline" iconBg="#F0FDF4" iconColor="#16A34A" label={tr("Won Projects")} value={kpis.wonLeads || 0} />
+              <InteriorStatCard icon="folder-outline" iconBg="#F0F9FF" iconColor="#0284C7" label={tr("Active Projects")} value={kpis.activeProjects || 0} />
+              <InteriorStatCard icon="bug-outline" iconBg="#FEF2F2" iconColor="#DC2626" label={tr("Open Snags")} value={kpis.openSnags || 0} />
             </View>
 
             {isEmpty ? (
               <View style={[s.card, { alignItems: 'center', paddingVertical: 40, marginTop: 12 }]}>
                 <Text style={{ fontSize: 32, marginBottom: 12 }}>🏢</Text>
                 <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: 6 }}>
-                  {interiorQuery.isError ? 'Could not load dashboard' : 'No Active Projects'}
+                  {interiorQuery.isError ? tr("Could not load dashboard") : tr("No Active Projects")}
                 </Text>
                 <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' }}>
                   {interiorQuery.isError
-                    ? 'Pull down to try again.'
-                    : 'There are currently no active projects found in your workspace.'}
+                    ? tr("Pull down to try again.")
+                    : tr("There are currently no active projects found in your workspace.")}
                 </Text>
               </View>
             ) : (
@@ -310,21 +311,21 @@ export default function DashboardScreen() {
                 {/* Progress Trend */}
                 {actualLineData.length > 0 && (
                   <>
-                    <SectionLabel title="Progress Trend" />
+                    <SectionLabel title={tr("Progress Trend")} />
                     <View style={s.card}>
                       <View style={s.chartHeaderRow}>
-                        <Text style={s.chartHeaderTitle}>Planned vs Actual (%)</Text>
-                        <Text style={s.chartHeaderTag}>Last 6 Months</Text>
+                        <Text style={s.chartHeaderTitle}>{tr("Planned vs Actual (%)")}</Text>
+                        <Text style={s.chartHeaderTag}>{tr("Last 6 Months")}</Text>
                       </View>
                       {/* Legend: colour + name side by side (same as the web) */}
                       <View style={{ flexDirection: 'row', gap: 16, marginBottom: 10 }}>
                         <View style={s.trendLegend}>
                           <View style={[s.trendLegendLine, { backgroundColor: '#2563EB' }]} />
-                          <Text style={s.trendLegendText}>Planned</Text>
+                          <Text style={s.trendLegendText}>{tr("Planned")}</Text>
                         </View>
                         <View style={s.trendLegend}>
                           <View style={[s.trendLegendLine, { backgroundColor: '#16A34A' }]} />
-                          <Text style={s.trendLegendText}>Actual</Text>
+                          <Text style={s.trendLegendText}>{tr("Actual")}</Text>
                         </View>
                       </View>
                       <LineChart
@@ -362,7 +363,7 @@ export default function DashboardScreen() {
                 {/* Project Health */}
                 {projectHealth.length > 0 && (
                   <>
-                    <SectionLabel title="Project Health" />
+                    <SectionLabel title={tr("Project Health")} />
                     <View style={[s.card, s.chartRow]}>
                       {/* Full pie, same as the web chart */}
                       <PieChart
@@ -372,7 +373,7 @@ export default function DashboardScreen() {
                         animationDuration={600}
                       />
                       <View style={s.legendBlock}>
-                        <Text style={s.donutLbl}>{healthTotal} {healthTotal === 1 ? 'project' : 'projects'}</Text>
+                        <Text style={s.donutLbl}>{tr(healthTotal)} {healthTotal === 1 ? tr("project") : tr("projects")}</Text>
                         {projectHealth.map((h) => (
                           <LegendItem key={h.name} color={h.color} label={h.name} value={`${h.value}`} />
                         ))}
@@ -384,7 +385,7 @@ export default function DashboardScreen() {
                 {/* CRM Lead Pipeline (same as web) */}
                 {pipelineBars.length > 0 && (
                   <>
-                    <SectionLabel title="CRM Lead Pipeline" />
+                    <SectionLabel title={tr("CRM Lead Pipeline")} />
                     <View style={s.card}>
                       <BarChart
                         data={pipelineBars}
@@ -410,7 +411,7 @@ export default function DashboardScreen() {
                 {/* Procurement (same as web) */}
                 {procurementBars.length > 0 && (
                   <>
-                    <SectionLabel title="Procurement" />
+                    <SectionLabel title={tr("Procurement")} />
                     <View style={s.card}>
                       <BarChart
                         data={procurementBars}
@@ -434,16 +435,16 @@ export default function DashboardScreen() {
                 )}
 
                 {/* Top Projects — with the completion bar, like the web */}
-                <SectionLabel title="Top Projects" />
+                <SectionLabel title={tr("Top Projects")} />
                 {topProjects.length > 0 ? (
                   <View style={s.listCard}>
                     {topProjects.map((p, i) => (
                       <View key={p.id || i} style={[s.topProjectRow, i === topProjects.length - 1 && { borderBottomWidth: 0 }]}>
                         <View style={s.topProjectHead}>
-                          <Text style={[s.alertTitle, { flex: 1 }]} numberOfLines={1}>{p.name}</Text>
+                          <Text style={[s.alertTitle, { flex: 1 }]} numberOfLines={1}>{tr(p.name)}</Text>
                           <View style={[s.alertBadge, { backgroundColor: healthBarColor(p.health) + '18' }]}>
                             <Text style={[s.alertBadgeText, { color: healthBarColor(p.health) }]}>
-                              {p.health === 'green' ? 'On Track' : p.health === 'yellow' ? 'At Risk' : 'Delayed'}
+                              {p.health === 'green' ? tr("On Track") : p.health === 'yellow' ? tr("At Risk") : tr("Delayed")}
                             </Text>
                           </View>
                         </View>
@@ -459,7 +460,7 @@ export default function DashboardScreen() {
                 ) : (
                   <View style={s.card}>
                     <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center' }}>
-                      No projects yet.
+                      {tr("No projects yet.")}
                     </Text>
                   </View>
                 )}
@@ -467,7 +468,7 @@ export default function DashboardScreen() {
                 {/* Recent Activity */}
                 {recentActivities.length > 0 && (
                   <>
-                    <SectionLabel title="Recent Activity" />
+                    <SectionLabel title={tr("Recent Activity")} />
                     <View style={s.listCard}>
                       {recentActivities.map((a, i) => (
                         <AlertRow
@@ -504,8 +505,8 @@ export default function DashboardScreen() {
         {/* ── Header ── */}
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <View>
-            <Text style={s.headerGreeting}>Good {getTimeOfDay()}, {user?.name?.split(' ')[0] || 'there'}</Text>
-            <Text style={s.pageTitle}>Dashboard</Text>
+            <Text style={s.headerGreeting}>{tr("Good ")}{getTimeOfDay()}, {user?.name?.split(' ')[0] || tr("there")}</Text>
+            <Text style={s.pageTitle}>{tr("Dashboard")}</Text>
           </View>
           <View style={s.headerRight}>
             {/* Attendance check-in (Online / Offline) hidden with the Attendance tab
@@ -541,28 +542,28 @@ export default function DashboardScreen() {
         >
 
           {/* ── Stats ── */}
-          <SectionLabel title="Summary" />
+          <SectionLabel title={tr("Summary")} />
           <View style={s.statsRow}>
-            <StatTile icon="folder-outline"       iconBg="#DBEAFE"  iconColor="#2563EB" label="Projects"  value={ps.total} />
+            <StatTile icon="folder-outline"       iconBg="#DBEAFE"  iconColor="#2563EB" label={tr("Projects")}  value={ps.total} />
             <View style={s.statDivider} />
-            <StatTile icon="list-outline"         iconBg="#F5F3FF"  iconColor="#7C3AED" label="Tasks"     value={ts.total} />
+            <StatTile icon="list-outline"         iconBg="#F5F3FF"  iconColor="#7C3AED" label={tr("Tasks")}     value={ts.total} />
             <View style={s.statDivider} />
-            <StatTile icon="today-outline"        iconBg="#FFFBEB"  iconColor="#D97706" label="Due Today" value={ts.dueToday} />
+            <StatTile icon="today-outline"        iconBg="#FFFBEB"  iconColor="#D97706" label={tr("Due Today")} value={ts.dueToday} />
             <View style={s.statDivider} />
-            <StatTile icon="alert-circle-outline" iconBg="#FEF2F2"  iconColor="#DC2626" label="Overdue"   value={ts.overdue} />
+            <StatTile icon="alert-circle-outline" iconBg="#FEF2F2"  iconColor="#DC2626" label={tr("Overdue")}   value={ts.overdue} />
           </View>
 
           {/* ── Task progress ── */}
           {ts.total > 0 && (
             <>
-              <SectionLabel title="Task Progress" />
+              <SectionLabel title={tr("Task Progress")} />
               <View style={s.card}>
                 <View style={s.progressTopRow}>
                   <View>
-                    <Text style={s.progressTitle}>Tasks Completed</Text>
-                    <Text style={s.progressSub}>{ts.completed} of {ts.total} tasks</Text>
+                    <Text style={s.progressTitle}>{tr("Tasks Completed")}</Text>
+                    <Text style={s.progressSub}>{tr(ts.completed)}{tr(" of ")}{ts.total}{tr(" tasks")}</Text>
                   </View>
-                  <Text style={s.progressPct}>{taskPct}%</Text>
+                  <Text style={s.progressPct}>{tr(taskPct)}%</Text>
                 </View>
                 <View style={s.trackBg}>
                   <View style={[s.trackFill, { width: `${taskPct}%` }]} />
@@ -570,7 +571,7 @@ export default function DashboardScreen() {
                 <View style={s.progressDots}>
                   <ProgressDot color="#2563EB" label={`${ts.completed} Completed`} />
                   <ProgressDot color="#DC2626" label={`${ts.overdue} Overdue`} />
-                  <ProgressDot color="#D97706" label={`${ts.dueToday} Due Today`} />
+                  <ProgressDot color="#D97706" label={tr("{{dueToday}} Due Today", { dueToday: ts.dueToday })} />
                 </View>
               </View>
             </>
@@ -579,7 +580,7 @@ export default function DashboardScreen() {
           {/* ── Projects by Status bar chart ── */}
           {barData.length > 0 && (
             <>
-              <SectionLabel title="Projects by Status" />
+              <SectionLabel title={tr("Projects by Status")} />
               <View style={s.card}>
                 <BarChart
                   data={barData}
@@ -605,7 +606,7 @@ export default function DashboardScreen() {
           {/* ── Task completion donut ── */}
           {taskPie.length > 0 && (
             <>
-              <SectionLabel title="Task Completion" />
+              <SectionLabel title={tr("Task Completion")} />
               <View style={[s.card, s.chartRow]}>
                 <PieChart
                   donut
@@ -614,18 +615,18 @@ export default function DashboardScreen() {
                   innerRadius={48}
                   centerLabelComponent={() => (
                     <View style={{ alignItems: 'center' }}>
-                      <Text style={s.donutNum}>{taskPct}%</Text>
-                      <Text style={s.donutLbl}>done</Text>
+                      <Text style={s.donutNum}>{tr(taskPct)}%</Text>
+                      <Text style={s.donutLbl}>{tr("done")}</Text>
                     </View>
                   )}
                   isAnimated
                   animationDuration={600}
                 />
                 <View style={s.legendBlock}>
-                  <LegendItem color="#2563EB" label="Completed" value={ts.completed} />
-                  <LegendItem color="#E2E8F0" label="Remaining"  value={ts.total - ts.completed} dim />
-                  <LegendItem color="#DC2626" label="Overdue"    value={ts.overdue} />
-                  <LegendItem color="#D97706" label="Due Today"  value={ts.dueToday} />
+                  <LegendItem color="#2563EB" label={tr("Completed")} value={ts.completed} />
+                  <LegendItem color="#E2E8F0" label={tr("Remaining")}  value={ts.total - ts.completed} dim />
+                  <LegendItem color="#DC2626" label={tr("Overdue")}    value={ts.overdue} />
+                  <LegendItem color="#D97706" label={tr("Due Today")}  value={ts.dueToday} />
                 </View>
               </View>
             </>
@@ -634,7 +635,7 @@ export default function DashboardScreen() {
           {/* ── Risk distribution donut ── */}
           {riskPie.length > 0 && (
             <>
-              <SectionLabel title="Risk Overview" />
+              <SectionLabel title={tr("Risk Overview")} />
               <View style={[s.card, s.chartRow]}>
                 <PieChart
                   donut
@@ -644,7 +645,7 @@ export default function DashboardScreen() {
                   centerLabelComponent={() => (
                     <View style={{ alignItems: 'center' }}>
                       <Text style={s.donutNum}>{rs.total}</Text>
-                      <Text style={s.donutLbl}>total</Text>
+                      <Text style={s.donutLbl}>{tr("total")}</Text>
                     </View>
                   )}
                   isAnimated
@@ -652,7 +653,7 @@ export default function DashboardScreen() {
                 />
                 <View style={s.legendBlock}>
                   {riskPie.map(r => (
-                    <LegendItem key={r.label} color={r.color} label={r.label} value={r.value} />
+                    <LegendItem key={r.label} color={r.color} label={tr(r.label)} value={r.value} />
                   ))}
                 </View>
               </View>
@@ -662,7 +663,7 @@ export default function DashboardScreen() {
           {/* ── Due today ── */}
           {ts.dueTodayList.length > 0 && (
             <>
-              <SectionLabel title={`Attention Required · ${ts.dueTodayList.length} pending today`} />
+              <SectionLabel title={tr("Attention Required · {{dueTodayListCount}} pending today", { dueTodayListCount: ts.dueTodayList.length })} />
               <View style={s.listCard}>
                 {ts.dueTodayList.slice(0, 4).map((t, i, arr) => (
                   <AlertRow
@@ -671,7 +672,7 @@ export default function DashboardScreen() {
                     icon="today-outline"
                     iconColor="#2563EB"
                     iconBg="#DBEAFE"
-                    title={t.title || t.name || 'Scheduled deliverable'}
+                    title={t.title || t.name || tr("Scheduled deliverable")}
                     badge="Due today"
                     badgeColor="#2563EB"
                   />
@@ -683,7 +684,7 @@ export default function DashboardScreen() {
           {/* ── Site delivery milestones (web dashboard) ── */}
           {projectMilestones.length > 0 && (
             <>
-              <SectionLabel title="Site Delivery Milestones" />
+              <SectionLabel title={tr("Site Delivery Milestones")} />
               <View style={s.listCard}>
                 {projectMilestones.slice(0, 4).map((m, i, arr) => {
                   const done = m.status === 'Completed' || m.progress === 100;
@@ -699,15 +700,15 @@ export default function DashboardScreen() {
                     >
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <View style={{ flex: 1 }}>
-                          <Text style={s.alertTitle} numberOfLines={1}>{m.name}</Text>
-                          {!!m.projectName && <Text style={s.alertSub} numberOfLines={1}>{m.projectName}</Text>}
+                          <Text style={s.alertTitle} numberOfLines={1}>{tr(m.name)}</Text>
+                          {!!m.projectName && <Text style={s.alertSub} numberOfLines={1}>{tr(m.projectName)}</Text>}
                         </View>
                         <View style={[s.alertBadge, { backgroundColor: color + '18' }]}>
-                          <Text style={[s.alertBadgeText, { color }]}>{m.status || (done ? 'Completed' : 'Pending')}</Text>
+                          <Text style={[s.alertBadgeText, { color }]}>{m.status || (done ? tr("Completed") : tr("Pending"))}</Text>
                         </View>
                       </View>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={s.alertSub}>{m.totalTasks > 0 ? `${m.completedTasks || 0} of ${m.totalTasks} tasks` : `${m.progress || 0}% complete`}</Text>
+                        <Text style={s.alertSub}>{m.totalTasks > 0 ? tr("{{value}} of {{totalTasks}} tasks", { value: m.completedTasks || 0, totalTasks: m.totalTasks }) : tr("{{value}}% complete", { value: m.progress || 0 })}</Text>
                         {!!m.dueDate && <Text style={s.alertSub}>{new Date(m.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>}
                       </View>
                       <View style={{ height: 5, borderRadius: 3, backgroundColor: '#F1F5F9', overflow: 'hidden' }}>
@@ -723,7 +724,7 @@ export default function DashboardScreen() {
           {/* ── Site risks & snags watch (web dashboard) ── */}
           {watchItems.length > 0 && (
             <>
-              <SectionLabel title={`Site Risks & Snags Watch · ${snagStats.open || 0} snags · ${rs.criticalRisks.length} critical`} />
+              <SectionLabel title={tr("Site Risks & Snags Watch · {{value}} snags · {{criticalRisksCount}} critical", { value: snagStats.open || 0, criticalRisksCount: rs.criticalRisks.length })} />
               <View style={s.listCard}>
                 {watchItems.map((item, i) => (
                   <TouchableOpacity
@@ -737,7 +738,7 @@ export default function DashboardScreen() {
                       icon={item.type === 'risk' ? 'warning' : 'bug-outline'}
                       iconColor={item.color}
                       iconBg={item.color + '18'}
-                      title={item.title}
+                      title={tr(item.title)}
                       subtitle={item.projectName}
                       badge={item.badge}
                       badgeColor={item.color}
@@ -751,7 +752,7 @@ export default function DashboardScreen() {
           {/* ── Recent projects ── */}
           {recent.length > 0 && (
             <>
-              <SectionLabel title="Recent Projects" />
+              <SectionLabel title={tr("Recent Projects")} />
               <View style={s.listCard}>
                 {recent.map((p, i) => (
                   <AlertRow
@@ -778,8 +779,8 @@ export default function DashboardScreen() {
           {ps.total === 0 && (
             <View style={s.allClear}>
               <Ionicons name="folder-open-outline" size={52} color="#94A3B8" />
-              <Text style={s.allClearTitle}>No projects yet</Text>
-              <Text style={s.allClearSub}>Start by creating your first project</Text>
+              <Text style={s.allClearTitle}>{tr("No projects yet")}</Text>
+              <Text style={s.allClearSub}>{tr("Start by creating your first project")}</Text>
             </View>
           )}
 
@@ -787,8 +788,8 @@ export default function DashboardScreen() {
           {ps.total > 0 && ts.dueTodayList.length === 0 && watchItems.length === 0 && (
             <View style={s.allClear}>
               <Ionicons name="checkmark-circle" size={52} color="#16A34A" />
-              <Text style={s.allClearTitle}>All deliverables on schedule</Text>
-              <Text style={s.allClearSub}>Zero critical risks or unresolved snags reported across your active construction portfolio.</Text>
+              <Text style={s.allClearTitle}>{tr("All deliverables on schedule")}</Text>
+              <Text style={s.allClearSub}>{tr("Zero critical risks or unresolved snags reported across your active construction portfolio.")}</Text>
             </View>
           )}
 
@@ -811,14 +812,14 @@ function InteriorStatCard({ icon, iconBg, iconColor, label, value, sub, subColor
   return (
     <View style={s.interiorStatCard}>
       <View style={s.interiorStatTopRow}>
-        <Text style={s.interiorStatLabel}>{label}</Text>
+        <Text style={s.interiorStatLabel}>{tr(label)}</Text>
         <View style={[s.interiorStatIconBox, { backgroundColor: iconBg }]}>
           <Ionicons name={icon} size={14} color={iconColor} />
         </View>
       </View>
       <Text style={s.interiorStatValue}>
-        {value}{' '}
-        {!!sub && <Text style={[s.interiorStatSub, subColor && { color: subColor, fontFamily: 'Inter-Bold' }]}>{sub}</Text>}
+        {tr(value)}{' '}
+        {!!sub && <Text style={[s.interiorStatSub, subColor && { color: subColor, fontFamily: 'Inter-Bold' }]}>{tr(sub)}</Text>}
       </Text>
     </View>
   );
@@ -830,8 +831,8 @@ function StatTile({ icon, iconBg, iconColor, label, value }) {
       <View style={[s.statIconBox, { backgroundColor: iconBg }]}>
         <Ionicons name={icon} size={16} color={iconColor} />
       </View>
-      <Text style={s.statValue}>{value}</Text>
-      <Text style={s.statLabel}>{label}</Text>
+      <Text style={s.statValue}>{tr(value)}</Text>
+      <Text style={s.statLabel}>{tr(label)}</Text>
     </View>
   );
 }
@@ -840,7 +841,7 @@ function ProgressDot({ color, label }) {
   return (
     <View style={s.dotRow}>
       <View style={[s.dot, { backgroundColor: color }]} />
-      <Text style={s.dotLabel}>{label}</Text>
+      <Text style={s.dotLabel}>{tr(label)}</Text>
     </View>
   );
 }
@@ -849,8 +850,8 @@ function LegendItem({ color, label, value, dim }) {
   return (
     <View style={s.legendRow}>
       <View style={[s.legendDot, { backgroundColor: color }]} />
-      <Text style={[s.legendLabel, dim && { color: '#CBD5E1' }]}>{label}</Text>
-      <Text style={s.legendValue}>{value}</Text>
+      <Text style={[s.legendLabel, dim && { color: '#CBD5E1' }]}>{tr(label)}</Text>
+      <Text style={s.legendValue}>{tr(value)}</Text>
     </View>
   );
 }
@@ -862,12 +863,12 @@ function AlertRow({ icon, iconColor, iconBg, title, subtitle, badge, badgeColor,
         <Ionicons name={icon} size={16} color={iconColor} />
       </View>
       <View style={s.alertBody}>
-        <Text style={s.alertTitle} numberOfLines={1}>{title}</Text>
-        {!!subtitle && <Text style={s.alertSub} numberOfLines={1}>{subtitle}</Text>}
+        <Text style={s.alertTitle} numberOfLines={1}>{tr(title)}</Text>
+        {!!subtitle && <Text style={s.alertSub} numberOfLines={1}>{tr(subtitle)}</Text>}
       </View>
       {!!badge && (
         <View style={[s.alertBadge, { backgroundColor: badgeColor + '18' }]}>
-          <Text style={[s.alertBadgeText, { color: badgeColor }]}>{badge}</Text>
+          <Text style={[s.alertBadgeText, { color: badgeColor }]}>{tr(badge)}</Text>
         </View>
       )}
     </View>

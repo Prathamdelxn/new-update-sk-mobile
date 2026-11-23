@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, ScrollView, TextInput,
@@ -54,17 +55,17 @@ export default function UploadRevisionModal({ isOpen, onClose, customerId, drawi
         });
       }
     } catch (e) {
-      Alert.alert('Picker Error', 'Failed to pick file from device.');
+      Alert.alert(tr("Picker Error"), tr("Failed to pick file from device."));
     }
   };
 
   const handleSubmit = async () => {
     if (!selectedFile) {
-      Alert.alert('File Required', 'Please select the revised drawing file to upload.');
+      Alert.alert(tr("File Required"), tr("Please select the revised drawing file to upload."));
       return;
     }
     if (!title.trim()) {
-      Alert.alert('Title Required', 'Please enter a title for this drawing.');
+      Alert.alert(tr("Title Required"), tr("Please enter a title for this drawing."));
       return;
     }
     setSubmitting(true);
@@ -83,7 +84,7 @@ export default function UploadRevisionModal({ isOpen, onClose, customerId, drawi
       onSuccess();
       onClose();
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to upload revision.');
+      Alert.alert(tr("Error"), e.message || tr("Failed to upload revision."));
     } finally {
       setSubmitting(false);
     }
@@ -95,7 +96,7 @@ export default function UploadRevisionModal({ isOpen, onClose, customerId, drawi
         <View style={s.card}>
           <View style={s.header}>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>Upload Revision (v{nextVersion})</Text>
+              <Text style={s.title}>{tr("Upload Revision (v")}{tr(nextVersion)})</Text>
               <Text style={s.subtitle} numberOfLines={1}>{drawing.title || drawing.name}</Text>
             </View>
             <TouchableOpacity onPress={onClose}>
@@ -106,26 +107,26 @@ export default function UploadRevisionModal({ isOpen, onClose, customerId, drawi
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {!!drawing.rejectionReason && (
               <View style={s.noticeBox}>
-                <Text style={s.noticeLabel}>WHY THIS WAS REJECTED</Text>
-                <Text style={s.noticeText}>{drawing.rejectionReason}</Text>
+                <Text style={s.noticeLabel}>{tr("WHY THIS WAS REJECTED")}</Text>
+                <Text style={s.noticeText}>{tr(drawing.rejectionReason)}</Text>
               </View>
             )}
             {!!drawing.clientFeedback && (
               <View style={[s.noticeBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-                <Text style={[s.noticeLabel, { color: '#B45309' }]}>CLIENT FEEDBACK</Text>
-                <Text style={s.noticeText}>{drawing.clientFeedback}</Text>
+                <Text style={[s.noticeLabel, { color: '#B45309' }]}>{tr("CLIENT FEEDBACK")}</Text>
+                <Text style={s.noticeText}>{tr(drawing.clientFeedback)}</Text>
               </View>
             )}
 
             <View style={s.infoBanner}>
               <Ionicons name="information-circle-outline" size={14} color="#0284C7" />
-              <Text style={s.infoBannerText}>Uploading a revision will set this drawing's status to Pending Internal Approval.</Text>
+              <Text style={s.infoBannerText}>{tr("Uploading a revision will set this drawing's status to Pending Internal Approval.")}</Text>
             </View>
 
-            <Text style={s.label}>Drawing Title / Label *</Text>
-            <TextInput style={s.input} placeholder="e.g. Master Bedroom 3D View" placeholderTextColor="#94A3B8" value={title} onChangeText={setTitle} />
+            <Text style={s.label}>{tr("Drawing Title / Label *")}</Text>
+            <TextInput style={s.input} placeholder={tr("e.g. Master Bedroom 3D View")} placeholderTextColor="#94A3B8" value={title} onChangeText={setTitle} />
 
-            <Text style={s.label}>Revision File *</Text>
+            <Text style={s.label}>{tr("Revision File *")}</Text>
             {selectedFile ? (
               <View style={{ borderRadius: 10, overflow: 'hidden', backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' }}>
                 {selectedFile.fileType === 'image' && (
@@ -133,7 +134,7 @@ export default function UploadRevisionModal({ isOpen, onClose, customerId, drawi
                 )}
                 <View style={{ flexDirection: 'row', alignItems: 'center', padding: 10 }}>
                   <Ionicons name="document-outline" size={20} color="#2563EB" />
-                  <Text style={{ flex: 1, marginLeft: 8, fontSize: 14, color: '#0F172A', fontFamily: 'Inter-Medium' }} numberOfLines={1}>{selectedFile.name}</Text>
+                  <Text style={{ flex: 1, marginLeft: 8, fontSize: 14, color: '#0F172A', fontFamily: 'Inter-Medium' }} numberOfLines={1}>{tr(selectedFile.name)}</Text>
                   <TouchableOpacity onPress={() => setSelectedFile(null)}>
                     <Ionicons name="close-circle" size={20} color="#EF4444" />
                   </TouchableOpacity>
@@ -142,14 +143,14 @@ export default function UploadRevisionModal({ isOpen, onClose, customerId, drawi
             ) : (
               <TouchableOpacity style={s.uploadBox} onPress={pickDocument}>
                 <Ionicons name="cloud-upload-outline" size={26} color="#0284C7" />
-                <Text style={s.uploadBoxText}>Tap to select revised file</Text>
+                <Text style={s.uploadBoxText}>{tr("Tap to select revised file")}</Text>
               </TouchableOpacity>
             )}
 
-            <Text style={s.label}>Reassign Reviewer (Optional)</Text>
+            <Text style={s.label}>{tr("Reassign Reviewer (Optional)")}</Text>
             <TouchableOpacity style={s.dropdownBtn} onPress={() => setShowDropdown((v) => !v)}>
               <Text style={[s.dropdownBtnText, !assignedReviewer && { color: '#94A3B8' }]} numberOfLines={1}>
-                {assignedReviewer ? userLabel(users.find((u) => (u._id || u.id) === assignedReviewer) || {}) : 'Keep previous / select reviewer'}
+                {assignedReviewer ? userLabel(users.find((u) => (u._id || u.id) === assignedReviewer) || {}) : tr("Keep previous / select reviewer")}
               </Text>
               <Ionicons name={showDropdown ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
             </TouchableOpacity>
@@ -170,18 +171,18 @@ export default function UploadRevisionModal({ isOpen, onClose, customerId, drawi
               </View>
             )}
 
-            <Text style={s.label}>Revision Changelog / Notes</Text>
+            <Text style={s.label}>{tr("Revision Changelog / Notes")}</Text>
             <TextInput
               style={[s.input, { height: 70, textAlignVertical: 'top' }]}
               multiline
-              placeholder="What changed in this revision..."
+              placeholder={tr("What changed in this revision...")}
               placeholderTextColor="#94A3B8"
               value={notes}
               onChangeText={setNotes}
             />
 
             <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmit} disabled={submitting}>
-              {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Upload Revision v{nextVersion}</Text>}
+              {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Upload Revision v")}{tr(nextVersion)}</Text>}
             </TouchableOpacity>
             <View style={{ height: 10 }} />
           </ScrollView>

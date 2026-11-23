@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -154,9 +155,9 @@ export default function PhoneInput({ value, onChange, onValidate, placeholder = 
               containerButtonStyle={styles.pickerContainer}
             />
           ) : (
-            <Text style={styles.flagEmoji}>{selectedCountry.flag}</Text>
+            <Text style={styles.flagEmoji}>{tr(selectedCountry.flag)}</Text>
           )}
-          <Text style={styles.dialCode}>{selectedCountry.dialCode}</Text>
+          <Text style={styles.dialCode}>{tr(selectedCountry.dialCode)}</Text>
           <Ionicons name="chevron-down" size={14} color="#64748B" style={styles.chevron} />
         </TouchableOpacity>
 
@@ -175,7 +176,7 @@ export default function PhoneInput({ value, onChange, onValidate, placeholder = 
       </AdaptiveGlass>
 
       {validationError ? (
-        <Text style={styles.errorText}>{validationError}</Text>
+        <Text style={styles.errorText}>{tr(validationError)}</Text>
       ) : null}
     </View>
   );

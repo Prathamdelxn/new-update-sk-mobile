@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
@@ -79,7 +80,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       }
     } catch (e) {
       console.error('Failed to load project files', e);
-      showToast('Failed to load project files', 'error');
+      showToast(tr("Failed to load project files"), 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -90,7 +91,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleCreateFolder = async () => {
     if (!folderName.trim()) {
-      showToast('Please enter a folder name', 'error');
+      showToast(tr("Please enter a folder name"), 'error');
       return;
     }
     setCreatingFolder(true);
@@ -99,12 +100,12 @@ const { can: canDo } = useProjectPermissions(projectId);
         name: folderName.trim(),
         parentId: currentFolderId || null,
       });
-      showToast('Folder created successfully', 'success');
+      showToast(tr("Folder created successfully"), 'success');
       setIsFolderModalOpen(false);
       setFolderName('');
       loadFiles();
     } catch (e) {
-      showToast(e.message || 'Failed to create folder', 'error');
+      showToast(e.message || tr("Failed to create folder"), 'error');
     } finally {
       setCreatingFolder(false);
     }
@@ -120,7 +121,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       const file = result.assets[0];
 
       setUploadingFile(true);
-      showToast('Uploading document to project cloud...', 'info');
+      showToast(tr("Uploading document to project cloud..."), 'info');
 
       const uploadRes = await interiorApiClient.postForm(`/projects/${projectId}/drawings/upload`, {
         file: { uri: file.uri, name: file.name, type: file.mimeType || 'application/octet-stream' },
@@ -137,11 +138,11 @@ const { can: canDo } = useProjectPermissions(projectId);
         parentId: currentFolderId || null,
       });
 
-      showToast('File uploaded successfully!', 'success');
+      showToast(tr("File uploaded successfully!"), 'success');
       loadFiles();
     } catch (e) {
       console.error('Upload failed:', e);
-      showToast(e.message || 'Failed to upload file', 'error');
+      showToast(e.message || tr("Failed to upload file"), 'error');
     } finally {
       setUploadingFile(false);
     }
@@ -150,19 +151,19 @@ const { can: canDo } = useProjectPermissions(projectId);
   const handleDeleteItem = (item) => {
     Alert.alert(
       'Delete ' + (item.isFolder ? 'Folder' : 'File'),
-      `Are you sure you want to permanently delete "${item.name}"?`,
+      tr("Are you sure you want to permanently delete \"{{name}}\"?", { name: item.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Delete',
+          text: tr("Delete"),
           style: 'destructive',
           onPress: async () => {
             try {
               await interiorApiClient.delete(`/projects/${projectId}/filemgt/${item._id}`);
-              showToast('Item deleted successfully', 'success');
+              showToast(tr("Item deleted successfully"), 'success');
               loadFiles();
             } catch (e) {
-              showToast(e.message || 'Failed to delete item', 'error');
+              showToast(e.message || tr("Failed to delete item"), 'error');
             }
           },
         },
@@ -189,7 +190,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>File Management</Text>
+            <Text style={s.headerTitle}>{tr("File Management")}</Text>
           </View>
         </View>
 
@@ -199,7 +200,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <TouchableOpacity
               style={s.crumbItem}
               onPress={() => setCurrentFolderId(null)}
-              accessibilityLabel="All files"
+              accessibilityLabel={tr("All files")}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="home-outline" size={15} color={currentFolderId === null ? '#2563EB' : '#64748B'} />
@@ -213,7 +214,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                   onPress={() => setCurrentFolderId(crumb._id)}
                 >
                   <Text style={[s.crumbText, idx === breadcrumbs.length - 1 && s.crumbTextActive]}>
-                    {crumb.name}
+                    {tr(crumb.name)}
                   </Text>
                 </TouchableOpacity>
               </React.Fragment>
@@ -227,7 +228,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="search-outline" size={15} color="#94A3B8" />
             <TextInput
               style={s.searchInput}
-              placeholder="Search files and folders..."
+              placeholder={tr("Search files and folders...")}
               placeholderTextColor="#94A3B8"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -260,15 +261,15 @@ const { can: canDo } = useProjectPermissions(projectId);
             {filteredItems.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="folder-open-outline" size={44} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>This Folder is Empty</Text>
-                <Text style={s.emptySub}>No files yet.</Text>
+                <Text style={s.emptyTitle}>{tr("This Folder is Empty")}</Text>
+                <Text style={s.emptySub}>{tr("No files yet.")}</Text>
               </View>
             ) : (
               <>
                 {/* Folders Grid */}
                 {folders.length > 0 && (
                   <View style={{ gap: 8 }}>
-                    <Text style={s.sectionHeader}>Folders ({folders.length})</Text>
+                    <Text style={s.sectionHeader}>{tr("Folders (")}{folders.length})</Text>
                     <View style={s.foldersGrid}>
                       {folders.map((fld) => (
                         <TouchableOpacity
@@ -279,11 +280,11 @@ const { can: canDo } = useProjectPermissions(projectId);
                         >
                           <Ionicons name="folder" size={24} color="#F59E0B" />
                           <View style={{ flex: 1, minWidth: 0 }}>
-                            <Text style={s.folderTitle} numberOfLines={1}>{fld.name}</Text>
+                            <Text style={s.folderTitle} numberOfLines={1}>{tr(fld.name)}</Text>
                             <Text style={s.folderSub}>
                               {fld.itemCount != null
                                 ? `${fld.itemCount} ${fld.itemCount === 1 ? 'item' : 'items'}`
-                                : 'Folder'}
+                                : tr("Folder")}
                             </Text>
                           </View>
                           <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
@@ -296,7 +297,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                 {/* Files List */}
                 {files.length > 0 && (
                   <View style={{ gap: 8, marginTop: folders.length > 0 ? 12 : 0 }}>
-                    <Text style={s.sectionHeader}>Files ({files.length})</Text>
+                    <Text style={s.sectionHeader}>{tr("Files (")}{files.length})</Text>
                     <View style={{ gap: 8 }}>
                       {files.map((file) => {
                         const icon = getFileIcon(file.name);
@@ -306,7 +307,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                               <Ionicons name={icon.name} size={18} color={icon.color} />
                             </View>
                             <View style={{ flex: 1, minWidth: 0 }}>
-                              <Text style={s.fileTitle} numberOfLines={1}>{file.name}</Text>
+                              <Text style={s.fileTitle} numberOfLines={1}>{tr(file.name)}</Text>
                               <Text style={s.fileSub}>
                                 {formatBytes(file.size)} · {file.createdAt ? new Date(file.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''}
                               </Text>
@@ -350,7 +351,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               onPress={() => setIsFolderModalOpen(true)}
             >
               <Ionicons name="folder-outline" size={16} color="#475569" />
-              <Text style={s.createFolderBtnText}>+ New Folder</Text>
+              <Text style={s.createFolderBtnText}>{tr("+ New Folder")}</Text>
             </TouchableOpacity>
           )}
 
@@ -365,7 +366,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               ) : (
                 <>
                   <Ionicons name="cloud-upload-outline" size={16} color="#FFFFFF" />
-                  <Text style={s.uploadFileBtnText}>Upload Document</Text>
+                  <Text style={s.uploadFileBtnText}>{tr("Upload Document")}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -381,17 +382,17 @@ const { can: canDo } = useProjectPermissions(projectId);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>Create New Folder</Text>
+                <Text style={s.modalTitle}>{tr("Create New Folder")}</Text>
               </View>
               <TouchableOpacity onPress={() => setIsFolderModalOpen(false)} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <Text style={s.label}>Folder Name *</Text>
+            <Text style={s.label}>{tr("Folder Name *")}</Text>
             <TextInput
               style={s.input}
-              placeholder="e.g. Electrical Layouts Revision 2"
+              placeholder={tr("e.g. Electrical Layouts Revision 2")}
               placeholderTextColor="#94A3B8"
               value={folderName}
               onChangeText={setFolderName}
@@ -406,7 +407,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               {creatingFolder ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={s.saveBtnText}>Create Folder</Text>
+                <Text style={s.saveBtnText}>{tr("Create Folder")}</Text>
               )}
             </TouchableOpacity>
           </View>

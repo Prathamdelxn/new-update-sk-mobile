@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // Approve / Reject review sheet shared by project Drawings and BOQ
 // (web: InteriorProjectDrawingApprovalModal / InteriorProjectBoqApprovalModal).
 // Approve mode shows a sign-off confirmation; "Request Changes" switches to reject mode, which
@@ -56,7 +57,7 @@ export default function ApprovalDecisionModal({
       return;
     }
     if (action === 'reject' && rejectMaxLength && reason.trim().length > rejectMaxLength) {
-      setError(`Rejection reason cannot exceed ${rejectMaxLength} characters.`);
+      setError(tr("Rejection reason cannot exceed {{rejectMaxLength}} characters.", { rejectMaxLength: rejectMaxLength }));
       inputRef.current?.focus();
       return;
     }
@@ -66,7 +67,7 @@ export default function ApprovalDecisionModal({
       await onDecision(action, reason.trim());
       onClose();
     } catch (e) {
-      setError(e?.message || 'Failed to update approval status');
+      setError(e?.message || tr("Failed to update approval status"));
     } finally {
       setBusy(null);
     }
@@ -96,15 +97,15 @@ export default function ApprovalDecisionModal({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {summary}
+            {tr(summary)}
 
             {!!submissionNotes && (
               <View style={s.noteBox}>
                 <View style={s.noteLabelRow}>
                   <Ionicons name="chatbox-ellipses-outline" size={12} color="#2563EB" />
-                  <Text style={s.noteLabel}>{submissionNotesLabel}</Text>
+                  <Text style={s.noteLabel}>{tr(submissionNotesLabel)}</Text>
                 </View>
-                <Text style={s.noteText}>{submissionNotes}</Text>
+                <Text style={s.noteText}>{tr(submissionNotes)}</Text>
               </View>
             )}
 
@@ -112,9 +113,9 @@ export default function ApprovalDecisionModal({
               <View style={[s.noteBox, { backgroundColor: '#FFF1F2', borderColor: '#FECDD3' }]}>
                 <View style={s.noteLabelRow}>
                   <Ionicons name="alert-circle-outline" size={12} color="#E11D48" />
-                  <Text style={[s.noteLabel, { color: '#BE123C' }]}>{pastRejectionLabel}</Text>
+                  <Text style={[s.noteLabel, { color: '#BE123C' }]}>{tr(pastRejectionLabel)}</Text>
                 </View>
-                <Text style={s.noteText}>{pastRejection}</Text>
+                <Text style={s.noteText}>{tr(pastRejection)}</Text>
               </View>
             )}
 
@@ -122,8 +123,8 @@ export default function ApprovalDecisionModal({
               <>
                 <View style={s.labelRow}>
                   <Ionicons name="chatbox-ellipses-outline" size={13} color="#E11D48" />
-                  <Text style={[s.label, { flex: 1 }]}>{rejectLabel} <Text style={{ color: '#F43F5E' }}>*</Text></Text>
-                  {!!rejectMaxLength && <Text style={s.counter}>{reason.length}/{rejectMaxLength}</Text>}
+                  <Text style={[s.label, { flex: 1 }]}>{tr(rejectLabel)} <Text style={{ color: '#F43F5E' }}>*</Text></Text>
+                  {!!rejectMaxLength && <Text style={s.counter}>{reason.length}/{tr(rejectMaxLength)}</Text>}
                 </View>
                 <TextInput
                   ref={inputRef}
@@ -136,39 +137,39 @@ export default function ApprovalDecisionModal({
                   placeholder={rejectPlaceholder}
                   placeholderTextColor="#94A3B8"
                 />
-                {!!rejectHint && <Text style={s.hint}>{rejectHint}</Text>}
+                {!!rejectHint && <Text style={s.hint}>{tr(rejectHint)}</Text>}
               </>
             ) : (
               <View style={s.confirmBox}>
                 <View style={s.noteLabelRow}>
                   <Ionicons name="checkmark-circle" size={15} color="#059669" />
-                  <Text style={s.confirmTitle}>{confirmTitle}</Text>
+                  <Text style={s.confirmTitle}>{tr(confirmTitle)}</Text>
                 </View>
-                {!!confirmText && <Text style={s.confirmText}>{confirmText}</Text>}
+                {!!confirmText && <Text style={s.confirmText}>{tr(confirmText)}</Text>}
               </View>
             )}
 
             {!!error && (
               <View style={s.errorBox}>
                 <Ionicons name="alert-circle-outline" size={14} color="#DC2626" />
-                <Text style={s.errorText}>{error}</Text>
+                <Text style={s.errorText}>{tr(error)}</Text>
               </View>
             )}
 
             <View style={s.footer}>
               {isRejectMode ? (
                 <TouchableOpacity onPress={() => { setIsRejectMode(false); setError(''); }} disabled={!!busy} style={s.linkBtn}>
-                  <Text style={s.linkBtnText}>{backLabel}</Text>
+                  <Text style={s.linkBtnText}>{tr(backLabel)}</Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity onPress={() => { setIsRejectMode(true); setError(''); }} disabled={!!busy} style={[s.linkBtn, s.requestBtn]}>
                   <Ionicons name="close-circle-outline" size={14} color="#E11D48" />
-                  <Text style={[s.linkBtnText, { color: '#E11D48' }]}>Request Changes</Text>
+                  <Text style={[s.linkBtnText, { color: '#E11D48' }]}>{tr("Request Changes")}</Text>
                 </TouchableOpacity>
               )}
               <View style={s.footerRight}>
                 <TouchableOpacity style={s.cancelBtn} onPress={onClose} disabled={!!busy}>
-                  <Text style={s.cancelText}>Cancel</Text>
+                  <Text style={s.cancelText}>{tr("Cancel")}</Text>
                 </TouchableOpacity>
                 {isRejectMode ? (
                   <TouchableOpacity
@@ -177,7 +178,7 @@ export default function ApprovalDecisionModal({
                     disabled={!!busy || !reason.trim()}
                   >
                     {busy === 'reject' && <ActivityIndicator size="small" color="#FFFFFF" />}
-                    <Text style={s.primaryText}>{busy === 'reject' ? 'Rejecting...' : 'Confirm Rejection'}</Text>
+                    <Text style={s.primaryText}>{busy === 'reject' ? tr("Rejecting...") : tr("Confirm Rejection")}</Text>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity style={[s.primaryBtn, busy && { opacity: 0.6 }]} onPress={() => run('approve')} disabled={!!busy}>
@@ -186,7 +187,7 @@ export default function ApprovalDecisionModal({
                     ) : (
                       <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
                     )}
-                    <Text style={s.primaryText} numberOfLines={1}>{busy === 'approve' ? 'Approving...' : approveLabel}</Text>
+                    <Text style={s.primaryText} numberOfLines={1}>{busy === 'approve' ? tr("Approving...") : approveLabel}</Text>
                   </TouchableOpacity>
                 )}
               </View>

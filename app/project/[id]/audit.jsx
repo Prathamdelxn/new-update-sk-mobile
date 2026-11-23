@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { memo, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, SectionList
@@ -131,22 +132,22 @@ const AuditEntry = memo(function AuditEntry({ entry, isLast }) {
       <View style={[styles.entryCard, isLast && { marginBottom: 0 }]}>
         <View style={styles.entryCardTop}>
           <View style={[styles.actionBadge, { backgroundColor: meta.bg }]}>
-            <Text style={[styles.actionBadgeText, { color: meta.color }]}>{meta.label}</Text>
+            <Text style={[styles.actionBadgeText, { color: meta.color }]}>{tr(meta.label)}</Text>
           </View>
-          <Text style={styles.entryTime}>{entry.timeLabel}</Text>
+          <Text style={styles.entryTime}>{tr(entry.timeLabel)}</Text>
         </View>
 
         {entry.details ? (
-          <Text style={styles.entryDetails}>{entry.details}</Text>
+          <Text style={styles.entryDetails}>{tr(entry.details)}</Text>
         ) : null}
 
         <View style={styles.entryFooter}>
           <Ionicons name="person-circle-outline" size={13} color="#94A3B8" />
           <Text style={styles.entryUser}>
-            {entry.userName}
+            {tr(entry.userName)}
             {entry.userRole ? ` · ${entry.userRole}` : ''}
           </Text>
-          <Text style={styles.entryDate}>{entry.dateLabel}</Text>
+          <Text style={styles.entryDate}>{tr(entry.dateLabel)}</Text>
         </View>
       </View>
     </View>
@@ -202,15 +203,15 @@ export default function ProjectAuditTab({ project }) {
           <Text style={styles.statLabel}>{t('totalEvents')}</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statCount, { color: '#EF4444' }]}>{totalByCategory.issues}</Text>
+          <Text style={[styles.statCount, { color: '#EF4444' }]}>{tr(totalByCategory.issues)}</Text>
           <Text style={styles.statLabel}>{t('issuesLabel')}</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statCount, { color: '#F97316' }]}>{totalByCategory.snags}</Text>
+          <Text style={[styles.statCount, { color: '#F97316' }]}>{tr(totalByCategory.snags)}</Text>
           <Text style={styles.statLabel}>{t('snagsLabel')}</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statCount, { color: '#10B981' }]}>{totalByCategory.finance}</Text>
+          <Text style={[styles.statCount, { color: '#10B981' }]}>{tr(totalByCategory.finance)}</Text>
           <Text style={styles.statLabel}>{t('financeLabel')}</Text>
         </View>
       </View>
@@ -228,7 +229,7 @@ export default function ProjectAuditTab({ project }) {
               activeOpacity={0.75}
             >
               <Ionicons name={f.icon} size={13} color={isActive ? '#FFF' : '#64748B'} />
-              <Text style={[styles.filterLabel, isActive && styles.filterLabelActive]}>{FILTER_LABELS[f.key] || f.label}</Text>
+              <Text style={[styles.filterLabel, isActive && styles.filterLabelActive]}>{FILTER_LABELS[f.key] || tr(f.label)}</Text>
               {count > 0 && (
                 <View style={[styles.filterBadge, isActive && styles.filterBadgeActive]}>
                   <Text style={[styles.filterBadgeText, isActive && { color: '#3B82F6' }]}>{count}</Text>
@@ -250,7 +251,7 @@ export default function ProjectAuditTab({ project }) {
         renderSectionHeader={({ section }) => (
           <View style={styles.dateHeader}>
             <View style={styles.dateLine} />
-            <Text style={styles.dateLabel}>{section.title}</Text>
+            <Text style={styles.dateLabel}>{tr(section.title)}</Text>
             <View style={styles.dateLine} />
           </View>
         )}

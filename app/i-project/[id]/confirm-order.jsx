@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,7 +32,7 @@ export default function InteriorProjectConfirmOrderScreen() {
       const res = await interiorApiClient.get(`/projects/${projectId}/confirm-order`);
       setLead(res?.data ?? null);
     } catch (e) {
-      showToast(e?.message || 'Failed to load the confirmed order', 'error');
+      showToast(e?.message || tr("Failed to load the confirmed order"), 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -52,7 +53,7 @@ export default function InteriorProjectConfirmOrderScreen() {
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Confirm Order</Text>
+            <Text style={s.headerTitle}>{tr("Confirm Order")}</Text>
           </View>
         </View>
 
@@ -67,19 +68,19 @@ export default function InteriorProjectConfirmOrderScreen() {
             {!lead || !hasQuotations ? (
               <View style={s.emptyCard}>
                 <Ionicons name="receipt-outline" size={36} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>{!lead ? 'No CRM order linked' : 'No quotations yet'}</Text>
+                <Text style={s.emptyTitle}>{!lead ? tr("No CRM order linked") : tr("No quotations yet")}</Text>
                 <Text style={s.emptySub}>
                   {!lead
-                    ? 'This project was not converted from a CRM lead, so there is no confirmed order to show.'
-                    : 'The linked CRM lead has no quotations yet.'}
+                    ? tr("This project was not converted from a CRM lead, so there is no confirmed order to show.")
+                    : tr("The linked CRM lead has no quotations yet.")}
                 </Text>
               </View>
             ) : (
               <>
                 {!!lead.confirmedOrder?.orderNumber && (
                   <View style={s.summary}>
-                    <Text style={s.summaryLabel}>Order</Text>
-                    <Text style={s.summaryValue}>{lead.confirmedOrder.title || lead.name} · {lead.confirmedOrder.orderNumber}</Text>
+                    <Text style={s.summaryLabel}>{tr("Order")}</Text>
+                    <Text style={s.summaryValue}>{lead.confirmedOrder.title || lead.name} · {tr(lead.confirmedOrder.orderNumber)}</Text>
                   </View>
                 )}
                 <ConfirmOrderView

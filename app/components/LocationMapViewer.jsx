@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Text, Keyboard } from 'react-native';
 import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps';
@@ -67,11 +68,11 @@ export default function LocationMapViewer({
           onLocationSelect(latitude, longitude);
         }
       } else {
-        alert("Location not found. Please try a different search term.");
+        alert(tr("Location not found. Please try a different search term."));
       }
     } catch (e) {
       console.warn('Geocoding error:', e);
-      alert("Search failed. Please try again.");
+      alert(tr("Search failed. Please try again."));
     } finally {
       setIsSearching(false);
     }
@@ -83,7 +84,7 @@ export default function LocationMapViewer({
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search address or city..."
+            placeholder={tr("Search address or city...")}
             placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -120,14 +121,14 @@ export default function LocationMapViewer({
 
         <Marker
           coordinate={{ latitude: safeCenterLat, longitude: safeCenterLng }}
-          title="Project Site"
+          title={tr("Project Site")}
           pinColor="red"
         />
 
         {mode === 'worker' && workerLat && workerLng && (
           <Marker
             coordinate={{ latitude: parseFloat(workerLat), longitude: parseFloat(workerLng) }}
-            title="Your Location"
+            title={tr("Your Location")}
           >
             <View style={styles.workerDotWrapper}>
               <View style={styles.workerDot} />

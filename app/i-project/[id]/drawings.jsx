@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
@@ -242,7 +243,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setDrawings(res?.success && res?.data ? res.data : Array.isArray(res) ? res : []);
     } catch (e) {
       console.error('Failed to load drawings', e);
-      showToast('Failed to fetch Drawings register', 'error');
+      showToast(tr("Failed to fetch Drawings register"), 'error');
     } finally {
       setLoading(false);
     }
@@ -369,7 +370,7 @@ const { can: canDo } = useProjectPermissions(projectId);
   };
 
   const handleSubmitDrawing = async () => {
-    if (uploadFiles.length === 0) return showToast('Please choose at least one drawing file or photo to upload.', 'error');
+    if (uploadFiles.length === 0) return showToast(tr("Please choose at least one drawing file or photo to upload."), 'error');
     const titleErr = getTitleError();
     if (titleErr) {
       setTitleTouched(true);
@@ -403,14 +404,14 @@ const { can: canDo } = useProjectPermissions(projectId);
       }
 
       showToast(
-        done === 1 ? `${createType} drawing uploaded successfully as Draft!` : `${done} ${createType} drawings uploaded successfully as Draft!`,
+        done === 1 ? tr("{{createType}} drawing uploaded successfully as Draft!", { createType: createType }) : tr("{{done}} {{createType}} drawings uploaded successfully as Draft!", { done: done, createType: createType }),
         'success'
       );
       closeCreate();
     } catch (e) {
       // Keep the files that didn't make it so the user can retry them
       if (done > 0) setUploadFiles((prev) => prev.slice(done));
-      showToast(e.message || 'Failed to upload drawing', 'error');
+      showToast(e.message || tr("Failed to upload drawing"), 'error');
     } finally {
       setSubmitting(false);
       if (done > 0) fetchDrawings();
@@ -425,7 +426,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       assignedReviewerName: reviewerName,
       submissionNotes: notes || undefined,
     });
-    showToast(`Drawing sent to ${reviewerName} for approval!`, 'success');
+    showToast(tr("Drawing sent to {{reviewerName}} for approval!", { reviewerName: reviewerName }), 'success');
     fetchDrawings();
   };
 
@@ -436,7 +437,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       ...(action === 'reject' ? { rejectionReason: reason } : {}),
     });
     showToast(
-      action === 'approve' ? `Drawing "${decisionTarget.title}" approved successfully!` : 'Drawing marked as rejected with change request notes.',
+      action === 'approve' ? tr("Drawing \"{{title}}\" approved successfully!", { title: decisionTarget.title }) : tr("Drawing marked as rejected with change request notes."),
       action === 'approve' ? 'success' : 'info'
     );
     fetchDrawings();
@@ -460,14 +461,14 @@ const { can: canDo } = useProjectPermissions(projectId);
           </View>
         )}
         <View style={{ flex: 1, gap: 5 }}>
-          <Text style={approvalStyles.summaryTitle} numberOfLines={2}>{dwg.title}</Text>
+          <Text style={approvalStyles.summaryTitle} numberOfLines={2}>{tr(dwg.title)}</Text>
           <View style={approvalStyles.chipRow}>
-            <Text style={[approvalStyles.chip, { color: badge.color, backgroundColor: badge.bg }]}>{badge.label}</Text>
-            <Text style={approvalStyles.chip}>Version v{drawingVersion(dwg)}</Text>
-            {!!dwg.drawingNumber && <Text style={approvalStyles.chip}>#{dwg.drawingNumber}</Text>}
-            {extra === 'discipline' && !!dwg.discipline && <Text style={approvalStyles.chip}>{dwg.discipline}</Text>}
+            <Text style={[approvalStyles.chip, { color: badge.color, backgroundColor: badge.bg }]}>{tr(badge.label)}</Text>
+            <Text style={approvalStyles.chip}>{tr("Version v")}{drawingVersion(dwg)}</Text>
+            {!!dwg.drawingNumber && <Text style={approvalStyles.chip}>#{tr(dwg.drawingNumber)}</Text>}
+            {extra === 'discipline' && !!dwg.discipline && <Text style={approvalStyles.chip}>{tr(dwg.discipline)}</Text>}
             {extra === 'reviewer' && !!dwg.assignedReviewerName && (
-              <Text style={approvalStyles.reviewerChip}>Reviewer: {dwg.assignedReviewerName}</Text>
+              <Text style={approvalStyles.reviewerChip}>{tr("Reviewer: ")}{tr(dwg.assignedReviewerName)}</Text>
             )}
           </View>
         </View>
@@ -489,8 +490,8 @@ const { can: canDo } = useProjectPermissions(projectId);
   };
 
   const handleSubmitRevision = async () => {
-    if (!revChanges.trim()) return showToast('Please describe the revision changes', 'error');
-    if (!revFile) return showToast('Please select a revision file to upload', 'error');
+    if (!revChanges.trim()) return showToast(tr("Please describe the revision changes"), 'error');
+    if (!revFile) return showToast(tr("Please select a revision file to upload"), 'error');
 
     setSubmitting(true);
     try {
@@ -506,11 +507,11 @@ const { can: canDo } = useProjectPermissions(projectId);
         fileUrl: uploadRes.data.url,
       });
 
-      showToast('New revision uploaded successfully!', 'success');
+      showToast(tr("New revision uploaded successfully!"), 'success');
       closeRev();
       fetchDrawings();
     } catch (e) {
-      showToast(e.message || 'Failed to upload revision', 'error');
+      showToast(e.message || tr("Failed to upload revision"), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -518,20 +519,20 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleDeleteDrawing = (dwg) => {
     Alert.alert(
-      'Delete Drawing',
-      `Are you sure you want to permanently delete "${dwg.title}"?`,
+      tr("Delete Drawing"),
+      tr("Are you sure you want to permanently delete \"{{title}}\"?", { title: dwg.title }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Delete',
+          text: tr("Delete"),
           style: 'destructive',
           onPress: async () => {
             try {
               await interiorApiClient.delete(`/projects/${projectId}/drawings?drawingId=${dwg._id}`);
-              showToast('Drawing deleted successfully', 'success');
+              showToast(tr("Drawing deleted successfully"), 'success');
               fetchDrawings();
             } catch (e) {
-              showToast(e.message || 'Failed to delete drawing', 'error');
+              showToast(e.message || tr("Failed to delete drawing"), 'error');
             }
           },
         },
@@ -559,7 +560,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle} numberOfLines={1}>Drawings & Blueprints</Text>
+            <Text style={s.headerTitle} numberOfLines={1}>{tr("Drawings & Blueprints")}</Text>
           </View>
         </View>
 
@@ -574,11 +575,11 @@ const { can: canDo } = useProjectPermissions(projectId);
               numberOfLines={1}
               ellipsizeMode="tail"
             >
-              2D Drawings
+              {tr("2D Drawings")}
             </Text>
             <View style={[s.categoryTabCount, activeCategory === '2D' && s.categoryTabCountActive]}>
               <Text style={[s.categoryTabCountText, activeCategory === '2D' && s.categoryTabCountTextActive]}>
-                {count2D}
+                {tr(count2D)}
               </Text>
             </View>
           </TouchableOpacity>
@@ -592,11 +593,11 @@ const { can: canDo } = useProjectPermissions(projectId);
               numberOfLines={1}
               ellipsizeMode="tail"
             >
-              3D Renders
+              {tr("3D Renders")}
             </Text>
             <View style={[s.categoryTabCount, activeCategory === '3D' && s.categoryTabCountActive]}>
               <Text style={[s.categoryTabCountText, activeCategory === '3D' && s.categoryTabCountTextActive]}>
-                {count3D}
+                {tr(count3D)}
               </Text>
             </View>
           </TouchableOpacity>
@@ -608,7 +609,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="search-outline" size={15} color="#94A3B8" />
             <TextInput
               style={s.searchInput}
-              placeholder="Search by drawing #, title, or changes..."
+              placeholder={tr("Search by drawing #, title, or changes...")}
               placeholderTextColor="#94A3B8"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -645,7 +646,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                {st.label}
+                {tr(st.label)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -668,10 +669,10 @@ const { can: canDo } = useProjectPermissions(projectId);
                   color="#CBD5E1"
                 />
                 <Text style={s.emptyTitle}>
-                  No {activeCategory === '3D' ? '3D Models & Renders' : '2D Working Drawings'} Found
+                  {tr("No ")}{activeCategory === '3D' ? tr("3D Models & Renders") : tr("2D Working Drawings")}{tr(" Found")}
                 </Text>
                 <Text style={s.emptySub}>
-                  {searchQuery ? 'Try clearing your search query' : 'Tap the + button below to upload blueprints'}
+                  {searchQuery ? tr("Try clearing your search query") : tr("Tap the + button below to upload blueprints")}
                 </Text>
               </View>
             ) : (
@@ -704,19 +705,19 @@ const { can: canDo } = useProjectPermissions(projectId);
                     )}
 
                     <View style={s.dwgTopRow}>
-                      <Text style={s.dwgTitle} numberOfLines={2}>{dwg.title}</Text>
+                      <Text style={s.dwgTitle} numberOfLines={2}>{tr(dwg.title)}</Text>
                       <View style={[s.statusBadge, { backgroundColor: meta.bg }]}>
-                        <Text style={[s.statusBadgeText, { color: meta.color }]}>{meta.label}</Text>
+                        <Text style={[s.statusBadgeText, { color: meta.color }]}>{tr(meta.label)}</Text>
                       </View>
                     </View>
-                    <Text style={s.dwgFacts} numberOfLines={2}>{facts}</Text>
+                    <Text style={s.dwgFacts} numberOfLines={2}>{tr(facts)}</Text>
 
                     {awaitingDecision && !!dwg.assignedReviewerName && (
-                      <Text style={s.reviewerLine} numberOfLines={1}>Waiting for {dwg.assignedReviewerName}</Text>
+                      <Text style={s.reviewerLine} numberOfLines={1}>{tr("Waiting for ")}{tr(dwg.assignedReviewerName)}</Text>
                     )}
                     {dwg.status === 'rejected' && !!dwg.rejectionReason && (
                       <View style={s.rejectionBox}>
-                        <Text style={s.rejectionText} numberOfLines={3}>Changes: {dwg.rejectionReason}</Text>
+                        <Text style={s.rejectionText} numberOfLines={3}>{tr("Changes: ")}{tr(dwg.rejectionReason)}</Text>
                       </View>
                     )}
 
@@ -724,7 +725,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                     {revisions.length > 1 && (
                       <TouchableOpacity style={s.historyToggleBtn} onPress={() => setExpandedDwgId(isExpanded ? null : dwg._id)}>
                         <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color="#2563EB" />
-                        <Text style={s.historyToggleText}>{isExpanded ? 'Hide' : 'Show'} {revisions.length} revisions</Text>
+                        <Text style={s.historyToggleText}>{isExpanded ? tr("Hide") : tr("Show")} {revisions.length}{tr(" revisions")}</Text>
                       </TouchableOpacity>
                     )}
                     {isExpanded && (
@@ -741,11 +742,11 @@ const { can: canDo } = useProjectPermissions(projectId);
                                   </Text>
                                 )}
                               </View>
-                              {!!rev.changes && <Text style={s.historyChanges}>{rev.changes}</Text>}
+                              {!!rev.changes && <Text style={s.historyChanges}>{tr(rev.changes)}</Text>}
                               {rev.url && (
                                 <TouchableOpacity style={s.historyDownloadLink} onPress={() => handleOpenOrPreview(rev.url, dwg.title)}>
                                   <Ionicons name="open-outline" size={13} color="#2563EB" />
-                                  <Text style={s.historyDownloadText}>Open File</Text>
+                                  <Text style={s.historyDownloadText}>{tr("Open File")}</Text>
                                 </TouchableOpacity>
                               )}
                             </View>
@@ -758,38 +759,38 @@ const { can: canDo } = useProjectPermissions(projectId);
                       {canSend && (
                         <TouchableOpacity style={[s.primaryActionBtn, { backgroundColor: '#2563EB' }]} onPress={() => setSendTarget(dwg)}>
                           <Ionicons name="paper-plane-outline" size={16} color="#FFFFFF" />
-                          <Text style={s.primaryActionText} numberOfLines={1}>Send for approval</Text>
+                          <Text style={s.primaryActionText} numberOfLines={1}>{tr("Send for approval")}</Text>
                         </TouchableOpacity>
                       )}
                       {awaitingDecision && canDo('drawings', 'approve') && (
                         <>
                           <TouchableOpacity style={[s.primaryActionBtn, s.approveBtn]} onPress={() => openDecision(dwg, 'approve')}>
                             <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
-                            <Text style={s.primaryActionText} numberOfLines={1}>Approve</Text>
+                            <Text style={s.primaryActionText} numberOfLines={1}>{tr("Approve")}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={[s.primaryActionBtn, s.rejectBtn]} onPress={() => openDecision(dwg, 'reject')}>
                             <Ionicons name="close-circle-outline" size={16} color="#B91C1C" />
-                            <Text style={[s.primaryActionText, { color: '#B91C1C' }]} numberOfLines={1}>Reject</Text>
+                            <Text style={[s.primaryActionText, { color: '#B91C1C' }]} numberOfLines={1}>{tr("Reject")}</Text>
                           </TouchableOpacity>
                         </>
                       )}
                       {dwg.status === 'rejected' && canDo('drawings', 'update') && (
                         <TouchableOpacity style={[s.primaryActionBtn, { backgroundColor: '#0F172A' }]} onPress={() => openRevModal(dwg)}>
                           <Ionicons name="cloud-upload-outline" size={16} color="#FFFFFF" />
-                          <Text style={s.primaryActionText} numberOfLines={1}>Upload revision</Text>
+                          <Text style={s.primaryActionText} numberOfLines={1}>{tr("Upload revision")}</Text>
                         </TouchableOpacity>
                       )}
                       {!(canSend || (awaitingDecision && canDo('drawings', 'approve')) || (dwg.status === 'rejected' && canDo('drawings', 'update'))) && <View style={{ flex: 1 }} />}
-                      <TouchableOpacity style={s.iconActionBtn} onPress={() => handleOpenOrPreview(currentRev.url, dwg.title)} accessibilityLabel={isImage ? 'Preview' : 'Open'}>
+                      <TouchableOpacity style={s.iconActionBtn} onPress={() => handleOpenOrPreview(currentRev.url, dwg.title)} accessibilityLabel={isImage ? tr("Preview") : tr("Open")}>
                         <Ionicons name={isImage ? 'eye-outline' : 'open-outline'} size={18} color="#2563EB" />
                       </TouchableOpacity>
                       {dwg.status !== 'rejected' && canDo('drawings', 'update') && (
-                        <TouchableOpacity style={s.iconActionBtn} onPress={() => openRevModal(dwg)} accessibilityLabel="Upload revision">
+                        <TouchableOpacity style={s.iconActionBtn} onPress={() => openRevModal(dwg)} accessibilityLabel={tr("Upload revision")}>
                           <Ionicons name="cloud-upload-outline" size={18} color="#475569" />
                         </TouchableOpacity>
                       )}
                       {canDo('drawings', 'delete') && (
-                        <TouchableOpacity style={s.iconActionBtn} onPress={() => handleDeleteDrawing(dwg)} accessibilityLabel="Delete">
+                        <TouchableOpacity style={s.iconActionBtn} onPress={() => handleDeleteDrawing(dwg)} accessibilityLabel={tr("Delete")}>
                           <Ionicons name="trash-outline" size={18} color="#DC2626" />
                         </TouchableOpacity>
                       )}
@@ -824,8 +825,8 @@ const { can: canDo } = useProjectPermissions(projectId);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={s.modalTitle}>Upload Drawing</Text>
-                <Text style={s.modalSubtitle}>Upload 2D architectural plans, working layouts, or 3D models.</Text>
+                <Text style={s.modalTitle}>{tr("Upload Drawing")}</Text>
+                <Text style={s.modalSubtitle}>{tr("Upload 2D architectural plans, working layouts, or 3D models.")}</Text>
               </View>
               <TouchableOpacity onPress={closeCreate} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -834,7 +835,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Category selector */}
-              <Text style={s.label}>Drawing Category *</Text>
+              <Text style={s.label}>{tr("Drawing Category *")}</Text>
               <View style={s.createTypeSwitchRow}>
                 <TouchableOpacity
                   style={[s.createTypeOption, s.createTypeCard, createType === '2D' && s.createTypeOptionActive]}
@@ -842,8 +843,8 @@ const { can: canDo } = useProjectPermissions(projectId);
                 >
                   <Ionicons name="document-text-outline" size={16} color={createType === '2D' ? '#2563EB' : '#64748B'} />
                   <View style={{ flex: 1 }}>
-                    <Text style={[s.createTypeOptionText, createType === '2D' && s.createTypeOptionTextActive]}>2D Working Drawing</Text>
-                    <Text style={s.createTypeHint}>Floor plans, RCP, Electrical, PDF, DXF</Text>
+                    <Text style={[s.createTypeOptionText, createType === '2D' && s.createTypeOptionTextActive]}>{tr("2D Working Drawing")}</Text>
+                    <Text style={s.createTypeHint}>{tr("Floor plans, RCP, Electrical, PDF, DXF")}</Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -852,15 +853,15 @@ const { can: canDo } = useProjectPermissions(projectId);
                 >
                   <Ionicons name="cube-outline" size={16} color={createType === '3D' ? '#7C3AED' : '#64748B'} />
                   <View style={{ flex: 1 }}>
-                    <Text style={[s.createTypeOptionText, createType === '3D' && { color: '#7C3AED', fontFamily: 'Inter-Bold' }]}>3D Model / Render</Text>
-                    <Text style={s.createTypeHint}>DWG, SketchUp (.skp), Renders</Text>
+                    <Text style={[s.createTypeOptionText, createType === '3D' && { color: '#7C3AED', fontFamily: 'Inter-Bold' }]}>{tr("3D Model / Render")}</Text>
+                    <Text style={s.createTypeHint}>{tr("DWG, SketchUp (.skp), Renders")}</Text>
                   </View>
                 </TouchableOpacity>
               </View>
 
               {/* Title (3–50 chars, unique per category) */}
               <View style={s.labelRow}>
-                <Text style={[s.label, { marginTop: 0, marginBottom: 0 }]}>Drawing Title *</Text>
+                <Text style={[s.label, { marginTop: 0, marginBottom: 0 }]}>{tr("Drawing Title *")}</Text>
                 <Text
                   style={[
                     s.charCount,
@@ -877,7 +878,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                 maxLength={50}
                 onBlur={() => setTitleTouched(true)}
                 onChangeText={(v) => { setUploadTitle(v); if (!titleTouched) setTitleTouched(true); }}
-                placeholder="e.g. Master Bedroom — False Ceiling (min 3 chars)"
+                placeholder={tr("e.g. Master Bedroom — False Ceiling (min 3 chars)")}
                 placeholderTextColor="#94A3B8"
                 editable={!submitting}
               />
@@ -886,9 +887,9 @@ const { can: canDo } = useProjectPermissions(projectId);
               {/* Room / Area (optional) */}
               <View style={s.labelRow}>
                 <Text style={[s.label, { marginTop: 0, marginBottom: 0 }]}>
-                  Room / Area <Text style={s.optionalText}>(Optional)</Text>
+                  {tr("Room / Area ")}<Text style={s.optionalText}>{tr("(Optional)")}</Text>
                 </Text>
-                {roomTag === GENERAL_ROOM && <Text style={s.charCount}>Default: General</Text>}
+                {roomTag === GENERAL_ROOM && <Text style={s.charCount}>{tr("Default: General")}</Text>}
               </View>
               <SelectField value={roomTag} onChange={setRoomTag} options={ROOM_OPTIONS} disabled={submitting} />
               {roomTag === CUSTOM_ROOM && (
@@ -897,17 +898,17 @@ const { can: canDo } = useProjectPermissions(projectId);
                   value={customRoom}
                   maxLength={40}
                   onChangeText={setCustomRoom}
-                  placeholder="Type custom room/area (e.g. Home Theater, Balcony Garden)"
+                  placeholder={tr("Type custom room/area (e.g. Home Theater, Balcony Garden)")}
                   placeholderTextColor="#94A3B8"
                 />
               )}
 
               {/* Files */}
               <View style={s.labelRow}>
-                <Text style={[s.label, { marginTop: 0, marginBottom: 0 }]}>File Attachment(s) *</Text>
+                <Text style={[s.label, { marginTop: 0, marginBottom: 0 }]}>{tr("File Attachment(s) *")}</Text>
                 {uploadFiles.length > 0 && (
                   <Text style={s.fileCountBadge}>
-                    {uploadFiles.length} {uploadFiles.length === 1 ? 'file' : 'files'} selected
+                    {uploadFiles.length} {uploadFiles.length === 1 ? tr("file") : tr("files")}{tr(" selected")}
                   </Text>
                 )}
               </View>
@@ -925,7 +926,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                           </View>
                         )}
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={s.uploadItemTitle} numberOfLines={1}>{f.asset.name}</Text>
+                          <Text style={s.uploadItemTitle} numberOfLines={1}>{tr(f.asset.name)}</Text>
                           <Text style={s.uploadItemName} numberOfLines={1}>
                             {fileSizeMb(f.asset)}{(kind === 'other' ? 'document' : kind).toUpperCase()}
                           </Text>
@@ -938,14 +939,14 @@ const { can: canDo } = useProjectPermissions(projectId);
                   })}
                   <TouchableOpacity style={s.addMoreBtn} onPress={handlePickCreateFiles} disabled={submitting}>
                     <Ionicons name="add" size={14} color="#1D4ED8" />
-                    <Text style={s.addMoreText}>Add More Files</Text>
+                    <Text style={s.addMoreText}>{tr("Add More Files")}</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
                 <TouchableOpacity style={s.uploadBox} onPress={handlePickCreateFiles} disabled={submitting}>
                   <Ionicons name="cloud-upload-outline" size={24} color="#2563EB" />
-                  <Text style={s.uploadBoxText} numberOfLines={1}>Tap to choose files/photos to upload</Text>
-                  <Text style={s.uploadBoxSub}>Select one or multiple files (Photos, PDFs, 3D models)</Text>
+                  <Text style={s.uploadBoxText} numberOfLines={1}>{tr("Tap to choose files/photos to upload")}</Text>
+                  <Text style={s.uploadBoxSub}>{tr("Select one or multiple files (Photos, PDFs, 3D models)")}</Text>
                 </TouchableOpacity>
               )}
 
@@ -958,12 +959,12 @@ const { can: canDo } = useProjectPermissions(projectId);
                 disabled={submitting || uploadFiles.length === 0}
               >
                 {submitting ? (
-                  <Text style={s.saveBtnText}>Uploading...</Text>
+                  <Text style={s.saveBtnText}>{tr("Uploading...")}</Text>
                 ) : (
                   <>
                     <Ionicons name="cloud-upload-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
                     <Text style={s.saveBtnText}>
-                      {uploadFiles.length > 1 ? `Upload ${uploadFiles.length} Drawings` : 'Upload Drawing'}
+                      {uploadFiles.length > 1 ? tr("Upload {{uploadFilesCount}} Drawings", { uploadFilesCount: uploadFiles.length }) : tr("Upload Drawing")}
                     </Text>
                   </>
                 )}
@@ -981,8 +982,8 @@ const { can: canDo } = useProjectPermissions(projectId);
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>Upload Revision: {revName}</Text>
-                <Text style={s.modalSubtitle} numberOfLines={1}>{revTargetTitle}</Text>
+                <Text style={s.modalTitle}>{tr("Upload Revision: ")}{tr(revName)}</Text>
+                <Text style={s.modalSubtitle} numberOfLines={1}>{tr(revTargetTitle)}</Text>
               </View>
               <TouchableOpacity onPress={closeRev} style={s.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -990,21 +991,21 @@ const { can: canDo } = useProjectPermissions(projectId);
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Describe Revision Changes *</Text>
+              <Text style={s.label}>{tr("Describe Revision Changes *")}</Text>
               <TextInput
                 style={[s.input, { height: 75, textAlignVertical: 'top' }]}
                 multiline
-                placeholder="e.g. Adjusted cove lighting profile per client revision request"
+                placeholder={tr("e.g. Adjusted cove lighting profile per client revision request")}
                 placeholderTextColor="#94A3B8"
                 value={revChanges}
                 onChangeText={setRevChanges}
               />
 
-              <Text style={s.label}>New Revision File *</Text>
+              <Text style={s.label}>{tr("New Revision File *")}</Text>
               <TouchableOpacity style={s.uploadBox} onPress={handlePickRevFile}>
                 <Ionicons name="cloud-upload-outline" size={26} color="#2563EB" />
                 <Text style={s.uploadBoxText} numberOfLines={1}>
-                  {revFile ? revFile.name : 'Tap to select revised file'}
+                  {revFile ? revFile.name : tr("Tap to select revised file")}
                 </Text>
               </TouchableOpacity>
 
@@ -1016,7 +1017,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                 {submitting ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={s.saveBtnText}>Submit Revision</Text>
+                  <Text style={s.saveBtnText}>{tr("Submit Revision")}</Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -1030,8 +1031,8 @@ const { can: canDo } = useProjectPermissions(projectId);
       <SendForApprovalModal
         visible={!!sendTarget}
         onClose={() => setSendTarget(null)}
-        title="Send Drawing for Approval"
-        subtitle="Assign a project lead or manager to review specifications & verify layout"
+        title={tr("Send Drawing for Approval")}
+        subtitle={tr("Assign a project lead or manager to review specifications & verify layout")}
         users={reviewers}
         initialReviewer={sendTarget?.assignedReviewer}
         reviewerLabel="Select Approver / Reviewer"
@@ -1061,7 +1062,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         rejectHint="This note will be saved in the drawing audit history and shown to the designer to guide version revision."
         rejectMissingMessage="Please provide a rejection reason explaining the required changes for the designer."
         confirmTitle="Confirm Architectural Approval"
-        confirmText={decisionTarget ? `By approving this drawing version (v${drawingVersion(decisionTarget)}), you confirm that dimensions, structural allowances, and working specifications comply with project requirements and are authorized for site execution.` : ''}
+        confirmText={decisionTarget ? tr("By approving this drawing version (v{{drawingVersion}}), you confirm that dimensions, structural allowances, and working specifications comply with project requirements and are authorized for site execution.", { drawingVersion: drawingVersion(decisionTarget) }) : ''}
         approveLabel={decisionTarget ? `Approve Drawing (v${drawingVersion(decisionTarget)})` : 'Approve Drawing'}
         backLabel="← Back to Approve Options"
         onDecision={handleDecision}
@@ -1074,7 +1075,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         <View style={s.lightboxOverlay}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={s.lightboxHeader}>
-              <Text style={s.lightboxTitle} numberOfLines={1}>{lightboxFile?.title}</Text>
+              <Text style={s.lightboxTitle} numberOfLines={1}>{tr(lightboxFile?.title)}</Text>
               <TouchableOpacity style={s.lightboxCloseBtn} onPress={() => setLightboxFile(null)}>
                 <Ionicons name="close" size={22} color="#FFFFFF" />
               </TouchableOpacity>
@@ -1098,7 +1099,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                 }}
               >
                 <Ionicons name="open-outline" size={15} color="#FFFFFF" />
-                <Text style={s.lightboxOpenExternalText}>Open in Browser / Full Quality</Text>
+                <Text style={s.lightboxOpenExternalText}>{tr("Open in Browser / Full Quality")}</Text>
               </TouchableOpacity>
             </View>
           </SafeAreaView>

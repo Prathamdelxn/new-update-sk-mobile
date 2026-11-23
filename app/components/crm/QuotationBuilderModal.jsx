@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
@@ -278,28 +279,28 @@ export default function QuotationBuilderModal({
   // Save handler
   const handleSave = async () => {
     if (!quotationTitle.trim()) {
-      setTitleError('Quotation title is required');
+      setTitleError(tr("Quotation title is required"));
       return;
     }
     if (quotationTitle.trim().length > 60) {
-      setTitleError('Quotation title cannot exceed 60 characters');
+      setTitleError(tr("Quotation title cannot exceed 60 characters"));
       return;
     }
     if (quoteNotes && quoteNotes.length > 500) {
-      Alert.alert('Error', 'Quotation notes cannot exceed 500 characters.');
+      Alert.alert(tr("Error"), tr("Quotation notes cannot exceed 500 characters."));
       return;
     }
     const tooBig = quoteItems.find((i) => parseFloat(i.quantity) > 999999999 || parseFloat(i.unitPrice) > 999999999999);
     if (tooBig) {
-      Alert.alert('Error', `Quantity or rate is too large for "${String(tooBig.description || 'item').slice(0, 25)}".`);
+      Alert.alert(tr("Error"), tr("Quantity or rate is too large for \"{{value}}\".", { value: String(tooBig.description || 'item').slice(0, 25) }));
       return;
     }
     if (quoteItems.length === 0 || quoteItems.every((i) => !i.description.trim())) {
-      Alert.alert('Error', 'Please include at least one valid line item.');
+      Alert.alert(tr("Error"), tr("Please include at least one valid line item."));
       return;
     }
     if (grandTotal < 0) {
-      Alert.alert('Error', 'Quotation total cannot be negative.');
+      Alert.alert(tr("Error"), tr("Quotation total cannot be negative."));
       return;
     }
 
@@ -361,7 +362,7 @@ export default function QuotationBuilderModal({
       onClose();
     } catch (err) {
       console.warn('Save quotation error:', err);
-      Alert.alert('Error', err.message || 'Failed to save quotation.');
+      Alert.alert(tr("Error"), err.message || tr("Failed to save quotation."));
     } finally {
       setSubmitting(false);
     }
@@ -376,10 +377,10 @@ export default function QuotationBuilderModal({
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Ionicons name="calculator" size={18} color="#2563EB" />
-                <Text style={s.headerTitle}>Quotation Builder</Text>
+                <Text style={s.headerTitle}>{tr("Quotation Builder")}</Text>
               </View>
               <Text style={s.headerSub}>
-                {isEditing ? `Editing v${targetQuote?.version || 1}` : `Generating v${(existingQuotations?.length || 0) + 1}`} • Link to BOQ & configure margins
+                {isEditing ? tr("Editing v{{value}}", { value: targetQuote?.version || 1 }) : tr("Generating v{{value}}", { value: (existingQuotations?.length || 0) + 1 })}{tr(" • Link to BOQ & configure margins")}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
@@ -390,7 +391,7 @@ export default function QuotationBuilderModal({
           <ScrollView style={s.body} showsVerticalScrollIndicator={false}>
             {/* Title / Option Name */}
             <View style={s.labelCountRow}>
-              <Text style={[s.fieldLabel, titleError && { color: '#E11D48' }]}>Quotation Title *</Text>
+              <Text style={[s.fieldLabel, titleError && { color: '#E11D48' }]}>{tr("Quotation Title *")}</Text>
               <Text style={[s.countText, quotationTitle.length > 60 && { color: '#E11D48' }]}>{quotationTitle.length}/60</Text>
             </View>
             <TextInput
@@ -400,13 +401,13 @@ export default function QuotationBuilderModal({
               onChangeText={(v) => {
                 setQuotationTitle(v);
                 if (titleError) {
-                  setTitleError(!v.trim() ? 'Quotation title is required' : v.length > 60 ? 'Quotation title cannot exceed 60 characters' : null);
+                  setTitleError(!v.trim() ? tr("Quotation title is required") : v.length > 60 ? tr("Quotation title cannot exceed 60 characters") : null);
                 }
               }}
-              placeholder="Enter Quotation Title (e.g. Option A - Premium Fitout)"
+              placeholder={tr("Enter Quotation Title (e.g. Option A - Premium Fitout)")}
               placeholderTextColor="#94A3B8"
             />
-            {!!titleError && <Text style={s.errorText}>{titleError}</Text>}
+            {!!titleError && <Text style={s.errorText}>{tr(titleError)}</Text>}
 
             {/* Scope Selection from BOQ */}
             {activeBoq && (
@@ -414,10 +415,10 @@ export default function QuotationBuilderModal({
                 <View style={s.scopeHeaderRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <Ionicons name="layers-outline" size={14} color="#2563EB" />
-                    <Text style={s.scopeHeaderTitle}>BOQ Scope Mode (v{activeBoq.version || 1})</Text>
+                    <Text style={s.scopeHeaderTitle}>{tr("BOQ Scope Mode (v")}{activeBoq.version || 1})</Text>
                     {(activeBoq.createdByName || activeBoq.createdAt) && (
                       <Text style={{ fontSize: 12.5, color: '#64748B', fontWeight: '500' }}>
-                        {activeBoq.createdByName ? `• by ${activeBoq.createdByName}` : ''}
+                        {activeBoq.createdByName ? tr("• by {{createdByName}}", { createdByName: activeBoq.createdByName }) : ''}
                         {activeBoq.createdAt ? ` (${new Date(activeBoq.createdAt).toLocaleDateString()})` : ''}
                       </Text>
                     )}
@@ -430,7 +431,7 @@ export default function QuotationBuilderModal({
                     onPress={() => handleScopeModeChange('all')}
                   >
                     <Ionicons name="checkmark-done" size={13} color={scopeMode === 'all' ? '#FFFFFF' : '#2563EB'} />
-                    <Text style={[s.scopeTabText, scopeMode === 'all' && s.scopeTabTextActive]}>All Items</Text>
+                    <Text style={[s.scopeTabText, scopeMode === 'all' && s.scopeTabTextActive]}>{tr("All Items")}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -438,7 +439,7 @@ export default function QuotationBuilderModal({
                     onPress={() => handleScopeModeChange('categories')}
                   >
                     <Ionicons name="grid-outline" size={12} color={scopeMode === 'categories' ? '#FFFFFF' : '#2563EB'} />
-                    <Text style={[s.scopeTabText, scopeMode === 'categories' && s.scopeTabTextActive]}>By Zone</Text>
+                    <Text style={[s.scopeTabText, scopeMode === 'categories' && s.scopeTabTextActive]}>{tr("By Zone")}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -446,7 +447,7 @@ export default function QuotationBuilderModal({
                     onPress={() => handleScopeModeChange('items')}
                   >
                     <Ionicons name="list-outline" size={13} color={scopeMode === 'items' ? '#FFFFFF' : '#2563EB'} />
-                    <Text style={[s.scopeTabText, scopeMode === 'items' && s.scopeTabTextActive]}>Pick Items</Text>
+                    <Text style={[s.scopeTabText, scopeMode === 'items' && s.scopeTabTextActive]}>{tr("Pick Items")}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -466,7 +467,7 @@ export default function QuotationBuilderModal({
                             size={14}
                             color={isSel ? '#2563EB' : '#64748B'}
                           />
-                          <Text style={[s.catPillText, isSel && s.catPillTextActive]}>{sec.title}</Text>
+                          <Text style={[s.catPillText, isSel && s.catPillTextActive]}>{tr(sec.title)}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -489,7 +490,7 @@ export default function QuotationBuilderModal({
                             size={14}
                             color="#2563EB"
                           />
-                          <Text style={s.secPickTitle}>{sec.title} ({sec.items.length})</Text>
+                          <Text style={s.secPickTitle}>{tr(sec.title)} ({sec.items.length})</Text>
                         </TouchableOpacity>
 
                         {expandedSections[sec.id] && (
@@ -509,7 +510,7 @@ export default function QuotationBuilderModal({
                                     color={isSel ? '#2563EB' : '#94A3B8'}
                                   />
                                   <Text style={s.itemPickName} numberOfLines={1}>
-                                    {it.itemName || it.description}
+                                    {it.itemName || tr(it.description)}
                                   </Text>
                                   <Text style={s.itemPickRate}>{formatExactCurrency(it.rate || 0)}</Text>
                                 </TouchableOpacity>
@@ -527,8 +528,8 @@ export default function QuotationBuilderModal({
             {/* Quick Markup Applicator */}
             <View style={s.markupBox}>
               <View style={{ flex: 1 }}>
-                <Text style={s.markupTitle}>Apply Profit Margin / Markup (%)</Text>
-                <Text style={s.markupSub}>Increases unit rates of all line items proportionally</Text>
+                <Text style={s.markupTitle}>{tr("Apply Profit Margin / Markup (%)")}</Text>
+                <Text style={s.markupSub}>{tr("Increases unit rates of all line items proportionally")}</Text>
               </View>
               <View style={s.markupInputsRow}>
                 {['0', '5', '10', '15', '20'].map((p) => (
@@ -537,7 +538,7 @@ export default function QuotationBuilderModal({
                     style={[s.markupChip, markupPct === p && s.markupChipActive]}
                     onPress={() => applyMarkup(p)}
                   >
-                    <Text style={[s.markupChipText, markupPct === p && s.markupChipTextActive]}>+{p}%</Text>
+                    <Text style={[s.markupChipText, markupPct === p && s.markupChipTextActive]}>+{tr(p)}%</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -546,10 +547,10 @@ export default function QuotationBuilderModal({
             {/* Line Items List */}
             <View style={{ marginTop: 14 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={s.sectionTitle}>Quotation Items ({quoteItems.length})</Text>
+                <Text style={s.sectionTitle}>{tr("Quotation Items (")}{quoteItems.length})</Text>
                 <TouchableOpacity onPress={addCustomItem} style={s.addCustomBtn}>
                   <Ionicons name="add" size={14} color="#2563EB" />
-                  <Text style={s.addCustomBtnText}>Add Custom Item</Text>
+                  <Text style={s.addCustomBtnText}>{tr("Add Custom Item")}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -561,7 +562,7 @@ export default function QuotationBuilderModal({
                       value={item.description}
                       maxLength={150}
                       onChangeText={(val) => updateQuoteItem(idx, 'description', val)}
-                      placeholder="Line item description"
+                      placeholder={tr("Line item description")}
                       placeholderTextColor="#94A3B8"
                     />
                     {quoteItems.length > 1 && (
@@ -574,12 +575,12 @@ export default function QuotationBuilderModal({
                   {!!item.category && item.category !== 'General Scope' && (
                     <View style={s.itemCatTag}>
                       <Ionicons name="pricetag-outline" size={10} color="#64748B" />
-                      <Text style={s.itemCatTagText} numberOfLines={1}>{item.category}</Text>
+                      <Text style={s.itemCatTagText} numberOfLines={1}>{tr(item.category)}</Text>
                     </View>
                   )}
                   <View style={s.quoteItemDetailsRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.miniLabel}>Qty</Text>
+                      <Text style={s.miniLabel}>{tr("Qty")}</Text>
                       <TextInput
                         style={s.miniInput}
                         value={String(item.quantity)}
@@ -591,18 +592,18 @@ export default function QuotationBuilderModal({
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.miniLabel}>Unit</Text>
+                      <Text style={s.miniLabel}>{tr("Unit")}</Text>
                       <TextInput
                         style={s.miniInput}
                         value={item.unit}
                         maxLength={10}
                         onChangeText={(val) => updateQuoteItem(idx, 'unit', val)}
-                        placeholder="sqft"
+                        placeholder={tr("sqft")}
                         placeholderTextColor="#94A3B8"
                       />
                     </View>
                     <View style={{ flex: 1.4 }}>
-                      <Text style={s.miniLabel}>Rate ({cur})</Text>
+                      <Text style={s.miniLabel}>{tr("Rate (")}{tr(cur)})</Text>
                       <TextInput
                         style={s.miniInput}
                         value={String(item.unitPrice)}
@@ -614,7 +615,7 @@ export default function QuotationBuilderModal({
                       />
                     </View>
                     <View style={{ flex: 1.5, alignItems: 'flex-end', justifyContent: 'center' }}>
-                      <Text style={s.miniLabel}>Total</Text>
+                      <Text style={s.miniLabel}>{tr("Total")}</Text>
                       <Text style={s.itemTotalText} numberOfLines={1}>{smartMoney(item.total, cur)}</Text>
                     </View>
                   </View>
@@ -625,13 +626,13 @@ export default function QuotationBuilderModal({
             {/* Financial Summary */}
             <View style={s.financialCard}>
               <View style={s.finRow}>
-                <Text style={s.finLabel}>Scope Subtotal</Text>
+                <Text style={s.finLabel}>{tr("Scope Subtotal")}</Text>
                 <Text style={s.finVal}>{smartMoney(subtotal, cur)}</Text>
               </View>
 
               <View style={s.finRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={s.finLabel}>Tax (GST) %</Text>
+                  <Text style={s.finLabel}>{tr("Tax (GST) %")}</Text>
                   <TextInput
                     style={s.taxInput}
                     value={taxPct}
@@ -646,7 +647,7 @@ export default function QuotationBuilderModal({
 
               <View style={s.finRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={s.finLabel}>Discount ({cur})</Text>
+                  <Text style={s.finLabel}>{tr("Discount (")}{tr(cur)})</Text>
                   <TextInput
                     style={s.discountInput}
                     value={discountAmt}
@@ -660,11 +661,11 @@ export default function QuotationBuilderModal({
               </View>
 
               <View style={s.grandTotalRow}>
-                <Text style={s.grandTotalLabel}>Grand Total Proposal</Text>
+                <Text style={s.grandTotalLabel}>{tr("Grand Total Proposal")}</Text>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={s.grandTotalVal}>{smartMoney(grandTotal, cur)}</Text>
                   {formatSmartCurrency(grandTotal, cur).isLarge && (
-                    <Text style={s.countText}>({formatSmartCurrency(grandTotal, cur).exact})</Text>
+                    <Text style={s.countText}>({tr(formatSmartCurrency(grandTotal, cur).exact)})</Text>
                   )}
                 </View>
               </View>
@@ -672,7 +673,7 @@ export default function QuotationBuilderModal({
 
             {/* Notes (Terms & Conditions were removed from quotations — same as web) */}
             <View style={s.labelCountRow}>
-              <Text style={s.fieldLabel}>Quotation Notes / Remarks (Optional)</Text>
+              <Text style={s.fieldLabel}>{tr("Quotation Notes / Remarks (Optional)")}</Text>
               <Text style={[s.countText, quoteNotes.length >= 500 && { color: '#E11D48' }]}>{quoteNotes.length}/500</Text>
             </View>
             <TextInput
@@ -680,7 +681,7 @@ export default function QuotationBuilderModal({
               maxLength={500}
               value={quoteNotes}
               onChangeText={setQuoteNotes}
-              placeholder="Optional notes or remarks for this quotation..."
+              placeholder={tr("Optional notes or remarks for this quotation...")}
               placeholderTextColor="#94A3B8"
               multiline
             />
@@ -691,7 +692,7 @@ export default function QuotationBuilderModal({
           {/* Footer */}
           <View style={s.footer}>
             <TouchableOpacity style={s.cancelBtn} onPress={onClose} disabled={submitting}>
-              <Text style={s.cancelBtnText}>Cancel</Text>
+              <Text style={s.cancelBtnText}>{tr("Cancel")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleSave} disabled={submitting}>
@@ -700,7 +701,7 @@ export default function QuotationBuilderModal({
               ) : (
                 <>
                   <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
-                  <Text style={s.saveBtnText}>{isEditing ? 'Update Quotation' : 'Save & Generate'}</Text>
+                  <Text style={s.saveBtnText}>{isEditing ? tr("Update Quotation") : tr("Save & Generate")}</Text>
                 </>
               )}
             </TouchableOpacity>

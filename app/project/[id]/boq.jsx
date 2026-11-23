@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
@@ -174,7 +175,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
       }
     } catch (error) {
       console.error('Fetch history error:', error);
-      showToast('Failed to load history', 'error');
+      showToast(tr("Failed to load history"), 'error');
     } finally {
       setLoadingHistory(false);
     }
@@ -204,7 +205,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
   };
 
   const handleUpdateStatus = async (itemId, newStatus, budgetData = null) => {
-    if (isLocked) { showToast('This project is locked and can no longer be modified.', 'error'); return; }
+    if (isLocked) { showToast(tr("This project is locked and can no longer be modified."), 'error'); return; }
     // For rejection — show reason modal first
     if (newStatus === 'Rejected') {
       setPendingRejectionItemId(itemId);
@@ -252,16 +253,16 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
         });
 
         if (res.ok) {
-          showToast('Approved & Budget Updated', 'success');
+          showToast(tr("Approved & Budget Updated"), 'success');
           fetchBOQ();
           setShowBudgetImpactModal(false);
           setShowViewModal(false);
         } else {
           const errorData = await res.json();
-          showToast(errorData.message || 'Status update failed', 'error');
+          showToast(errorData.message || tr("Status update failed"), 'error');
         }
       } catch (error) {
-        showToast('Connection error', 'error');
+        showToast(tr("Connection error"), 'error');
       } finally {
         setIsSubmitting(false);
       }
@@ -297,10 +298,10 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
             setShowViewModal(false);
           } else {
             const errorData = await res.json();
-            showToast(errorData.message || 'Status update failed', 'error');
+            showToast(errorData.message || tr("Status update failed"), 'error');
           }
         } catch (error) {
-          showToast('Connection error', 'error');
+          showToast(tr("Connection error"), 'error');
         } finally {
           setIsSubmitting(false);
           setConfirmModal(prev => ({ ...prev, visible: false }));
@@ -324,15 +325,15 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
         body: JSON.stringify({ status: 'Rejected', rejectionReason: reason })
       });
       if (res.ok) {
-        showToast('Item Rejected', 'success');
+        showToast(tr("Item Rejected"), 'success');
         fetchBOQ();
         setShowViewModal(false);
       } else {
         const errorData = await res.json();
-        showToast(errorData.message || 'Rejection failed', 'error');
+        showToast(errorData.message || tr("Rejection failed"), 'error');
       }
     } catch (error) {
-      showToast('Connection error', 'error');
+      showToast(tr("Connection error"), 'error');
     } finally {
       setIsSubmitting(false);
       setPendingRejectionItemId(null);
@@ -367,7 +368,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-      showToast('Please correct the highlighted fields', 'error');
+      showToast(tr("Please correct the highlighted fields"), 'error');
       return;
     }
 
@@ -399,8 +400,8 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
         const isRejectedEdit = editingItem && editingItem.status === 'Rejected';
         showToast(
           editingItem
-            ? (isDraftEdit ? 'BOQ item updated' : isRejectedEdit ? 'Item re-drafted successfully' : 'New version created')
-            : 'BOQ item created',
+            ? (isDraftEdit ? tr("BOQ item updated") : isRejectedEdit ? tr("Item re-drafted successfully") : tr("New version created"))
+            : tr("BOQ item created"),
           'success'
         );
         setShowManualModal(false);
@@ -408,11 +409,11 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
         fetchBOQ();
       } else {
         const errorData = await res.json();
-        showToast(errorData.message || 'Update failed', 'error');
+        showToast(errorData.message || tr("Update failed"), 'error');
       }
     } catch (error) {
       console.error('BOQ submit error:', error);
-      showToast('Connection error', 'error');
+      showToast(tr("Connection error"), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -460,12 +461,12 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
             })
           );
           await Promise.all(promises);
-          showToast(`${selectedItems.length} items approved`, 'success');
+          showToast(tr("{{selectedItemsCount}} items approved", { selectedItemsCount: selectedItems.length }), 'success');
           setIsSelectionMode(false);
           setSelectedItems([]);
           fetchBOQ();
         } catch (e) {
-          showToast('Bulk approval failed', 'error');
+          showToast(tr("Bulk approval failed"), 'error');
         } finally {
           setIsSubmitting(false);
           setConfirmModal(prev => ({ ...prev, visible: false }));
@@ -493,12 +494,12 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
             })
           );
           await Promise.all(promises);
-          showToast(`${selectedItems.length} items deleted`, 'success');
+          showToast(tr("{{selectedItemsCount}} items deleted", { selectedItemsCount: selectedItems.length }), 'success');
           setIsSelectionMode(false);
           setSelectedItems([]);
           fetchBOQ();
         } catch (e) {
-          showToast('Bulk delete failed', 'error');
+          showToast(tr("Bulk delete failed"), 'error');
         } finally {
           setIsSubmitting(false);
           setConfirmModal(prev => ({ ...prev, visible: false }));
@@ -553,7 +554,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
       }
     } catch (error) {
       console.error('Fetch approvers error:', error);
-      showToast('Failed to load approvers', 'error');
+      showToast(tr("Failed to load approvers"), 'error');
     } finally {
       setLoadingApprovers(false);
     }
@@ -583,7 +584,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
       });
 
       if (res.ok) {
-        showToast(`${pendingSelection.length} items sent for approval`, 'success');
+        showToast(tr("{{pendingSelectionCount}} items sent for approval", { pendingSelectionCount: pendingSelection.length }), 'success');
         setIsSelectionMode(false);
         setSelectedItems([]);
         setPendingSelection([]);
@@ -592,10 +593,10 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
         fetchBOQ();
       } else {
         const errorData = await res.json();
-        showToast(errorData.message || 'Action failed', 'error');
+        showToast(errorData.message || tr("Action failed"), 'error');
       }
     } catch (error) {
-      showToast('Connection error', 'error');
+      showToast(tr("Connection error"), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -615,11 +616,11 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (res.ok) {
-            showToast('Item deleted', 'success');
+            showToast(tr("Item deleted"), 'success');
             fetchBOQ();
           }
         } catch (error) {
-          showToast('Delete failed', 'error');
+          showToast(tr("Delete failed"), 'error');
         } finally {
           setConfirmModal(prev => ({ ...prev, visible: false }));
         }
@@ -676,7 +677,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
           setShowChoiceModal(false);
           setShowPreviewModal(true);
         } else {
-          showToast(data.message || 'Failed to parse file', 'error');
+          showToast(data.message || tr("Failed to parse file"), 'error');
         }
       }
     } catch (error) {
@@ -711,14 +712,14 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
       });
 
       if (res.ok) {
-        showToast('BOQ Imported Successfully', 'success');
+        showToast(tr("BOQ Imported Successfully"), 'success');
         setShowPreviewModal(false);
         setPreviewData([]);
         setImportFile(null);
         fetchBOQ();
       } else {
         const data = await res.json();
-        showToast(data.message || 'Import failed', 'error');
+        showToast(data.message || tr("Import failed"), 'error');
       }
     } catch (error) {
       showToast(t('networkErrorImport'), 'error');
@@ -769,7 +770,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
     <View style={styles.groupHeader}>
       <View style={[styles.groupHeaderLeft, { flex: 1, marginRight: 10 }]}>
         <View style={styles.groupAccent} />
-        <Text style={[styles.categoryTitle, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{section.title}</Text>
+        <Text style={[styles.categoryTitle, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{tr(section.title)}</Text>
       </View>
       <Text
         style={[styles.groupTotal, { maxWidth: '40%', flexShrink: 1 }]}
@@ -817,9 +818,9 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
         <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
-        <Text style={{ fontSize: 20, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 16 }}>Access Restricted</Text>
+        <Text style={{ fontSize: 20, fontFamily: 'Inter-Black', color: '#0F172A', marginTop: 16 }}>{tr("Access Restricted")}</Text>
         <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', marginTop: 8 }}>
-          You don't have permission to view the BOQ Management module.
+          {tr("You don't have permission to view the BOQ Management module.")}
         </Text>
       </View>
     );
@@ -852,11 +853,11 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
                       size={20}
                       color="#3B82F6"
                     />
-                    <Text style={styles.selectAllText}>All</Text>
+                    <Text style={styles.selectAllText}>{tr("All")}</Text>
                   </TouchableOpacity>
                 </View>
 
-                <Text style={styles.selectionCount}>{selectedItems.length} Selected</Text>
+                <Text style={styles.selectionCount}>{selectedItems.length}{tr(" Selected")}</Text>
                 <View style={styles.selectionActions}>
                   {canAssign && items.some(it => selectedItems.includes(it._id) && it.status === 'Draft') && (
                     <TouchableOpacity 
@@ -864,13 +865,13 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
                       style={[styles.selectionActionBtn, { backgroundColor: '#4F46E5' }]}
                     >
                       <Ionicons name="send" size={16} color="#FFFFFF" />
-                      <Text style={styles.bulkActionText}>Submit</Text>
+                      <Text style={styles.bulkActionText}>{tr("Submit")}</Text>
                     </TouchableOpacity>
                   )}
                   {canApprove && items.some(it => selectedItems.includes(it._id) && it.status === 'Pending') && (
                     <TouchableOpacity onPress={handleBulkApprove} style={[styles.selectionActionBtn, styles.bulkApproveBtn]}>
                       <Ionicons name="checkmark-done" size={18} color="#FFFFFF" />
-                      <Text style={styles.bulkActionText}>Approve</Text>
+                      <Text style={styles.bulkActionText}>{tr("Approve")}</Text>
                     </TouchableOpacity>
                   )}
                   {canDelete && (
@@ -882,7 +883,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
               </View>
             ) : (
               <>
-                <Text style={styles.sectionLabel}>Bill of Quantities</Text>
+                <Text style={styles.sectionLabel}>{tr("Bill of Quantities")}</Text>
                 {canCreate && (
                   <TouchableOpacity
                     style={styles.addBtn}
@@ -899,7 +900,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
                       style={styles.addBtnGradient}
                     >
                       <Ionicons name="add-circle" size={16} color="#FFFFFF" />
-                      <Text style={styles.addBtnText}>Add BOQ</Text>
+                      <Text style={styles.addBtnText}>{tr("Add BOQ")}</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 )}
@@ -910,7 +911,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
         ListFooterComponent={
           items.length > 0 ? (
             <View style={styles.grandTotalBox}>
-              <Text style={styles.grandTotalLabel}>APPROVED GRAND TOTAL</Text>
+              <Text style={styles.grandTotalLabel}>{tr("APPROVED GRAND TOTAL")}</Text>
               <Text style={styles.grandTotalValue} numberOfLines={1} adjustsFontSizeToFit>{project?.currency || '$'} {formatCompact(grandTotal)}</Text>
             </View>
           ) : null
@@ -919,7 +920,7 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
           !loading && (
             <AdaptiveGlass intensity={10} tint="light" style={styles.emptyBox}>
               <Ionicons name="receipt-outline" size={40} color="#94A3B8" />
-              <Text style={styles.emptyText}>No BOQ items added yet.</Text>
+              <Text style={styles.emptyText}>{tr("No BOQ items added yet.")}</Text>
             </AdaptiveGlass>
           )
         }
@@ -986,8 +987,8 @@ export default function ProjectBOQTab({ project, fetchProjectData }) {
 
       <ConfirmModal 
         visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={tr(confirmModal.title)}
+        message={tr(confirmModal.message)}
         confirmText={confirmModal.confirmText}
         type={confirmModal.type}
         isSubmitting={isSubmitting}

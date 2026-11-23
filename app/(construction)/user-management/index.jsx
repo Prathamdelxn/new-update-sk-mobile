@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Dimensions, Modal, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert, ToastAndroid } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -100,15 +101,15 @@ export default function UserManagementDashboard() {
       if (response.ok) {
         if (isEditingRole) {
           setRoles(prev => prev.map(r => r.id === editingRoleId ? { ...r, title: data.name } : r));
-          showToast('Role identity updated', 'success');
+          showToast(tr("Role identity updated"), 'success');
         } else {
           const newRoleObj = { id: data._id, title: data.name, count: 0, access: 'Empty' };
           setRoles(prev => [newRoleObj, ...prev]);
-          showToast('Role created successfully', 'success');
+          showToast(tr("Role created successfully"), 'success');
         }
         closeRoleModal();
       } else {
-        showToast(data.message || 'Operation failed', 'error');
+        showToast(data.message || tr("Operation failed"), 'error');
       }
     } catch (e) {
       showToast(t('networkErrorTryAgain'), 'error');
@@ -127,7 +128,7 @@ export default function UserManagementDashboard() {
 
   const handleEditRole = (role) => {
     if (!hasPermission('users', 'update')) {
-      showToast("You don't have permission to update roles.", "error");
+      showToast(tr("You don't have permission to update roles."), "error");
       return;
     }
     setIsEditingRole(true);
@@ -139,16 +140,16 @@ export default function UserManagementDashboard() {
 
   const handleDeleteRole = (role) => {
     if (!hasPermission('users', 'delete')) {
-      showToast("You don't have permission to delete roles.", "error");
+      showToast(tr("You don't have permission to delete roles."), "error");
       return;
     }
     Alert.alert(
-      'Cascade Delete Role',
-      `WARNING: Deleting "${role.title}" will also PERMANENTLY DELETE all ${role.count} members assigned to it. This cannot be undone.`,
+      tr("Cascade Delete Role"),
+      tr("WARNING: Deleting \"{{title}}\" will also PERMANENTLY DELETE all {{count}} members assigned to it. This cannot be undone.", { title: role.title, count: role.count }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr("Cancel"), style: 'cancel' },
         {
-          text: 'Delete Everything',
+          text: tr("Delete Everything"),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -158,13 +159,13 @@ export default function UserManagementDashboard() {
               });
               if (response.ok) {
                 setRoles(prev => prev.filter(r => r.id !== role.id));
-                showToast('Role and associated members removed.', 'delete');
+                showToast(tr("Role and associated members removed."), 'delete');
               } else {
                 const data = await response.json();
-                showToast(data.message || 'Deletion failed', 'error');
+                showToast(data.message || tr("Deletion failed"), 'error');
               }
             } catch (e) {
-              showToast('Network request failed', 'error');
+              showToast(tr("Network request failed"), 'error');
             }
           }
         }
@@ -192,13 +193,13 @@ export default function UserManagementDashboard() {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, backgroundColor: '#F8FAFC' }}>
         <Ionicons name="lock-closed-outline" size={56} color="#CBD5E1" />
         <Text style={{ marginTop: 16, fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' }}>
-          You don't have access to Team &amp; Roles
+          {tr("You don't have access to Team & Roles")}
         </Text>
         <Text style={{ marginTop: 8, fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', lineHeight: 20 }}>
-          Ask your admin to enable User Management → View on your role.
+          {tr("Ask your admin to enable User Management → View on your role.")}
         </Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: '#EFF6FF' }}>
-          <Text style={{ fontFamily: 'Inter-Bold', color: '#2563EB' }}>Go back</Text>
+          <Text style={{ fontFamily: 'Inter-Bold', color: '#2563EB' }}>{tr("Go back")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -274,7 +275,7 @@ export default function UserManagementDashboard() {
                   <View style={styles.roleInfo}>
                     <View style={styles.textContainer}>
                       <View style={styles.roleTitleRow}>
-                        <Text style={styles.roleTitle}>{role.title}</Text>
+                        <Text style={styles.roleTitle}>{tr(role.title)}</Text>
                       </View>
                       {/* <Text style={styles.roleSubtitle}>{t('activeMembersCount', { count: role.count || 0 })}</Text> */}
                     </View>
@@ -311,7 +312,7 @@ export default function UserManagementDashboard() {
           style={[styles.fab, { bottom: insets.bottom + 24 }]}
           onPress={() => { 
             if (!hasPermission('users', 'create')) {
-              showToast("You don't have permission to create new roles.", "error");
+              showToast(tr("You don't have permission to create new roles."), "error");
               return;
             }
             setIsEditingRole(false); setIsAddRoleVisible(true); 

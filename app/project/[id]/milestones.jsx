@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Keyboard, TouchableWithoutFeedback, StatusBar, LayoutAnimation, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -87,7 +88,7 @@ export default function ProjectMilestonesTab({ project }) {
       setMilestones(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching milestones:', error);
-      showToast('Failed to load milestones', 'error');
+      showToast(tr("Failed to load milestones"), 'error');
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -132,7 +133,7 @@ export default function ProjectMilestonesTab({ project }) {
 
   const handleAddMilestone = async () => {
     if (!newMilestone.name.trim()) {
-      showToast('Milestone name is required', 'error');
+      showToast(tr("Milestone name is required"), 'error');
       return;
     }
 
@@ -149,7 +150,7 @@ export default function ProjectMilestonesTab({ project }) {
       fetchMilestones();
     } catch (error) {
       console.error('Error saving milestone:', error);
-      showToast(`Failed to ${editingMilestoneId ? 'update' : 'create'} milestone`, 'error');
+      showToast(tr("Failed to {{value}} milestone", { value: editingMilestoneId ? 'update' : 'create' }), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -179,7 +180,7 @@ export default function ProjectMilestonesTab({ project }) {
       setMilestoneToDelete(null);
       fetchMilestones();
     } catch (error) {
-      showToast("Failed to delete milestone", "error");
+      showToast(tr("Failed to delete milestone"), "error");
     } finally {
       setIsDeleting(false);
     }
@@ -187,7 +188,7 @@ export default function ProjectMilestonesTab({ project }) {
 
   const handleImportXER = async () => {
     if (boqItems.length === 0) {
-      showToast('Cannot import: BOQ is empty. Please add items to BOQ first.', 'error');
+      showToast(tr("Cannot import: BOQ is empty. Please add items to BOQ first."), 'error');
       return;
     }
     try {
@@ -200,7 +201,7 @@ export default function ProjectMilestonesTab({ project }) {
 
       const file = result.assets[0];
       if (!file.name.toLowerCase().endsWith('.xer')) {
-        showToast('Please select a valid .XER file', 'error');
+        showToast(tr("Please select a valid .XER file"), 'error');
         return;
       }
 
@@ -210,15 +211,15 @@ export default function ProjectMilestonesTab({ project }) {
       const response = await milestoneService.importXER(projectId, token, fileContent);
 
       if (response.milestones) {
-        showToast(`Successfully imported ${response.milestones.length} milestones`, 'success');
+        showToast(tr("Successfully imported {{milestonesCount}} milestones", { milestonesCount: response.milestones.length }), 'success');
         setIsModalVisible(false);
         fetchMilestones();
       } else {
-        showToast(response.message || 'Failed to import XER', 'error');
+        showToast(response.message || tr("Failed to import XER"), 'error');
       }
     } catch (error) {
       console.error('Error importing XER:', error);
-      showToast('Error reading or uploading XER file', 'error');
+      showToast(tr("Error reading or uploading XER file"), 'error');
     } finally {
       setIsImporting(false);
     }
@@ -235,7 +236,7 @@ export default function ProjectMilestonesTab({ project }) {
       <View style={[styles.tabScrollContent, { justifyContent: 'center', alignItems: 'center', height: 300 }]}>
         <Feather name="lock" size={48} color="#CBD5E1" />
         <Text style={{ marginTop: 16, fontSize: 16, fontFamily: 'Inter-Medium', color: '#64748B' }}>
-          You don't have permission to view Milestones & Tasks.
+          {tr("You don't have permission to view Milestones & Tasks.")}
         </Text>
       </View>
     );
@@ -248,13 +249,13 @@ export default function ProjectMilestonesTab({ project }) {
           style={{ flex: 1, paddingVertical: 8, alignItems: 'center', backgroundColor: activeView === 'milestones' ? '#3B82F6' : 'transparent', borderRadius: 8, shadowColor: activeView === 'milestones' ? '#3B82F6' : 'transparent', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: activeView === 'milestones' ? 4 : 0 }}
           onPress={() => setActiveView('milestones')}
         >
-          <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: activeView === 'milestones' ? '#FFFFFF' : '#64748B' }}>Milestones</Text>
+          <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: activeView === 'milestones' ? '#FFFFFF' : '#64748B' }}>{tr("Milestones")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={{ flex: 1, paddingVertical: 8, alignItems: 'center', backgroundColor: activeView === 'timeline' ? '#3B82F6' : 'transparent', borderRadius: 8, shadowColor: activeView === 'timeline' ? '#3B82F6' : 'transparent', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: activeView === 'timeline' ? 4 : 0 }}
           onPress={() => setActiveView('timeline')}
         >
-          <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: activeView === 'timeline' ? '#FFFFFF' : '#64748B' }}>Timeline</Text>
+          <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: activeView === 'timeline' ? '#FFFFFF' : '#64748B' }}>{tr("Timeline")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -275,13 +276,13 @@ export default function ProjectMilestonesTab({ project }) {
           }
         >
           <View style={styles.headerRow}>
-            <Text style={styles.sectionLabel}>Task Milestones</Text>
+            <Text style={styles.sectionLabel}>{tr("Task Milestones")}</Text>
             {hasPermission('tasks', 'create') && (
               <TouchableOpacity
                 style={[styles.addBtn, boqItems.length === 0 && { backgroundColor: '#94A3B8' }]}
                 onPress={() => {
                   if (boqItems.length === 0) {
-                    showToast('Cannot create milestone: BOQ is empty. Please add items to BOQ first.', 'error');
+                    showToast(tr("Cannot create milestone: BOQ is empty. Please add items to BOQ first."), 'error');
                     return;
                   }
                   setIsModalVisible(true);
@@ -318,7 +319,7 @@ export default function ProjectMilestonesTab({ project }) {
                     >
                       <View style={styles.mCard}>
                         <View style={styles.mCardTop}>
-                          <Text style={styles.mTitle}>{m.name}</Text>
+                          <Text style={styles.mTitle}>{tr(m.name)}</Text>
                           <View style={styles.mCardActions}>
                             {hasPermission('tasks', 'update') && (
                               <TouchableOpacity onPress={() => openEditModal(m)} style={styles.actionIcon}>
@@ -334,15 +335,15 @@ export default function ProjectMilestonesTab({ project }) {
                         </View>
                         <View style={styles.mMetaRow}>
                           <View style={[styles.mStatusPill, { backgroundColor: m.status === 'Completed' ? '#D1FAE5' : m.status === 'In Progress' ? '#DBEAFE' : '#F1F5F9' }]}>
-                            <Text style={[styles.mStatusText, { color: m.status === 'Completed' ? '#059669' : m.status === 'In Progress' ? '#2563EB' : '#64748B' }]}>{m.status}</Text>
+                            <Text style={[styles.mStatusText, { color: m.status === 'Completed' ? '#059669' : m.status === 'In Progress' ? '#2563EB' : '#64748B' }]}>{tr(m.status)}</Text>
                           </View>
                           {m.dueDate && <Text style={styles.mDate}>{new Date(m.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>}
                         </View>
-                        <Text style={styles.mDesc} numberOfLines={2}>{m.description}</Text>
+                        <Text style={styles.mDesc} numberOfLines={2}>{tr(m.description)}</Text>
 
                         <View style={styles.tasksSection}>
                           <View style={styles.tasksLabelRow}>
-                            <Text style={styles.tasksLabel}>{t('progressCount')} ({completedTasksCount}/{totalTasksCount})</Text>
+                            <Text style={styles.tasksLabel}>{t('progressCount')} ({tr(completedTasksCount)}/{tr(totalTasksCount)})</Text>
                             <View style={styles.viewTasksLink}>
                               <Text style={styles.viewTasksText}>{t('viewTasks')}</Text>
                               <Feather name="chevron-right" size={12} color="#3B82F6" />

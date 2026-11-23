@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,9 +16,9 @@ export default function EmptyState({
         <View style={styles.iconContainer}>
           <Ionicons name={icon} size={48} color="#94A3B8" />
         </View>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.description}>{description}</Text>
-        {actionElement && <View style={styles.actionContainer}>{actionElement}</View>}
+        <Text style={styles.title}>{tr(title)}</Text>
+        <Text style={styles.description}>{tr(description)}</Text>
+        {actionElement && <View style={styles.actionContainer}>{tr(actionElement)}</View>}
       </AdaptiveGlass>
     </View>
   );

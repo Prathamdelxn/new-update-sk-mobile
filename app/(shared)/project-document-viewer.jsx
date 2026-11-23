@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import { useState, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Text, Image, Alert, Linking, Platform, StatusBar } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -173,11 +174,11 @@ export default function ProjectDocumentViewerScreen() {
           <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
             <Ionicons name="close" size={24} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={styles.title}>Error</Text>
+          <Text style={styles.title}>{tr("Error")}</Text>
           <View style={{ width: 44 }} />
         </View>
         <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={{ fontFamily: 'Inter-Bold', color: '#64748B' }}>No URL provided to view.</Text>
+          <Text style={{ fontFamily: 'Inter-Bold', color: '#64748B' }}>{tr("No URL provided to view.")}</Text>
         </View>
       </View>
     );
@@ -223,12 +224,12 @@ export default function ProjectDocumentViewerScreen() {
     } catch (error) {
       console.error("[DWG Open Error]", error);
       Alert.alert(
-        'No Viewer Found',
-        'We could not find an app to open this DWG file. Please install a CAD viewer like DWG FastView.',
+        tr("No Viewer Found"),
+        tr("We could not find an app to open this DWG file. Please install a CAD viewer like DWG FastView."),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: tr("Cancel"), style: 'cancel' },
           { 
-            text: 'Get DWG FastView', 
+            text: tr("Get DWG FastView"), 
             onPress: () => {
               const storeUrl = Platform.OS === 'ios' 
                 ? 'https://apps.apple.com/app/dwg-fastview-cad-viewer-editor/id456933557' 
@@ -254,8 +255,8 @@ export default function ProjectDocumentViewerScreen() {
             <Ionicons name="chevron-back" size={26} color="#0F172A" />
           </TouchableOpacity>
           <View style={styles.titleContainer}>
-            <Text style={styles.title} numberOfLines={1}>{name || 'Document Viewer'}</Text>
-            <Text style={styles.subtitle}>{isPdf ? 'PDF Document' : isImage ? 'Image File' : isVideo ? 'Video File' : isDwg ? 'AutoCAD Drawing' : 'File'}</Text>
+            <Text style={styles.title} numberOfLines={1}>{name || tr("Document Viewer")}</Text>
+            <Text style={styles.subtitle}>{isPdf ? tr("PDF Document") : isImage ? tr("Image File") : isVideo ? tr("Video File") : isDwg ? tr("AutoCAD Drawing") : tr("File")}</Text>
           </View>
           <View style={{ width: 44 }} />
         </View>
@@ -276,7 +277,7 @@ export default function ProjectDocumentViewerScreen() {
             {loading && (
               <View style={styles.loader}>
                 <ActivityIndicator size="large" color="#3B82F6" />
-                <Text style={styles.loadingText}>Loading Video...</Text>
+                <Text style={styles.loadingText}>{tr("Loading Video...")}</Text>
               </View>
             )}
           </View>
@@ -292,7 +293,7 @@ export default function ProjectDocumentViewerScreen() {
             {loading && (
               <View style={styles.loader}>
                 <ActivityIndicator size="large" color="#3B82F6" />
-                <Text style={styles.loadingText}>Loading Image...</Text>
+                <Text style={styles.loadingText}>{tr("Loading Image...")}</Text>
               </View>
             )}
           </View>
@@ -315,14 +316,14 @@ export default function ProjectDocumentViewerScreen() {
               <Ionicons name="layers" size={56} color="#3B82F6" />
             </View>
             <Text style={{ fontFamily: 'Inter-Black', color: '#0F172A', fontSize: 22, marginTop: 24, textAlign: 'center' }}>
-              AutoCAD Drawing
+              {tr("AutoCAD Drawing")}
             </Text>
             <Text style={{ fontFamily: 'Inter-Medium', color: '#64748B', fontSize: 15, marginTop: 12, textAlign: 'center', lineHeight: 24 }}>
-              This is a .DWG file. These drawings are best viewed in specialized CAD applications.
+              {tr("This is a .DWG file. These drawings are best viewed in specialized CAD applications.")}
             </Text>
             <TouchableOpacity style={styles.externalBtn} onPress={handleOpenExternal} activeOpacity={0.8}>
               <Ionicons name="open-outline" size={20} color="#FFF" />
-              <Text style={styles.externalBtnText}>Open in External App</Text>
+              <Text style={styles.externalBtnText}>{tr("Open in External App")}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -331,7 +332,7 @@ export default function ProjectDocumentViewerScreen() {
               <Ionicons name="document-outline" size={56} color="#94A3B8" />
             </View>
             <Text style={{ fontFamily: 'Inter-Bold', color: '#64748B', marginTop: 24, fontSize: 16 }}>
-              Unsupported file type
+              {tr("Unsupported file type")}
             </Text>
           </View>
         )}

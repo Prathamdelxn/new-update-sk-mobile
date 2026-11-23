@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -94,7 +95,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setMoms(res?.success && res?.data ? res.data : []);
     } catch (e) {
       console.error('Failed to load MOMs', e);
-      showToast('Failed to fetch meeting minutes list', 'error');
+      showToast(tr("Failed to fetch meeting minutes list"), 'error');
     } finally {
       setLoading(false);
     }
@@ -128,18 +129,18 @@ const { can: canDo } = useProjectPermissions(projectId);
   };
 
   const handleDelete = (mom) => {
-    Alert.alert('Delete meeting', `Delete "${mom.title}"? This can't be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete meeting"), tr("Delete \"{{title}}\"? This can't be undone.", { title: mom.title }), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete',
+        text: tr("Delete"),
         style: 'destructive',
         onPress: async () => {
           try {
             await interiorApiClient.delete(`/projects/${projectId}/mom?momId=${mom._id}`);
-            showToast('Meeting minutes deleted', 'success');
+            showToast(tr("Meeting minutes deleted"), 'success');
             fetchMoms();
           } catch (e) {
-            showToast(e.message || 'Failed to delete meeting minutes', 'error');
+            showToast(e.message || tr("Failed to delete meeting minutes"), 'error');
           }
         },
       },
@@ -148,7 +149,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleSubmit = async () => {
     if (!title.trim() || !agenda.trim() || !notes.trim()) {
-      showToast('Please fill in title, agenda, and notes', 'error');
+      showToast(tr("Please fill in title, agenda, and notes"), 'error');
       return;
     }
     setCreating(true);
@@ -164,16 +165,16 @@ const { can: canDo } = useProjectPermissions(projectId);
       };
       if (editingId) {
         await interiorApiClient.put(`/projects/${projectId}/mom`, { momId: editingId, ...payload });
-        showToast('Meeting minutes updated', 'success');
+        showToast(tr("Meeting minutes updated"), 'success');
       } else {
         await interiorApiClient.post(`/projects/${projectId}/mom`, payload);
-        showToast('Meeting Minutes logged successfully!', 'success');
+        showToast(tr("Meeting Minutes logged successfully!"), 'success');
       }
       setIsModalOpen(false);
       resetForm();
       fetchMoms();
     } catch (e) {
-      showToast(e.message || (editingId ? 'Failed to update meeting minutes' : 'Failed to log meeting minutes'), 'error');
+      showToast(e.message || (editingId ? tr("Failed to update meeting minutes") : tr("Failed to log meeting minutes")), 'error');
     } finally {
       setCreating(false);
     }
@@ -188,7 +189,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Minutes of Meeting</Text>
+            <Text style={s.headerTitle}>{tr("Minutes of Meeting")}</Text>
           </View>
         </View>
 
@@ -199,7 +200,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             {moms.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="clipboard-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No meeting records logged yet</Text>
+                <Text style={s.emptyTitle}>{tr("No meeting records logged yet")}</Text>
               </View>
             ) : (
               moms.map((mom) => (
@@ -207,8 +208,8 @@ const { can: canDo } = useProjectPermissions(projectId);
                   <View style={s.momHeader}>
                     <Ionicons name="clipboard-outline" size={16} color="#2563EB" />
                     <View style={{ flex: 1 }}>
-                      <Text style={s.momTitle}>{mom.title}</Text>
-                      <Text style={s.momDate}>Held: {fmt(mom.date)}</Text>
+                      <Text style={s.momTitle}>{tr(mom.title)}</Text>
+                      <Text style={s.momDate}>{tr("Held: ")}{fmt(mom.date)}</Text>
                     </View>
                     {canDo('mom', 'update') && (
                       <TouchableOpacity style={s.cardIconBtn} onPress={() => openEdit(mom)} hitSlop={6}>
@@ -222,23 +223,23 @@ const { can: canDo } = useProjectPermissions(projectId);
                     )}
                   </View>
                   {mom.attendees?.length > 0 && (
-                    <Text style={s.attendeesText}>Attendees: <Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{mom.attendees.join(', ')}</Text></Text>
+                    <Text style={s.attendeesText}>{tr("Attendees: ")}<Text style={{ fontFamily: 'Inter-Bold', color: '#0F172A' }}>{mom.attendees.join(', ')}</Text></Text>
                   )}
 
-                  <Text style={s.sectionTitle}>AGENDA</Text>
-                  <Text style={s.bodyText}>{mom.agenda}</Text>
+                  <Text style={s.sectionTitle}>{tr("AGENDA")}</Text>
+                  <Text style={s.bodyText}>{tr(mom.agenda)}</Text>
 
-                  <Text style={s.sectionTitle}>DISCUSSION NOTES</Text>
-                  <Text style={s.bodyText}>{mom.notes}</Text>
+                  <Text style={s.sectionTitle}>{tr("DISCUSSION NOTES")}</Text>
+                  <Text style={s.bodyText}>{tr(mom.notes)}</Text>
 
-                  <Text style={s.sectionTitle}>ASSIGNED ACTION ITEMS</Text>
+                  <Text style={s.sectionTitle}>{tr("ASSIGNED ACTION ITEMS")}</Text>
                   {(!mom.actionItems || mom.actionItems.length === 0) ? (
-                    <Text style={s.emptyLine}>No action items logged.</Text>
+                    <Text style={s.emptyLine}>{tr("No action items logged.")}</Text>
                   ) : (
                     mom.actionItems.map((item, i) => (
                       <View key={i} style={s.actionRow}>
                         <Ionicons name="checkbox-outline" size={14} color="#16A34A" />
-                        <Text style={s.actionText}>{item.description}</Text>
+                        <Text style={s.actionText}>{tr(item.description)}</Text>
                       </View>
                     ))
                   )}
@@ -260,37 +261,37 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{editingId ? 'Edit Minutes of Meeting' : 'Log Minutes of Meeting'}</Text>
+              <Text style={s.modalTitle}>{editingId ? tr("Edit Minutes of Meeting") : tr("Log Minutes of Meeting")}</Text>
               <TouchableOpacity onPress={() => setIsModalOpen(false)}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Meeting Title *</Text>
-              <TextInput style={s.input} placeholder="e.g. Weekly MEP Coordination" placeholderTextColor="#94A3B8" value={title} onChangeText={setTitle} />
+              <Text style={s.label}>{tr("Meeting Title *")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Weekly MEP Coordination")} placeholderTextColor="#94A3B8" value={title} onChangeText={setTitle} />
 
-              <Text style={s.label}>Meeting Date</Text>
+              <Text style={s.label}>{tr("Meeting Date")}</Text>
               <DateField value={date} onChange={setDate} inputStyle={s.input} />
 
-              <Text style={s.label}>Attendees (comma-separated)</Text>
-              <TextInput style={s.input} placeholder="e.g. Sameer PM, Consultant A" placeholderTextColor="#94A3B8" value={attendees} onChangeText={setAttendees} />
+              <Text style={s.label}>{tr("Attendees (comma-separated)")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Sameer PM, Consultant A")} placeholderTextColor="#94A3B8" value={attendees} onChangeText={setAttendees} />
 
-              <Text style={s.label}>Meeting Agenda *</Text>
-              <TextInput style={[s.input, { height: 60, textAlignVertical: 'top', paddingTop: 12 }]} placeholder="Specify agenda topics..." placeholderTextColor="#94A3B8" value={agenda} onChangeText={setAgenda} multiline />
+              <Text style={s.label}>{tr("Meeting Agenda *")}</Text>
+              <TextInput style={[s.input, { height: 60, textAlignVertical: 'top', paddingTop: 12 }]} placeholder={tr("Specify agenda topics...")} placeholderTextColor="#94A3B8" value={agenda} onChangeText={setAgenda} multiline />
 
-              <Text style={s.label}>Discussion Notes *</Text>
-              <TextInput style={[s.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]} placeholder="Specify key discussion outcomes..." placeholderTextColor="#94A3B8" value={notes} onChangeText={setNotes} multiline />
+              <Text style={s.label}>{tr("Discussion Notes *")}</Text>
+              <TextInput style={[s.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]} placeholder={tr("Specify key discussion outcomes...")} placeholderTextColor="#94A3B8" value={notes} onChangeText={setNotes} multiline />
 
               <View style={s.sectionHeaderRow}>
-                <Text style={s.formSectionLabel}>ACTION ITEMS</Text>
+                <Text style={s.formSectionLabel}>{tr("ACTION ITEMS")}</Text>
                 <TouchableOpacity style={s.addRowBtn} onPress={addAction}>
-                  <Text style={s.addRowBtnText}>+ Add Action</Text>
+                  <Text style={s.addRowBtnText}>{tr("+ Add Action")}</Text>
                 </TouchableOpacity>
               </View>
               {actionItems.map((item, idx) => (
                 <View key={idx} style={{ flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                  <TextInput style={[s.input, { flex: 1 }]} placeholder="Action item description..." placeholderTextColor="#94A3B8" value={item.description} onChangeText={(v) => updateAction(idx, v)} />
+                  <TextInput style={[s.input, { flex: 1 }]} placeholder={tr("Action item description...")} placeholderTextColor="#94A3B8" value={item.description} onChangeText={(v) => updateAction(idx, v)} />
                   <TouchableOpacity onPress={() => removeAction(idx)} disabled={actionItems.length === 1} style={s.removeBtn}>
                     <Ionicons name="trash-outline" size={15} color={actionItems.length === 1 ? '#CBD5E1' : '#EF4444'} />
                   </TouchableOpacity>
@@ -298,7 +299,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               ))}
 
               <TouchableOpacity style={[s.saveBtn, creating && { opacity: 0.7 }]} onPress={handleSubmit} disabled={creating}>
-                {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingId ? 'Save Changes' : 'Save MOM'}</Text>}
+                {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editingId ? tr("Save Changes") : tr("Save MOM")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, Alert, Linking, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions, FlatList } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -31,8 +32,8 @@ const FolderCard = memo(({ folder, onSelect }) => (
   >
     <AdaptiveGlass intensity={15} tint="light" style={styles.folderContent}>
       <View style={styles.folderIconBox}><Ionicons name="folder" size={32} color="#3B82F6" /></View>
-      <Text style={styles.folderName} numberOfLines={1}>{folder.name}</Text>
-      <Text style={styles.folderCount}>{folder.documents?.length || 0} Assets</Text>
+      <Text style={styles.folderName} numberOfLines={1}>{tr(folder.name)}</Text>
+      <Text style={styles.folderCount}>{folder.documents?.length || 0}{tr(" Assets")}</Text>
     </AdaptiveGlass>
   </TouchableOpacity>
 ));
@@ -75,30 +76,30 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
         </View>
 
         <View style={styles.docInfo}>
-          <Text style={styles.docName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+          <Text style={styles.docName} numberOfLines={1} ellipsizeMode="tail">{tr(item.name)}</Text>
           <View style={styles.docMetaRow}>
-            <Text style={styles.docSize}>{displayedVersion.size ? (displayedVersion.size / 1024 / 1024).toFixed(2) + ' MB' : 'Link'}</Text>
+            <Text style={styles.docSize}>{displayedVersion.size ? (displayedVersion.size / 1024 / 1024).toFixed(2) + ' MB' : tr("Link")}</Text>
             <Text style={styles.docDot}>•</Text>
-            <Text style={styles.docDate}>{displayedVersion.mimeType?.split('/')[1]?.toUpperCase() || 'FILE'}</Text>
+            <Text style={styles.docDate}>{displayedVersion.mimeType?.split('/')[1]?.toUpperCase() || tr("FILE")}</Text>
             {versionCount > 1 && (
               <>
                 <Text style={styles.docDot}>•</Text>
                 <TouchableOpacity style={styles.historyBtnLine} onPress={() => onShowHistory(item)}>
                   <Ionicons name="time-outline" size={11} color="#64748B" />
-                  <Text style={styles.historyTextLine}>{versionCount} versions</Text>
+                  <Text style={styles.historyTextLine}>{tr(versionCount)}{tr(" versions")}</Text>
                 </TouchableOpacity>
               </>
             )}
           </View>
           {activeIsAdmin && status === 'Rejected' && displayedVersion.approvalNote ? (
-            <Text style={styles.docRejectNote} numberOfLines={1}>{displayedVersion.approvalNote}</Text>
+            <Text style={styles.docRejectNote} numberOfLines={1}>{tr(displayedVersion.approvalNote)}</Text>
           ) : null}
         </View>
 
         <View style={styles.docRightSide}>
           <View style={styles.cardHeaderCol}>
             <View style={[styles.docStatusBadge, { backgroundColor: sc.bg, borderColor: sc.border }]}>
-              <Text style={[styles.docStatusText, { color: sc.text }]}>{status}</Text>
+              <Text style={[styles.docStatusText, { color: sc.text }]}>{tr(status)}</Text>
             </View>
 
             <TouchableOpacity
@@ -107,7 +108,7 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
               style={[styles.versionBadge, { backgroundColor: isViewingLatest ? '#3B82F6' : '#64748B', flexDirection: 'row', gap: 4 }]}
               disabled={versionCount <= 1}
             >
-              <Text style={styles.versionBadgeText}>v{displayedVersion.versionNumber}</Text>
+              <Text style={styles.versionBadgeText}>v{tr(displayedVersion.versionNumber)}</Text>
               {versionCount > 1 && <Ionicons name="repeat" size={10} color="#FFF" />}
             </TouchableOpacity>
           </View>
@@ -134,7 +135,7 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
               onPress={() => setViewIdx(versions.length - 1)}
             >
               <Ionicons name="arrow-forward" size={13} color="#64748B" />
-              <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>Show Latest (v{latestVersion.versionNumber})</Text>
+              <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>{tr("Show Latest (v")}{tr(latestVersion.versionNumber)})</Text>
             </TouchableOpacity>
           ) : (
             <>
@@ -145,12 +146,12 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
                   onPress={() => onSendApproval(item, latestVersion)}
                 >
                   <Ionicons name="send" size={12} color="#FFF" />
-                  <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#FFF' }}>Send for Approval</Text>
+                  <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#FFF' }}>{tr("Send for Approval")}</Text>
                 </TouchableOpacity>
               )}
               {activeIsAdmin && status === 'Pending' && (
                 <View style={[styles.miniBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-                  <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#D97706' }}>Awaiting Approval</Text>
+                  <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#D97706' }}>{tr("Awaiting Approval")}</Text>
                 </View>
               )}
               {activeIsAdmin && status === 'Rejected' && (
@@ -159,7 +160,7 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
                   onPress={() => onRevertDraft(item, latestVersion)}
                 >
                   <Ionicons name="refresh-outline" size={13} color="#64748B" />
-                  <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>Resubmit</Text>
+                  <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' }}>{tr("Resubmit")}</Text>
                 </TouchableOpacity>
               )}
               {(activeIsAdmin || canCreatePlans) && (status === 'Approved' || status === 'Rejected') && (
@@ -173,7 +174,7 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
                   ) : (
                     <>
                       <Ionicons name="cloud-upload-outline" size={13} color="#3B82F6" />
-                      <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#3B82F6' }}>Upload Revision</Text>
+                      <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#3B82F6' }}>{tr("Upload Revision")}</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -186,14 +187,14 @@ const PlanCard = memo(({ item, folderId, activeIsAdmin, canDeleteDocument, canAs
                     onPress={() => onApprove(item, latestVersion)}
                   >
                     <Ionicons name="checkmark" size={14} color="#16A34A" />
-                    <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#16A34A' }}>Approve</Text>
+                    <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#16A34A' }}>{tr("Approve")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.miniBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
                     onPress={() => onReject(item, latestVersion)}
                   >
                     <Ionicons name="close" size={14} color="#DC2626" />
-                    <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#DC2626' }}>Reject</Text>
+                    <Text style={{ fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#DC2626' }}>{tr("Reject")}</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -307,12 +308,12 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
       if (res.ok) {
         setAnnotationText('');
         fetchAnnotations(annotationModal.item._id);
-        showToast('Annotation saved', 'success');
+        showToast(tr("Annotation saved"), 'success');
       } else {
-        showToast('Failed to save annotation', 'error');
+        showToast(tr("Failed to save annotation"), 'error');
       }
     } catch (e) {
-      showToast('Error saving annotation', 'error');
+      showToast(tr("Error saving annotation"), 'error');
     } finally {
       setIsSavingAnnotation(false);
     }
@@ -387,11 +388,11 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
         body: JSON.stringify({ name: folderName })
       });
       if (response.ok) {
-        showToast(`Folder "${folderName}" ${editingFolderId ? 'updated' : 'created'} successfully.`, 'success');
+        showToast(tr("Folder \"{{folderName}}\" {{value}} successfully.", { folderName: folderName, value: editingFolderId ? 'updated' : 'created' }), 'success');
         fetchPlanFolders();
       } else {
         const data = await response.json();
-        showToast(data.message || 'Failed to save folder', 'error');
+        showToast(data.message || tr("Failed to save folder"), 'error');
       }
     } catch (e) {
       console.error(e);
@@ -441,14 +442,14 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
         });
 
         if (response.ok) {
-          showToast(existingPlanId ? 'New version (v' + (file.name ? 'v...' : '') + ') uploaded.' : 'Document uploaded to folder.', 'success');
+          showToast(existingPlanId ? 'New version (v' + (file.name ? 'v...' : '') + ') uploaded.' : tr("Document uploaded to folder."), 'success');
           await fetchPlanFolders();
         } else {
-          showToast('Could not upload document', 'error');
+          showToast(tr("Could not upload document"), 'error');
         }
       } catch (e) {
         console.error(e);
-        showToast('Upload failed', 'error');
+        showToast(tr("Upload failed"), 'error');
       } finally {
         setIsUploadingDoc(false);
         setUploadingRevisionId(null);
@@ -545,7 +546,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
 
   const handleConfirmApproval = async () => {
     if (selectedApproverIds.length === 0) {
-      showToast('Please select at least one approver.', 'error');
+      showToast(tr("Please select at least one approver."), 'error');
       return;
     }
     setShowApproversModal(false);
@@ -558,7 +559,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
         approverIds: selectedApproverIds
       });
       fetchPlanFolders();
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { showToast(tr(e.message), 'error'); }
     finally {
       setUpdatingDocId(null);
       setApprovalDoc(null);
@@ -584,7 +585,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
             response: 'Approved'
           });
           fetchPlanFolders();
-        } catch (e) { showToast(e.message, 'error'); }
+        } catch (e) { showToast(tr(e.message), 'error'); }
         finally {
           setUpdatingDocId(null);
           setConfirmModal(prev => ({ ...prev, visible: false }));
@@ -599,7 +600,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
   };
 
   const submitPlanRejection = async () => {
-    if (!planRejectReason.trim()) { showToast('Please provide a reason.', 'error'); return; }
+    if (!planRejectReason.trim()) { showToast(tr("Please provide a reason."), 'error'); return; }
     const { folderId, doc } = planRejectModal;
     setPlanRejectModal({ visible: false, folderId: null, doc: null });
     try {
@@ -612,13 +613,13 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
         note: planRejectReason.trim()
       });
       fetchPlanFolders();
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { showToast(tr(e.message), 'error'); }
     finally { setUpdatingDocId(null); }
   };
 
   const handleVersionDelete = useCallback((plan, version) => {
     if (plan.versions.length <= 1) {
-      showToast('Cannot delete the only version. Delete the document instead.', 'error');
+      showToast(tr("Cannot delete the only version. Delete the document instead."), 'error');
       return;
     }
     setConfirmModal({
@@ -642,7 +643,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
               versions: prev.versions.filter(v => v._id !== version._id)
             }));
           }
-        } catch (e) { showToast(e.message, 'error'); }
+        } catch (e) { showToast(tr(e.message), 'error'); }
         finally {
           setUpdatingDocId(null);
           setConfirmModal(prev => ({ ...prev, visible: false }));
@@ -663,7 +664,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
           setUpdatingDocId(item._id);
           await patchDoc(activeFolderId, { action: 'deleteDocument', docId: item._id });
           fetchPlanFolders();
-        } catch (e) { showToast(e.message, 'error'); }
+        } catch (e) { showToast(tr(e.message), 'error'); }
         finally {
           setUpdatingDocId(null);
           setConfirmModal(prev => ({ ...prev, visible: false }));
@@ -688,11 +689,11 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (response.ok) {
-            showToast(`Folder "${folder.name}" deleted successfully.`, 'success');
+            showToast(tr("Folder \"{{name}}\" deleted successfully.", { name: folder.name }), 'success');
             fetchPlanFolders();
           } else {
             const data = await response.json();
-            showToast(data.message || 'Failed to delete folder', 'error');
+            showToast(data.message || tr("Failed to delete folder"), 'error');
           }
         } catch (e) {
           showToast(t('networkError'), 'error');
@@ -720,7 +721,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
             versionId: version._id
           });
           fetchPlanFolders();
-        } catch (e) { showToast(e.message, 'error'); }
+        } catch (e) { showToast(tr(e.message), 'error'); }
         finally {
           setUpdatingDocId(null);
           setConfirmModal(prev => ({ ...prev, visible: false }));
@@ -735,7 +736,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
 
   const handleViewDocument = useCallback(async (url, name, plan, folderId) => {
     if (!url) {
-      showToast('No source URL found for this document.', 'error');
+      showToast(tr("No source URL found for this document."), 'error');
       return;
     }
     const latestVersion = plan.versions?.[plan.versions.length - 1];
@@ -809,9 +810,9 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
             <Ionicons name="folder" size={20} color="#0EA5E9" />
           </View>
           <View style={styles.docInfo}>
-            <Text style={styles.docName} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.docName} numberOfLines={1}>{tr(item.name)}</Text>
             <View style={styles.docMetaRow}>
-              <Text style={styles.docDate}>{visibleCount} Asset{visibleCount !== 1 ? 's' : ''}</Text>
+              <Text style={styles.docDate}>{tr(visibleCount)}{tr(" Asset")}{visibleCount !== 1 ? 's' : ''}</Text>
             </View>
           </View>
           <View style={styles.docRightSide}>
@@ -879,9 +880,9 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
         <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
-        <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>Access Restricted</Text>
+        <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>{tr("Access Restricted")}</Text>
         <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', marginTop: 8 }}>
-          You don't have permission to view the Drawing Management module.
+          {tr("You don't have permission to view the Drawing Management module.")}
         </Text>
       </View>
     );
@@ -905,10 +906,10 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
             <View style={styles.plansHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.bentoTitle}>
-                  {activeFolder ? activeFolder.name : 'Technical Folders'}
+                  {activeFolder ? activeFolder.name : tr("Technical Folders")}
                 </Text>
                 <Text style={styles.bentoSub} numberOfLines={1}>
-                  {activeFolder ? 'Manage and approve folder assets' : 'Manage project drawings and diagrams'}
+                  {activeFolder ? tr("Manage and approve folder assets") : tr("Manage project drawings and diagrams")}
                 </Text>
               </View>
               {activeFolder ? (
@@ -916,12 +917,12 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                   {canCreatePlans && (
                     <TouchableOpacity onPress={() => handleUploadDocument()} style={styles.uploadPill}>
                       {isUploadingDoc ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="cloud-upload" size={14} color="#FFF" />}
-                      <Text style={styles.uploadPillText}>Upload</Text>
+                      <Text style={styles.uploadPillText}>{tr("Upload")}</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity onPress={() => { setActiveFolderId(null); setSearchQuery(''); setStatusFilter('All'); }} style={styles.backPill}>
                     <Ionicons name="arrow-back" size={14} color="#3B82F6" />
-                    <Text style={styles.backPillText}>Back</Text>
+                    <Text style={styles.backPillText}>{tr("Back")}</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -936,7 +937,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                       style={styles.uploadPill}
                     >
                       <Ionicons name="add" size={16} color="#FFF" />
-                      <Text style={styles.uploadPillText}>Add Folder</Text>
+                      <Text style={styles.uploadPillText}>{tr("Add Folder")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -949,7 +950,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                   <Ionicons name="search" size={18} color="#94A3B8" />
                   <TextInput
                     style={styles.searchInput}
-                    placeholder={activeFolder ? "Search drawings..." : "Search folders..."}
+                    placeholder={activeFolder ? tr("Search drawings...") : tr("Search folders...")}
                     placeholderTextColor="#94A3B8"
                     value={searchQuery}
                     onChangeText={setSearchQuery}
@@ -972,7 +973,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                       style={[styles.filterChip, statusFilter === status && styles.filterChipActive]}
                       onPress={() => setStatusFilter(status)}
                     >
-                      <Text style={[styles.filterChipText, statusFilter === status && styles.filterChipTextActive]}>{status}</Text>
+                      <Text style={[styles.filterChipText, statusFilter === status && styles.filterChipTextActive]}>{tr(status)}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -984,8 +985,8 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
           <View style={{ paddingHorizontal: 20 }}>
             <Text style={{ color: '#94A3B8', marginTop: 20, fontFamily: 'Inter-SemiBold', width: '100%' }}>
               {activeFolder
-                ? (activeIsAdmin ? 'No documents in this folder yet.' : 'No drawings sent for approval yet.')
-                : 'No folders found.'
+                ? (activeIsAdmin ? tr("No documents in this folder yet.") : tr("No drawings sent for approval yet."))
+                : tr("No folders found.")
               }
             </Text>
           </View>
@@ -1000,16 +1001,16 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
         <View style={styles.modalOverlayCenter}>
           <View style={styles.smallModal}>
             <View style={styles.modalIconBox}><Ionicons name={editingFolderId ? "pencil" : "folder-open"} size={28} color="#3B82F6" /></View>
-            <Text style={styles.modalTitle}>{editingFolderId ? 'Update Folder Name' : 'New Drawings Folder'}</Text>
+            <Text style={styles.modalTitle}>{editingFolderId ? tr("Update Folder Name") : tr("New Drawings Folder")}</Text>
             <Text style={styles.modalSub}>
-              {editingFolderId ? 'Rename this folder to keep your documentation organized.' : 'Organize your technical drawings by category or phase.'}
+              {editingFolderId ? tr("Rename this folder to keep your documentation organized.") : tr("Organize your technical drawings by category or phase.")}
             </Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Folder Name</Text>
+              <Text style={styles.inputLabel}>{tr("Folder Name")}</Text>
               <TextInput
                 style={styles.modalInput}
-                placeholder="e.g. Phase 1 - Structural"
+                placeholder={tr("e.g. Phase 1 - Structural")}
                 value={folderName}
                 onChangeText={setFolderName}
                 autoFocus
@@ -1025,13 +1026,13 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                   setEditingFolderId(null);
                 }}
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.cancelText}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.confirmBtn}
                 onPress={() => handleSaveFolder()}
               >
-                <Text style={styles.confirmText}>{editingFolderId ? 'Update Folder' : 'Create Folder'}</Text>
+                <Text style={styles.confirmText}>{editingFolderId ? tr("Update Folder") : tr("Create Folder")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1045,13 +1046,13 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
           style={styles.modalOverlayCenter}
         >
           <View style={styles.smallModal}>
-            <Text style={styles.modalTitle}>Reject Drawing</Text>
-            <Text style={styles.modalSub} numberOfLines={2}>{planRejectModal.doc?.name}</Text>
+            <Text style={styles.modalTitle}>{tr("Reject Drawing")}</Text>
+            <Text style={styles.modalSub} numberOfLines={2}>{tr(planRejectModal.doc?.name)}</Text>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Reason for Rejection</Text>
+              <Text style={styles.inputLabel}>{tr("Reason for Rejection")}</Text>
               <TextInput
                 style={[styles.modalInput, { height: 80, paddingTop: 12, textAlignVertical: 'top' }]}
-                placeholder="e.g. Dimensions don't match agreed layout"
+                placeholder={tr("e.g. Dimensions don't match agreed layout")}
                 multiline
                 value={planRejectReason}
                 onChangeText={setPlanRejectReason}
@@ -1060,10 +1061,10 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
             </View>
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setPlanRejectModal({ visible: false, folderId: null, doc: null })}>
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.cancelText}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: '#DC2626' }]} onPress={submitPlanRejection}>
-                <Text style={styles.confirmText}>Reject</Text>
+                <Text style={styles.confirmText}>{tr("Reject")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1077,11 +1078,11 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
           <View style={[styles.modalContent, { minHeight: '50%' }]}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Send for Approval</Text>
+                <Text style={styles.modalTitle}>{tr("Send for Approval")}</Text>
                 <Text style={[styles.bentoSub, { marginTop: 4 }]}>
                   {selectedApproverIds.length > 0
-                    ? `${selectedApproverIds.length} selected • all must approve`
-                    : 'Select one or more approvers'}
+                    ? tr("{{selectedApproverIdsCount}} selected • all must approve", { selectedApproverIdsCount: selectedApproverIds.length })
+                    : tr("Select one or more approvers")}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setShowApproversModal(false)}>
@@ -1092,7 +1093,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
             {isLoadingApprovers ? (
               <View style={{ padding: 40, alignItems: 'center' }}>
                 <ActivityIndicator size="large" color="#8B5CF6" />
-                <Text style={{ marginTop: 12, fontFamily: 'Inter-SemiBold', color: '#94A3B8' }}>Fetching approvers...</Text>
+                <Text style={{ marginTop: 12, fontFamily: 'Inter-SemiBold', color: '#94A3B8' }}>{tr("Fetching approvers...")}</Text>
               </View>
             ) : approversList.length > 0 ? (
               <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -1144,11 +1145,11 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                         </Text>
                       </View>
                       <View style={styles.approverInfo}>
-                        <Text style={styles.approverName}>{displayName}</Text>
+                        <Text style={styles.approverName}>{tr(displayName)}</Text>
                         <Text style={styles.approverEmail}>{matchingMember?.email || approver.email}</Text>
                         {approver.roleName && (
                           <View style={styles.approverRolePill}>
-                            <Text style={styles.approverRoleText}>{approver.roleName}</Text>
+                            <Text style={styles.approverRoleText}>{tr(approver.roleName)}</Text>
                           </View>
                         )}
                       </View>
@@ -1159,9 +1160,9 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
             ) : (
               <View style={{ padding: 40, alignItems: 'center' }}>
                 <Ionicons name="people-outline" size={48} color="#CBD5E1" />
-                <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>No Approvers Found</Text>
+                <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>{tr("No Approvers Found")}</Text>
                 <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#94A3B8', textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
-                  No project members have the "Drawing Management → Approve" permission. Ask your admin to assign it.
+                  {tr("No project members have the \"Drawing Management → Approve\" permission. Ask your admin to assign it.")}
                 </Text>
               </View>
             )}
@@ -1175,7 +1176,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                 <LinearGradient colors={['#3B82F6', '#3B82F6']} style={styles.updateGradient}>
                   <Ionicons name="send" size={18} color="#FFF" style={{ marginRight: 8 }} />
                   <Text style={styles.updateBtnText}>
-                    {selectedApproverIds.length > 0 ? `Send to ${selectedApproverIds.length} Approver${selectedApproverIds.length > 1 ? 's' : ''}` : 'Send for Approval'}
+                    {selectedApproverIds.length > 0 ? tr("Send to {{selectedApproverIdsCount}} Approver{{value}}", { selectedApproverIdsCount: selectedApproverIds.length, value: selectedApproverIds.length > 1 ? 's' : '' }) : tr("Send for Approval")}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -1190,8 +1191,8 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Version History</Text>
-                <Text style={styles.bentoSub}>{historyPlan?.name}</Text>
+                <Text style={styles.modalTitle}>{tr("Version History")}</Text>
+                <Text style={styles.bentoSub}>{tr(historyPlan?.name)}</Text>
               </View>
               <TouchableOpacity onPress={() => setShowHistoryModal(false)}>
                 <Ionicons name="close" size={24} color="#0F172A" />
@@ -1205,17 +1206,17 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                   <View key={ver._id} style={styles.historyItem}>
                     <View style={styles.historyMeta}>
                       <View style={[styles.versionBadge, { backgroundColor: '#F8FAFF', borderColor: '#E2E8F0', borderWidth: 1 }]}>
-                        <Text style={[styles.versionBadgeText, { color: '#3B82F6' }]}>v{ver.versionNumber}</Text>
+                        <Text style={[styles.versionBadgeText, { color: '#3B82F6' }]}>v{tr(ver.versionNumber)}</Text>
                       </View>
                       <Text style={styles.historyDate}>
-                        {new Date(ver.uploadedAt).toLocaleDateString()} at {new Date(ver.uploadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(ver.uploadedAt).toLocaleDateString()}{tr(" at ")}{new Date(ver.uploadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </Text>
                     </View>
 
                     <View style={styles.historyBody}>
-                      <Text style={styles.historyName} numberOfLines={1}>{ver.name}</Text>
+                      <Text style={styles.historyName} numberOfLines={1}>{tr(ver.name)}</Text>
                       <View style={[styles.docStatusBadge, { backgroundColor: sc.bg, borderColor: sc.border, marginTop: 8 }]}>
-                        <Text style={[styles.docStatusText, { color: sc.text }]}>{ver.approvalStatus}</Text>
+                        <Text style={[styles.docStatusText, { color: sc.text }]}>{tr(ver.approvalStatus)}</Text>
                       </View>
                     </View>
 
@@ -1224,7 +1225,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                       onPress={() => handleViewDocument(ver.url, ver.name, historyPlan, activeFolderId)}
                     >
                       <Ionicons name="eye-outline" size={18} color="#3B82F6" />
-                      <Text style={styles.historyViewText}>View</Text>
+                      <Text style={styles.historyViewText}>{tr("View")}</Text>
                     </TouchableOpacity>
 
                     {activeIsAdmin && (ver.approvalStatus === 'Draft' || ver.approvalStatus === 'Pending') && historyPlan?.versions?.length > 1 && (
@@ -1245,8 +1246,8 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
 
       <ConfirmModal
         visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={tr(confirmModal.title)}
+        message={tr(confirmModal.message)}
         confirmText={confirmModal.confirmText}
         type={confirmModal.type}
         isSubmitting={!!updatingDocId}
@@ -1260,23 +1261,23 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
           <View style={styles.modalOverlay}>
             <View style={[styles.modalBox, { maxHeight: '80%' }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Annotations</Text>
+                <Text style={styles.modalTitle}>{tr("Annotations")}</Text>
                 <TouchableOpacity onPress={() => setAnnotationModal({ visible: false, item: null })}>
                   <Ionicons name="close" size={22} color="#64748B" />
                 </TouchableOpacity>
               </View>
               {annotationModal.item && (
-                <Text style={styles.modalSub} numberOfLines={1}>{annotationModal.item.name}</Text>
+                <Text style={styles.modalSub} numberOfLines={1}>{tr(annotationModal.item.name)}</Text>
               )}
 
               <ScrollView style={{ maxHeight: 200, marginTop: 10 }} showsVerticalScrollIndicator={false}>
                 {annotations.length === 0 ? (
-                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingVertical: 16 }}>No annotations yet</Text>
+                  <Text style={{ fontSize: 13, fontFamily: 'Inter-Regular', color: '#94A3B8', textAlign: 'center', paddingVertical: 16 }}>{tr("No annotations yet")}</Text>
                 ) : annotations.map(a => (
                   <View key={a._id} style={{ backgroundColor: '#FFFBEB', borderRadius: 10, padding: 10, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#F59E0B' }}>
-                    <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#1E293B' }}>{a.text}</Text>
+                    <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#1E293B' }}>{tr(a.text)}</Text>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                      <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' }}>{a.createdByName || 'You'} • {new Date(a.createdAt).toLocaleDateString()}</Text>
+                      <Text style={{ fontSize: 11, fontFamily: 'Inter-Regular', color: '#94A3B8' }}>{a.createdByName || tr("You")} • {new Date(a.createdAt).toLocaleDateString()}</Text>
                       {(activeIsAdmin || (!isLocked && hasProjectPermission(user, project, 'annotations:delete'))) && (
                         <TouchableOpacity onPress={() => deleteAnnotation(a._id)}>
                           <Ionicons name="trash-outline" size={14} color="#EF4444" />
@@ -1291,7 +1292,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
               <View style={{ marginTop: 12, gap: 10 }}>
                 <TextInput
                   style={[styles.modalInput, { height: 80, textAlignVertical: 'top' }]}
-                  placeholder="Add an annotation note..."
+                  placeholder={tr("Add an annotation note...")}
                   placeholderTextColor="#94A3B8"
                   value={annotationText}
                   onChangeText={setAnnotationText}
@@ -1308,7 +1309,7 @@ export default function ProjectPlansTab({ projectId, project, isAdmin, currentUs
                     ) : (
                       <>
                         <Ionicons name="save-outline" size={14} color="#FFF" />
-                        <Text style={styles.submitBtnText}>Save Note</Text>
+                        <Text style={styles.submitBtnText}>{tr("Save Note")}</Text>
                       </>
                     )}
                   </LinearGradient>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // import React, { useState, useEffect, useCallback, useRef } from 'react';
 // import {
 //   View, Text, StyleSheet, ScrollView, ActivityIndicator,
@@ -814,7 +815,7 @@ function GanttChart({ milestones, rangeStart, totalDays, monthHeaders, chartWidt
               <View style={[styles.monthRow, { width: chartWidth, borderBottomWidth: 0 }]}>
                 {monthHeaders.map((h, i) => (
                   <View key={i} style={[styles.monthCell, { width: h.width }]}>
-                    <Text style={styles.monthLabel}>{h.label}</Text>
+                    <Text style={styles.monthLabel}>{tr(h.label)}</Text>
                   </View>
                 ))}
               </View>
@@ -822,7 +823,7 @@ function GanttChart({ milestones, rangeStart, totalDays, monthHeaders, chartWidt
               <View style={[styles.dateRow, { width: chartWidth, borderBottomWidth: 0 }]}>
                 {dayHeaders.map((d, i) => (
                   <View key={i} style={[styles.dateCell, d.isWeekend && styles.weekendCell, d.isToday && styles.todayCell]}>
-                    <Text style={[styles.dateLabel, d.isWeekend && styles.weekendLabel, d.isToday && styles.todayLabel]}>{d.num}</Text>
+                    <Text style={[styles.dateLabel, d.isWeekend && styles.weekendLabel, d.isToday && styles.todayLabel]}>{tr(d.num)}</Text>
                   </View>
                 ))}
               </View>
@@ -846,7 +847,7 @@ function GanttChart({ milestones, rangeStart, totalDays, monthHeaders, chartWidt
                 <View key={m._id} style={[styles.nameRow, i % 2 === 1 && styles.nameRowAlt, { height: rowH }]}>
                   <TouchableOpacity activeOpacity={0.7} onPress={() => toggleExpand(m._id)} style={styles.nameRowTop}>
                     <View style={[styles.statusDot, { backgroundColor: col.bar }]} />
-                    <Text style={styles.nameText} numberOfLines={2}>{m.name}</Text>
+                    <Text style={styles.nameText} numberOfLines={2}>{tr(m.name)}</Text>
                     <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={12} color="#94A3B8" />
                   </TouchableOpacity>
                   {isExpanded && m.tasks?.map((task, tIdx) => (
@@ -858,7 +859,7 @@ function GanttChart({ milestones, rangeStart, totalDays, monthHeaders, chartWidt
                         color={task.isCompleted ? "#10B981" : "#94A3B8"}
                       />
                       <Text style={[styles.taskNameText, task.isCompleted && styles.taskNameTextDone]} numberOfLines={1}>
-                        {task.title}
+                        {tr(task.title)}
                       </Text>
                     </View>
                   ))}
@@ -937,7 +938,7 @@ export default function ProjectTimelineTab() {
       const data = await milestoneService.getProjectMilestones(projectId, token);
       setMilestones(Array.isArray(data) ? data : []);
     } catch {
-      showToast('Failed to load milestones', 'error');
+      showToast(tr("Failed to load milestones"), 'error');
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -986,8 +987,8 @@ export default function ProjectTimelineTab() {
     return (
       <View style={styles.center}>
         <Ionicons name="git-branch-outline" size={52} color="#CBD5E1" />
-        <Text style={styles.emptyTitle}>No Milestones Yet</Text>
-        <Text style={styles.emptyDesc}>Add milestones from the Milestone tab to see the Gantt chart.</Text>
+        <Text style={styles.emptyTitle}>{tr("No Milestones Yet")}</Text>
+        <Text style={styles.emptyDesc}>{tr("Add milestones from the Milestone tab to see the Gantt chart.")}</Text>
       </View>
     );
   }
@@ -1002,17 +1003,17 @@ export default function ProjectTimelineTab() {
       {/* Top bar */}
       <View style={styles.topBar}>
         <View style={styles.topHeader}>
-          <Text style={styles.topTitle}>PROJECT TIMELINE</Text>
+          <Text style={styles.topTitle}>{tr("PROJECT TIMELINE")}</Text>
           <TouchableOpacity style={styles.expandBtn} onPress={() => setIsFullScreen(true)}>
             <Ionicons name="expand-outline" size={18} color="#3B82F6" />
-            <Text style={styles.expandText}>Full View</Text>
+            <Text style={styles.expandText}>{tr("Full View")}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.legend}>
           {Object.entries(STATUS).map(([label, col]) => (
             <View key={label} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: col.bar }]} />
-              <Text style={styles.legendText}>{label}</Text>
+              <Text style={styles.legendText}>{tr(label)}</Text>
             </View>
           ))}
         </View>
@@ -1036,7 +1037,7 @@ export default function ProjectTimelineTab() {
 
         {/* ── Summary cards ── */}
         <View style={styles.summarySection}>
-          <Text style={styles.summaryTitle}>MILESTONE SUMMARY</Text>
+          <Text style={styles.summaryTitle}>{tr("MILESTONE SUMMARY")}</Text>
           <View style={styles.summaryRow}>
             {[
               { label: 'Total', count: milestones.length, color: '#3B82F6' },
@@ -1046,7 +1047,7 @@ export default function ProjectTimelineTab() {
             ].map(s => (
               <View key={s.label} style={styles.summaryCard}>
                 <Text style={[styles.summaryCount, { color: s.color }]}>{s.count}</Text>
-                <Text style={styles.summaryLabel}>{s.label}</Text>
+                <Text style={styles.summaryLabel}>{tr(s.label)}</Text>
               </View>
             ))}
           </View>
@@ -1054,7 +1055,7 @@ export default function ProjectTimelineTab() {
 
         {/* ── Milestone detail list ── */}
         <View style={styles.detailSection}>
-          <Text style={styles.summaryTitle}>MILESTONE DETAILS</Text>
+          <Text style={styles.summaryTitle}>{tr("MILESTONE DETAILS")}</Text>
           {milestones.map(m => {
             const col = STATUS[m.status] || STATUS.Pending;
             const done = m.tasks?.filter(t => t.isCompleted)?.length || 0;
@@ -1065,25 +1066,25 @@ export default function ProjectTimelineTab() {
                 <View style={styles.detailCardTop}>
                   <View style={[styles.detailStatusBar, { backgroundColor: col.bar }]} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.detailName}>{m.name}</Text>
+                    <Text style={styles.detailName}>{tr(m.name)}</Text>
                     <View style={styles.detailMeta}>
                       <View style={[styles.statusPill, { backgroundColor: col.fill }]}>
-                        <Text style={[styles.statusPillText, { color: col.text }]}>{m.status}</Text>
+                        <Text style={[styles.statusPillText, { color: col.text }]}>{tr(m.status)}</Text>
                       </View>
                       {m.dueDate && (
                         <Text style={styles.dueDateText}>
-                          Due {fmtDateSafe(m.dueDate)}
+                          {tr("Due ")}{fmtDateSafe(m.dueDate)}
                         </Text>
                       )}
                     </View>
                   </View>
-                  <Text style={[styles.pctText, { color: col.bar }]}>{pct}%</Text>
+                  <Text style={[styles.pctText, { color: col.bar }]}>{tr(pct)}%</Text>
                 </View>
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: col.bar }]} />
                 </View>
                 {total > 0 && (
-                  <Text style={styles.taskCount}>{done} of {total} tasks completed</Text>
+                  <Text style={styles.taskCount}>{tr(done)}{tr(" of ")}{total}{tr(" tasks completed")}</Text>
                 )}
               </View>
             );
@@ -1097,15 +1098,15 @@ export default function ProjectTimelineTab() {
         <View style={styles.modalRoot}>
           <View style={styles.modalHeader}>
             <View>
-              <Text style={styles.modalTitle}>PROJECT TIMELINE</Text>
-              <Text style={styles.modalSubtitle}>Full Chart View</Text>
+              <Text style={styles.modalTitle}>{tr("PROJECT TIMELINE")}</Text>
+              <Text style={styles.modalSubtitle}>{tr("Full Chart View")}</Text>
             </View>
             {/* Legend inline in header row */}
             <View style={styles.modalLegend}>
               {Object.entries(STATUS).map(([label, col]) => (
                 <View key={label} style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: col.bar }]} />
-                  <Text style={styles.legendText}>{label}</Text>
+                  <Text style={styles.legendText}>{tr(label)}</Text>
                 </View>
               ))}
             </View>
@@ -1137,7 +1138,7 @@ function TodayLabel({ rangeStart, totalDays }) {
   if (offset < 0 || offset > totalDays) return null;
   return (
     <View style={[styles.todayLabelWrapper, { left: offset * DAY_W - 16 }]}>
-      <Text style={styles.todayLabelText}>Today</Text>
+      <Text style={styles.todayLabelText}>{tr("Today")}</Text>
     </View>
   );
 }

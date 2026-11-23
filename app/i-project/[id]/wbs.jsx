@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
@@ -247,7 +248,7 @@ export default function InteriorWbsScreen() {
       setMembers(formattedMembers);
     } catch (e) {
       console.warn('Failed to load WBS data', e);
-      showToast('Failed to load WBS data', 'error');
+      showToast(tr("Failed to load WBS data"), 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -380,7 +381,7 @@ export default function InteriorWbsScreen() {
 
   const handleAddInitialActivity = () => {
     if (!newActivityName.trim()) {
-      showToast('Please enter an Activity Name', 'error');
+      showToast(tr("Please enter an Activity Name"), 'error');
       return;
     }
     const item = {
@@ -403,11 +404,11 @@ export default function InteriorWbsScreen() {
 
   const handleSaveWbs = async () => {
     if (!nodeName.trim()) {
-      showToast('Please enter a WBS Name', 'error');
+      showToast(tr("Please enter a WBS Name"), 'error');
       return;
     }
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-      showToast('Start Date must be before or equal to End Date', 'error');
+      showToast(tr("Start Date must be before or equal to End Date"), 'error');
       return;
     }
 
@@ -452,12 +453,12 @@ export default function InteriorWbsScreen() {
           }
         }
         showToast(
-          `WBS created with ${initialActivities.length} activit${initialActivities.length > 1 ? 'ies' : 'y'}!`,
+          tr("WBS created with {{initialActivitiesCount}} activit{{value}}!", { initialActivitiesCount: initialActivities.length, value: initialActivities.length > 1 ? 'ies' : 'y' }),
           'success'
         );
       } else {
         showToast(
-          wbsModalMode === 'create' ? 'WBS element created successfully' : 'WBS element updated successfully',
+          wbsModalMode === 'create' ? tr("WBS element created successfully") : tr("WBS element updated successfully"),
           'success'
         );
       }
@@ -465,7 +466,7 @@ export default function InteriorWbsScreen() {
       setIsWbsModalOpen(false);
       fetchData(true);
     } catch (e) {
-      showToast(e.message || 'Failed to save WBS element', 'error');
+      showToast(e.message || tr("Failed to save WBS element"), 'error');
     } finally {
       setSubmittingWbs(false);
     }
@@ -473,11 +474,11 @@ export default function InteriorWbsScreen() {
 
   const confirmDeleteWbs = (node) => {
     Alert.alert(
-      'Delete WBS Element',
-      `Are you sure you want to delete "${node.name}"? Any linked activities will also be removed.`,
+      tr("Delete WBS Element"),
+      tr("Are you sure you want to delete \"{{name}}\"? Any linked activities will also be removed.", { name: node.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteWbs(node) },
+        { text: tr("Cancel"), style: 'cancel' },
+        { text: tr("Delete"), style: 'destructive', onPress: () => handleDeleteWbs(node) },
       ]
     );
   };
@@ -485,10 +486,10 @@ export default function InteriorWbsScreen() {
   const handleDeleteWbs = async (node) => {
     try {
       await interiorApiClient.delete(`/projects/${projectId}/wbs?type=${node.type || 'building'}&id=${node.id}`);
-      showToast('WBS element deleted successfully', 'delete');
+      showToast(tr("WBS element deleted successfully"), 'delete');
       fetchData(true);
     } catch (e) {
-      showToast(e.message || 'Failed to delete WBS element', 'error');
+      showToast(e.message || tr("Failed to delete WBS element"), 'error');
     }
   };
 
@@ -533,11 +534,11 @@ export default function InteriorWbsScreen() {
 
   const handleSaveActivity = async () => {
     if (!activityName.trim()) {
-      showToast('Please enter an Activity Name', 'error');
+      showToast(tr("Please enter an Activity Name"), 'error');
       return;
     }
     if (activityStartDate && activityEndDate && new Date(activityStartDate) > new Date(activityEndDate)) {
-      showToast('Start Date must be before or equal to End Date', 'error');
+      showToast(tr("Start Date must be before or equal to End Date"), 'error');
       return;
     }
 
@@ -547,11 +548,11 @@ export default function InteriorWbsScreen() {
     const wbsMax = targetWbsNode?.endDate ? String(targetWbsNode.endDate).split('T')[0] : null;
 
     if (wbsMin && activityStartDate && activityStartDate < wbsMin) {
-      showToast(`Start Date cannot be earlier than WBS Start (${wbsMin})`, 'error');
+      showToast(tr("Start Date cannot be earlier than WBS Start ({{wbsMin}})", { wbsMin: wbsMin }), 'error');
       return;
     }
     if (wbsMax && activityEndDate && activityEndDate > wbsMax) {
-      showToast(`End Date cannot be later than WBS End (${wbsMax})`, 'error');
+      showToast(tr("End Date cannot be later than WBS End ({{wbsMax}})", { wbsMax: wbsMax }), 'error');
       return;
     }
 
@@ -569,10 +570,10 @@ export default function InteriorWbsScreen() {
           isMilestone: activityIsMilestone,
         };
         await interiorApiClient.put(`/projects/${projectId}/tasks/${editingTaskId}`, payload);
-        showToast('Activity updated successfully', 'success');
+        showToast(tr("Activity updated successfully"), 'success');
       } else {
         if (!selectedNodeForActivity?.id) {
-          showToast('Please select a WBS element', 'error');
+          showToast(tr("Please select a WBS element"), 'error');
           return;
         }
         const payload = {
@@ -589,13 +590,13 @@ export default function InteriorWbsScreen() {
           isMilestone: activityIsMilestone,
         };
         await interiorApiClient.post(`/projects/${projectId}/tasks`, payload);
-        showToast('Activity created successfully', 'success');
+        showToast(tr("Activity created successfully"), 'success');
       }
 
       setIsActivityModalOpen(false);
       fetchData(true);
     } catch (e) {
-      showToast(e.message || 'Failed to save activity', 'error');
+      showToast(e.message || tr("Failed to save activity"), 'error');
     } finally {
       setSubmittingActivity(false);
     }
@@ -603,11 +604,11 @@ export default function InteriorWbsScreen() {
 
   const confirmDeleteActivity = (task) => {
     Alert.alert(
-      'Delete Activity',
-      `Are you sure you want to delete activity "${task.name}"?`,
+      tr("Delete Activity"),
+      tr("Are you sure you want to delete activity \"{{name}}\"?", { name: task.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteActivity(task._id || task.id) },
+        { text: tr("Cancel"), style: 'cancel' },
+        { text: tr("Delete"), style: 'destructive', onPress: () => handleDeleteActivity(task._id || task.id) },
       ]
     );
   };
@@ -615,10 +616,10 @@ export default function InteriorWbsScreen() {
   const handleDeleteActivity = async (taskId) => {
     try {
       await interiorApiClient.delete(`/projects/${projectId}/tasks/${taskId}`);
-      showToast('Activity deleted successfully', 'delete');
+      showToast(tr("Activity deleted successfully"), 'delete');
       fetchData(true);
     } catch (e) {
-      showToast(e.message || 'Failed to delete activity', 'error');
+      showToast(e.message || tr("Failed to delete activity"), 'error');
     }
   };
 
@@ -633,10 +634,10 @@ export default function InteriorWbsScreen() {
         progress: newProgress,
         completedAt: newStatus === 'completed' ? new Date().toISOString() : null,
       });
-      showToast(newStatus === 'completed' ? 'Activity completed!' : 'Activity reopened', 'success');
+      showToast(newStatus === 'completed' ? tr("Activity completed!") : tr("Activity reopened"), 'success');
       fetchData(true);
     } catch (e) {
-      showToast(e.message || 'Failed to update activity status', 'error');
+      showToast(e.message || tr("Failed to update activity status"), 'error');
     }
   };
 
@@ -682,15 +683,15 @@ export default function InteriorWbsScreen() {
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={s.headerTitle} numberOfLines={1}>Work Breakdown</Text>
+            <Text style={s.headerTitle} numberOfLines={1}>{tr("Work Breakdown")}</Text>
             <Text style={s.headerSub} numberOfLines={1}>
-              {wbsData.length} {wbsData.length === 1 ? 'element' : 'elements'} · {tasks.length} {tasks.length === 1 ? 'activity' : 'activities'}
+              {wbsData.length} {wbsData.length === 1 ? tr("element") : tr("elements")} · {tasks.length} {tasks.length === 1 ? tr("activity") : tr("activities")}
             </Text>
           </View>
           {canDo('wbs', 'create') && (
             <TouchableOpacity style={s.headerAddBtn} onPress={handleOpenCreateWbs} activeOpacity={0.8}>
               <Ionicons name="add" size={16} color="#FFFFFF" />
-              <Text style={s.headerAddText}>New</Text>
+              <Text style={s.headerAddText}>{tr("New")}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -712,9 +713,9 @@ export default function InteriorWbsScreen() {
               <View style={s.overviewStrip}>
                 <View style={{ flex: 1 }}>
                   <View style={s.rowBetween}>
-                    <Text style={s.overviewLabel}>Overall progress</Text>
+                    <Text style={s.overviewLabel}>{tr("Overall progress")}</Text>
                     <Text style={s.overviewCountText}>
-                      <Text style={s.overviewPctText}>{overallProgressPct}%</Text>  ·  {totalCompletedActivities}/{tasks.length} done
+                      <Text style={s.overviewPctText}>{tr(overallProgressPct)}%</Text>  ·  {tr(totalCompletedActivities)}/{tasks.length}{tr(" done")}
                     </Text>
                   </View>
                   <View style={s.progressBarTrack}>
@@ -732,11 +733,11 @@ export default function InteriorWbsScreen() {
             {wbsData.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="folder-open-outline" size={36} color="#94A3B8" />
-                <Text style={s.emptyTitle}>No WBS elements yet</Text>
+                <Text style={s.emptyTitle}>{tr("No WBS elements yet")}</Text>
                 {canDo('wbs', 'create') && (
                   <TouchableOpacity style={s.emptyBtn} onPress={handleOpenCreateWbs} activeOpacity={0.8}>
                     <Ionicons name="add" size={16} color="#FFFFFF" />
-                    <Text style={s.emptyBtnText}>Create WBS element</Text>
+                    <Text style={s.emptyBtnText}>{tr("Create WBS element")}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -753,7 +754,7 @@ export default function InteriorWbsScreen() {
                     const opts = [];
                     if (canDo('wbs', 'update')) opts.push({ text: 'Edit element', onPress: () => handleOpenEditWbs(node) });
                     if (canDo('wbs', 'delete')) opts.push({ text: 'Delete element', style: 'destructive', onPress: () => confirmDeleteWbs(node) });
-                    if (opts.length) Alert.alert(node.name, undefined, [...opts, { text: 'Cancel', style: 'cancel' }]);
+                    if (opts.length) Alert.alert(node.name, undefined, [...opts, { text: tr("Cancel"), style: 'cancel' }]);
                   };
 
                   return (
@@ -766,7 +767,7 @@ export default function InteriorWbsScreen() {
                       <TouchableOpacity style={s.wbsCardHeader} onPress={() => toggleNode(node.id)} activeOpacity={0.8}>
                         <Ionicons name={isExpanded ? 'chevron-down' : 'chevron-forward'} size={18} color="#64748B" style={{ marginTop: 1 }} />
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={s.wbsNodeName} numberOfLines={2}>{node.name}</Text>
+                          <Text style={s.wbsNodeName} numberOfLines={2}>{tr(node.name)}</Text>
                           <Text style={s.wbsNodeMeta} numberOfLines={1}>
                             {[
                               inactive ? 'Inactive' : null,
@@ -775,7 +776,7 @@ export default function InteriorWbsScreen() {
                             ].filter(Boolean).join('  ·  ')}
                           </Text>
                         </View>
-                        <Text style={s.wbsPct}>{nodeProgressPct}%</Text>
+                        <Text style={s.wbsPct}>{tr(nodeProgressPct)}%</Text>
                         {(canDo('wbs', 'update') || canDo('wbs', 'delete')) && (
                           <TouchableOpacity onPress={nodeMenu} style={s.moreBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                             <Ionicons name="ellipsis-vertical" size={16} color="#64748B" />
@@ -790,7 +791,7 @@ export default function InteriorWbsScreen() {
                       {isExpanded && (
                         <View style={s.activitiesContainer}>
                           {directTasks.length === 0 && (
-                            <Text style={s.emptyActivitiesText}>No activities yet.</Text>
+                            <Text style={s.emptyActivitiesText}>{tr("No activities yet.")}</Text>
                           )}
                           {directTasks.map((task, ti) => {
                             const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
@@ -802,7 +803,7 @@ export default function InteriorWbsScreen() {
                               const opts = [];
                               if (canDo('tasks', 'update')) opts.push({ text: 'Edit activity', onPress: () => handleOpenEditActivity(task, node) });
                               if (canDo('tasks', 'delete')) opts.push({ text: 'Delete activity', style: 'destructive', onPress: () => confirmDeleteActivity(task) });
-                              if (opts.length) Alert.alert(task.name, undefined, [...opts, { text: 'Cancel', style: 'cancel' }]);
+                              if (opts.length) Alert.alert(task.name, undefined, [...opts, { text: tr("Cancel"), style: 'cancel' }]);
                             };
                             return (
                               <TouchableOpacity
@@ -817,7 +818,7 @@ export default function InteriorWbsScreen() {
                                 </TouchableOpacity>
                                 <View style={{ flex: 1, minWidth: 0 }}>
                                   <Text style={[s.activityTitle, isDone && s.activityTitleDone]} numberOfLines={2}>
-                                    {task.isMilestone ? '⚑ ' : ''}{task.name}
+                                    {task.isMilestone ? '⚑ ' : ''}{tr(task.name)}
                                   </Text>
                                   <View style={s.activityMetaRow}>
                                     <View style={[s.priorityDot, { backgroundColor: priority.color }]} />
@@ -826,7 +827,7 @@ export default function InteriorWbsScreen() {
                                     </Text>
                                   </View>
                                 </View>
-                                {!isDone && <Text style={[s.activityStatus, { color: statusMeta.color }]}>{statusMeta.label}</Text>}
+                                {!isDone && <Text style={[s.activityStatus, { color: statusMeta.color }]}>{tr(statusMeta.label)}</Text>}
                                 {(canDo('tasks', 'update') || canDo('tasks', 'delete')) && (
                                   <TouchableOpacity onPress={taskMenu} style={s.moreBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                     <Ionicons name="ellipsis-vertical" size={15} color="#94A3B8" />
@@ -838,7 +839,7 @@ export default function InteriorWbsScreen() {
                           {canDo('tasks', 'create') && (
                             <TouchableOpacity style={s.addActivityLink} onPress={() => handleOpenAddActivity(node)} activeOpacity={0.7}>
                               <Ionicons name="add-circle-outline" size={18} color="#2563EB" />
-                              <Text style={s.addActivityLinkText}>Add activity</Text>
+                              <Text style={s.addActivityLinkText}>{tr("Add activity")}</Text>
                             </TouchableOpacity>
                           )}
                         </View>
@@ -887,41 +888,41 @@ export default function InteriorWbsScreen() {
               <View style={[s.detailSheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
                 <View style={s.sheetHandle} />
                 <View style={s.detailTop}>
-                  <Text style={s.detailTitle}>{task.name}</Text>
+                  <Text style={s.detailTitle}>{tr(task.name)}</Text>
                   <TouchableOpacity onPress={() => setDetailTask(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name="close" size={22} color="#64748B" />
                   </TouchableOpacity>
                 </View>
                 <View style={s.detailTags}>
                   <View style={[s.detailPill, { backgroundColor: statusMeta.bg }]}>
-                    <Text style={[s.detailPillText, { color: statusMeta.color }]}>{statusMeta.label}</Text>
+                    <Text style={[s.detailPillText, { color: statusMeta.color }]}>{tr(statusMeta.label)}</Text>
                   </View>
                   <View style={s.detailTagItem}>
                     <View style={[s.priorityDot, { backgroundColor: priority.color }]} />
-                    <Text style={s.detailTagText}>{priority.label} priority</Text>
+                    <Text style={s.detailTagText}>{tr(priority.label)}{tr(" priority")}</Text>
                   </View>
                   {task.isMilestone && (
                     <View style={s.detailTagItem}>
                       <Ionicons name="flag" size={13} color="#7C3AED" />
-                      <Text style={[s.detailTagText, { color: '#7C3AED' }]}>Milestone</Text>
+                      <Text style={[s.detailTagText, { color: '#7C3AED' }]}>{tr("Milestone")}</Text>
                     </View>
                   )}
-                  {overdue && <Text style={[s.detailTagText, { color: '#DC2626' }]}>Overdue</Text>}
+                  {overdue && <Text style={[s.detailTagText, { color: '#DC2626' }]}>{tr("Overdue")}</Text>}
                 </View>
 
                 <View style={s.detailRows}>
                   {rows.map(([label, value, warn], i) => (
                     <View key={label} style={[s.detailRow, i === rows.length - 1 && { borderBottomWidth: 0 }]}>
-                      <Text style={s.detailLabel}>{label}</Text>
-                      <Text style={[s.detailValue, warn && { color: '#DC2626' }]} numberOfLines={2}>{value}</Text>
+                      <Text style={s.detailLabel}>{tr(label)}</Text>
+                      <Text style={[s.detailValue, warn && { color: '#DC2626' }]} numberOfLines={2}>{tr(value)}</Text>
                     </View>
                   ))}
                 </View>
 
                 {showDesc && (
                   <View style={{ marginTop: 4 }}>
-                    <Text style={s.detailLabel}>Scope</Text>
-                    <Text style={s.detailDesc}>{desc}</Text>
+                    <Text style={s.detailLabel}>{tr("Scope")}</Text>
+                    <Text style={s.detailDesc}>{tr(desc)}</Text>
                   </View>
                 )}
 
@@ -932,7 +933,7 @@ export default function InteriorWbsScreen() {
                     activeOpacity={0.85}
                   >
                     <Ionicons name={isDone ? 'refresh' : 'checkmark-circle'} size={18} color={isDone ? '#334155' : '#FFFFFF'} />
-                    <Text style={[s.detailPrimaryText, isDone && { color: '#334155' }]}>{isDone ? 'Reopen activity' : 'Mark as done'}</Text>
+                    <Text style={[s.detailPrimaryText, isDone && { color: '#334155' }]}>{isDone ? tr("Reopen activity") : tr("Mark as done")}</Text>
                   </TouchableOpacity>
                 )}
                 {(canDo('tasks', 'update') || canDo('tasks', 'delete')) && (
@@ -940,13 +941,13 @@ export default function InteriorWbsScreen() {
                     {canDo('tasks', 'update') && (
                       <TouchableOpacity style={s.detailSecondary} onPress={() => { setDetailTask(null); handleOpenEditActivity(task, node); }}>
                         <Ionicons name="create-outline" size={16} color="#334155" />
-                        <Text style={s.detailSecondaryText}>Edit</Text>
+                        <Text style={s.detailSecondaryText}>{tr("Edit")}</Text>
                       </TouchableOpacity>
                     )}
                     {canDo('tasks', 'delete') && (
                       <TouchableOpacity style={[s.detailSecondary, { borderColor: '#FECDD3' }]} onPress={() => { setDetailTask(null); confirmDeleteActivity(task); }}>
                         <Ionicons name="trash-outline" size={16} color="#E11D48" />
-                        <Text style={[s.detailSecondaryText, { color: '#E11D48' }]}>Delete</Text>
+                        <Text style={[s.detailSecondaryText, { color: '#E11D48' }]}>{tr("Delete")}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -969,8 +970,8 @@ export default function InteriorWbsScreen() {
                   <Ionicons name="folder-open" size={18} color="#2563EB" />
                 </View>
                 <View>
-                  <Text style={s.modalTitle}>{wbsModalMode === 'create' ? 'Create WBS' : 'Edit WBS'}</Text>
-                  <Text style={s.modalSub}>Scope, timeline, and activities for this WBS element</Text>
+                  <Text style={s.modalTitle}>{wbsModalMode === 'create' ? tr("Create WBS") : tr("Edit WBS")}</Text>
+                  <Text style={s.modalSub}>{tr("Scope, timeline, and activities for this WBS element")}</Text>
                 </View>
               </View>
               <TouchableOpacity onPress={() => setIsWbsModalOpen(false)} style={s.closeModalBtn}>
@@ -981,21 +982,21 @@ export default function InteriorWbsScreen() {
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
               {/* WBS Name * */}
               <Text style={s.formLabel}>
-                WBS Name <Text style={{ color: '#E11D48' }}>*</Text>
+                {tr("WBS Name ")}<Text style={{ color: '#E11D48' }}>*</Text>
               </Text>
               <TextInput
                 style={s.formInput}
-                placeholder="e.g. Kitchen Cabinetry or Civil Partition"
+                placeholder={tr("e.g. Kitchen Cabinetry or Civil Partition")}
                 placeholderTextColor="#94A3B8"
                 value={nodeName}
                 onChangeText={setNodeName}
               />
 
               {/* Description */}
-              <Text style={s.formLabel}>Description</Text>
+              <Text style={s.formLabel}>{tr("Description")}</Text>
               <TextInput
                 style={[s.formInput, s.formTextArea]}
-                placeholder="Define the scope of this WBS element..."
+                placeholder={tr("Define the scope of this WBS element...")}
                 placeholderTextColor="#94A3B8"
                 multiline
                 numberOfLines={3}
@@ -1005,30 +1006,30 @@ export default function InteriorWbsScreen() {
               />
 
               {/* Planning Dates */}
-              <Text style={s.formSectionTitle}>Planning Dates</Text>
+              <Text style={s.formSectionTitle}>{tr("Planning Dates")}</Text>
               <View style={s.dateInputsRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.formSubLabel}>Planned Start Date</Text>
+                  <Text style={s.formSubLabel}>{tr("Planned Start Date")}</Text>
                   <DatePickerField
                     value={startDate}
                     onChange={setStartDate}
-                    placeholder="Start date"
+                    placeholder={tr("Start date")}
                     maxDate={endDate || undefined}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.formSubLabel}>Planned End Date</Text>
+                  <Text style={s.formSubLabel}>{tr("Planned End Date")}</Text>
                   <DatePickerField
                     value={endDate}
                     onChange={setEndDate}
-                    placeholder="End date"
+                    placeholder={tr("End date")}
                     minDate={startDate || undefined}
                   />
                 </View>
               </View>
 
               {/* Status Radio / Segmented */}
-              <Text style={s.formSectionTitle}>Status</Text>
+              <Text style={s.formSectionTitle}>{tr("Status")}</Text>
               <View style={s.statusSegmentRow}>
                 <TouchableOpacity
                   style={[s.statusSegmentBtn, status === 'active' && s.statusSegmentBtnActive]}
@@ -1040,7 +1041,7 @@ export default function InteriorWbsScreen() {
                     size={14}
                     color={status === 'active' ? '#10B981' : '#94A3B8'}
                   />
-                  <Text style={[s.statusSegmentText, status === 'active' && s.statusSegmentTextActive]}>Active</Text>
+                  <Text style={[s.statusSegmentText, status === 'active' && s.statusSegmentTextActive]}>{tr("Active")}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1054,7 +1055,7 @@ export default function InteriorWbsScreen() {
                     color={status === 'inactive' ? '#E11D48' : '#94A3B8'}
                   />
                   <Text style={[s.statusSegmentText, status === 'inactive' && s.statusSegmentTextInactive]}>
-                    Inactive
+                    {tr("Inactive")}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1065,9 +1066,9 @@ export default function InteriorWbsScreen() {
                   <View style={s.initialActivitiesHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Ionicons name="checkbox-outline" size={15} color="#2563EB" />
-                      <Text style={s.initialActivitiesTitle}>Add Activities / Tasks</Text>
+                      <Text style={s.initialActivitiesTitle}>{tr("Add Activities / Tasks")}</Text>
                       <View style={s.optionalTag}>
-                        <Text style={s.optionalTagText}>Optional</Text>
+                        <Text style={s.optionalTagText}>{tr("Optional")}</Text>
                       </View>
                     </View>
                     <TouchableOpacity
@@ -1075,7 +1076,7 @@ export default function InteriorWbsScreen() {
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Text style={s.toggleActivitiesLink}>
-                        {showActivitySection ? 'Hide' : '+ Add Activity'}
+                        {showActivitySection ? tr("Hide") : tr("+ Add Activity")}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1084,7 +1085,7 @@ export default function InteriorWbsScreen() {
                     <View style={{ marginTop: 10, gap: 10 }}>
                       <TextInput
                         style={s.formInput}
-                        placeholder="Activity name (e.g. Base Framing)"
+                        placeholder={tr("Activity name (e.g. Base Framing)")}
                         placeholderTextColor="#94A3B8"
                         value={newActivityName}
                         onChangeText={setNewActivityName}
@@ -1092,7 +1093,7 @@ export default function InteriorWbsScreen() {
 
                       {/* Priority dropdown (same as web) */}
                       <View>
-                        <Text style={s.formSubLabel}>Priority</Text>
+                        <Text style={s.formSubLabel}>{tr("Priority")}</Text>
                         <SelectField
                           value={newActivityPriority}
                           onChange={setNewActivityPriority}
@@ -1103,7 +1104,7 @@ export default function InteriorWbsScreen() {
                       {/* Assign To dropdown (same as web) */}
                       {members.length > 0 && (
                         <View>
-                          <Text style={s.formSubLabel}>Assign To</Text>
+                          <Text style={s.formSubLabel}>{tr("Assign To")}</Text>
                           <SelectField
                             value={newActivityAssignee}
                             onChange={setNewActivityAssignee}
@@ -1124,12 +1125,12 @@ export default function InteriorWbsScreen() {
                             size={16}
                             color="#7C3AED"
                           />
-                          <Text style={s.milestoneCheckText}>Milestone Activity</Text>
+                          <Text style={s.milestoneCheckText}>{tr("Milestone Activity")}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity style={s.addInitialActBtn} onPress={handleAddInitialActivity}>
                           <Ionicons name="add" size={14} color="#FFFFFF" />
-                          <Text style={s.addInitialActBtnText}>Add</Text>
+                          <Text style={s.addInitialActBtnText}>{tr("Add")}</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1144,21 +1145,21 @@ export default function InteriorWbsScreen() {
                           <View key={act.id} style={s.pendingActRow}>
                             <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                               <Text style={s.pendingActName} numberOfLines={1}>
-                                {act.name}
+                                {tr(act.name)}
                               </Text>
                               <View style={s.pendingActTag}>
-                                <Text style={s.pendingActTagText}>{act.priority}</Text>
+                                <Text style={s.pendingActTagText}>{tr(act.priority)}</Text>
                               </View>
                               {member && (
                                 <View style={s.pendingActMemberTag}>
                                   <Ionicons name="person-outline" size={9} color="#1D4ED8" />
-                                  <Text style={s.pendingActMemberText} numberOfLines={1}>{member.name}</Text>
+                                  <Text style={s.pendingActMemberText} numberOfLines={1}>{tr(member.name)}</Text>
                                 </View>
                               )}
                               {act.isMilestone && (
                                 <View style={s.milestoneBadge}>
                                   <Ionicons name="flag" size={8} color="#7C3AED" />
-                                  <Text style={s.milestoneBadgeText}>Milestone</Text>
+                                  <Text style={s.milestoneBadgeText}>{tr("Milestone")}</Text>
                                 </View>
                               )}
                             </View>
@@ -1189,9 +1190,9 @@ export default function InteriorWbsScreen() {
                   <Text style={s.modalSubmitBtnText}>
                     {wbsModalMode === 'create'
                       ? initialActivities.length > 0
-                        ? `Create WBS & ${initialActivities.length} Activit${initialActivities.length > 1 ? 'ies' : 'y'}`
-                        : 'Create WBS'
-                      : 'Save Changes'}
+                        ? tr("Create WBS & {{initialActivitiesCount}} Activit{{value}}", { initialActivitiesCount: initialActivities.length, value: initialActivities.length > 1 ? 'ies' : 'y' })
+                        : tr("Create WBS")
+                      : tr("Save Changes")}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -1213,10 +1214,10 @@ export default function InteriorWbsScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.modalTitle}>
-                    {activityModalMode === 'create' ? 'New activity' : 'Edit activity'}
+                    {activityModalMode === 'create' ? tr("New activity") : tr("Edit activity")}
                   </Text>
                   <Text style={s.modalSub} numberOfLines={1}>
-                    {selectedNodeForActivity?.name}
+                    {tr(selectedNodeForActivity?.name)}
                   </Text>
                 </View>
               </View>
@@ -1231,18 +1232,18 @@ export default function InteriorWbsScreen() {
                 <View style={s.completedLockBanner}>
                   <Ionicons name="checkmark-circle" size={16} color="#059669" />
                   <View style={{ flex: 1 }}>
-                    <Text style={s.completedLockTitle}>Completed — reopen it to make changes</Text>
+                    <Text style={s.completedLockTitle}>{tr("Completed — reopen it to make changes")}</Text>
                   </View>
                 </View>
               )}
 
               {/* Activity Name * */}
               <Text style={s.formLabel}>
-                Activity Name <Text style={{ color: '#E11D48' }}>*</Text>
+                {tr("Activity Name ")}<Text style={{ color: '#E11D48' }}>*</Text>
               </Text>
               <TextInput
                 style={s.formInput}
-                placeholder="e.g. Base Cabinet Framing & Fitting"
+                placeholder={tr("e.g. Base Cabinet Framing & Fitting")}
                 placeholderTextColor="#94A3B8"
                 value={activityName}
                 onChangeText={setActivityName}
@@ -1250,10 +1251,10 @@ export default function InteriorWbsScreen() {
               />
 
               {/* Description */}
-              <Text style={s.formLabel}>Description / Work Scope</Text>
+              <Text style={s.formLabel}>{tr("Description / Work Scope")}</Text>
               <TextInput
                 style={[s.formInput, s.formTextArea]}
-                placeholder="Provide specific execution details..."
+                placeholder={tr("Provide specific execution details...")}
                 placeholderTextColor="#94A3B8"
                 multiline
                 numberOfLines={2}
@@ -1264,7 +1265,7 @@ export default function InteriorWbsScreen() {
               />
 
               {/* Priority */}
-              <Text style={s.formSectionTitle}>Priority</Text>
+              <Text style={s.formSectionTitle}>{tr("Priority")}</Text>
               <SelectField
                 value={activityPriority}
                 onChange={setActivityPriority}
@@ -1276,7 +1277,7 @@ export default function InteriorWbsScreen() {
               {/* Status Selector (in edit mode) */}
               {activityModalMode === 'edit' && (
                 <View style={{ marginBottom: 6 }}>
-                  <Text style={s.formSectionTitle}>Status</Text>
+                  <Text style={s.formSectionTitle}>{tr("Status")}</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                     {['todo', 'in_progress', 'in_review', 'completed'].map((st) => (
                       <TouchableOpacity
@@ -1296,7 +1297,7 @@ export default function InteriorWbsScreen() {
                             activityStatus === st && { color: STATUS_CONFIG[st].color, fontWeight: '700' },
                           ]}
                         >
-                          {STATUS_CONFIG[st].label}
+                          {tr(STATUS_CONFIG[st].label)}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -1305,7 +1306,7 @@ export default function InteriorWbsScreen() {
               )}
 
               {/* Assignee */}
-              <Text style={s.formSectionTitle}>Assignee</Text>
+              <Text style={s.formSectionTitle}>{tr("Assignee")}</Text>
               <SelectField
                 value={activityAssigneeId}
                 onChange={setActivityAssigneeId}
@@ -1323,11 +1324,11 @@ export default function InteriorWbsScreen() {
                 return (
                   <View style={{ marginTop: 4 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <Text style={s.formSectionTitle}>Planning Dates</Text>
+                      <Text style={s.formSectionTitle}>{tr("Planning Dates")}</Text>
                       {(wbsMin || wbsMax) && (
                         <View style={s.wbsScopePill}>
                           <Text style={s.wbsScopePillText}>
-                            WBS Scope: {wbsMin || 'Any'} to {wbsMax || 'Any'}
+                            {tr("WBS Scope: ")}{wbsMin || tr("Any")}{tr(" to ")}{wbsMax || tr("Any")}
                           </Text>
                         </View>
                       )}
@@ -1335,22 +1336,22 @@ export default function InteriorWbsScreen() {
 
                     <View style={s.dateInputsRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.formSubLabel}>Start Date</Text>
+                        <Text style={s.formSubLabel}>{tr("Start Date")}</Text>
                         <DatePickerField
                           value={activityStartDate}
                           onChange={setActivityStartDate}
-                          placeholder="Start date"
+                          placeholder={tr("Start date")}
                           minDate={wbsMin}
                           maxDate={activityEndDate || wbsMax || undefined}
                           disabled={activityModalMode === 'edit' && activityStatus === 'completed'}
                         />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.formSubLabel}>End Date</Text>
+                        <Text style={s.formSubLabel}>{tr("End Date")}</Text>
                         <DatePickerField
                           value={activityEndDate}
                           onChange={setActivityEndDate}
-                          placeholder="End date"
+                          placeholder={tr("End date")}
                           minDate={activityStartDate || wbsMin || undefined}
                           maxDate={wbsMax}
                           disabled={activityModalMode === 'edit' && activityStatus === 'completed'}
@@ -1375,7 +1376,7 @@ export default function InteriorWbsScreen() {
                 />
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={s.milestoneCardTitle}>Milestone</Text>
+                    <Text style={s.milestoneCardTitle}>{tr("Milestone")}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -1391,7 +1392,7 @@ export default function InteriorWbsScreen() {
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <Text style={s.modalSubmitBtnText}>
-                    {activityModalMode === 'create' ? 'Create Activity' : 'Save Changes'}
+                    {activityModalMode === 'create' ? tr("Create Activity") : tr("Save Changes")}
                   </Text>
                 )}
               </TouchableOpacity>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 // =============================================================================
 // Thumbnail for remote images (drawings, site photos).
 // Uses expo-image (decodes WebP/AVIF/HEIC/SVG and caches) instead of RN Image,
@@ -33,7 +34,7 @@ export default function RemoteThumb({ uri, height = 160, style, contentFit = 'co
     return (
       <View style={[s.box, { height }, style, s.fallback]}>
         <Ionicons name="image-outline" size={28} color="#94A3B8" />
-        <Text style={s.fallbackText}>{fallbackLabel}</Text>
+        <Text style={s.fallbackText}>{tr(fallbackLabel)}</Text>
       </View>
     );
   }

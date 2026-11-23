@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Image, Modal, Alert, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -262,16 +263,16 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
       });
 
       if (response.ok) {
-        setCurrentStatus('Pending Handover');
-        showToast("Handover Requested Successfully!", "success");
+        setCurrentStatus(tr("Pending Handover"));
+        showToast(tr("Handover Requested Successfully!"), "success");
         if (fetchProjectData) await fetchProjectData();
       } else {
         const err = await response.json();
-        Alert.alert("Error", err.message || "Failed to request handover.");
+        Alert.alert(tr("Error"), err.message || tr("Failed to request handover."));
       }
     } catch (e) {
       console.error('Handover Request Error:', e);
-      Alert.alert("Error", "Something went wrong while requesting handover.");
+      Alert.alert(tr("Error"), tr("Something went wrong while requesting handover."));
     } finally {
       setIsSubmitting(false);
     }
@@ -297,16 +298,16 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
 
       if (response.ok) {
         setCurrentStatus('Ongoing');
-        showToast("Handover re-initialized!", "success");
+        showToast(tr("Handover re-initialized!"), "success");
         if (fetchProjectData) await fetchProjectData();
         await initializeHandover();
       } else {
         const err = await response.json();
-        Alert.alert("Error", err.message || "Failed to re-initialize handover.");
+        Alert.alert(tr("Error"), err.message || tr("Failed to re-initialize handover."));
       }
     } catch (e) {
       console.error('Re-Initialize Handover Error:', e);
-      Alert.alert("Error", "Something went wrong.");
+      Alert.alert(tr("Error"), tr("Something went wrong."));
     } finally {
       setIsSubmitting(false);
     }
@@ -319,7 +320,7 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
     }
     
     if (!isApproved && !rejectionReason.trim()) {
-      showToast("Please provide a rejection reason.", "error");
+      showToast(tr("Please provide a rejection reason."), "error");
       return;
     }
 
@@ -345,15 +346,15 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
       if (response.ok) {
         setCurrentStatus(newStatus);
         setRejectionReason("");
-        showToast(`Handover ${isApproved ? 'Approved' : 'Rejected'}!`, "success");
+        showToast(tr("Handover {{value}}!", { value: isApproved ? 'Approved' : 'Rejected' }), "success");
         if (fetchProjectData) await fetchProjectData();
       } else {
         const err = await response.json();
-        Alert.alert("Error", err.message || `Failed to ${isApproved ? 'approve' : 'reject'} handover.`);
+        Alert.alert(tr("Error"), err.message || tr("Failed to {{value}} handover.", { value: isApproved ? 'approve' : 'reject' }));
       }
     } catch (e) {
       console.error('Handover Approval Error:', e);
-      Alert.alert("Error", "Something went wrong.");
+      Alert.alert(tr("Error"), tr("Something went wrong."));
     } finally {
       setIsSubmitting(false);
     }
@@ -376,15 +377,15 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
       });
 
       if (response.ok) {
-        showToast("Project Completed Successfully!", "success");
+        showToast(tr("Project Completed Successfully!"), "success");
         if (fetchProjectData) await fetchProjectData();
       } else {
         const err = await response.json();
-        Alert.alert("Error", err.message || "Failed to complete project.");
+        Alert.alert(tr("Error"), err.message || tr("Failed to complete project."));
       }
     } catch (e) {
       console.error('Project Completion Error:', e);
-      Alert.alert("Error", "Something went wrong while completing project.");
+      Alert.alert(tr("Error"), tr("Something went wrong while completing project."));
     } finally {
       setIsSubmitting(false);
     }
@@ -412,7 +413,7 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
       // 1. Get full data for selected snags and ensure they aren't already In Progress
       const selectedSnags = snags.filter(s => selectedIds.includes(s._id) && s.status !== 'In Progress');
       if (selectedSnags.length === 0 && selectedIds.length > 0) {
-        showToast("Selected snags are already In Progress", "info");
+        showToast(tr("Selected snags are already In Progress"), "info");
         return;
       }
 
@@ -445,13 +446,13 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
         })
       });
 
-      showToast(`${selectedIds.length} snags sent for fixing`, "success");
+      showToast(tr("{{selectedIdsCount}} snags sent for fixing", { selectedIdsCount: selectedIds.length }), "success");
       setSelectedIds([]);
       if (fetchProjectData) await fetchProjectData(); // Refresh global project state
       fetchSnags();
     } catch (e) {
       console.error(e);
-      showToast("Failed to process request", "error");
+      showToast(tr("Failed to process request"), "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -471,17 +472,17 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
         )}
         <View style={[styles.priorityDot, { backgroundColor: snag.priority === 'Critical' ? '#EF4444' : '#3B82F6' }]} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.miniSnagTitle}>{snag.title}</Text>
+          <Text style={styles.miniSnagTitle}>{tr(snag.title)}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 }}>
             <Feather name="user" size={10} color="#94A3B8" />
-            <Text style={styles.miniSnagMeta}>Reported by {snag.createdBy?.name || 'Unknown'}</Text>
+            <Text style={styles.miniSnagMeta}>{tr("Reported by ")}{snag.createdBy?.name || tr("Unknown")}</Text>
           </View>
         </View>
         {isSelected ? (
           <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
         ) : (
           <View style={styles.openBadge}>
-            <Text style={styles.openBadgeText}>{snag.status === 'Open' ? 'OPEN' : snag.status.toUpperCase()}</Text>
+            <Text style={styles.openBadgeText}>{snag.status === 'Open' ? tr("OPEN") : snag.status.toUpperCase()}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -507,14 +508,14 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.checklistGroupTitle}>{title}</Text>
+            <Text style={styles.checklistGroupTitle}>{tr(title)}</Text>
             <Text style={[styles.checklistGroupSub, { color: isOk ? '#10B981' : '#D97706' }]}>
-              {countMessage}
+              {tr(countMessage)}
             </Text>
           </View>
           <View style={[styles.checklistStatusBadge, { backgroundColor: isOk ? '#E6F4EA' : '#FEF3C7' }]}>
             <Text style={[styles.checklistStatusText, { color: isOk ? '#137333' : '#B06000' }]}>
-              {isOk ? 'PASSED' : 'PENDING'}
+              {isOk ? tr("PASSED") : tr("PENDING")}
             </Text>
           </View>
           <Ionicons
@@ -532,7 +533,7 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
             ) : (
               <View style={styles.emptyDetailRow}>
                 <Ionicons name="checkmark-circle-outline" size={16} color="#10B981" />
-                <Text style={styles.emptyDetailText}>All validation criteria in this section have passed successfully.</Text>
+                <Text style={styles.emptyDetailText}>{tr("All validation criteria in this section have passed successfully.")}</Text>
               </View>
             )}
           </View>
@@ -562,17 +563,17 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
                   size={16}
                   color={isMilestoneDone ? "#10B981" : "#64748B"}
                 />
-                <Text style={styles.milestoneDetailName}>{m.name}</Text>
+                <Text style={styles.milestoneDetailName}>{tr(m.name)}</Text>
                 <View style={[styles.milestoneStatusBadge, { backgroundColor: isMilestoneDone ? '#E6F4EA' : '#F1F5F9' }]}>
                   <Text style={{ fontSize: 9, fontFamily: 'Inter-Bold', color: isMilestoneDone ? '#137333' : '#475569' }}>
-                    {m.status.toUpperCase()}
+                    {tr(m.status.toUpperCase())}
                   </Text>
                 </View>
               </View>
 
               <View style={{ marginTop: 6, paddingLeft: 22 }}>
                 <Text style={styles.milestoneProgressText}>
-                  Tasks: {completedTasksCount}/{totalTasksCount} completed
+                  {tr("Tasks: ")}{tr(completedTasksCount)}/{tr(totalTasksCount)}{tr(" completed")}
                 </Text>
                 <View style={styles.progressBarBg}>
                   <View
@@ -596,7 +597,7 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
                           color={task.isCompleted ? "#3B82F6" : "#94A3B8"}
                         />
                         <Text style={[styles.taskChecklistText, task.isCompleted && styles.taskCompletedText]}>
-                          {task.title}
+                          {tr(task.title)}
                         </Text>
                       </View>
                     ))}
@@ -624,8 +625,8 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
             >
               <View style={[styles.priorityBadgeDot, { backgroundColor: priorityColor }]} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.itemDetailTitle}>{i.title}</Text>
-                <Text style={styles.itemDetailMeta}>Priority: {i.priority} | Status: {i.status}</Text>
+                <Text style={styles.itemDetailTitle}>{tr(i.title)}</Text>
+                <Text style={styles.itemDetailMeta}>{tr("Priority: ")}{tr(i.priority)}{tr(" | Status: ")}{tr(i.status)}</Text>
               </View>
             </TouchableOpacity>
           );
@@ -647,8 +648,8 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
             >
               <MaterialCommunityIcons name="calculator-variant" size={16} color="#D97706" style={{ marginRight: 6 }} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.itemDetailTitle}>{b.itemDescription}</Text>
-                <Text style={styles.itemDetailMeta}>Group: {b.groupName} | Status: {b.status}</Text>
+                <Text style={styles.itemDetailTitle}>{tr(b.itemDescription)}</Text>
+                <Text style={styles.itemDetailMeta}>{tr("Group: ")}{tr(b.groupName)}{tr(" | Status: ")}{tr(b.status)}</Text>
               </View>
               <Text style={styles.itemDetailValue}>{project?.currency || '$'} {formatCompact(b.totalCost || 0)}</Text>
             </TouchableOpacity>
@@ -672,9 +673,9 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
             >
               <Ionicons name="document-text-outline" size={16} color="#D97706" style={{ marginRight: 6 }} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.itemDetailTitle}>{p.name}</Text>
+                <Text style={styles.itemDetailTitle}>{tr(p.name)}</Text>
                 <Text style={styles.itemDetailMeta}>
-                  Version: v{latestVer?.versionNumber} | Status: {latestVer?.approvalStatus || 'Draft'}
+                  {tr("Version: v")}{tr(latestVer?.versionNumber)}{tr(" | Status: ")}{latestVer?.approvalStatus || tr("Draft")}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -698,9 +699,9 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
             >
               <Ionicons name="alert-triangle-outline" size={16} color={severityColor} style={{ marginRight: 6 }} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.itemDetailTitle}>{r.title}</Text>
+                <Text style={styles.itemDetailTitle}>{tr(r.title)}</Text>
                 <Text style={styles.itemDetailMeta}>
-                  Impact: {r.impact} | Mitigation: {r.mitigationProgress || 0}% | Status: {r.status}
+                  {tr("Impact: ")}{tr(r.impact)}{tr(" | Mitigation: ")}{r.mitigationProgress || 0}{tr("% | Status: ")}{tr(r.status)}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -715,9 +716,9 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, marginTop: 40 }}>
         <Ionicons name="lock-closed-outline" size={48} color="#CBD5E1" />
-        <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>Access Restricted</Text>
+        <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 16 }}>{tr("Access Restricted")}</Text>
         <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', marginTop: 8 }}>
-          You don't have permission to view Handover.
+          {tr("You don't have permission to view Handover.")}
         </Text>
       </View>
     );
@@ -746,7 +747,7 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
             } 
           />
         </View>
-        <Text style={styles.headerTitle}>Project Handover</Text>
+        <Text style={styles.headerTitle}>{tr("Project Handover")}</Text>
       </View>
 
       {/* Handover Initialization & Validation */}
@@ -762,7 +763,7 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
                   color={currentStatus === 'Snagging Completed' ? '#10B981' : '#64748B'}
                 />
                 <Text style={[styles.validatingText, currentStatus === 'Snagging Completed' && { color: '#10B981' }]}>
-                  {currentStatus === 'Snagging Completed' ? 'Snagging Completed' : 'Project Under Snagging'}
+                  {currentStatus === 'Snagging Completed' ? tr("Snagging Completed") : tr("Project Under Snagging")}
                 </Text>
               </View>
             </AdaptiveGlass>
@@ -775,7 +776,7 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
                       <TouchableOpacity onPress={() => setSelectedIds([])}>
                         <Ionicons name="close" size={20} color="#64748B" />
                       </TouchableOpacity>
-                      <Text style={styles.selectionTitle}>{selectedIds.length} selected</Text>
+                      <Text style={styles.selectionTitle}>{selectedIds.length}{tr(" selected")}</Text>
                       <View style={styles.selectionActionGroup}>
                         <TouchableOpacity onPress={handleSelectAll} style={styles.selectionActionBtn}>
                           <MaterialCommunityIcons
@@ -786,13 +787,13 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
                         </TouchableOpacity>
                         <TouchableOpacity onPress={handleBulkSendForFixing} style={[styles.selectionActionBtn, styles.sendBulkBtn]}>
                           <Feather name="send" size={16} color="#FFF" />
-                          <Text style={styles.sendBulkText}>Send for Fixing</Text>
+                          <Text style={styles.sendBulkText}>{tr("Send for Fixing")}</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
                   ) : (
                     <>
-                      <Text style={styles.snagListTitle}>Pending Snags ({snags.length})</Text>
+                      <Text style={styles.snagListTitle}>{tr("Pending Snags (")}{snags.length})</Text>
                       <TouchableOpacity onPress={fetchSnags} disabled={isLoadingSnags}>
                         {isLoadingSnags ? <ActivityIndicator size="small" color="#3B82F6" /> : <Ionicons name="refresh" size={18} color="#3B82F6" />}
                       </TouchableOpacity>
@@ -810,33 +811,33 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
           <TouchableOpacity style={styles.initBtn} onPress={initializeHandover}>
             <LinearGradient colors={['#3B82F6', '#3B82F6']} style={styles.initGradient}>
               <MaterialCommunityIcons name="rocket-launch-outline" size={20} color="#FFF" />
-              <Text style={styles.initBtnText}>Initialize Handover Validation</Text>
+              <Text style={styles.initBtnText}>{tr("Initialize Handover Validation")}</Text>
             </LinearGradient>
           </TouchableOpacity>
         ) : isValidating ? (
           <AdaptiveGlass intensity={10} tint="light" style={styles.validatingCard}>
             <ActivityIndicator size="small" color="#3B82F6" />
-            <Text style={styles.validatingText}>Checking Project Readiness...</Text>
+            <Text style={styles.validatingText}>{tr("Checking Project Readiness...")}</Text>
           </AdaptiveGlass>
         ) : (
           <View style={{ gap: 16 }}>
             {['Completed', 'Handover Completed'].includes(currentStatus) ? (
               <View style={[styles.errorBanner, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
                 <MaterialCommunityIcons name="check-decagram" size={14} color="#10B981" />
-                <Text style={[styles.errorText, { color: '#065F46' }]}>Project handover process is fully completed.</Text>
+                <Text style={[styles.errorText, { color: '#065F46' }]}>{tr("Project handover process is fully completed.")}</Text>
               </View>
             ) : currentStatus === 'Pending Handover' ? (
               // Approve/Reject: the designated approver, and only with Handover > Approve
               (project?.handoverApprover?._id || project?.handoverApprover) === user?.id && !isProjectLocked(project) && hasProjectPermission(user, project, 'handover:approve') ? (
                 <View style={{ gap: 12 }}>
-                  <Text style={[styles.errorText, { color: '#0F172A', textAlign: 'center', marginBottom: 4 }]}>You have been requested to verify and approve this handover.</Text>
+                  <Text style={[styles.errorText, { color: '#0F172A', textAlign: 'center', marginBottom: 4 }]}>{tr("You have been requested to verify and approve this handover.")}</Text>
                   <View style={{ flexDirection: 'row', gap: 12 }}>
                     <TouchableOpacity style={[styles.snagBtn, { flex: 1, backgroundColor: '#EF4444' }]} onPress={() => handleApproveHandover(false)} disabled={isSubmitting}>
-                      <Text style={[styles.snagBtnText, { color: '#FFF' }]}>Reject</Text>
+                      <Text style={[styles.snagBtnText, { color: '#FFF' }]}>{tr("Reject")}</Text>
                       <Ionicons name="close" size={16} color="#FFF" />
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.snagBtn, { flex: 1, backgroundColor: '#3B82F6' }]} onPress={() => handleApproveHandover(true)} disabled={isSubmitting}>
-                      <Text style={[styles.snagBtnText, { color: '#FFF' }]}>Approve</Text>
+                      <Text style={[styles.snagBtnText, { color: '#FFF' }]}>{tr("Approve")}</Text>
                       <MaterialCommunityIcons name="check-decagram" size={16} color="#FFF" />
                     </TouchableOpacity>
                   </View>
@@ -856,9 +857,9 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
                     <MaterialCommunityIcons name="clock-fast" size={24} color="#D97706" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontFamily: 'Inter-Black', color: '#B45309', marginBottom: 4 }}>Pending Approval</Text>
+                    <Text style={{ fontSize: 15, fontFamily: 'Inter-Black', color: '#B45309', marginBottom: 4 }}>{tr("Pending Approval")}</Text>
                     <Text style={{ fontSize: 13, fontFamily: 'Inter-Medium', color: '#92400E', lineHeight: 18 }}>
-                      Handover completion requested. Waiting for <Text style={{ fontFamily: 'Inter-Bold' }}>{project?.handoverApprover?.name || 'Manager'}</Text> to verify.
+                      {tr("Handover completion requested. Waiting for ")}<Text style={{ fontFamily: 'Inter-Bold' }}>{project?.handoverApprover?.name || tr("Manager")}</Text>{tr(" to verify.")}
                     </Text>
                   </View>
                 </View>
@@ -868,14 +869,14 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
                 <View style={[styles.errorBanner, { backgroundColor: '#FEF2F2', borderColor: '#FECACA', flexDirection: 'column', alignItems: 'flex-start', paddingVertical: 14 }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <Feather name="x-circle" size={14} color="#DC2626" />
-                    <Text style={[styles.errorText, { color: '#991B1B', fontSize: 13 }]}>Handover Rejected</Text>
+                    <Text style={[styles.errorText, { color: '#991B1B', fontSize: 13 }]}>{tr("Handover Rejected")}</Text>
                   </View>
                   <Text style={[styles.errorText, { color: '#7F1D1D', fontSize: 12, paddingLeft: 22, marginTop: 4 }]}>
-                    Reason: {project?.handoverRejectionReason || 'No reason provided.'}
+                    {tr("Reason: ")}{project?.handoverRejectionReason || tr("No reason provided.")}
                   </Text>
                 </View>
                 <TouchableOpacity style={[styles.snagBtn, { backgroundColor: '#3B82F6' }]} onPress={handleReInitializeHandover} disabled={isSubmitting}>
-                  <Text style={[styles.snagBtnText, { color: '#FFF' }]}>Re-Initialize Handover Validation</Text>
+                  <Text style={[styles.snagBtnText, { color: '#FFF' }]}>{tr("Re-Initialize Handover Validation")}</Text>
                   <Ionicons name="refresh" size={16} color="#FFF" />
                 </TouchableOpacity>
               </View>
@@ -885,31 +886,31 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
                 onPress={() => {
                   const hasPerm = !isProjectLocked(project) && hasProjectPermission(user, project, 'handover:create');
                   if (!hasPerm) {
-                    showToast("You don't have permission to initialize handover completion.", "error");
+                    showToast(tr("You don't have permission to initialize handover completion."), "error");
                     return;
                   }
                   // Requesting includes choosing the approver, which is the Assign action
                   if (!hasProjectPermission(user, project, 'handover:assign')) {
-                    showToast("You don't have permission to assign a handover approver.", "error");
+                    showToast(tr("You don't have permission to assign a handover approver."), "error");
                     return;
                   }
                   setIsUserModalVisible(true);
                 }} 
                 disabled={isSubmitting}
               >
-                <Text style={[styles.snagBtnText, { color: '#FFF' }]}>Handover Completion</Text>
+                <Text style={[styles.snagBtnText, { color: '#FFF' }]}>{tr("Handover Completion")}</Text>
                 <MaterialCommunityIcons name="check-decagram" size={16} color="#FFF" />
               </TouchableOpacity>
             ) : (
               <View style={[styles.errorBanner]}>
                 <Feather name="info" size={14} color="#EF4444" />
-                <Text style={styles.errorText}>Please resolve all pending checklist items to proceed.</Text>
+                <Text style={styles.errorText}>{tr("Please resolve all pending checklist items to proceed.")}</Text>
               </View>
             )}
 
             <AdaptiveGlass intensity={20} tint="light" style={styles.validationResultCard}>
               <View style={styles.resHeader}>
-                <Text style={styles.resTitle}>Handover Readiness Checklist</Text>
+                <Text style={styles.resTitle}>{tr("Handover Readiness Checklist")}</Text>
                 <TouchableOpacity onPress={initializeHandover}>
                   <Ionicons name="refresh-circle" size={24} color="#3B82F6" />
                 </TouchableOpacity>
@@ -996,8 +997,8 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
             <View style={styles.dragHandle} />
             <View style={styles.modalHeader}>
               <View style={{ flex: 1, paddingRight: 16 }}>
-                <Text style={styles.modalTitle}>Handover Verification</Text>
-                <Text style={styles.modalSub}>Select a Homeowner to verify and complete this handover.</Text>
+                <Text style={styles.modalTitle}>{tr("Handover Verification")}</Text>
+                <Text style={styles.modalSub}>{tr("Select a Homeowner to verify and complete this handover.")}</Text>
               </View>
               <TouchableOpacity onPress={() => setIsUserModalVisible(false)} style={styles.closeBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -1011,17 +1012,17 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
                 {projectMembers.map((user) => (
                   <TouchableOpacity key={user._id} style={styles.userItem} onPress={() => handleRequestHandover(user)}>
                     <View style={styles.avatarBox}>
-                      <Text style={styles.avatarText}>{user.name?.[0]}</Text>
+                      <Text style={styles.avatarText}>{tr(user.name?.[0])}</Text>
                     </View>
                     <View style={styles.userInfo}>
-                      <Text style={styles.userName}>{user.name}</Text>
-                      <Text style={styles.userRole}>{user.role?.name || 'Team Member'}</Text>
+                      <Text style={styles.userName}>{tr(user.name)}</Text>
+                      <Text style={styles.userRole}>{user.role?.name || tr("Team Member")}</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
                   </TouchableOpacity>
                 ))}
                 {projectMembers.length === 0 && (
-                  <Text style={styles.emptyText}>No users found assigned to this project.</Text>
+                  <Text style={styles.emptyText}>{tr("No users found assigned to this project.")}</Text>
                 )}
               </ScrollView>
             )}
@@ -1046,8 +1047,8 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
           }}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1, paddingRight: 16 }}>
-                <Text style={styles.modalTitle}>Reject Handover</Text>
-                <Text style={styles.modalSub}>Please provide a reason for rejecting this handover request.</Text>
+                <Text style={styles.modalTitle}>{tr("Reject Handover")}</Text>
+                <Text style={styles.modalSub}>{tr("Please provide a reason for rejecting this handover request.")}</Text>
               </View>
               <TouchableOpacity onPress={() => setIsRejectionModalVisible(false)} style={styles.closeBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -1068,7 +1069,7 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
                 borderColor: '#E2E8F0',
                 marginBottom: 20
               }}
-              placeholder="E.g. Missing technical drawings, open risks..."
+              placeholder={tr("E.g. Missing technical drawings, open risks...")}
               placeholderTextColor="#94A3B8"
               multiline
               value={rejectionReason}
@@ -1077,10 +1078,10 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
 
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <TouchableOpacity style={[styles.snagBtn, { flex: 1, backgroundColor: '#F1F5F9' }]} onPress={() => setIsRejectionModalVisible(false)} disabled={isSubmitting}>
-                <Text style={[styles.snagBtnText, { color: '#475569' }]}>Cancel</Text>
+                <Text style={[styles.snagBtnText, { color: '#475569' }]}>{tr("Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.snagBtn, { flex: 1, backgroundColor: '#EF4444' }]} onPress={() => handleApproveHandover(false)} disabled={isSubmitting}>
-                <Text style={[styles.snagBtnText, { color: '#FFF' }]}>Reject Handover</Text>
+                <Text style={[styles.snagBtnText, { color: '#FFF' }]}>{tr("Reject Handover")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1106,17 +1107,17 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
               <MaterialCommunityIcons name="clipboard-check-outline" size={32} color="#3B82F6" />
             </View>
             <Text style={{ fontSize: 20, fontFamily: 'Inter-Black', color: '#0F172A', textAlign: 'center', marginBottom: 8 }}>
-              Handover Requested
+              {tr("Handover Requested")}
             </Text>
             <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 20 }}>
-              You have been requested to verify and approve the final handover for this project. Please review the checklist and pending items before proceeding.
+              {tr("You have been requested to verify and approve the final handover for this project. Please review the checklist and pending items before proceeding.")}
             </Text>
 
             <TouchableOpacity 
               style={[styles.snagBtn, { backgroundColor: '#3B82F6', width: '100%' }]} 
               onPress={() => setShowApproverAlert(false)}
             >
-              <Text style={[styles.snagBtnText, { color: '#FFF' }]}>View Handover</Text>
+              <Text style={[styles.snagBtnText, { color: '#FFF' }]}>{tr("View Handover")}</Text>
               <Ionicons name="arrow-forward" size={16} color="#FFF" />
             </TouchableOpacity>
           </View>
@@ -1125,9 +1126,9 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
 
       <ConfirmModal
         visible={isSnaggingInfoVisible}
-        title="Snagging Mode"
-        message="You are the assigned inspector for this project. You can now conduct the final verification and report any outstanding issues."
-        confirmText="Got it"
+        title={tr("Snagging Mode")}
+        message={tr("You are the assigned inspector for this project. You can now conduct the final verification and report any outstanding issues.")}
+        confirmText={tr("Got it")}
         onConfirm={() => setIsSnaggingInfoVisible(false)}
         onCancel={() => setIsSnaggingInfoVisible(false)}
         type="success"
@@ -1135,8 +1136,8 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
 
       <ConfirmModal
         visible={confirmModal.visible}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={tr(confirmModal.title)}
+        message={tr(confirmModal.message)}
         confirmText={confirmModal.confirmText}
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
@@ -1150,8 +1151,8 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
           <View style={[styles.detailModalCard, { paddingBottom: Math.max(24, insets.bottom + 16) }]}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.detailLabel}>SNAG DETAILS</Text>
-                <Text style={styles.detailTitle}>{selectedSnag?.title}</Text>
+                <Text style={styles.detailLabel}>{tr("SNAG DETAILS")}</Text>
+                <Text style={styles.detailTitle}>{tr(selectedSnag?.title)}</Text>
               </View>
               <TouchableOpacity onPress={() => setSelectedSnag(null)} style={styles.closeBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -1160,21 +1161,21 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.detailSection}>
-                <Text style={styles.sectionLabel}>Description</Text>
-                <Text style={styles.sectionValue}>{selectedSnag?.description}</Text>
+                <Text style={styles.sectionLabel}>{tr("Description")}</Text>
+                <Text style={styles.sectionValue}>{tr(selectedSnag?.description)}</Text>
               </View>
 
               <View style={styles.detailGrid}>
                 <View style={styles.gridItem}>
-                  <Text style={styles.sectionLabel}>Priority</Text>
+                  <Text style={styles.sectionLabel}>{tr("Priority")}</Text>
                   <View style={[styles.priorityPill, { backgroundColor: selectedSnag?.priority === 'Critical' ? '#FEF2F2' : '#F1F5F9' }]}>
-                    <Text style={[styles.priorityText, { color: selectedSnag?.priority === 'Critical' ? '#EF4444' : '#64748B' }]}>{selectedSnag?.priority}</Text>
+                    <Text style={[styles.priorityText, { color: selectedSnag?.priority === 'Critical' ? '#EF4444' : '#64748B' }]}>{tr(selectedSnag?.priority)}</Text>
                   </View>
                 </View>
                 <View style={styles.gridItem}>
-                  <Text style={styles.sectionLabel}>Status</Text>
+                  <Text style={styles.sectionLabel}>{tr("Status")}</Text>
                   <View style={styles.openBadge}>
-                    <Text style={styles.openBadgeText}>{selectedSnag?.status}</Text>
+                    <Text style={styles.openBadgeText}>{tr(selectedSnag?.status)}</Text>
                   </View>
                 </View>
               </View>
@@ -1183,19 +1184,19 @@ export default function ProjectHandoverTab({ project, fetchProjectData, onOpenTa
 
               {selectedSnag?.images && selectedSnag.images.length > 0 && (
                 <View style={styles.detailSection}>
-                  <Text style={styles.sectionLabel}>Evidence Photo</Text>
+                  <Text style={styles.sectionLabel}>{tr("Evidence Photo")}</Text>
                   <Image source={{ uri: selectedSnag.images[0] }} style={styles.evidenceImage} />
                 </View>
               )}
 
               <View style={styles.detailSection}>
-                <Text style={styles.sectionLabel}>Reported On</Text>
+                <Text style={styles.sectionLabel}>{tr("Reported On")}</Text>
                 <Text style={styles.dateValue}>{selectedSnag ? new Date(selectedSnag.createdAt).toLocaleString() : ''}</Text>
               </View>
             </ScrollView>
 
             <TouchableOpacity style={styles.closeActionBtn} onPress={() => setSelectedSnag(null)}>
-              <Text style={styles.closeActionText}>Close Details</Text>
+              <Text style={styles.closeActionText}>{tr("Close Details")}</Text>
             </TouchableOpacity>
           </View>
         </View>

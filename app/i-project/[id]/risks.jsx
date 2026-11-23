@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -21,7 +22,7 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', i
     <View>
       <TouchableOpacity style={[inputStyle, ddStyles.row]} onPress={() => setOpen((v) => !v)}>
         <Text style={[ddStyles.text, !selected && ddStyles.placeholder]} numberOfLines={1}>
-          {selected ? selected.label : placeholder}
+          {selected ? tr(selected.label) : placeholder}
         </Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
       </TouchableOpacity>
@@ -36,7 +37,7 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', i
                   style={[ddStyles.menuItem, active && ddStyles.menuItemActive]}
                   onPress={() => { onChange(o.value); setOpen(false); }}
                 >
-                  <Text style={[ddStyles.menuItemText, active && ddStyles.menuItemTextActive]} numberOfLines={1}>{o.label}</Text>
+                  <Text style={[ddStyles.menuItemText, active && ddStyles.menuItemTextActive]} numberOfLines={1}>{tr(o.label)}</Text>
                   {active && <Ionicons name="checkmark" size={14} color="#2563EB" />}
                 </TouchableOpacity>
               );
@@ -108,7 +109,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setRisks(res?.success && res?.data ? res.data : []);
     } catch (e) {
       console.error('Failed to load risks', e);
-      showToast('Failed to fetch Risk Register', 'error');
+      showToast(tr("Failed to fetch Risk Register"), 'error');
     } finally {
       setLoading(false);
     }
@@ -118,22 +119,22 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleSubmitRisk = async () => {
     if (!form.description.trim()) {
-      showToast('Please fill in the risk description', 'error');
+      showToast(tr("Please fill in the risk description"), 'error');
       return;
     }
     setSubmitting(true);
     try {
       if (editRiskId) {
         await interiorApiClient.put(`/projects/${projectId}/risks`, { riskId: editRiskId, ...form });
-        showToast('Risk updated successfully!', 'success');
+        showToast(tr("Risk updated successfully!"), 'success');
       } else {
         await interiorApiClient.post(`/projects/${projectId}/risks`, form);
-        showToast('Risk logged successfully!', 'success');
+        showToast(tr("Risk logged successfully!"), 'success');
       }
       closeModal();
       fetchRisks();
     } catch (e) {
-      showToast(e.message || (editRiskId ? 'Failed to update risk' : 'Failed to log risk'), 'error');
+      showToast(e.message || (editRiskId ? tr("Failed to update risk") : tr("Failed to log risk")), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -164,16 +165,16 @@ const { can: canDo } = useProjectPermissions(projectId);
   };
 
   const handleDeleteRisk = (risk) => {
-    Alert.alert('Delete Risk', 'Are you sure you want to delete this logged risk?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr("Delete Risk"), tr("Are you sure you want to delete this logged risk?"), [
+      { text: tr("Cancel"), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: tr("Delete"), style: 'destructive', onPress: async () => {
           try {
             await interiorApiClient.delete(`/projects/${projectId}/risks?riskId=${risk._id}`);
-            showToast('Risk deleted successfully', 'delete');
+            showToast(tr("Risk deleted successfully"), 'delete');
             fetchRisks();
           } catch (e) {
-            showToast(e.message || 'Failed to delete risk', 'error');
+            showToast(e.message || tr("Failed to delete risk"), 'error');
           }
         },
       },
@@ -191,7 +192,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Risk Register</Text>
+            <Text style={s.headerTitle}>{tr("Risk Register")}</Text>
           </View>
         </View>
 
@@ -200,17 +201,17 @@ const { can: canDo } = useProjectPermissions(projectId);
         ) : (
           <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
             {/* Heatmap */}
-            <Text style={s.sectionTitle}>Severity Heatmap</Text>
+            <Text style={s.sectionTitle}>{tr("Severity Heatmap")}</Text>
             <View style={s.heatmapCard}>
               <View style={s.heatRow}>
                 <View style={s.heatHeadCell}><Text style={s.heatHeadText}>P / I</Text></View>
                 {['Low', 'Medium', 'High'].map((h) => (
-                  <View key={h} style={s.heatHeadCell}><Text style={s.heatHeadText}>{h}</Text></View>
+                  <View key={h} style={s.heatHeadCell}><Text style={s.heatHeadText}>{tr(h)}</Text></View>
                 ))}
               </View>
               {['high', 'medium', 'low'].map((p) => (
                 <View key={p} style={s.heatRow}>
-                  <View style={s.heatHeadCell}><Text style={s.heatHeadText}>{p}</Text></View>
+                  <View style={s.heatHeadCell}><Text style={s.heatHeadText}>{tr(p)}</Text></View>
                   {['low', 'medium', 'high'].map((i) => (
                     <View key={i} style={[s.heatCell, { backgroundColor: heatCellColor(p, i) + '33' }]}>
                       <Text style={[s.heatCellText, { color: heatCellColor(p, i) }]}>{matrixCount(p, i)}</Text>
@@ -218,14 +219,14 @@ const { can: canDo } = useProjectPermissions(projectId);
                   ))}
                 </View>
               ))}
-              <Text style={s.heatmapCaption}>Heatmap numbers count active logged project risks.</Text>
+              <Text style={s.heatmapCaption}>{tr("Heatmap numbers count active logged project risks.")}</Text>
             </View>
 
-            <Text style={s.sectionTitle}>Logged Risks</Text>
+            <Text style={s.sectionTitle}>{tr("Logged Risks")}</Text>
             {risks.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="alert-circle-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>No active risks logged</Text>
+                <Text style={s.emptyTitle}>{tr("No active risks logged")}</Text>
               </View>
             ) : (
               risks.map((risk) => {
@@ -238,7 +239,7 @@ const { can: canDo } = useProjectPermissions(projectId);
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <View style={[s.scoreBadge, { backgroundColor: sc.bg }]}>
-                          <Text style={[s.scoreBadgeText, { color: sc.color }]}>Score {risk.score} ({risk.probability} × {risk.impact})</Text>
+                          <Text style={[s.scoreBadgeText, { color: sc.color }]}>{tr("Score ")}{tr(risk.score)} ({tr(risk.probability)} × {tr(risk.impact)})</Text>
                         </View>
                         {canDo('risks', 'update') && (
                           <TouchableOpacity onPress={() => openEditModal(risk)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
@@ -252,11 +253,11 @@ const { can: canDo } = useProjectPermissions(projectId);
                         )}
                       </View>
                     </View>
-                    <Text style={s.riskDesc}>{risk.description}</Text>
+                    <Text style={s.riskDesc}>{tr(risk.description)}</Text>
                     {!!risk.mitigationPlan && (
                       <View style={s.mitigationBox}>
-                        <Text style={s.mitigationLabel}>Mitigation Strategy:</Text>
-                        <Text style={s.mitigationText}>{risk.mitigationPlan}</Text>
+                        <Text style={s.mitigationLabel}>{tr("Mitigation Strategy:")}</Text>
+                        <Text style={s.mitigationText}>{tr(risk.mitigationPlan)}</Text>
                       </View>
                     )}
                   </View>
@@ -278,52 +279,52 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{editRiskId ? 'Edit Project Risk' : 'Log Project Risk'}</Text>
+              <Text style={s.modalTitle}>{editRiskId ? tr("Edit Project Risk") : tr("Log Project Risk")}</Text>
               <TouchableOpacity onPress={closeModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Risk Description *</Text>
-              <TextInput style={s.input} placeholder="e.g. Delayed HVAC supply might slip ceiling layout" placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} />
+              <Text style={s.label}>{tr("Risk Description *")}</Text>
+              <TextInput style={s.input} placeholder={tr("e.g. Delayed HVAC supply might slip ceiling layout")} placeholderTextColor="#94A3B8" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} />
 
-              <Text style={s.label}>Threat Category</Text>
+              <Text style={s.label}>{tr("Threat Category")}</Text>
               <SelectDropdown
                 value={form.category}
                 options={CATEGORIES}
                 onChange={(v) => setForm({ ...form, category: v })}
-                placeholder="Select threat category"
+                placeholder={tr("Select threat category")}
                 inputStyle={s.input}
               />
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Probability</Text>
+                  <Text style={s.label}>{tr("Probability")}</Text>
                   <SelectDropdown
                     value={form.probability}
                     options={LEVELS}
                     onChange={(v) => setForm({ ...form, probability: v })}
-                    placeholder="Select probability"
+                    placeholder={tr("Select probability")}
                     inputStyle={s.input}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Impact Level</Text>
+                  <Text style={s.label}>{tr("Impact Level")}</Text>
                   <SelectDropdown
                     value={form.impact}
                     options={LEVELS}
                     onChange={(v) => setForm({ ...form, impact: v })}
-                    placeholder="Select impact level"
+                    placeholder={tr("Select impact level")}
                     inputStyle={s.input}
                   />
                 </View>
               </View>
 
-              <Text style={s.label}>Mitigation Strategy Plan</Text>
+              <Text style={s.label}>{tr("Mitigation Strategy Plan")}</Text>
               <TextInput
                 style={[s.input, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
-                placeholder="Specify corrective actions checklist..."
+                placeholder={tr("Specify corrective actions checklist...")}
                 placeholderTextColor="#94A3B8"
                 value={form.mitigationPlan}
                 onChangeText={(v) => setForm({ ...form, mitigationPlan: v })}
@@ -331,7 +332,7 @@ const { can: canDo } = useProjectPermissions(projectId);
               />
 
               <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmitRisk} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editRiskId ? 'Save Changes' : 'Log Risk'}</Text>}
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{editRiskId ? tr("Save Changes") : tr("Log Risk")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback, useMemo, memo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity,
@@ -130,9 +131,9 @@ const LeadCard = memo(function LeadCard({ lead, activeFlowTab, currencySymbol, o
         <View style={[s.avatar, isLost && { backgroundColor: '#F1F5F9' }]}>
           <Text style={[s.avatarText, isLost && { color: '#64748B' }]}>{lead.name?.charAt(0).toUpperCase()}</Text>
         </View>
-        <Text style={s.leadName} numberOfLines={2}>{lead.name}</Text>
+        <Text style={s.leadName} numberOfLines={2}>{tr(lead.name)}</Text>
         <View style={[s.stageBadge, { backgroundColor: stage.bg }]}>
-          <Text style={[s.stageBadgeText, { color: stage.color }]} numberOfLines={1}>{stage.label}</Text>
+          <Text style={[s.stageBadgeText, { color: stage.color }]} numberOfLines={1}>{tr(stage.label)}</Text>
         </View>
       </View>
 
@@ -146,12 +147,12 @@ const LeadCard = memo(function LeadCard({ lead, activeFlowTab, currencySymbol, o
           {latestQuote ? (
             <>
               <Text style={s.quoteInfoTotal} numberOfLines={1}>
-                {formatSmartCurrency(latestQuote.grandTotal || 0, currencySymbol).display}
+                {tr(formatSmartCurrency(latestQuote.grandTotal || 0, currencySymbol).display)}
               </Text>
-              <Text style={s.quoteInfoVersion}>Quote v{latestQuote.version}</Text>
+              <Text style={s.quoteInfoVersion}>{tr("Quote v")}{tr(latestQuote.version)}</Text>
             </>
           ) : (
-            <Text style={s.quoteInfoEmpty}>No quotation generated</Text>
+            <Text style={s.quoteInfoEmpty}>{tr("No quotation generated")}</Text>
           )}
         </View>
       )}
@@ -161,21 +162,21 @@ const LeadCard = memo(function LeadCard({ lead, activeFlowTab, currencySymbol, o
         <View style={s.lostRow}>
           <Ionicons name="alert-circle" size={16} color="#E11D48" />
           <Text style={s.lostText} numberOfLines={2}>
-            <Text style={{ fontFamily: 'Inter-Bold' }}>Lost: </Text>{lead.lostReason || 'Reason not recorded'}
+            <Text style={{ fontFamily: 'Inter-Bold' }}>{tr("Lost: ")}</Text>{lead.lostReason || tr("Reason not recorded")}
           </Text>
         </View>
       )}
 
       <View style={s.leadBottomRow}>
         <Ionicons name="person-circle-outline" size={18} color={ownerName ? '#4F46E5' : '#94A3B8'} />
-        <Text style={[s.leadOwner, !ownerName && { color: '#94A3B8' }]} numberOfLines={1}>{ownerName || 'Unassigned'}</Text>
+        <Text style={[s.leadOwner, !ownerName && { color: '#94A3B8' }]} numberOfLines={1}>{ownerName || tr("Unassigned")}</Text>
         {!!lead.mobileNumber && (
           <>
             <TouchableOpacity
               style={[s.quickContactBtn, { backgroundColor: '#EFF6FF' }]}
               onPress={() => Linking.openURL(`tel:${lead.mobileNumber}`).catch(() => {})}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              accessibilityLabel="Call Lead"
+              accessibilityLabel={tr("Call Lead")}
             >
               <Ionicons name="call-outline" size={18} color="#2563EB" />
             </TouchableOpacity>
@@ -187,7 +188,7 @@ const LeadCard = memo(function LeadCard({ lead, activeFlowTab, currencySymbol, o
                 Linking.openURL(`https://wa.me/${phone}`).catch(() => {});
               }}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              accessibilityLabel="Chat on WhatsApp"
+              accessibilityLabel={tr("Chat on WhatsApp")}
             >
               <Ionicons name="logo-whatsapp" size={18} color="#16A34A" />
             </TouchableOpacity>
@@ -363,7 +364,7 @@ export default function CRMScreen() {
     setFormErrors(nextErrors);
     setFormTouched(fields.reduce((acc, f) => ({ ...acc, [f]: true }), {}));
     if (Object.values(nextErrors).some(Boolean)) {
-      showToast('Please fix the validation errors before creating the lead', 'error');
+      showToast(tr("Please fix the validation errors before creating the lead"), 'error');
       return;
     }
 
@@ -376,7 +377,7 @@ export default function CRMScreen() {
         email: form.email.trim(),
         projectLocation: form.projectLocation.trim(),
       });
-      showToast('Lead created successfully!', 'success');
+      showToast(tr("Lead created successfully!"), 'success');
       const createdLead = res?.data || res?.customer || res;
       const createdId = createdLead?._id || createdLead?.id;
       setForm(emptyForm);
@@ -392,7 +393,7 @@ export default function CRMScreen() {
         });
       }
     } catch (e) {
-      showToast(e.message || 'Failed to create lead', 'error');
+      showToast(e.message || tr("Failed to create lead"), 'error');
     } finally {
       setCreateLoading(false);
     }
@@ -464,7 +465,7 @@ export default function CRMScreen() {
   const handleScheduleFollowUp = async () => {
     const dateError = validateFutureDate(followUpForm.scheduledDate, 'Follow-up date');
     if (dateError) return showToast(dateError, 'error');
-    if (!followUpForm.remarks.trim()) return showToast('Remarks are required', 'error');
+    if (!followUpForm.remarks.trim()) return showToast(tr("Remarks are required"), 'error');
 
     setSchedulingFollowUp(true);
     try {
@@ -480,11 +481,11 @@ export default function CRMScreen() {
         ? { assignedSalesExecutive: followUpForm.assignedSalesExecutive, status: 'Contacted' }
         : { status: 'Contacted' });
 
-      showToast('Follow-up scheduled successfully!', 'success');
+      showToast(tr("Follow-up scheduled successfully!"), 'success');
       closeFollowUpModal();
       loadLeads();
     } catch (e) {
-      showToast(e.message || 'Failed to schedule follow-up', 'error');
+      showToast(e.message || tr("Failed to schedule follow-up"), 'error');
     } finally {
       setSchedulingFollowUp(false);
     }
@@ -493,10 +494,10 @@ export default function CRMScreen() {
   const passToSiteVisit = async (lead) => {
     try {
       await interiorApiClient.patch(`/crm/customers/${lead._id}`, { status: 'Meeting Scheduled' });
-      showToast(`${lead.name} moved to Site Visit`, 'success');
+      showToast(tr("{{name}} moved to Site Visit", { name: lead.name }), 'success');
       loadLeads();
     } catch (e) {
-      showToast(e.message || 'Failed to update lead', 'error');
+      showToast(e.message || tr("Failed to update lead"), 'error');
     }
   };
 
@@ -507,8 +508,8 @@ export default function CRMScreen() {
       <SafeAreaView style={s.container} edges={['bottom']}>
         <View style={[s.header, { paddingTop: insets.top + 12 }]}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerGreeting}>Workspace</Text>
-            <Text style={s.pageTitle}>CRM Workspace</Text>
+            <Text style={s.headerGreeting}>{tr("Workspace")}</Text>
+            <Text style={s.pageTitle}>{tr("CRM Workspace")}</Text>
           </View>
           <TouchableOpacity
             style={s.followUpsBtn}
@@ -539,16 +540,16 @@ export default function CRMScreen() {
               <View style={s.empty}>
                 <Ionicons name={activeFlowTab === 'lost_leads' ? 'shield-checkmark-outline' : 'people-outline'} size={44} color="#94A3B8" />
                 <Text style={s.emptyTitle}>
-                  {activeFlowTab === 'lost_leads' ? 'No Lost Leads' : 'No leads found'}
+                  {activeFlowTab === 'lost_leads' ? tr("No Lost Leads") : tr("No leads found")}
                 </Text>
                 {activeFlowTab === 'lost_leads' && !activeFiltersCount && !searchQuery && (
-                  <Text style={s.emptySub}>All leads in your workspace are active or won.</Text>
+                  <Text style={s.emptySub}>{tr("All leads in your workspace are active or won.")}</Text>
                 )}
                 {(activeFiltersCount > 0 || !!searchQuery) && (
                   <>
-                    <Text style={s.emptySub}>No leads matched your search or active filter criteria.</Text>
+                    <Text style={s.emptySub}>{tr("No leads matched your search or active filter criteria.")}</Text>
                     <TouchableOpacity onPress={() => { resetFilters(); setSearchQuery(''); }}>
-                      <Text style={[s.resetFiltersText, { marginTop: 8 }]}>Clear All Filters</Text>
+                      <Text style={[s.resetFiltersText, { marginTop: 8 }]}>{tr("Clear All Filters")}</Text>
                     </TouchableOpacity>
                   </>
                 )}
@@ -571,7 +572,7 @@ export default function CRMScreen() {
                 <Ionicons name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
                 <TextInput
                   style={s.searchInput}
-                  placeholder="Search by name, phone, lead no. or location..."
+                  placeholder={tr("Search by name, phone, lead no. or location...")}
                   placeholderTextColor="#94A3B8"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -589,7 +590,7 @@ export default function CRMScreen() {
               >
                 <Ionicons name="options-outline" size={18} color={(showFilters || activeFiltersCount > 0) ? '#FFFFFF' : '#475569'} />
                 {activeFiltersCount > 0 && (
-                  <View style={s.filterCount}><Text style={s.filterCountText}>{activeFiltersCount}</Text></View>
+                  <View style={s.filterCount}><Text style={s.filterCountText}>{tr(activeFiltersCount)}</Text></View>
                 )}
               </TouchableOpacity>
             </View>
@@ -598,21 +599,21 @@ export default function CRMScreen() {
               <View style={s.filterPanel}>
                 <View style={s.filterGrid}>
                   <View style={s.filterCell}>
-                    <Text style={s.filterLabel}>SOURCE</Text>
+                    <Text style={s.filterLabel}>{tr("SOURCE")}</Text>
                     <SelectField value={sourceFilter} onChange={setSourceFilter} options={[{ value: 'all', label: 'All Sources' }, ...uniqueOf('leadSource')]} />
                   </View>
                   <View style={s.filterCell}>
-                    <Text style={s.filterLabel}>PROPERTY TYPE</Text>
+                    <Text style={s.filterLabel}>{tr("PROPERTY TYPE")}</Text>
                     <SelectField value={propertyFilter} onChange={setPropertyFilter} options={[{ value: 'all', label: 'All Property Types' }, ...uniqueOf('propertyType')]} />
                   </View>
                   {activeFlowTab === 'leads' && (
                     <View style={s.filterCell}>
-                      <Text style={s.filterLabel}>PIPELINE STATUS</Text>
+                      <Text style={s.filterLabel}>{tr("PIPELINE STATUS")}</Text>
                       <SelectField value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Statuses' }, ...uniqueOf('status')]} />
                     </View>
                   )}
                   <View style={s.filterCell}>
-                    <Text style={s.filterLabel}>SORT ORDER</Text>
+                    <Text style={s.filterLabel}>{tr("SORT ORDER")}</Text>
                     <SelectField
                       value={sortBy}
                       onChange={setSortBy}
@@ -628,7 +629,7 @@ export default function CRMScreen() {
                 {activeFiltersCount > 0 && (
                   <TouchableOpacity style={s.resetFiltersBtn} onPress={resetFilters} activeOpacity={0.7}>
                     <Ionicons name="refresh" size={13} color="#E11D48" />
-                    <Text style={s.resetFiltersText}>Reset Filters</Text>
+                    <Text style={s.resetFiltersText}>{tr("Reset Filters")}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -656,10 +657,10 @@ export default function CRMScreen() {
                   <Ionicons name="calendar" size={18} color="#2563EB" />
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 12, fontFamily: 'Inter-Bold', color: '#1E40AF' }}>
-                      Follow-up Touchpoints Board
+                      {tr("Follow-up Touchpoints Board")}
                     </Text>
                     <Text style={{ fontSize: 10.5, fontFamily: 'Inter-Regular', color: '#3B82F6' }}>
-                      View all scheduled calls, mark Done, or pass to Site Visit
+                      {tr("View all scheduled calls, mark Done, or pass to Site Visit")}
                     </Text>
                   </View>
                 </View>
@@ -671,7 +672,7 @@ export default function CRMScreen() {
             {stageAdd && hasPermission(stageAdd.module, 'create') && (
               <TouchableOpacity style={s.stageAddBtn} onPress={() => setIsStagePickerOpen(true)} activeOpacity={0.7}>
                 <Ionicons name="add-circle-outline" size={18} color="#2563EB" />
-                <Text style={s.stageAddText}>{stageAdd.label}</Text>
+                <Text style={s.stageAddText}>{tr(stageAdd.label)}</Text>
               </TouchableOpacity>
             )}
 
@@ -708,8 +709,8 @@ export default function CRMScreen() {
                   <Ionicons name="person-add" size={18} color="#2563EB" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.leadModalTitle}>Add New Lead</Text>
-                  <Text style={s.leadModalSubtitle}>Enter prospect details to start tracking in CRM</Text>
+                  <Text style={s.leadModalTitle}>{tr("Add New Lead")}</Text>
+                  <Text style={s.leadModalSubtitle}>{tr("Enter prospect details to start tracking in CRM")}</Text>
                 </View>
               </View>
               <TouchableOpacity onPress={closeAddLeadModal} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={s.leadModalCloseBtn}>
@@ -722,20 +723,20 @@ export default function CRMScreen() {
               <View style={s.leadSection}>
                 <View style={s.leadSectionHeaderRow}>
                   <Ionicons name="person-circle-outline" size={14} color="#64748B" />
-                  <Text style={s.leadSectionTitle}>CONTACT INFORMATION</Text>
+                  <Text style={s.leadSectionTitle}>{tr("CONTACT INFORMATION")}</Text>
                 </View>
 
                 {/* Full Name */}
                 <View style={s.leadFieldGroup}>
                   <View style={s.leadLabelRow}>
-                    <Text style={s.leadLabel}>Full Name <Text style={s.requiredStar}>*</Text></Text>
+                    <Text style={s.leadLabel}>{tr("Full Name ")}<Text style={s.requiredStar}>*</Text></Text>
                     {form.name.length > 0 && <Text style={s.leadCharCount}>{form.name.length}/50</Text>}
                   </View>
                   <View style={[s.leadInputContainer, !!formErrors.name && s.leadInputContainerError]}>
                     <Ionicons name="person-outline" size={16} color={formErrors.name ? '#DC2626' : '#64748B'} style={s.leadInputPrefixIcon} />
                     <TextInput
                       style={s.leadTextInput}
-                      placeholder="e.g. John Doe"
+                      placeholder={tr("e.g. John Doe")}
                       placeholderTextColor="#94A3B8"
                       value={form.name}
                       maxLength={50}
@@ -746,7 +747,7 @@ export default function CRMScreen() {
                   {!!formErrors.name && (
                     <View style={s.leadErrorRow}>
                       <Ionicons name="alert-circle" size={12} color="#DC2626" />
-                      <Text style={s.leadErrorText}>{formErrors.name}</Text>
+                      <Text style={s.leadErrorText}>{tr(formErrors.name)}</Text>
                     </View>
                   )}
                 </View>
@@ -754,7 +755,7 @@ export default function CRMScreen() {
                 {/* Mobile Number */}
                 <View style={s.leadFieldGroup}>
                   <View style={s.leadLabelRow}>
-                    <Text style={s.leadLabel}>Mobile Number <Text style={s.requiredStar}>*</Text></Text>
+                    <Text style={s.leadLabel}>{tr("Mobile Number ")}<Text style={s.requiredStar}>*</Text></Text>
                   </View>
                   <View style={[s.leadInputContainer, !!formErrors.mobileNumber && s.leadInputContainerError]}>
                     <Ionicons name="call-outline" size={16} color={formErrors.mobileNumber ? '#DC2626' : '#64748B'} style={s.leadInputPrefixIcon} />
@@ -772,7 +773,7 @@ export default function CRMScreen() {
                   {!!formErrors.mobileNumber && (
                     <View style={s.leadErrorRow}>
                       <Ionicons name="alert-circle" size={12} color="#DC2626" />
-                      <Text style={s.leadErrorText}>{formErrors.mobileNumber}</Text>
+                      <Text style={s.leadErrorText}>{tr(formErrors.mobileNumber)}</Text>
                     </View>
                   )}
                 </View>
@@ -780,14 +781,14 @@ export default function CRMScreen() {
                 {/* Email Address */}
                 <View style={s.leadFieldGroup}>
                   <View style={s.leadLabelRow}>
-                    <Text style={s.leadLabel}>Email Address</Text>
-                    <Text style={s.leadOptionalTag}>Optional</Text>
+                    <Text style={s.leadLabel}>{tr("Email Address")}</Text>
+                    <Text style={s.leadOptionalTag}>{tr("Optional")}</Text>
                   </View>
                   <View style={[s.leadInputContainer, !!formErrors.email && s.leadInputContainerError]}>
                     <Ionicons name="mail-outline" size={16} color={formErrors.email ? '#DC2626' : '#64748B'} style={s.leadInputPrefixIcon} />
                     <TextInput
                       style={s.leadTextInput}
-                      placeholder="client@example.com"
+                      placeholder={tr("client@example.com")}
                       placeholderTextColor="#94A3B8"
                       value={form.email}
                       maxLength={100}
@@ -810,24 +811,24 @@ export default function CRMScreen() {
               <View style={[s.leadSection, { marginTop: 14 }]}>
                 <View style={s.leadSectionHeaderRow}>
                   <Ionicons name="business-outline" size={14} color="#64748B" />
-                  <Text style={s.leadSectionTitle}>REQUIREMENT & SOURCE</Text>
+                  <Text style={s.leadSectionTitle}>{tr("REQUIREMENT & SOURCE")}</Text>
                 </View>
 
                 {/* Property Type */}
                 <View style={s.leadFieldGroup}>
                   <View style={s.leadLabelRow}>
-                    <Text style={s.leadLabel}>Property Type <Text style={s.requiredStar}>*</Text></Text>
+                    <Text style={s.leadLabel}>{tr("Property Type ")}<Text style={s.requiredStar}>*</Text></Text>
                   </View>
                   <SelectField
                     value={form.propertyType}
                     onChange={(v) => handleLeadFieldChange('propertyType', v)}
                     options={PROPERTY_TYPES}
-                    placeholder="Select property type"
+                    placeholder={tr("Select property type")}
                   />
                   {!!formErrors.propertyType && (
                     <View style={s.leadErrorRow}>
                       <Ionicons name="alert-circle" size={12} color="#DC2626" />
-                      <Text style={s.leadErrorText}>{formErrors.propertyType}</Text>
+                      <Text style={s.leadErrorText}>{tr(formErrors.propertyType)}</Text>
                     </View>
                   )}
                 </View>
@@ -835,7 +836,7 @@ export default function CRMScreen() {
                 {/* Lead Source */}
                 <View style={s.leadFieldGroup}>
                   <View style={s.leadLabelRow}>
-                    <Text style={s.leadLabel}>Lead Source <Text style={s.requiredStar}>*</Text></Text>
+                    <Text style={s.leadLabel}>{tr("Lead Source ")}<Text style={s.requiredStar}>*</Text></Text>
                   </View>
                   <TouchableOpacity
                     style={[s.sourceSelectBtn, !!formErrors.leadSource && s.leadInputContainerError]}
@@ -850,14 +851,14 @@ export default function CRMScreen() {
                           color="#2563EB"
                         />
                       </View>
-                      <Text style={s.sourceSelectText}>{form.leadSource}</Text>
+                      <Text style={s.sourceSelectText}>{tr(form.leadSource)}</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={16} color="#64748B" />
                   </TouchableOpacity>
                   {!!formErrors.leadSource && (
                     <View style={s.leadErrorRow}>
                       <Ionicons name="alert-circle" size={12} color="#DC2626" />
-                      <Text style={s.leadErrorText}>{formErrors.leadSource}</Text>
+                      <Text style={s.leadErrorText}>{tr(formErrors.leadSource)}</Text>
                     </View>
                   )}
                 </View>
@@ -865,14 +866,14 @@ export default function CRMScreen() {
                 {/* Project Location */}
                 <View style={s.leadFieldGroup}>
                   <View style={s.leadLabelRow}>
-                    <Text style={s.leadLabel}>Project Location <Text style={s.requiredStar}>*</Text></Text>
+                    <Text style={s.leadLabel}>{tr("Project Location ")}<Text style={s.requiredStar}>*</Text></Text>
                     {form.projectLocation.length > 0 && <Text style={s.leadCharCount}>{form.projectLocation.length}/150</Text>}
                   </View>
                   <View style={[s.leadInputContainer, !!formErrors.projectLocation && s.leadInputContainerError]}>
                     <Ionicons name="location-outline" size={16} color={formErrors.projectLocation ? '#DC2626' : '#64748B'} style={s.leadInputPrefixIcon} />
                     <TextInput
                       style={s.leadTextInput}
-                      placeholder="e.g. Hiranandani Estate, Thane"
+                      placeholder={tr("e.g. Hiranandani Estate, Thane")}
                       placeholderTextColor="#94A3B8"
                       value={form.projectLocation}
                       maxLength={150}
@@ -883,7 +884,7 @@ export default function CRMScreen() {
                   {!!formErrors.projectLocation && (
                     <View style={s.leadErrorRow}>
                       <Ionicons name="alert-circle" size={12} color="#DC2626" />
-                      <Text style={s.leadErrorText}>{formErrors.projectLocation}</Text>
+                      <Text style={s.leadErrorText}>{tr(formErrors.projectLocation)}</Text>
                     </View>
                   )}
                 </View>
@@ -901,7 +902,7 @@ export default function CRMScreen() {
                 ) : (
                   <>
                     <Ionicons name="person-add" size={16} color="#FFFFFF" />
-                    <Text style={s.leadSubmitBtnText}>Create Lead</Text>
+                    <Text style={s.leadSubmitBtnText}>{tr("Create Lead")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -916,8 +917,8 @@ export default function CRMScreen() {
           <View style={s.pickerCard} onStartShouldSetResponder={() => true}>
             <View style={s.pickerHeader}>
               <View>
-                <Text style={s.pickerTitle}>Select Lead Source</Text>
-                <Text style={s.pickerSubtitle}>Where did this prospect find you?</Text>
+                <Text style={s.pickerTitle}>{tr("Select Lead Source")}</Text>
+                <Text style={s.pickerSubtitle}>{tr("Where did this prospect find you?")}</Text>
               </View>
               <TouchableOpacity onPress={() => setShowSourcePicker(false)} style={s.leadModalCloseBtn}>
                 <Ionicons name="close" size={18} color="#64748B" />
@@ -945,7 +946,7 @@ export default function CRMScreen() {
                         />
                       </View>
                       <Text style={[s.pickerRowText, selected && s.pickerRowTextSelected]}>
-                        {source}
+                        {tr(source)}
                       </Text>
                     </View>
                     {selected ? (
@@ -969,8 +970,8 @@ export default function CRMScreen() {
               <>
                 <View style={s.modalHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.modalTitle}>Schedule Follow-up</Text>
-                    <Text style={s.modalSubtitle}>Plan a future touchpoint with {followUpLead.name}</Text>
+                    <Text style={s.modalTitle}>{tr("Schedule Follow-up")}</Text>
+                    <Text style={s.modalSubtitle}>{tr("Plan a future touchpoint with ")}{tr(followUpLead.name)}</Text>
                   </View>
                   <TouchableOpacity onPress={closeFollowUpModal}>
                     <Ionicons name="close" size={22} color="#64748B" />
@@ -978,21 +979,21 @@ export default function CRMScreen() {
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false}>
-                  <Text style={s.label}>Follow-up Type</Text>
+                  <Text style={s.label}>{tr("Follow-up Type")}</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                     {FOLLOWUP_TYPES.map((opt) => (
                       <TouchableOpacity key={opt} style={[s.optionChip, followUpForm.type === opt && s.optionChipActive]} onPress={() => setFollowUpForm({ ...followUpForm, type: opt })}>
-                        <Text style={[s.optionChipText, followUpForm.type === opt && s.optionChipTextActive]}>{opt}</Text>
+                        <Text style={[s.optionChipText, followUpForm.type === opt && s.optionChipTextActive]}>{tr(opt)}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
-                  <Text style={s.label}>Date & Time *</Text>
+                  <Text style={s.label}>{tr("Date & Time *")}</Text>
                   <TouchableOpacity style={s.dateInput} onPress={openScheduleDatePicker}>
                     <Text style={[s.dateInputText, !followUpForm.scheduledDate && { color: '#94A3B8' }]}>
                       {followUpForm.scheduledDate
                         ? followUpForm.scheduledDate.toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-                        : 'Select date & time'}
+                        : tr("Select date & time")}
                     </Text>
                     <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
                   </TouchableOpacity>
@@ -1008,13 +1009,13 @@ export default function CRMScreen() {
                     />
                   )}
 
-                  <Text style={s.label}>Assign Member</Text>
+                  <Text style={s.label}>{tr("Assign Member")}</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                     <TouchableOpacity
                       style={[s.optionChip, !followUpForm.assignedSalesExecutive && s.optionChipActive]}
                       onPress={() => setFollowUpForm({ ...followUpForm, assignedSalesExecutive: '' })}
                     >
-                      <Text style={[s.optionChipText, !followUpForm.assignedSalesExecutive && s.optionChipTextActive]}>Keep Current</Text>
+                      <Text style={[s.optionChipText, !followUpForm.assignedSalesExecutive && s.optionChipTextActive]}>{tr("Keep Current")}</Text>
                     </TouchableOpacity>
                     {users.map((u) => {
                       const uid = u._id || u.id;
@@ -1026,10 +1027,10 @@ export default function CRMScreen() {
                     })}
                   </View>
 
-                  <Text style={s.label}>Follow-up Goal / Notes *</Text>
+                  <Text style={s.label}>{tr("Follow-up Goal / Notes *")}</Text>
                   <TextInput
                     style={[s.input, { height: 90, textAlignVertical: 'top', paddingTop: 12 }]}
-                    placeholder="E.g., Call to discuss revised quotation..."
+                    placeholder={tr("E.g., Call to discuss revised quotation...")}
                     placeholderTextColor="#94A3B8"
                     value={followUpForm.remarks}
                     onChangeText={(v) => setFollowUpForm({ ...followUpForm, remarks: v })}
@@ -1037,7 +1038,7 @@ export default function CRMScreen() {
                   />
 
                   <TouchableOpacity style={[s.saveBtn, schedulingFollowUp && { opacity: 0.7 }]} onPress={handleScheduleFollowUp} disabled={schedulingFollowUp}>
-                    {schedulingFollowUp ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Schedule Follow-up</Text>}
+                    {schedulingFollowUp ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Schedule Follow-up")}</Text>}
                   </TouchableOpacity>
                 </ScrollView>
               </>
@@ -1056,9 +1057,9 @@ function StatCard({ icon, iconBg, iconColor, label, value, sub, onPress }) {
       <View style={[s.statIconBox, { backgroundColor: iconBg }]}>
         <Ionicons name={icon} size={16} color={iconColor} />
       </View>
-      <Text style={s.statLabel}>{label}</Text>
+      <Text style={s.statLabel}>{tr(label)}</Text>
       <Text style={s.statValue}>
-        {value} {!!sub && <Text style={s.statValueSub}>{sub}</Text>}
+        {tr(value)} {!!sub && <Text style={s.statValueSub}>{tr(sub)}</Text>}
       </Text>
     </Wrapper>
   );

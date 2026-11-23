@@ -1,3 +1,4 @@
+import { tr } from '../../utils/i18n/tr';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, StatusBar, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -107,7 +108,7 @@ export default function SiteSurveyScreen() {
           }
         } catch (error) {
           console.error('Error fetching existing survey:', error);
-          showToast('Failed to load survey details', 'error');
+          showToast(tr("Failed to load survey details"), 'error');
         }
       };
       fetchExistingSurvey();
@@ -124,7 +125,7 @@ export default function SiteSurveyScreen() {
 
   const renderOptions = (label, field, options) => (
     <View style={styles.fieldBlock}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.fieldLabel}>{tr(label)}</Text>
       <View style={styles.accessGrid}>
         {options.map((opt) => (
           <TouchableOpacity
@@ -133,7 +134,7 @@ export default function SiteSurveyScreen() {
             style={[styles.accessBtn, formData[field] === opt && styles.accessBtnActive]}
             onPress={() => setFormData(prev => ({ ...prev, [field]: opt }))}
           >
-            <Text style={[styles.accessText, formData[field] === opt && styles.accessTextActive]}>{opt}</Text>
+            <Text style={[styles.accessText, formData[field] === opt && styles.accessTextActive]}>{tr(opt)}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -143,8 +144,8 @@ export default function SiteSurveyScreen() {
   const renderToggle = (label, sub, field) => (
     <View style={styles.toggleRow}>
       <View style={styles.toggleTextCol}>
-        <Text style={styles.toggleLabel}>{label}</Text>
-        <Text style={styles.toggleSub}>{sub}</Text>
+        <Text style={styles.toggleLabel}>{tr(label)}</Text>
+        <Text style={styles.toggleSub}>{tr(sub)}</Text>
       </View>
       <TouchableOpacity activeOpacity={0.8} onPress={() => handleToggle(field)} style={[styles.switchTrack, formData[field] && styles.switchTrackActive]}>
         <View style={[styles.switchThumb, formData[field] && styles.switchThumbActive]} />
@@ -162,7 +163,7 @@ export default function SiteSurveyScreen() {
       if (useCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-          showToast('Camera permission is required', 'error');
+          showToast(tr("Camera permission is required"), 'error');
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -184,7 +185,7 @@ export default function SiteSurveyScreen() {
       }
     } catch (error) {
       console.error('Image picking error:', error);
-      showToast('Error picking image', 'error');
+      showToast(tr("Error picking image"), 'error');
     }
   };
 
@@ -197,7 +198,7 @@ export default function SiteSurveyScreen() {
         quality: 0.8,
       });
       if (!result.canceled) setAdditionalImageUris(prev => [...prev, result.assets[0].uri]);
-    } catch { showToast('Error picking image', 'error'); }
+    } catch { showToast(tr("Error picking image"), 'error'); }
   };
 
   const removeAdditionalPhoto = (index) => {
@@ -206,12 +207,12 @@ export default function SiteSurveyScreen() {
 
   const handleImagePickChoice = () => {
     Alert.alert(
-      'Select Image Source',
-      'Choose how you want to provide the site photo',
+      tr("Select Image Source"),
+      tr("Choose how you want to provide the site photo"),
       [
-        { text: 'Take Photo', onPress: () => pickImage(true) },
-        { text: 'Choose from Gallery', onPress: () => pickImage(false) },
-        { text: 'Cancel', style: 'cancel' }
+        { text: tr("Take Photo"), onPress: () => pickImage(true) },
+        { text: tr("Choose from Gallery"), onPress: () => pickImage(false) },
+        { text: tr("Cancel"), style: 'cancel' }
       ]
     );
   };
@@ -230,11 +231,11 @@ export default function SiteSurveyScreen() {
 
     if (formData.affectsBudget) {
       if (!formData.recommendedBudget || !formData.budgetReason.trim()) {
-        showToast('Please provide the estimated budget and reason.', 'error');
+        showToast(tr("Please provide the estimated budget and reason."), 'error');
         return;
       }
       if (Number(formData.recommendedBudget) === Number(currentBudget)) {
-        showToast('New budget cannot be identical to the current budget. Disable the toggle instead.', 'error');
+        showToast(tr("New budget cannot be identical to the current budget. Disable the toggle instead."), 'error');
         return;
       }
     }
@@ -298,14 +299,14 @@ export default function SiteSurveyScreen() {
       });
 
       if (response.ok) {
-        showToast(editMode === 'true' ? 'Site survey updated!' : 'Site survey completely lodged!', 'success');
+        showToast(editMode === 'true' ? tr("Site survey updated!") : tr("Site survey completely lodged!"), 'success');
         router.replace(`/(tabs)/project`);
       } else {
         const errorData = await response.json();
-        showToast(errorData.message || 'Failed to submit survey', 'error');
+        showToast(errorData.message || tr("Failed to submit survey"), 'error');
       }
     } catch (e) {
-      showToast('Network request failed', 'error');
+      showToast(tr("Network request failed"), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -316,15 +317,15 @@ export default function SiteSurveyScreen() {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, backgroundColor: '#F8FAFC' }}>
         <Ionicons name="lock-closed-outline" size={56} color="#CBD5E1" />
         <Text style={{ marginTop: 16, fontSize: 17, fontFamily: 'Inter-Bold', color: '#0F172A', textAlign: 'center' }}>
-          {editMode === 'true' ? "You can't edit this survey" : "You can't submit a survey"}
+          {editMode === 'true' ? tr("You can't edit this survey") : tr("You can't submit a survey")}
         </Text>
         <Text style={{ marginTop: 8, fontSize: 13, fontFamily: 'Inter-Medium', color: '#64748B', textAlign: 'center', lineHeight: 20 }}>
           {editMode === 'true'
-            ? 'Ask your admin to enable Site Survey Management → Update on your role.'
-            : 'Ask your admin to enable Site Survey Management → Create on your role.'}
+            ? tr("Ask your admin to enable Site Survey Management → Update on your role.")
+            : tr("Ask your admin to enable Site Survey Management → Create on your role.")}
         </Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: '#EFF6FF' }}>
-          <Text style={{ fontFamily: 'Inter-Bold', color: '#2563EB' }}>Go back</Text>
+          <Text style={{ fontFamily: 'Inter-Bold', color: '#2563EB' }}>{tr("Go back")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -362,10 +363,10 @@ export default function SiteSurveyScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.contentScroll, { paddingBottom: insets.bottom + 120 }]}>
           
           <AdaptiveGlass intensity={20} tint="light" style={styles.sectionForm}>
-            <Text style={styles.sectionLabel}>{isInterior ? 'Space & Condition Assessment' : t('conditionsAndUtilities', 'Conditions & Utilities')}</Text>
+            <Text style={styles.sectionLabel}>{isInterior ? tr("Space & Condition Assessment") : t('conditionsAndUtilities', 'Conditions & Utilities')}</Text>
 
             <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>{isInterior ? 'Overall Space Condition' : t('overallAccessibility', 'Overall Accessibility')}</Text>
+              <Text style={styles.fieldLabel}>{isInterior ? tr("Overall Space Condition") : t('overallAccessibility', 'Overall Accessibility')}</Text>
               <View style={styles.accessGrid}>
                 {accessibilityOptions.map((opt) => (
                   <TouchableOpacity
@@ -374,7 +375,7 @@ export default function SiteSurveyScreen() {
                     style={[styles.accessBtn, formData.accessibility === opt && styles.accessBtnActive]}
                     onPress={() => handleSelectAccessibility(opt)}
                   >
-                    <Text style={[styles.accessText, formData.accessibility === opt && styles.accessTextActive]}>{opt}</Text>
+                    <Text style={[styles.accessText, formData.accessibility === opt && styles.accessTextActive]}>{tr(opt)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -384,8 +385,8 @@ export default function SiteSurveyScreen() {
 
             <View style={styles.toggleRow}>
               <View style={styles.toggleTextCol}>
-                <Text style={styles.toggleLabel}>{isInterior ? 'Electrical Points Accessible' : t('powerInfrastructureAvailable', 'Power Infrastructure Available')}</Text>
-                <Text style={styles.toggleSub}>{isInterior ? 'Existing outlets and wiring in place' : t('existingGridConnections', 'Existing grid connections')}</Text>
+                <Text style={styles.toggleLabel}>{isInterior ? tr("Electrical Points Accessible") : t('powerInfrastructureAvailable', 'Power Infrastructure Available')}</Text>
+                <Text style={styles.toggleSub}>{isInterior ? tr("Existing outlets and wiring in place") : t('existingGridConnections', 'Existing grid connections')}</Text>
               </View>
               <TouchableOpacity activeOpacity={0.8} onPress={() => handleToggle('powerAvailable')} style={[styles.switchTrack, formData.powerAvailable && styles.switchTrackActive]}>
                  <View style={[styles.switchThumb, formData.powerAvailable && styles.switchThumbActive]} />
@@ -396,8 +397,8 @@ export default function SiteSurveyScreen() {
 
             <View style={styles.toggleRow}>
               <View style={styles.toggleTextCol}>
-                <Text style={styles.toggleLabel}>{isInterior ? 'Plumbing Accessible' : t('waterConnectionAvailable', 'Water Connection Available')}</Text>
-                <Text style={styles.toggleSub}>{isInterior ? 'Kitchen/bathroom plumbing lines' : t('municipalOrWellConnection', 'Municipal or well connection')}</Text>
+                <Text style={styles.toggleLabel}>{isInterior ? tr("Plumbing Accessible") : t('waterConnectionAvailable', 'Water Connection Available')}</Text>
+                <Text style={styles.toggleSub}>{isInterior ? tr("Kitchen/bathroom plumbing lines") : t('municipalOrWellConnection', 'Municipal or well connection')}</Text>
               </View>
               <TouchableOpacity activeOpacity={0.8} onPress={() => handleToggle('waterAvailable')} style={[styles.switchTrack, formData.waterAvailable && styles.switchTrackActive]}>
                  <View style={[styles.switchThumb, formData.waterAvailable && styles.switchThumbActive]} />
@@ -435,7 +436,7 @@ export default function SiteSurveyScreen() {
                   <View style={styles.unitRow}>
                     {['ft', 'm', 'in', 'mm', 'cm'].map((u) => (
                       <TouchableOpacity key={u} style={[styles.unitBtn, formData.ceilingHeightUnit === u && styles.accessBtnActive]} onPress={() => setFormData(prev => ({ ...prev, ceilingHeightUnit: u }))}>
-                        <Text style={[styles.unitText, formData.ceilingHeightUnit === u && styles.accessTextActive]}>{u}</Text>
+                        <Text style={[styles.unitText, formData.ceilingHeightUnit === u && styles.accessTextActive]}>{tr(u)}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -456,7 +457,7 @@ export default function SiteSurveyScreen() {
               {formData.dampnessObserved && (
                 <View style={{ marginTop: 16 }}>
                   <Text style={styles.fieldLabel}>{t('dampnessDetails', 'Dampness & Leakage Details')}</Text>
-                  <TextInput style={[styles.textInput, styles.textArea]} placeholder="e.g. Seepage observed on Bedroom 2 outer wall..." placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={formData.dampnessNotes} onChangeText={(text) => setFormData(prev => ({ ...prev, dampnessNotes: text }))} />
+                  <TextInput style={[styles.textInput, styles.textArea]} placeholder={tr("e.g. Seepage observed on Bedroom 2 outer wall...")} placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={formData.dampnessNotes} onChangeText={(text) => setFormData(prev => ({ ...prev, dampnessNotes: text }))} />
                 </View>
               )}
             </AdaptiveGlass>
@@ -493,12 +494,12 @@ export default function SiteSurveyScreen() {
               {formData.structuralModification && (
                 <View style={{ marginTop: 16 }}>
                   <Text style={styles.fieldLabel}>{t('structuralNotes', 'Structural Notes')}</Text>
-                  <TextInput style={[styles.textInput, styles.textArea]} placeholder="Describe required structural changes..." placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={formData.structuralNotes} onChangeText={(text) => setFormData(prev => ({ ...prev, structuralNotes: text }))} />
+                  <TextInput style={[styles.textInput, styles.textArea]} placeholder={tr("Describe required structural changes...")} placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={formData.structuralNotes} onChangeText={(text) => setFormData(prev => ({ ...prev, structuralNotes: text }))} />
                 </View>
               )}
               <View style={styles.divider} />
               <Text style={styles.fieldLabel}>{t('clientStylePreference', 'Client Style Preference')}</Text>
-              <TextInput style={[styles.textInput, styles.textArea, { minHeight: 80 }]} placeholder="e.g. Modern minimalist, warm tones, open-plan kitchen preferred..." placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={formData.clientStylePreference} onChangeText={(text) => setFormData(prev => ({ ...prev, clientStylePreference: text }))} />
+              <TextInput style={[styles.textInput, styles.textArea, { minHeight: 80 }]} placeholder={tr("e.g. Modern minimalist, warm tones, open-plan kitchen preferred...")} placeholderTextColor="#94A3B8" multiline textAlignVertical="top" value={formData.clientStylePreference} onChangeText={(text) => setFormData(prev => ({ ...prev, clientStylePreference: text }))} />
             </AdaptiveGlass>
           )}
 
@@ -572,7 +573,7 @@ export default function SiteSurveyScreen() {
                   <Text style={styles.referenceText}>{t('currentActiveBudget', 'Current Active Budget:')} <Text style={{ fontFamily: 'Inter-Black' }}>{formatCurrency(Number(currentBudget), currency || 'AED')}</Text></Text>
                 </View>
                 <View>
-                  <Text style={styles.fieldLabel}>{t('newEstimatedBudget', 'New Estimated Budget')} ({currency || 'AED'})</Text>
+                  <Text style={styles.fieldLabel}>{t('newEstimatedBudget', 'New Estimated Budget')} ({currency || tr("AED")})</Text>
                   <TextInput
                     style={styles.textInput}
                     placeholder="e.g. 850000"

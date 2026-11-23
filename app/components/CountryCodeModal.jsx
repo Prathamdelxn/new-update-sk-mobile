@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n/tr';
 import React, { useState, useMemo } from 'react';
 import {
   Modal,
@@ -55,7 +56,7 @@ export default function CountryCodeModal({
           <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
             <Ionicons name="close" size={24} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Select Country</Text>
+          <Text style={styles.headerTitle}>{tr("Select Country")}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -64,7 +65,7 @@ export default function CountryCodeModal({
           <Ionicons name="search-outline" size={18} color="#94A3B8" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search country name, dial code, or currency..."
+            placeholder={tr("Search country name, dial code, or currency...")}
             placeholderTextColor="#94A3B8"
             value={search}
             onChangeText={setSearch}
@@ -93,16 +94,16 @@ export default function CountryCodeModal({
                 onPress={() => handleSelect(item)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.flag}>{item.flag}</Text>
+                <Text style={styles.flag}>{tr(item.flag)}</Text>
                 <View style={styles.nameContainer}>
                   <Text style={[styles.name, isSelected && styles.nameSelected]} numberOfLines={1}>
-                    {item.name}
+                    {tr(item.name)}
                   </Text>
-                  <Text style={styles.dialCode}>{item.phoneCode}</Text>
+                  <Text style={styles.dialCode}>{tr(item.phoneCode)}</Text>
                 </View>
                 <View style={styles.currencyBadge}>
                   <Text style={styles.currencyText}>
-                    {item.currencySymbol} {item.currencyCode}
+                    {tr(item.currencySymbol)} {tr(item.currencyCode)}
                   </Text>
                 </View>
                 {isSelected ? (
@@ -114,7 +115,7 @@ export default function CountryCodeModal({
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No countries match &quot;{search}&quot;</Text>
+              <Text style={styles.emptyText}>{tr("No countries match \"")}{tr(search)}&quot;</Text>
             </View>
           }
         />
