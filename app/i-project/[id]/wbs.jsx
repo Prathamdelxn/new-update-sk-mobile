@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -161,7 +161,11 @@ function DatePickerField({ value, onChange, placeholder = 'Select date', minDate
 export default function InteriorWbsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { id: projectId } = useLocalSearchParams();
+  const { id: projectId, node: nodeParam } = useLocalSearchParams();
+  // Opened from the Gantt chart (?node=<id>): expand, scroll to and highlight that element
+  const scrollRef = useRef(null);
+  const nodeY = useRef({});
+  const [focusedNodeId, setFocusedNodeId] = useState(null);
   const { showToast } = useToast();
   const { can: canDo } = useProjectPermissions(projectId);
 
@@ -310,6 +314,23 @@ export default function InteriorWbsScreen() {
 
     return map;
   }, [wbsData, tasks]);
+
+  useEffect(() => {
+    if (!nodeParam || loading || wbsData.length === 0) return undefined;
+    const target = String(nodeParam);
+    router.setParams({ node: undefined });
+    if (!wbsData.some((n) => String(n.id) === target)) return undefined;
+    setExpandedNodes((prev) => (prev.includes(target) ? prev : [...prev, target]));
+    setFocusedNodeId(target);
+    // Wait a frame for the cards to lay out, then scroll the element into view
+    const scrollTimer = setTimeout(() => {
+      const y = nodeY.current[target];
+      if (y != null) scrollRef.current?.scrollTo({ y: Math.max(0, (nodeY.current.__list || 0) + y - 12), animated: true });
+    }, 350);
+    const clearTimer = setTimeout(() => setFocusedNodeId(null), 2800);
+    return () => { clearTimeout(scrollTimer); clearTimeout(clearTimer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeParam, loading, wbsData]);
 
   const toggleNode = (id) => {
     setExpandedNodes((prev) => (prev.includes(id) ? prev.filter((nodeId) => nodeId !== id) : [...prev, id]));
@@ -681,6 +702,7 @@ export default function InteriorWbsScreen() {
           <SkeletonList />
         ) : (
           <ScrollView
+            ref={scrollRef}
             contentContainerStyle={s.scroll}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />}
@@ -719,7 +741,7 @@ export default function InteriorWbsScreen() {
                 )}
               </View>
             ) : (
-              <View style={{ gap: 12 }}>
+              <View style={{ gap: 12 }} onLayout={(e) => { nodeY.current.__list = e.nativeEvent.layout.y; }}>
                 {wbsData.map((node) => {
                   const directTasks = tasksByPackage.get(node.id) || [];
                   const isExpanded = expandedNodes.includes(node.id);
@@ -735,7 +757,11 @@ export default function InteriorWbsScreen() {
                   };
 
                   return (
-                    <View key={node.id} style={s.wbsCard}>
+                    <View
+                      key={node.id}
+                      style={[s.wbsCard, focusedNodeId === node.id && s.wbsCardFocused]}
+                      onLayout={(e) => { nodeY.current[node.id] = e.nativeEvent.layout.y; }}
+                    >
                       {/* Element header: name, one facts line, thin progress bar */}
                       <TouchableOpacity style={s.wbsCardHeader} onPress={() => toggleNode(node.id)} activeOpacity={0.8}>
                         <Ionicons name={isExpanded ? 'chevron-down' : 'chevron-forward'} size={18} color="#64748B" style={{ marginTop: 1 }} />
@@ -1433,6 +1459,7 @@ const s = StyleSheet.create({
 
   // WBS Card
   wbsCard: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden' },
+  wbsCardFocused: { borderColor: '#2563EB', borderWidth: 2 },
   wbsCardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 },
   wbsNodeName: { fontSize: 15, lineHeight: 20, fontFamily: 'Inter-Bold', color: '#0F172A' },
 

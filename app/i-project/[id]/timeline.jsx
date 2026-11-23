@@ -92,6 +92,17 @@ export default function InteriorTimelineScreen() {
   const [viewportH, setViewportH] = useState(0);
   // Tapped bar / milestone -> its dates (the web shows these on hover)
   const [barInfo, setBarInfo] = useState(null);
+  // Open the tapped item in its own screen (activity detail / WBS element / milestones)
+  const openBarItem = (info) => {
+    if (!info) return;
+    setBarInfo(null);
+    if (info.kind === 'task') router.push({ pathname: `/i-project/${projectId}/tasks`, params: { task: String(info.id) } });
+    else router.push(`/i-project/${projectId}/milestones`);
+  };
+  const openWbs = (wbsId) => {
+    if (wbsId === UNASSIGNED_WBS_ID) router.push(`/i-project/${projectId}/tasks`);
+    else router.push({ pathname: `/i-project/${projectId}/wbs`, params: { node: String(wbsId) } });
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -327,13 +338,16 @@ export default function InteriorTimelineScreen() {
           const wbsExpanded = expandedWbs[w._id] !== false;
           return (
             <View key={w._id}>
-              <TouchableOpacity style={s.wbsRow} onPress={() => toggleWbs(w._id)}>
+              <TouchableOpacity style={s.wbsRow} onPress={() => toggleWbs(w._id)} onLongPress={() => openWbs(w._id)}>
                 {isLabel ? (
                   <View style={[s.wbsLabelCell, { width: LABEL_WIDTH_WBS }]}>
                     <Ionicons name={wbsExpanded ? 'chevron-down' : 'chevron-forward'} size={13} color="#94A3B8" />
                     <Ionicons name="cube-outline" size={13} color="#7C3AED" style={{ marginLeft: 4 }} />
                     <Text style={s.wbsLabelText} numberOfLines={1}>{w.name}</Text>
                     {!!w.trade && <Text style={s.wbsTradeTag}>{w.trade}</Text>}
+                    <TouchableOpacity onPress={() => openWbs(w._id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 'auto', paddingLeft: 4 }}>
+                      <Ionicons name="open-outline" size={14} color="#2563EB" />
+                    </TouchableOpacity>
                   </View>
                 ) : (
                   <View style={{ width: gridWidth }} />
@@ -357,7 +371,7 @@ export default function InteriorTimelineScreen() {
                           {dueOffset !== null && dueOffset >= 0 && dueOffset < totalDays && (
                             <TouchableOpacity
                               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                              onPress={() => setBarInfo((cur) => (cur?.key === mg._key ? null : { key: mg._key, kind: 'milestone', name: mg.name, status: mg.status, due: new Date(mg.dueDate) }))}
+                              onPress={() => setBarInfo((cur) => (cur?.key === mg._key ? null : { key: mg._key, id: mg._id, kind: 'milestone', name: mg.name, status: mg.status, due: new Date(mg.dueDate) }))}
                               style={[s.milestoneDiamond, { left: dueOffset * DAY_WIDTH + DAY_WIDTH / 2 - 5, backgroundColor: STATUS_COLOR[mg.status] || '#D97706' }]}
                             />
                           )}
@@ -399,7 +413,7 @@ export default function InteriorTimelineScreen() {
                                 />
                               </TouchableOpacity>
                               <View style={{ flex: 1, minWidth: 0 }}>
-                                <Text style={[s.taskLabelText, done && s.taskLabelTextDone]} numberOfLines={1}>{t.name}</Text>
+                                <Text style={[s.taskLabelText, done && s.taskLabelTextDone]} numberOfLines={1} onPress={() => openBarItem({ kind: 'task', id: t._id })}>{t.name}</Text>
                                 {done ? (
                                   <View style={s.doneLine}>
                                     <View style={s.donePill}>
@@ -439,7 +453,7 @@ export default function InteriorTimelineScreen() {
                                 activeOpacity={0.75}
                                 hitSlop={{ top: 8, bottom: 8 }}
                                 onPress={() => setBarInfo((cur) => (cur?.key === t._id ? null : {
-                                  key: t._id, kind: 'task', name: t.name, status: t.status, start, end, done, diff,
+                                  key: t._id, id: t._id, kind: 'task', name: t.name, status: t.status, start, end, done, diff,
                                 }))}
                                 style={[
                                   s.taskBar, done && s.taskBarDone,
@@ -555,6 +569,10 @@ export default function InteriorTimelineScreen() {
                     )}
                   </View>
                 )}
+                <TouchableOpacity style={s.infoOpenBtn} onPress={() => openBarItem(barInfo)} activeOpacity={0.8}>
+                  <Text style={s.infoOpenText}>{barInfo.kind === 'milestone' ? 'Open milestones' : 'Open activity'}</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -575,6 +593,8 @@ const s = StyleSheet.create({
   infoTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A' },
   infoStatus: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#64748B', textTransform: 'capitalize', marginTop: 2 },
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  infoOpenBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, backgroundColor: '#2563EB', borderRadius: 10, paddingVertical: 9 },
+  infoOpenText: { fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#FFFFFF' },
   infoCell: { flexBasis: '47%', flexGrow: 1, backgroundColor: '#F8FAFC', borderRadius: 10, padding: 8 },
   infoLabel: { fontSize: 10.5, fontFamily: 'Inter-Bold', color: '#94A3B8', letterSpacing: 0.4 },
   infoValue: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 2 },

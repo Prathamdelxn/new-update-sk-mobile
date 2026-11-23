@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Alert,
@@ -166,7 +166,7 @@ const ctrlStyles = StyleSheet.create({
 export default function InteriorTasksScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { id: projectId } = useLocalSearchParams();
+  const { id: projectId, task: taskParam } = useLocalSearchParams();
   const { showToast } = useToast();
 const { can: canDo } = useProjectPermissions(projectId);
 
@@ -416,6 +416,16 @@ const { can: canDo } = useProjectPermissions(projectId);
       setComments([]);
     }
   };
+
+  // Opened from the Gantt chart / to-do list (?task=<id>): open that activity once loaded,
+  // then clear the param so closing it doesn't reopen it
+  useEffect(() => {
+    if (!taskParam || loading || tasks.length === 0) return;
+    const match = tasks.find((t) => String(t._id) === String(taskParam));
+    router.setParams({ task: undefined });
+    if (match) openTask(match);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskParam, loading, tasks]);
 
   const openEditTask = (task) => {
     setSelectedTask(task);

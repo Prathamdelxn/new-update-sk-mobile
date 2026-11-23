@@ -8,7 +8,7 @@ import { useInteriorPermissions } from '../../../utils/interior/useInteriorPermi
 // Mirrors InteriorProjectBanner's category nav from sky-lite-web.
 export const CATEGORIES = [
   { name: 'General', icon: '📋', items: ['Site Details', 'File Management', 'Project Quotation', 'Confirm Order', 'Team & Members'] },
-  { name: 'Site Assets', icon: '📂', items: ['CAD Drawings', 'Site Photos', 'RFIs Tracker', 'Utility Checks'] },
+  { name: 'Assets', icon: '📂', items: ['CAD Drawings', 'Site Photos', 'RFIs Tracker', 'Utility Checks'] },
   { name: 'Execution', icon: '📐', items: ['WBS Hierarchy', 'Activity / Tasks', 'Milestones', 'DPR Log', 'Weekly Reports', 'MOM', 'Timeline (Gantt)'] },
   { name: 'Commercials', icon: '💰', items: ['BOQ Estimator', 'Variation Orders', 'Procurement', 'Payments'] },
   { name: 'Quality & Safety', icon: '🔍', items: ['Snags Logger', 'Risks Matrix'] },

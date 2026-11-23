@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, ActivityIndicator,
@@ -13,6 +14,8 @@ import CategoryNav from './_components/CategoryNav';
 import SkeletonList from '../../components/common/SkeletonList';
 import { formatCompactCurrency } from '../../utils/common/format';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import ProjectActionItems from './_components/ProjectActionItems';
+import HealthReasonsSheet from './_components/HealthReasonsSheet';
 
 const HEALTH_META = {
   'on-track': { label: 'On Track', color: '#16A34A', bg: '#F0FDF4' },
@@ -36,6 +39,8 @@ export default function InteriorProjectOverviewScreen() {
   const { showToast } = useToast();
   // Shortcut cards only open tabs the user can view
   const { can: canDo } = useProjectPermissions(id);
+  // Health badge -> sheet explaining why the project is At Risk / Delayed
+  const [healthOpen, setHealthOpen] = useState(false);
 
   // Cached per project (see QueryProvider). Edits in the sub-screens (tasks,
   // DPR, ...) mark these stale, so returning here refetches only after a change.
@@ -129,13 +134,22 @@ export default function InteriorProjectOverviewScreen() {
               </>
             )}
           </View>
-          {!!p.name && (
-            <View style={[s.badge, { backgroundColor: p.status && p.status !== 'active' ? '#FFFBEB' : health.bg }]}>
-              <Text style={[s.badgeText, { color: p.status && p.status !== 'active' ? '#D97706' : health.color }]}>
-                {p.status && p.status !== 'active' ? 'On Hold' : health.label}
-              </Text>
+          {!!p.name && (p.status && p.status !== 'active' ? (
+            <View style={[s.badge, { backgroundColor: '#FFFBEB' }]}>
+              <Text style={[s.badgeText, { color: '#D97706' }]}>On Hold</Text>
             </View>
-          )}
+          ) : (
+            <TouchableOpacity
+              style={[s.badge, s.badgeTappable, { backgroundColor: health.bg, borderColor: health.color + '40' }]}
+              onPress={() => setHealthOpen(true)}
+              activeOpacity={0.75}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              {p.health && p.health !== 'on-track' && <Ionicons name="warning-outline" size={12} color={health.color} />}
+              <Text style={[s.badgeText, { color: health.color }]}>{health.label}</Text>
+              <Ionicons name="chevron-forward" size={12} color={health.color} />
+            </TouchableOpacity>
+          ))}
         </View>
 
         <CategoryNav projectId={id} comingSoon={comingSoon} />
@@ -169,6 +183,9 @@ export default function InteriorProjectOverviewScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* What needs doing: next steps across the project, most urgent first */}
+          <ProjectActionItems projectId={id} project={p} />
 
           {/* Quick access */}
           {quickLinks.length > 0 && (
@@ -226,6 +243,13 @@ export default function InteriorProjectOverviewScreen() {
           <View style={{ height: 60 }} />
         </ScrollView>
         )}
+        <HealthReasonsSheet
+          visible={healthOpen}
+          onClose={() => setHealthOpen(false)}
+          projectId={id}
+          project={p}
+          healthLabel={health.label}
+        />
       </SafeAreaView>
     </View>
   );
@@ -244,6 +268,7 @@ const s = StyleSheet.create({
   badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   headerBar: { borderRadius: 6, backgroundColor: '#E8EDF3' },
   badgeText: { fontSize: 12.5, fontFamily: 'Inter-Bold' },
+  badgeTappable: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1 },
 
   progressHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   progressLabel: { fontSize: 13.5, fontFamily: 'Inter-SemiBold', color: '#64748B' },

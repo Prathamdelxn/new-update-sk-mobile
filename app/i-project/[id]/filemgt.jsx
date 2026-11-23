@@ -199,9 +199,10 @@ const { can: canDo } = useProjectPermissions(projectId);
             <TouchableOpacity
               style={s.crumbItem}
               onPress={() => setCurrentFolderId(null)}
+              accessibilityLabel="All files"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="home-outline" size={13} color={currentFolderId === null ? '#2563EB' : '#64748B'} />
-              <Text style={[s.crumbText, currentFolderId === null && s.crumbTextActive]}>Root</Text>
+              <Ionicons name="home-outline" size={15} color={currentFolderId === null ? '#2563EB' : '#64748B'} />
             </TouchableOpacity>
 
             {breadcrumbs.map((crumb, idx) => (

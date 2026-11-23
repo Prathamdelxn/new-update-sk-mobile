@@ -108,7 +108,6 @@ const ctrlStyles = StyleSheet.create({
 const CATEGORIES = [
   { key: 'incoming', label: 'Incoming', icon: 'arrow-down-circle-outline', color: '#16A34A' },
   { key: 'outgoing', label: 'Outgoing', icon: 'arrow-up-circle-outline', color: '#DC2626' },
-  { key: 'debit_note', label: 'Debit Notes', icon: 'document-text-outline', color: '#D97706' },
 ];
 
 const MILESTONE_OPTIONS = [
@@ -160,15 +159,6 @@ const emptyOutgoing = () => ({
   remarks: '',
 });
 
-const emptyDebitNote = () => ({
-  debitNoteNo: genRef('DN'),
-  vendorName: '',
-  reason: '',
-  amount: '',
-  issueDate: new Date().toISOString().split('T')[0],
-  remarks: '',
-});
-
 export default function InteriorPaymentsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -189,12 +179,10 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const [incomingModalOpen, setIncomingModalOpen] = useState(false);
   const [outgoingModalOpen, setOutgoingModalOpen] = useState(false);
-  const [debitNoteModalOpen, setDebitNoteModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [incomingForm, setIncomingForm] = useState(emptyIncoming());
   const [outgoingForm, setOutgoingForm] = useState(emptyOutgoing());
-  const [debitNoteForm, setDebitNoteForm] = useState(emptyDebitNote());
   const [selectedPoId, setSelectedPoId] = useState('');
 
   const loadPayments = useCallback(async () => {
@@ -229,10 +217,8 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const incoming = payments.filter((p) => p.type === 'incoming' && matchesSearch([p.invoiceNo, p.milestoneName, p.referenceNo]));
   const outgoing = payments.filter((p) => p.type === 'outgoing' && matchesSearch([p.poNo, p.vendorName, p.category, p.referenceNo]));
-  const debitNotes = payments.filter((p) => p.type === 'debit_note' && matchesSearch([p.debitNoteNo, p.vendorName, p.reason]));
   const allIncoming = payments.filter((p) => p.type === 'incoming');
   const allOutgoing = payments.filter((p) => p.type === 'outgoing');
-  const allDebitNotes = payments.filter((p) => p.type === 'debit_note');
 
   const fmt = (amt) => formatAmount(amt, projectCurrency);
 
@@ -330,25 +316,6 @@ const { can: canDo } = useProjectPermissions(projectId);
     );
   };
 
-  const handleDebitNoteSubmit = () => {
-    const amt = parseFloat(debitNoteForm.amount);
-    if (!debitNoteForm.vendorName.trim()) return showToast('Vendor / party name is required', 'error');
-    if (!debitNoteForm.reason.trim()) return showToast('Reason / defect detail is required', 'error');
-    if (!amt || amt <= 0) return showToast('Enter a valid debit amount', 'error');
-    submitPayment(
-      {
-        type: 'debit_note',
-        debitNoteNo: debitNoteForm.debitNoteNo,
-        vendorName: debitNoteForm.vendorName.trim(),
-        reason: debitNoteForm.reason.trim(),
-        amount: amt,
-        issueDate: debitNoteForm.issueDate,
-        remarks: debitNoteForm.remarks.trim(),
-      },
-      () => { setDebitNoteModalOpen(false); setDebitNoteForm(emptyDebitNote()); }
-    );
-  };
-
   const invoiceSymbol = getCurrencySymbol(project?.budget?.currency || projectCurrency);
   const runInvoice = async (key, fn, tx) => {
     setInvoiceBusy(key);
@@ -363,8 +330,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const openCreateModal = () => {
     if (activeCategory === 'incoming') setIncomingModalOpen(true);
-    else if (activeCategory === 'outgoing') setOutgoingModalOpen(true);
-    else setDebitNoteModalOpen(true);
+    else setOutgoingModalOpen(true);
   };
 
   const renderList = () => {
@@ -440,31 +406,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         </View>
       ));
     }
-    return debitNotes.length === 0 ? (
-      <Empty icon="document-text-outline" text="No debit notes issued yet." />
-    ) : debitNotes.map((dn) => (
-      <View key={dn._id} style={s.card}>
-        <View style={s.cardTopRow}>
-          <Text style={s.cardTitle} numberOfLines={1}>{dn.debitNoteNo}</Text>
-          <Text style={[s.cardAmount, { color: '#D97706' }]}>{fmt(dn.amount)}</Text>
-        </View>
-        <Text style={s.cardSub}>{dn.vendorName}</Text>
-        <Text style={s.cardReason} numberOfLines={2}>{dn.reason}</Text>
-        <View style={s.cardBottomRow}>
-          <Text style={s.cardMeta}>{formatDate(dn.issueDate)}</Text>
-        </View>
-        <View style={s.cardFooterRow}>
-          <View style={[s.statusPill, { backgroundColor: dn.debitNoteStatus === 'Settled' ? '#F0FDF4' : dn.debitNoteStatus === 'Adjusted' ? '#EFF6FF' : '#FFFBEB' }]}>
-            <Text style={[s.statusPillText, { color: dn.debitNoteStatus === 'Settled' ? '#16A34A' : dn.debitNoteStatus === 'Adjusted' ? '#2563EB' : '#D97706' }]}>{dn.debitNoteStatus || 'Issued'}</Text>
-          </View>
-          {canDo('financials', 'delete') && (
-            <TouchableOpacity onPress={() => handleDeletePayment(dn)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="trash-outline" size={16} color="#EF4444" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    ));
+    return null;
   };
 
   return (
@@ -496,10 +438,6 @@ const { can: canDo } = useProjectPermissions(projectId);
               <View style={s.summaryCard}>
                 <Text style={s.summaryLabel}>Outgoing</Text>
                 <Text style={[s.summaryValue, { color: '#DC2626' }]}>{fmt(allOutgoing.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
-              </View>
-              <View style={s.summaryCard}>
-                <Text style={s.summaryLabel}>Debit Notes</Text>
-                <Text style={[s.summaryValue, { color: '#D97706' }]}>{fmt(allDebitNotes.reduce((s2, p) => s2 + (p.amount || 0), 0))}</Text>
               </View>
             </ScrollView>
 
@@ -648,39 +586,6 @@ const { can: canDo } = useProjectPermissions(projectId);
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Debit Note Modal */}
-      <Modal visible={debitNoteModalOpen} animationType="slide" transparent onRequestClose={() => setDebitNoteModalOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Issue Debit Note</Text>
-              <TouchableOpacity onPress={() => setDebitNoteModalOpen(false)}>
-                <Ionicons name="close" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>Vendor / Party Name</Text>
-              <TextInput style={s.input} placeholder="e.g. Royal Wood Suppliers" placeholderTextColor="#94A3B8" value={debitNoteForm.vendorName} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, vendorName: v })} />
-
-              <Text style={s.label}>Reason / Defect Detail</Text>
-              <TextInput style={[s.input, { height: 60, textAlignVertical: 'top' }]} multiline placeholder="e.g. Damaged plywood sheets returned (5 sheets)" placeholderTextColor="#94A3B8" value={debitNoteForm.reason} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, reason: v })} />
-
-              <Text style={s.label}>Amount ({getCurrencySymbol(projectCurrency)})</Text>
-              <TextInput style={s.input} placeholder="e.g. 45000" placeholderTextColor="#94A3B8" keyboardType="numeric" value={debitNoteForm.amount} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, amount: v })} />
-
-              <Text style={s.label}>Issue Date</Text>
-              <DateField value={debitNoteForm.issueDate} onChange={(v) => setDebitNoteForm({ ...debitNoteForm, issueDate: v })} inputStyle={s.input} />
-
-              <Text style={s.label}>Remarks</Text>
-              <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholderTextColor="#94A3B8" value={debitNoteForm.remarks} onChangeText={(v) => setDebitNoteForm({ ...debitNoteForm, remarks: v })} />
-
-              <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.6 }]} onPress={handleDebitNoteSubmit} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>Issue Debit Note</Text>}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
       {/* Invoice & Receipt preview (same document as the web) */}
       <Modal visible={!!previewInvoice} animationType="slide" onRequestClose={() => setPreviewInvoice(null)}>
         <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F5F9' }}>
