@@ -22,6 +22,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useToast } from '../../context/ToastContext';
 import interiorApiClient from '../../services/interiorApiClient';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
+import WbsSubItems from './_components/WbsSubItems';
 import CategoryNav from './_components/CategoryNav';
 import { memberRoleLabel } from '../../utils/interior/memberRoleLabel';
 import SelectField from '../../components/common/SelectField';
@@ -806,9 +807,9 @@ export default function InteriorWbsScreen() {
                               if (opts.length) Alert.alert(task.name, undefined, [...opts, { text: tr("Cancel"), style: 'cancel' }]);
                             };
                             return (
+                              <View key={task._id || task.id} style={ti < directTasks.length - 1 && s.activityDivider}>
                               <TouchableOpacity
-                                key={task._id || task.id}
-                                style={[s.activityRow, ti === directTasks.length - 1 && { borderBottomWidth: 0 }]}
+                                style={[s.activityRow, { borderBottomWidth: 0 }]}
                                 onPress={() => setDetailTask({ task, node })}
                                 onLongPress={taskMenu}
                                 activeOpacity={0.7}
@@ -834,6 +835,18 @@ export default function InteriorWbsScreen() {
                                   </TouchableOpacity>
                                 )}
                               </TouchableOpacity>
+                              {/* Sub-items: same as the web — tick, owner, add */}
+                              <WbsSubItems
+                                projectId={projectId}
+                                task={task}
+                                members={members}
+                                canEdit={canDo('tasks', 'update')}
+                                onUpdated={(updated) => {
+                                  setTasks((prev) => prev.map((t) => ((t._id || t.id) === (task._id || task.id) ? { ...t, ...updated } : t)));
+                                  setDetailTask((d) => (d && (d.task._id || d.task.id) === (task._id || task.id) ? { ...d, task: { ...d.task, ...updated } } : d));
+                                }}
+                              />
+                              </View>
                             );
                           })}
                           {canDo('tasks', 'create') && (
@@ -1415,6 +1428,7 @@ const s = StyleSheet.create({
   activityMeta: { flex: 1, fontSize: 12.5, fontFamily: 'Inter-Regular', color: '#64748B' },
   priorityDot: { width: 7, height: 7, borderRadius: 4 },
   activityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  activityDivider: { borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   nodeFill: { height: '100%', backgroundColor: '#10B981', borderRadius: 2 },
   nodeTrack: { height: 4, backgroundColor: '#F1F5F9', marginHorizontal: 14, borderRadius: 2, overflow: 'hidden', marginBottom: 4 },
   moreBtn: { paddingHorizontal: 2, paddingVertical: 2 },
