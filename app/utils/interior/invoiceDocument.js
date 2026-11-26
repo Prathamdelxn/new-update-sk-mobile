@@ -5,6 +5,7 @@
 // Download = PDF via the share sheet.
 // =============================================================================
 
+import { standardPdf, PDF_TERMS } from '../pdf/pdfStandard';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
@@ -83,42 +84,6 @@ export function generateInvoiceHtml(payment, project, currencySymbol = '₹') {
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111827; background-color: #ffffff; padding: 36px 40px; font-size: 13px; line-height: 1.4;">
       <div class="invoice-box" style="width: 100%; max-width: 780px; margin: 0 auto; background-color: #ffffff;">
 
-        <!-- ── HEADER ── -->
-        <table style="width: 100%; border-bottom: 2px solid #111827; padding-bottom: 20px; margin-bottom: 24px;">
-          <tr>
-            <td style="vertical-align: top; width: 55%;">
-              <div style="font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.5px; margin-bottom: 4px;">SKYSTRUCT LITE</div>
-              <div style="font-size: 12px; color: #4b5563; font-weight: 600; margin-bottom: 4px;">Interior Architecture &amp; Construction Management</div>
-              <div style="font-size: 11px; color: #6b7280; line-height: 1.4;">
-                Project Operations &amp; Site Finance<br />
-                Email: accounts@skystruct.com &bull; Web: www.skystruct.com
-              </div>
-            </td>
-            <td style="vertical-align: top; width: 45%; text-align: right;">
-              <div style="font-size: 20px; font-weight: 800; color: #111827; letter-spacing: 0.5px; margin-bottom: 8px;">PAYMENT RECEIPT</div>
-              <table style="width: auto; margin-left: auto; font-size: 12px; border-collapse: collapse;">
-                <tr>
-                  <td style="color: #6b7280; font-weight: 500; padding: 2px 10px 2px 0; text-align: right;">Receipt / Invoice #:</td>
-                  <td style="color: #111827; font-weight: 700; text-align: right;">${invoiceNumber}</td>
-                </tr>
-                <tr>
-                  <td style="color: #6b7280; font-weight: 500; padding: 2px 10px 2px 0; text-align: right;">Receipt Date:</td>
-                  <td style="color: #111827; font-weight: 700; text-align: right;">${paymentDate}</td>
-                </tr>
-                <tr>
-                  <td style="color: #6b7280; font-weight: 500; padding: 2px 10px 2px 0; text-align: right;">Status:</td>
-                  <td style="text-align: right;">
-                    <span style="display: inline-block; background-color: #dcfce7; color: #15803d; border: 1px solid #86efac; font-weight: 700; font-size: 10.5px; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">
-                      ${status}
-                    </span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-
-        <!-- ── ADDRESSES & PROJECT SECTION ── -->
         <table style="width: 100%; margin-bottom: 24px;">
           <tr>
             <td style="width: 50%; vertical-align: top; padding-right: 20px;">
@@ -221,28 +186,37 @@ export function generateInvoiceHtml(payment, project, currencySymbol = '₹') {
             <td style="width: 45%; text-align: center; vertical-align: bottom;">
               <div style="border-bottom: 1px solid #9ca3af; height: 40px; margin-bottom: 8px;"></div>
               <div style="font-size: 12px; font-weight: 700; color: #111827;">Authorized Signatory</div>
-              <div style="font-size: 11px; color: #6b7280;">For SkyStruct Interiors</div>
+              <div style="font-size: 11px; color: #6b7280;">Authorised Signatory</div>
             </td>
           </tr>
         </table>
 
-        <!-- ── FOOTER ── -->
-        <div style="margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 12px; text-align: center; font-size: 11px; color: #9ca3af;">
-          This is an official computer-generated tax invoice &amp; payment receipt issued by SkyStruct Lite.<br />
-          &copy; ${new Date().getFullYear()} SkyStruct Interiors. All rights reserved.
-        </div>
       </div>
     </body>
     </html>
   `;
 }
 
+/** Receipt in the standard PDF format (official letterhead, terms on every page). */
+export function standardInvoiceHtml(payment, project, currencySymbol) {
+  const p = payment || {};
+  return standardPdf(generateInvoiceHtml(payment, project, currencySymbol), {
+    docType: 'Payment Receipt',
+    meta: [
+      ['Receipt / Invoice #', p.invoiceNo],
+      ['Receipt Date', p.paymentDate ? new Date(p.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null],
+      ['Status', String(p.incomingStatus || 'Completed').toUpperCase()],
+    ],
+    terms: PDF_TERMS.receipt,
+  });
+}
+
 export async function printInvoice(payment, project, currencySymbol) {
-  await Print.printAsync({ html: generateInvoiceHtml(payment, project, currencySymbol) });
+  await Print.printAsync({ html: standardInvoiceHtml(payment, project, currencySymbol) });
 }
 
 export async function shareInvoicePdf(payment, project, currencySymbol) {
-  const { uri } = await Print.printToFileAsync({ html: generateInvoiceHtml(payment, project, currencySymbol) });
+  const { uri } = await Print.printToFileAsync({ html: standardInvoiceHtml(payment, project, currencySymbol) });
   if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this device.');
   await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `Invoice ${payment?.invoiceNo || ''}`.trim() });
 }

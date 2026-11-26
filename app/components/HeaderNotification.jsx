@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useSocket } from '../context/SocketContext';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../context/AuthContext';
+import interiorApiClient from '../services/interiorApiClient';
 
 export default function HeaderNotification() {
   const [unreadCount, setUnreadCount] = useState(0);
@@ -39,6 +40,20 @@ export default function HeaderNotification() {
     fetchUnreadCount();
   }, [user, isInteriorUser, fetchUnreadCount]);
 
+  // Interior: the interior backend's in-app notifications (RFIs assigned to you, RFIs to route…)
+  useEffect(() => {
+    if (!user || !isInteriorUser) return undefined;
+    let alive = true;
+    const load = () =>
+      interiorApiClient
+        .get('/notifications', { params: { limit: 1 } })
+        .then((res) => { if (alive) setUnreadCount(res?.data?.unreadCount || 0); })
+        .catch(() => {});
+    load();
+    const t = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(t); };
+  }, [user, isInteriorUser]);
+
   useEffect(() => {
     if (socket && connected) {
       socket.on('notification:new', () => {
@@ -48,7 +63,18 @@ export default function HeaderNotification() {
     }
   }, [socket, connected, fetchUnreadCount]);
 
-  return null;
+  // Construction keeps its previous behaviour (no bell here); interior gets a real bell.
+  if (!isInteriorUser) return null;
+  return (
+    <TouchableOpacity style={styles.container} onPress={() => router.push('/interior-notifications')} activeOpacity={0.8}>
+      <Ionicons name="notifications-outline" size={22} color="#0F172A" />
+      {unreadCount > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
 }
 
 const styles = StyleSheet.create({

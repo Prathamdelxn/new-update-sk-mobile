@@ -1,3 +1,4 @@
+import { standardPdf, PDF_TERMS } from '../../utils/pdf/pdfStandard';
 import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback } from 'react';
 import {
@@ -281,7 +282,15 @@ const { can: canDo } = useProjectPermissions(projectId);
   const handleExportPdf = async (report) => {
     setDownloadingId(report._id);
     try {
-      const { uri } = await Print.printToFileAsync({ html: buildReportHtml(report) });
+      const { uri } = await Print.printToFileAsync({ html: standardPdf(buildReportHtml(report), {
+        docType: 'Weekly Progress Report',
+        meta: [
+          ['Period', `${report.weekStart ? new Date(report.weekStart).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : ''} – ${report.weekEnd ? new Date(report.weekEnd).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}`],
+          ['Project', project?.name],
+        ],
+        terms: PDF_TERMS.report,
+        hide: ['.header .logo'], // project name moves into the letterhead
+      }) });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
       } else {
@@ -296,7 +305,15 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handlePrint = async (report) => {
     try {
-      await Print.printAsync({ html: buildReportHtml(report) });
+      await Print.printAsync({ html: standardPdf(buildReportHtml(report), {
+        docType: 'Weekly Progress Report',
+        meta: [
+          ['Period', `${report.weekStart ? new Date(report.weekStart).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : ''} – ${report.weekEnd ? new Date(report.weekEnd).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}`],
+          ['Project', project?.name],
+        ],
+        terms: PDF_TERMS.report,
+        hide: ['.header .logo'], // project name moves into the letterhead
+      }) });
     } catch (e) {
       showToast('Failed to open print dialog: ' + e.message, 'error');
     }

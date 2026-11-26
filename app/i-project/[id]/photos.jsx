@@ -51,7 +51,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setPhotos(res?.success && res?.data ? res.data : []);
     } catch (e) {
       console.error('Failed to load photos', e);
-      showToast(tr("Failed to fetch site photos history"), 'error');
+      showToast(tr("Failed to fetch site images"), 'error');
     } finally {
       setLoading(false);
     }
@@ -60,7 +60,7 @@ const { can: canDo } = useProjectPermissions(projectId);
   useFocusEffect(useCallback(() => { fetchPhotos(); }, [fetchPhotos]));
 
   const handleDeletePhoto = (photo) => {
-    Alert.alert(tr("Delete photo"), tr("Delete \"{{value}}\"? This can't be undone.", { value: photo.caption || 'this photo' }), [
+    Alert.alert(tr("Delete image"), tr("Delete \"{{value}}\"? This can't be undone.", { value: photo.caption || 'this image' }), [
       { text: tr("Cancel"), style: 'cancel' },
       {
         text: tr("Delete"),
@@ -68,10 +68,10 @@ const { can: canDo } = useProjectPermissions(projectId);
         onPress: async () => {
           try {
             await interiorApiClient.delete(`/projects/${projectId}/photos?photoId=${photo._id}`);
-            showToast(tr("Photo deleted"), 'success');
+            showToast(tr("Site image deleted"), 'success');
             fetchPhotos();
           } catch (e) {
-            showToast(e.message || tr("Failed to delete photo"), 'error');
+            showToast(e.message || tr("Failed to delete image"), 'error');
           }
         },
       },
@@ -99,7 +99,7 @@ const { can: canDo } = useProjectPermissions(projectId);
 
   const handleUpload = async () => {
     if (!selectedAsset) {
-      showToast(tr("Please select a photo to upload"), 'error');
+      showToast(tr("Please select an image to upload"), 'error');
       return;
     }
     setSubmitting(true);
@@ -110,11 +110,11 @@ const { can: canDo } = useProjectPermissions(projectId);
       if (!uploadRes?.success || !uploadRes?.data?.url) throw new Error('Photo upload failed');
 
       await interiorApiClient.post(`/projects/${projectId}/photos`, { caption, category, url: uploadRes.data.url });
-      showToast(tr("Site photo logged successfully!"), 'success');
+      showToast(tr("Site image uploaded successfully!"), 'success');
       closeModal();
       fetchPhotos();
     } catch (e) {
-      showToast(e.message || tr("Failed to log site photo"), 'error');
+      showToast(e.message || tr("Failed to upload site image"), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -131,7 +131,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <Ionicons name="chevron-back" size={20} color="#0F172A" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>{tr("Site Photos")}</Text>
+            <Text style={s.headerTitle}>{tr("Site Images")}</Text>
           </View>
         </View>
 
@@ -151,7 +151,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             {filteredPhotos.length === 0 ? (
               <View style={s.empty}>
                 <Ionicons name="image-outline" size={40} color="#CBD5E1" />
-                <Text style={s.emptyTitle}>{tr("No photos found")}</Text>
+                <Text style={s.emptyTitle}>{tr("No site images yet")}</Text>
               </View>
             ) : (
               <View style={s.grid}>
@@ -192,14 +192,14 @@ const { can: canDo } = useProjectPermissions(projectId);
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
           <View style={s.modalCard}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{tr("Log Progress Photo")}</Text>
+              <Text style={s.modalTitle}>{tr("Upload Site Image")}</Text>
               <TouchableOpacity onPress={closeModal}>
                 <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.label}>{tr("Photo Caption / Note")}</Text>
+              <Text style={s.label}>{tr("Image Caption / Note")}</Text>
               <TextInput style={s.input} placeholder={tr("e.g. Completed partition wall boarding")} placeholderTextColor="#94A3B8" value={caption} onChangeText={setCaption} />
 
               <Text style={s.label}>{tr("Category")}</Text>
@@ -211,20 +211,20 @@ const { can: canDo } = useProjectPermissions(projectId);
                 ))}
               </View>
 
-              <Text style={s.label}>{tr("Site Photo *")}</Text>
+              <Text style={s.label}>{tr("Site Image *")}</Text>
               <TouchableOpacity style={s.uploadBox} onPress={pickImage}>
                 {selectedAsset ? (
                   <Image source={{ uri: selectedAsset.uri }} style={s.previewImg} contentFit="cover" />
                 ) : (
                   <>
                     <Ionicons name="image-outline" size={30} color="#94A3B8" />
-                    <Text style={s.uploadBoxText}>{tr("Tap to select a site photo")}</Text>
+                    <Text style={s.uploadBoxText}>{tr("Tap to select a site image")}</Text>
                   </>
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity style={[s.saveBtn, submitting && { opacity: 0.7 }]} onPress={handleUpload} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Save & Upload Photo")}</Text>}
+                {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.saveBtnText}>{tr("Save & Upload Image")}</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>

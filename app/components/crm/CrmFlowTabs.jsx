@@ -6,14 +6,15 @@ import { useInteriorPermissions } from '../../utils/interior/useInteriorPermissi
 
 export const FLOW_STAGES = [
   { id: 'leads', moduleKey: 'crm_leads', label: 'All Leads', icon: 'people-outline' },
+  // Outcome tabs sit next to All so they're visible without scrolling the stage list
+  { id: 'won_projects', moduleKey: 'crm_leads', label: 'Converted', icon: 'trophy-outline' },
+  { id: 'lost_leads', moduleKey: 'crm_leads', label: 'Lost', icon: 'close-circle-outline' },
   { id: 'follow_ups', moduleKey: 'crm_followups', label: 'Follow-ups', icon: 'call-outline' },
   { id: 'requirement_design', moduleKey: 'crm_requirements', label: 'Requirements', icon: 'create-outline' },
   { id: 'site_visits', moduleKey: 'crm_site_visits', label: 'Site Visits', icon: 'location-outline' },
   { id: 'drawing', moduleKey: 'crm_drawings', label: 'Drawing', icon: 'pencil-outline' },
   { id: 'boq', moduleKey: 'crm_boq', label: 'BOQ', icon: 'calculator-outline' },
   { id: 'quotations', moduleKey: 'crm_quotations', label: 'Quotations', icon: 'document-text-outline' },
-  { id: 'won_projects', moduleKey: 'crm_quotations', label: 'Won Projects', icon: 'trophy-outline' },
-  { id: 'lost_leads', moduleKey: 'crm_leads', label: 'Lost Leads', icon: 'close-circle-outline' },
 ];
 
 /** Tabs this user can open (each CRM stage has its own View permission). */

@@ -1,5 +1,5 @@
 import { tr } from '../../utils/i18n/tr';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
@@ -120,7 +120,9 @@ const { can: canDo } = useProjectPermissions(projectId);
     }
   }, [projectId]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  // Skeleton only on the first visit; coming back refreshes quietly.
+  const visitedOnce = useRef(false);
+  useFocusEffect(useCallback(() => { load(visitedOnce.current); visitedOnce.current = true; }, [load]));
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -157,7 +159,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setIsCreateOpen(false);
       setForm(emptyForm);
       setSelectedTaskIds([]);
-      load();
+      load(true);
     } catch (e) {
       showToast(e.message || tr("Failed to create milestone"), 'error');
     } finally {
@@ -180,7 +182,7 @@ const { can: canDo } = useProjectPermissions(projectId);
     try {
       await interiorApiClient.delete(`/projects/${projectId}/milestones/${milestone._id}`);
       showToast(tr("Milestone deleted successfully"), 'delete');
-      load();
+      load(true);
     } catch (e) {
       showToast(e.message || tr("Failed to delete milestone"), 'error');
     }

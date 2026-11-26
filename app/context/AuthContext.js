@@ -1,3 +1,4 @@
+import { setPdfOrg } from '../utils/pdf/pdfStandard';
 import React, { createContext, useState, useEffect, useContext, useRef, useCallback, useMemo } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { AppState } from 'react-native';
@@ -24,6 +25,40 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const INTERIOR_API_URL = `${(process.env.EXPO_PUBLIC_INTERIOR_API_URL || '').replace(/\/+$/, '')}/api/v1`;
 
 import { registerForPushNotificationsAsync } from '../../utils/pushNotifications';
+
+// SecureStore only guarantees values up to 2048 bytes, and the interior user
+// (role + 40-odd permissions) is ~5 KB. Saving it in one key can fail on some
+// devices, which made a successful login show "Network error". Store it in chunks.
+const USER_KEY = 'userData';
+const CHUNK = 1800;
+const saveUserData = async (obj) => {
+  const str = JSON.stringify(obj);
+  const parts = Math.ceil(str.length / CHUNK) || 1;
+  const prev = parseInt((await SecureStore.getItemAsync(`${USER_KEY}_n`)) || '0', 10) || 0;
+  for (let i = 0; i < parts; i++) {
+    await SecureStore.setItemAsync(`${USER_KEY}_${i}`, str.slice(i * CHUNK, (i + 1) * CHUNK));
+  }
+  for (let i = parts; i < prev; i++) await SecureStore.deleteItemAsync(`${USER_KEY}_${i}`);
+  await SecureStore.setItemAsync(`${USER_KEY}_n`, String(parts));
+  await SecureStore.deleteItemAsync(USER_KEY); // legacy single-key copy
+};
+const readUserData = async () => {
+  const n = parseInt((await SecureStore.getItemAsync(`${USER_KEY}_n`)) || '0', 10) || 0;
+  if (!n) return SecureStore.getItemAsync(USER_KEY); // sessions saved before chunking
+  let str = '';
+  for (let i = 0; i < n; i++) {
+    const part = await SecureStore.getItemAsync(`${USER_KEY}_${i}`);
+    if (part == null) return null;
+    str += part;
+  }
+  return str;
+};
+const deleteUserData = async () => {
+  const n = parseInt((await SecureStore.getItemAsync(`${USER_KEY}_n`)) || '0', 10) || 0;
+  for (let i = 0; i < n; i++) await SecureStore.deleteItemAsync(`${USER_KEY}_${i}`);
+  await SecureStore.deleteItemAsync(`${USER_KEY}_n`);
+  await SecureStore.deleteItemAsync(USER_KEY);
+};
 
 const normalizeUser = (u) => {
   if (!u || typeof u !== 'object') return u;
@@ -78,7 +113,7 @@ export const AuthProvider = ({ children }) => {
   async function loadStorageData() {
     try {
       const savedToken = await SecureStore.getItemAsync('userToken');
-      const savedUser = await SecureStore.getItemAsync('userData');
+      const savedUser = await readUserData();
       if (savedToken && savedUser) {
         setToken(savedToken);
         let parsedUser = null;
@@ -86,9 +121,10 @@ export const AuthProvider = ({ children }) => {
           parsedUser = JSON.parse(savedUser);
           const normalized = normalizeUser(parsedUser);
           setUser(normalized);
+          setPdfOrg(normalized?.organization); // letterhead for exported PDFs
           userRef.current = normalized;
         } catch {
-          await SecureStore.deleteItemAsync('userData');
+          await deleteUserData();
         }
         // Register push token for existing logged in user — no push-token
         // endpoint exists on the interior-os backend yet, so skip for those.
@@ -132,9 +168,10 @@ export const AuthProvider = ({ children }) => {
     await SecureStore.setItemAsync('userToken', authToken);
     if (refreshToken) await SecureStore.setItemAsync('refreshToken', refreshToken);
     else await SecureStore.deleteItemAsync('refreshToken');
-    await SecureStore.setItemAsync('userData', JSON.stringify(normalized));
+    await saveUserData(normalized);
     setToken(authToken);
     setUser(normalized);
+    setPdfOrg(normalized?.organization); // letterhead for exported PDFs
     // No push-token endpoint exists on the interior-os backend yet.
     if (userObj?.organization?.industryType !== 'interior') {
       registerDeviceToken(authToken);
@@ -147,7 +184,7 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${INTERIOR_API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: String(email).trim(), password }),
       });
 
       const data = await response.json();
@@ -175,7 +212,7 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: String(email).trim(), password }),
       });
 
       const data = await response.json();
@@ -386,7 +423,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       await SecureStore.deleteItemAsync('userToken');
       await SecureStore.deleteItemAsync('refreshToken');
-      await SecureStore.deleteItemAsync('userData');
+      await deleteUserData();
       // Drop cached org data so the next login never sees the previous user's leads/projects
       queryClient.clear();
       setToken(null);
@@ -573,7 +610,7 @@ export const AuthProvider = ({ children }) => {
       const normalized = normalizeUser(merged);
       userRef.current = normalized;
       setUser(normalized);
-      await SecureStore.setItemAsync('userData', JSON.stringify(normalized));
+      await saveUserData(normalized);
     } catch {
       // Keep the cached user if the refresh fails (offline, etc.)
     }

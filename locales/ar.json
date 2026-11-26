@@ -1070,5 +1070,11 @@
   "UnderSnagging": "قيد معالجة الملاحظات",
   "noMatchingProjects": "لا توجد مشاريع مطابقة",
   "noMatchingProjectsSub": "جرّب تعديل البحث أو فلتر الحالة للعثور على المشاريع.",
-  "clearAllFilters": "مسح كل الفلاتر"
+  "clearAllFilters": "مسح كل الفلاتر",
+  "Overview": "نظرة عامة",
+  "Planning": "التخطيط",
+  "Execution": "التنفيذ",
+  "Finance": "المالية",
+  "Closeout": "الإغلاق",
+  "Section": "القسم"
 }

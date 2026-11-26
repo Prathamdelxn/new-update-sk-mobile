@@ -9,7 +9,7 @@ import { useInteriorPermissions } from '../../../utils/interior/useInteriorPermi
 // Mirrors InteriorProjectBanner's category nav from sky-lite-web.
 export const CATEGORIES = [
   { name: 'General', icon: '📋', items: ['Site Details', 'File Management', 'Project Quotation', 'Confirm Order', 'Team & Members'] },
-  { name: 'Assets', icon: '📂', items: ['CAD Drawings', 'Site Photos', 'RFIs Tracker', 'Utility Checks'] },
+  { name: 'Assets', icon: '📂', items: ['CAD Drawings', 'Site Images', 'RFIs Tracker', 'Utility Checks'] },
   { name: 'Execution', icon: '📐', items: ['WBS Hierarchy', 'Activity / Tasks', 'Milestones', 'DPR Log', 'Weekly Reports', 'MOM', 'Timeline (Gantt)'] },
   { name: 'Commercials', icon: '💰', items: ['BOQ Estimator', 'Variation Orders', 'Procurement', 'Payments'] },
   { name: 'Quality & Safety', icon: '🔍', items: ['Snags Logger', 'Risks Matrix'] },
@@ -25,7 +25,7 @@ const ITEM_ACCESS = {
   'Confirm Order': ['confirm_order'],
   'Team & Members': ['users'],
   'CAD Drawings': ['drawings'],
-  'Site Photos': ['photos'],
+  'Site Images': ['photos'],
   'RFIs Tracker': ['rfis'],
   'Utility Checks': ['utilities'],
   'WBS Hierarchy': ['wbs'],
@@ -69,7 +69,7 @@ export default function CategoryNav({ projectId, activeItem, comingSoon }) {
       case 'Snags Logger': return go('snags');
       case 'Risks Matrix': return go('risks');
       case 'RFIs Tracker': return go('rfis');
-      case 'Site Photos': return go('photos');
+      case 'Site Images': return go('photos');
       case 'Utility Checks': return go('utilities');
       case 'Team & Members': return go('members');
       case 'WBS Hierarchy': return go('wbs');

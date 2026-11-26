@@ -1,3 +1,4 @@
+import { standardPdf, PDF_TERMS } from '../../utils/pdf/pdfStandard';
 import { tr } from '../../utils/i18n/tr';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
@@ -254,6 +255,7 @@ export default function InteriorHandoverScreen() {
             ? `${completedTasks} of ${totalTasks} activities completed (${avgWbsProgress}%)`
             : `${avgWbsProgress}% overall progress`,
         passed: isWbsDone,
+        progress: isWbsDone ? 100 : avgWbsProgress,
         tag: `${avgWbsProgress}%`,
         section: 'wbs',
       },
@@ -262,6 +264,7 @@ export default function InteriorHandoverScreen() {
         title: 'All activities & tasks completed',
         subtitle: totalTasks > 0 ? `${completedTasks} of ${totalTasks} completed` : 'No tasks scheduled',
         passed: isTasksDone,
+        progress: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
         tag: totalTasks > 0 ? `${completedTasks}/${totalTasks}` : '0/0',
         section: 'tasks',
       },
@@ -270,6 +273,7 @@ export default function InteriorHandoverScreen() {
         title: 'All drawings approved',
         subtitle: totalDrawings > 0 ? `${approvedDrawings} of ${totalDrawings} approved` : 'No drawings uploaded',
         passed: isDrawingsDone,
+        progress: totalDrawings > 0 ? Math.round((approvedDrawings / totalDrawings) * 100) : 0,
         tag: totalDrawings > 0 ? `${approvedDrawings}/${totalDrawings}` : '0/0',
         section: 'drawings',
       },
@@ -278,6 +282,7 @@ export default function InteriorHandoverScreen() {
         title: 'Snag list rectification verify',
         subtitle: openSnags === 0 ? 'Zero open snags on site' : `${openSnags} open snag${openSnags > 1 ? 's' : ''} remaining`,
         passed: openSnags === 0,
+        progress: snags.length > 0 ? Math.round(((snags.length - openSnags) / snags.length) * 100) : 100,
         tag: openSnags === 0 ? 'Verified' : `${openSnags} Open`,
         section: 'snags',
       },
@@ -286,6 +291,7 @@ export default function InteriorHandoverScreen() {
         title: 'Interior Care & Appliance Manuals',
         subtitle: docs.length === 0 ? 'No manuals or warranties uploaded yet' : `${docs.length} document${docs.length > 1 ? 's' : ''} registered`,
         passed: docs.length > 0,
+        progress: docs.length > 0 ? 100 : 0,
         tag: docs.length === 0 ? 'Pending' : `${docs.length} Uploaded`,
         section: '#closeout-docs',
       },
@@ -294,7 +300,12 @@ export default function InteriorHandoverScreen() {
 
   const completedCount = checklistItems.filter((i) => i.passed).length;
   const totalCount = checklistItems.length;
-  const readinessPercentage = Math.round((completedCount / totalCount) * 100);
+  // Same rule as web: average of each requirement's own progress (partial work counts);
+  // 100% only when every item is fully met. Web and app both save this, so they must agree.
+  const readinessPercentage =
+    completedCount === totalCount
+      ? 100
+      : Math.min(99, Math.round(checklistItems.reduce((sum, i) => sum + (i.passed ? 100 : i.progress), 0) / totalCount));
 
   // Keep the stored handover record in step with the live checklist
   useEffect(() => {
@@ -405,7 +416,18 @@ export default function InteriorHandoverScreen() {
 
   const printCertificate = async () => {
     try {
-      await Print.printAsync({ html: buildCertificateHtml({ project, readinessPercentage, checklistItems }) });
+      await Print.printAsync({
+        html: standardPdf(buildCertificateHtml({ project, readinessPercentage, checklistItems }), {
+          docType: 'Handover Certificate',
+          subtitle: 'Certificate of Practical Completion',
+          meta: [
+            ['Project', project?.name],
+            ['Project Code', project?.code || project?.projectNumber],
+            ['Date', new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
+          ],
+          terms: PDF_TERMS.certificate,
+        }),
+      });
     } catch (e) {
       if (!String(e?.message || '').toLowerCase().includes('cancel')) showToast(tr("Failed to print certificate"), 'error');
     }

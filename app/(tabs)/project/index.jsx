@@ -467,7 +467,8 @@ export default function ProjectScreen() {
       'On Hold': 0.50,
       'Cancelled': 0.00,
     };
-    const progress = statusProgressMap[item.status] ?? 0.10;
+    // Real progress from the API (work done, 0–100); the stage table is only a fallback for old data
+    const progress = typeof item.progress === 'number' ? item.progress / 100 : statusProgressMap[item.status] ?? 0.10;
     const priorityColor = item.priority === 'High' || item.priority === 'Urgent' ? '#EF4444' : '#3B82F6';
     const siteLocation = item.description || 'Global Site';
 

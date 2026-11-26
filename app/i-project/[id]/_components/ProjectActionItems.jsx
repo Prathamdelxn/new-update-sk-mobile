@@ -14,14 +14,14 @@ import {
   bucketOf, dueLabel, startOfDay, idOf,
 } from '../../../utils/interior/projectActionItems';
 
-const LIMIT = 6;
+const PAGE = 5; // show 5, then 5 more at a time
 
 export default function ProjectActionItems({ projectId, project }) {
   const router = useRouter();
   const { can, loading: permsLoading } = useProjectPermissions(projectId);
   const { user } = useInteriorPermissions();
   const [scope, setScope] = useState(null); // null = auto (mine if any)
-  const [expanded, setExpanded] = useState(false);
+  const [page, setPage] = useState(0);
 
   const allowed = useMemo(() => {
     if (permsLoading) return null;
@@ -64,7 +64,17 @@ export default function ProjectActionItems({ projectId, project }) {
     }
   };
 
-  let shown = 0;
+  // Page of 5 across all groups (overdue first)
+
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE));
+
+  const safePage = Math.min(page, pageCount - 1);
+
+  const pageStart = safePage * PAGE;
+
+  const pageEnd = pageStart + PAGE;
+
+  let seen = 0;
 
   return (
     <View>
@@ -84,7 +94,7 @@ export default function ProjectActionItems({ projectId, project }) {
             <TouchableOpacity
               key={k}
               style={[s.segBtn, activeScope === k && s.segBtnActive]}
-              onPress={() => { setScope(k); setExpanded(false); }}
+              onPress={() => { setScope(k); setPage(0); }}
               activeOpacity={0.8}
             >
               <Text style={[s.segText, activeScope === k && s.segTextActive]}>
@@ -111,9 +121,11 @@ export default function ProjectActionItems({ projectId, project }) {
         ) : (
           <>
             {groups.map((g) => {
-              if (!expanded && shown >= LIMIT) return null;
-              const take = expanded ? g.items : g.items.slice(0, Math.max(0, LIMIT - shown));
-              shown += take.length;
+              const from = seen;
+              seen += g.items.length;
+              // only the part of this group that falls on the current page
+              const take = g.items.slice(Math.max(0, pageStart - from), Math.max(0, pageEnd - from));
+              if (take.length === 0) return null;
               return (
                 <View key={g.key} style={{ marginTop: 6 }}>
                   <Text style={[s.groupLabel, { color: g.color }]}>
@@ -154,10 +166,31 @@ export default function ProjectActionItems({ projectId, project }) {
                 </View>
               );
             })}
-            {visible.length > LIMIT && (
-              <TouchableOpacity onPress={() => setExpanded((v) => !v)} style={s.moreBtn}>
-                <Text style={s.moreText}>{expanded ? tr("Show less") : tr("Show all {{visibleCount}}", { visibleCount: visible.length })}</Text>
-              </TouchableOpacity>
+            {visible.length > PAGE && (
+              <View style={s.pager}>
+                <Text style={s.pagerText}>
+                  {tr("{{from}}–{{to}} of {{total}}", { from: pageStart + 1, to: Math.min(pageEnd, visible.length), total: visible.length })}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity
+                    style={[s.pageBtn, safePage === 0 && { opacity: 0.4 }]}
+                    disabled={safePage === 0}
+                    onPress={() => setPage(safePage - 1)}
+                  >
+                    <Ionicons name="chevron-back" size={14} color="#0F172A" />
+                    <Text style={s.pageBtnText}>{tr("Prev")}</Text>
+                  </TouchableOpacity>
+                  <Text style={s.pagerText}>{safePage + 1} / {pageCount}</Text>
+                  <TouchableOpacity
+                    style={[s.pageBtn, safePage >= pageCount - 1 && { opacity: 0.4 }]}
+                    disabled={safePage >= pageCount - 1}
+                    onPress={() => setPage(safePage + 1)}
+                  >
+                    <Text style={s.pageBtnText}>{tr("Next")}</Text>
+                    <Ionicons name="chevron-forward" size={14} color="#0F172A" />
+                  </TouchableOpacity>
+                </View>
+              </View>
             )}
           </>
         )}
@@ -167,6 +200,10 @@ export default function ProjectActionItems({ projectId, project }) {
 }
 
 const s = StyleSheet.create({
+  pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, marginTop: 4, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  pagerText: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#94A3B8' },
+  pageBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 10, height: 30, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
+  pageBtnText: { fontSize: 12.5, fontFamily: 'Inter-SemiBold', color: '#0F172A' },
   headRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20, marginBottom: 10 },
   title: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A' },
   countPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: '#F1F5F9' },

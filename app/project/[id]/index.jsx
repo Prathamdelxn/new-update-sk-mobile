@@ -1,5 +1,5 @@
 import { tr } from '../../utils/i18n/tr';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, Animated, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, Animated, RefreshControl, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AdaptiveGlass from '../../components/AdaptiveGlass';
@@ -36,6 +36,22 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 const SimpleBackground = () => <View style={styles.bgBase} />;
 
+// Section groups — same structure as the web project header (Overview / Planning / Execution /
+// Finance / Closeout). Replaces the long sideways-scrolling strip of pill tabs.
+const SECTION_GROUPS = [
+  { label: 'Overview', tabs: ['Details'] },
+  { label: 'Planning', tabs: ['Survey', 'Drawings', 'Documents', 'BOQ', 'Rooms', 'FFE'] },
+  { label: 'Execution', tabs: ['Milestone', 'Material', 'Snags', 'Risk'] },
+  { label: 'Finance', tabs: ['Transactions', 'Reports'] },
+  { label: 'Closeout', tabs: ['Handover', 'Audit'] },
+];
+const SECTION_ICONS = {
+  Details: 'information-circle-outline', Survey: 'clipboard-outline', Drawings: 'map-outline', Documents: 'documents-outline',
+  BOQ: 'document-text-outline', Rooms: 'grid-outline', FFE: 'bed-outline', Milestone: 'calendar-outline', Material: 'cube-outline',
+  Snags: 'alert-circle-outline', Risk: 'shield-outline', Transactions: 'card-outline', Reports: 'trending-up-outline',
+  Handover: 'checkmark-done-outline', Audit: 'time-outline', Chat: 'chatbubbles-outline',
+};
+
 export default function FullWorkspacePreview() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -51,6 +67,7 @@ export default function FullWorkspacePreview() {
   // API refused the project (403) — the user's role lacks Project Management > View
   const [accessDenied, setAccessDenied] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab ? initialTab : 'Details');
+  const [sectionSheet, setSectionSheet] = useState(false);
   const [visibleTab, setVisibleTab] = useState(initialTab ? initialTab : 'Details');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -208,6 +225,41 @@ export default function FullWorkspacePreview() {
 
   return (
     <View style={styles.outerContainer}>
+      <Modal visible={sectionSheet} transparent animationType="slide" onRequestClose={() => setSectionSheet(false)}>
+        <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setSectionSheet(false)}>
+          <TouchableOpacity activeOpacity={1} style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
+            <View style={styles.sheetHandle} />
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
+              {SECTION_GROUPS.map((group) => {
+                const tabs = group.tabs.filter((tb) => TABS.includes(tb));
+                if (tabs.length === 0) return null;
+                return (
+                  <View key={group.label} style={{ marginBottom: 10 }}>
+                    <Text style={styles.sheetGroup}>{t(group.label)}</Text>
+                    {tabs.map((tb) => {
+                      const on = activeTab === tb;
+                      const locked = isSurveyPending && restrictedTabs.includes(tb);
+                      return (
+                        <TouchableOpacity
+                          key={tb}
+                          style={[styles.sheetRow, on && styles.sheetRowOn]}
+                          onPress={() => { setSectionSheet(false); handleTabPress(tb); }}
+                        >
+                          <Ionicons name={SECTION_ICONS[tb] || 'ellipse-outline'} size={18} color={on ? '#2563EB' : '#64748B'} />
+                          <Text style={[styles.sheetRowText, on && { color: '#1D4ED8', fontFamily: 'Inter-Bold' }]}>{t(tb)}</Text>
+                          {locked && <Ionicons name="lock-closed-outline" size={15} color="#94A3B8" />}
+                          {on && <Ionicons name="checkmark" size={18} color="#2563EB" />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       <StatusBar barStyle="dark-content" />
       <SimpleBackground />
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -230,24 +282,18 @@ export default function FullWorkspacePreview() {
                 ))}
               </View>
             ) : (
-              <AdaptiveGlass intensity={40} tint="light" style={styles.pillBox}>
-                <ScrollView
-                  ref={tabScrollRef}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.tabScroll}
-                  keyboardShouldPersistTaps="handled"
-                  removeClippedSubviews={false}
-                  onLayout={(e) => { scrollContainerWidth.current = e.nativeEvent.layout.width; }}
-                >
-                  <Animated.View pointerEvents="none" style={[styles.bubble, { width: bubbleWidth, transform: [{ translateX: bubbleX }] }]} />
-                  {TABS.map(tab => (
-                    <TouchableOpacity key={tab} onLayout={(e) => onTabLayout(tab, e)} onPress={() => handleTabPress(tab)} style={styles.tabBtn} activeOpacity={0.9}>
-                      <Text style={[styles.tabLabel, activeTab === tab && styles.tabLabelActive]}>{t(tab)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </AdaptiveGlass>
+              <TouchableOpacity style={styles.sectionBtn} onPress={() => setSectionSheet(true)} activeOpacity={0.85}>
+                <View style={styles.sectionIcon}>
+                  <Ionicons name={SECTION_ICONS[activeTab] || 'apps-outline'} size={18} color="#2563EB" />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.sectionGroup} numberOfLines={1}>
+                    {t((SECTION_GROUPS.find((g) => g.tabs.includes(activeTab)) || { label: 'Section' }).label)}
+                  </Text>
+                  <Text style={styles.sectionLabel} numberOfLines={1}>{t(activeTab)}</Text>
+                </View>
+                <Ionicons name="chevron-down" size={18} color="#64748B" />
+              </TouchableOpacity>
             )}
           </View>
         )}
@@ -318,6 +364,17 @@ export default function FullWorkspacePreview() {
 }
 
 const styles = StyleSheet.create({
+  sectionBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 },
+  sectionIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' },
+  sectionGroup: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.4 },
+  sectionLabel: { fontSize: 15, fontFamily: 'Inter-Bold', color: '#0F172A', marginTop: 1 },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 10 },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', marginBottom: 12 },
+  sheetGroup: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, marginTop: 4, paddingHorizontal: 4 },
+  sheetRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, paddingVertical: 12, borderRadius: 12 },
+  sheetRowOn: { backgroundColor: '#EFF6FF' },
+  sheetRowText: { flex: 1, fontSize: 14.5, fontFamily: 'Inter-Medium', color: '#0F172A' },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   bgBase: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },

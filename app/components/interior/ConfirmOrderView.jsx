@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import cloudinaryService from '../../services/cloudinaryService';
 import { useToast } from '../../context/ToastContext';
+import { useOrgCurrency } from '../../utils/interior/orgCurrency';
 
 const MAX_BYTES = 15 * 1024 * 1024;
 const DOC_TYPES = ['application/pdf', 'image/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
@@ -90,6 +91,7 @@ function buildVendorMap(lead, quotations) {
 export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = false, saveUpdates, onRefresh, onViewQuotation }) {
   const router = useRouter();
   const { showToast } = useToast();
+  const { money } = useOrgCurrency();
   const quotations = useMemo(() => lead?.quotations || [], [lead?.quotations]);
   const [vendorMap, setVendorMap] = useState({});
   const [search, setSearch] = useState('');
@@ -277,13 +279,62 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
     return r.quotationTitle.toLowerCase().includes(q) || r.vendorName.toLowerCase().includes(q) || (r.vendorCategory || '').toLowerCase().includes(q);
   });
 
+  const groups = Array.from(new Set(filtered.map((r) => r.quotationIndex))).map((qIdx) => ({
+    qIdx,
+    rows: filtered.filter((r) => r.quotationIndex === qIdx),
+  }));
+
+  // The one confirmed order of this lead / project
+  const co = lead?.confirmedOrder;
+  const coQuote = co && typeof co.quotationIndex === 'number' ? quotations[co.quotationIndex] : null;
+  const agreed = Number(co?.agreedAmount || 0);
+  const advance = Number(co?.advanceReceived || 0);
+
   return (
     <View style={{ gap: 14 }}>
-      {/* Dispatched vendors */}
+      {!!co && (
+        <View style={s.card}>
+          <View style={s.cardHeader}>
+            <View style={s.orderIcon}>
+              <Ionicons name="receipt-outline" size={16} color="#059669" />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.orderKicker}>{tr("Confirmed Order")}</Text>
+              <Text style={s.orderTitle} numberOfLines={2}>{tr(co.title || 'Confirmed Order')}</Text>
+            </View>
+          </View>
+          <View style={s.orderMetaRow}>
+            {!!co.orderNumber && <Text style={s.orderRef}>{co.orderNumber}</Text>}
+            {!!co.confirmedAt && <Text style={s.meta}>{formatDateTime(co.confirmedAt)}</Text>}
+          </View>
+          {!!coQuote && (
+            <View style={s.statFull}>
+              <Text style={s.statLabel}>{tr("Accepted quotation")}</Text>
+              <Text style={s.statValue} numberOfLines={2}>
+                {tr(coQuote.title || `Quotation ${co.quotationIndex + 1}`)}  <Text style={s.versionTag}>v{coQuote.version || co.quotationIndex + 1}</Text>
+              </Text>
+            </View>
+          )}
+          <View style={s.statGrid}>
+            {[
+              [tr("Agreed amount"), agreed ? money(agreed) : '—'],
+              [tr("Advance received"), advance ? money(advance) : '—'],
+              [tr("Balance due"), agreed ? money(Math.max(agreed - advance, 0)) : '—'],
+            ].map(([label, value]) => (
+              <View key={label} style={s.stat}>
+                <Text style={s.statLabel}>{label}</Text>
+                <Text style={s.statValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Vendors, grouped under the quotation they were sent */}
       <View style={s.card}>
         <View style={s.cardHeader}>
-          <Ionicons name="paper-plane-outline" size={16} color="#2563EB" />
-          <Text style={s.cardTitle}>{tr("Dispatched Quotations")}</Text>
+          <Ionicons name="people-outline" size={16} color="#2563EB" />
+          <Text style={s.cardTitle}>{tr("Vendors on this order")}</Text>
           <Text style={s.countText}>{filtered.length}</Text>
         </View>
 
@@ -303,7 +354,7 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
           <View style={s.pillRow}>
             {['all', ...quoteIndices].map((k) => (
               <TouchableOpacity key={String(k)} style={[s.pill, quoteFilter === k && s.pillActive]} onPress={() => setQuoteFilter(k)}>
-                <Text style={[s.pillText, quoteFilter === k && s.pillTextActive]}>{k === 'all' ? tr("All Quotes") : quotations[k]?.title || `Q${k + 1}`}</Text>
+                <Text style={[s.pillText, quoteFilter === k && s.pillTextActive]}>{k === 'all' ? tr("All Quotes") : `v${quotations[k]?.version || k + 1}`}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -316,37 +367,48 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
             {rows.length === 0 && <Text style={s.emptySub}>{tr("Quotations show up here as soon as they are sent to vendor partners.")}</Text>}
           </View>
         ) : (
-          filtered.map((row) => (
-            <View key={`${row.quotationIndex}-${row.id}`} style={s.row}>
-              <View style={s.rowTop}>
-                <View style={{ flex: 1, gap: 2 }}>
+          groups.map(({ qIdx, rows: groupRows }) => {
+            const head = groupRows[0];
+            return (
+            <View key={qIdx} style={s.group}>
+              {/* Quotation — shown once */}
+              <View style={s.groupHead}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={s.quoteTitle} numberOfLines={2}>{tr(head.quotationTitle)}</Text>
                   <View style={s.quoteLine}>
-                    <Text style={s.quoteTitle} numberOfLines={1}>{tr(row.quotationTitle)}</Text>
-                    <Text style={s.versionTag}>v{tr(row.quotationVersion)}</Text>
-                    {row.isPrimary && (
+                    <Text style={s.versionTag}>v{head.quotationVersion}</Text>
+                    {head.isPrimary && (
                       <View style={s.primaryTag}>
                         <Ionicons name="checkmark-circle" size={11} color="#047857" />
-                        <Text style={s.primaryText}>{tr("Primary")}</Text>
+                        <Text style={s.primaryText}>{tr("Accepted")}</Text>
                       </View>
                     )}
                   </View>
+                </View>
+                {!!onViewQuotation && (
+                  <TouchableOpacity style={s.viewBtn} onPress={() => onViewQuotation(qIdx)}>
+                    <Ionicons name="eye-outline" size={13} color="#1D4ED8" />
+                    <Text style={s.viewText}>{tr("View")}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {groupRows.map((row) => (
+            <View key={`${row.quotationIndex}-${row.id}`} style={s.row}>
+              <View style={s.rowTop}>
+                <View style={s.avatar}>
+                  <Text style={s.avatarText}>{(row.vendorName || '?').trim().charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
                   <Text style={s.vendorName}>{tr(row.vendorName)}</Text>
-                  {!!row.vendorEmail && <Text style={s.meta} numberOfLines={1}>{tr(row.vendorEmail)}</Text>}
+                  {!!row.vendorEmail && <Text style={s.meta} numberOfLines={1}>{row.vendorEmail}</Text>}
                   <Text style={s.meta}>{tr("Sent: ")}{formatDateTime(row.sentAt)}</Text>
                 </View>
-                <View style={s.rowActions}>
-                  {!!onViewQuotation && (
-                    <TouchableOpacity style={s.viewBtn} onPress={() => onViewQuotation(row.quotationIndex)}>
-                      <Ionicons name="eye-outline" size={13} color="#1D4ED8" />
-                      <Text style={s.viewText}>{tr("View")}</Text>
-                    </TouchableOpacity>
-                  )}
-                  {editable && (
-                    <TouchableOpacity style={s.iconBtn} onPress={() => handleRemoveVendor(row)} hitSlop={6}>
-                      <Ionicons name="trash-outline" size={15} color="#E11D48" />
-                    </TouchableOpacity>
-                  )}
-                </View>
+                {editable && (
+                  <TouchableOpacity style={s.iconBtn} onPress={() => handleRemoveVendor(row)} hitSlop={6}>
+                    <Ionicons name="trash-outline" size={15} color="#E11D48" />
+                  </TouchableOpacity>
+                )}
               </View>
 
               <View style={s.docLine}>
@@ -373,7 +435,10 @@ export default function ConfirmOrderView({ lead, isReadOnly = false, canEdit = f
                 ))}
               </View>
             </View>
-          ))
+              ))}
+            </View>
+            );
+          })
         )}
       </View>
 
@@ -436,8 +501,22 @@ const s = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: 22, gap: 6 },
   emptyTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#1E293B', textAlign: 'center' },
   emptySub: { fontSize: 13, fontFamily: 'Inter-Regular', color: '#64748B', textAlign: 'center' },
-  row: { borderWidth: 1, borderColor: '#F1F5F9', backgroundColor: '#FCFDFE', borderRadius: 12, padding: 12, gap: 10 },
-  rowTop: { flexDirection: 'row', gap: 10 },
+  orderIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0', alignItems: 'center', justifyContent: 'center' },
+  orderKicker: { fontSize: 11, fontFamily: 'Inter-Bold', color: '#047857', textTransform: 'uppercase', letterSpacing: 0.5 },
+  orderTitle: { fontSize: 14.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  orderMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  orderRef: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#334155', backgroundColor: '#F1F5F9', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
+  statFull: { backgroundColor: '#F8FAFC', borderRadius: 10, padding: 10, gap: 2 },
+  statGrid: { flexDirection: 'row', gap: 8 },
+  stat: { flex: 1, minWidth: 0, backgroundColor: '#F8FAFC', borderRadius: 10, padding: 10, gap: 2 },
+  statLabel: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  statValue: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  group: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, overflow: 'hidden' },
+  groupHead: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#E0E7FF', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#4338CA' },
+  row: { borderTopWidth: 1, borderTopColor: '#F1F5F9', backgroundColor: '#FFFFFF', padding: 12, gap: 10 },
+  rowTop: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   quoteLine: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   quoteTitle: { fontSize: 14, fontFamily: 'Inter-Bold', color: '#0F172A', flexShrink: 1 },
   versionTag: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#334155', backgroundColor: '#F1F5F9', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, overflow: 'hidden' },

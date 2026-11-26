@@ -58,6 +58,7 @@ export default function LoginScreen() {
 
     if (industryType === 'interior') {
       const result = await login(email, password, 'interior');
+      console.log('Interior login result:', result);
       setIsLoading(false);
       if (result.success) {
         router.replace('/(tabs)/dashboard');
@@ -166,7 +167,6 @@ export default function LoginScreen() {
                   industryType === 'construction' && styles.segmentBtnActive,
                 ]}
               >
-                <Text style={styles.segmentEmoji}>🏗️</Text>
                 <Text
                   style={[
                     styles.segmentText,
@@ -189,7 +189,6 @@ export default function LoginScreen() {
                   industryType === 'interior' && styles.segmentBtnActive,
                 ]}
               >
-                <Text style={styles.segmentEmoji}>🎨</Text>
                 <Text
                   style={[
                     styles.segmentText,

@@ -1,3 +1,4 @@
+import { standardPdf, PDF_TERMS } from '../../utils/pdf/pdfStandard';
 import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
@@ -367,7 +368,18 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
 
       if (bulkType === 'Purchase' || bulkType === 'Received') {
         try {
-          const html = bulkType === 'Purchase' ? generatePurchaseHTML(payload) : generateReceiptHTML(payload);
+          const isPurchaseDoc = bulkType === 'Purchase';
+          const html = standardPdf(isPurchaseDoc ? generatePurchaseHTML(payload) : generateReceiptHTML(payload), {
+            docType: isPurchaseDoc ? 'Purchase Order' : 'Material Receipt',
+            meta: [
+              [isPurchaseDoc ? 'PO Number' : 'Challan / Invoice', isPurchaseDoc ? payload.poNumber : (payload.challanNumber || payload.invoiceNumber)],
+              ['Date', new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
+              ['Supplier', payload.vendorName],
+              ['Project', project?.name],
+            ],
+            terms: PDF_TERMS.purchase,
+            hide: ['.header', '.footer'], // old title header + in-page footer
+          });
           const { uri } = await Print.printToFileAsync({ html });
           const fileName = `${bulkType.toLowerCase()}_inv_${Date.now()}.pdf`;
           const invoiceUrl = await cloudinaryService.uploadFile(uri, fileName, 'application/pdf');
@@ -664,7 +676,18 @@ export default function ProjectMaterialTab({ project, fetchProjectData }) {
       } else {
         // Generate on-the-fly for old records
         showToast(tr("Generating document..."), 'info');
-        const html = itemType === 'Purchase' ? generatePurchaseHTML(item) : generateReceiptHTML(item);
+        const isPurchaseDoc = itemType === 'Purchase';
+        const html = standardPdf(isPurchaseDoc ? generatePurchaseHTML(item) : generateReceiptHTML(item), {
+          docType: isPurchaseDoc ? 'Purchase Order' : 'Material Receipt',
+          meta: [
+            [isPurchaseDoc ? 'PO Number' : 'Challan / Invoice', isPurchaseDoc ? item.poNumber : (item.challanNumber || item.invoiceNumber)],
+            ['Date', new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
+            ['Supplier', item.vendorName],
+            ['Project', project?.name],
+          ],
+          terms: PDF_TERMS.purchase,
+          hide: ['.header', '.footer'], // old title header + in-page footer
+        });
         const { uri } = await Print.printToFileAsync({ html });
         uriToShare = uri;
       }

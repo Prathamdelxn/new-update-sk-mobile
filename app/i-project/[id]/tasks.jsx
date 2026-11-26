@@ -1,5 +1,5 @@
 import { tr } from '../../utils/i18n/tr';
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Alert,
@@ -223,13 +223,17 @@ const { can: canDo } = useProjectPermissions(projectId);
   );
   const [lightboxUrl, setLightboxUrl] = useState(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  // silent = quiet refresh (after an edit / returning to the screen): no skeleton,
+  // and the member list (rarely changes) is only fetched once.
+  const membersLoaded = useRef(false);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
+      const needMembers = !silent || !membersLoaded.current;
       const [taskRes, wbsRes, memberRes, mileRes, invRes] = await Promise.allSettled([
         interiorApiClient.get(`/projects/${projectId}/tasks`),
         interiorApiClient.get(`/projects/${projectId}/wbs`),
-        interiorApiClient.get(`/projects/${projectId}/members`),
+        needMembers ? interiorApiClient.get(`/projects/${projectId}/members`) : Promise.resolve(null),
         interiorApiClient.get(`/projects/${projectId}/milestones`),
         interiorApiClient.get(`/projects/${projectId}/inventory`),
       ]);
@@ -246,7 +250,10 @@ const { can: canDo } = useProjectPermissions(projectId);
       }
       setWbsPackages(packages);
 
-      setMembers(memberRes.status === 'fulfilled' && memberRes.value?.success ? memberRes.value.data || [] : []);
+      if (needMembers) {
+        setMembers(memberRes.status === 'fulfilled' && memberRes.value?.success ? memberRes.value.data || [] : []);
+        membersLoaded.current = true;
+      }
       setInventoryItems(invRes?.status === 'fulfilled' && invRes.value?.success ? invRes.value.data || [] : []);
       setMilestones(mileRes.status === 'fulfilled' && mileRes.value?.success ? mileRes.value.data || [] : []);
     } catch (e) {
@@ -256,7 +263,9 @@ const { can: canDo } = useProjectPermissions(projectId);
     }
   }, [projectId]);
 
-  useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+  // Skeleton only on the first visit; coming back refreshes quietly.
+  const visitedOnce = useRef(false);
+  useFocusEffect(useCallback(() => { fetchData(visitedOnce.current); visitedOnce.current = true; }, [fetchData]));
 
   // -----------------------------------------------------------------------
   // Filtering, search, KPIs
@@ -327,7 +336,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       if (pRes?.success && pRes?.data?._id) {
         showToast(tr("Default WBS structure & package created!"), 'success');
         setForm((f) => ({ ...f, packageId: String(pRes.data._id) }));
-        await fetchData();
+        await fetchData(true);
       }
     } catch (e) {
       showToast(e.message || tr("Failed to create starter package"), 'error');
@@ -350,7 +359,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         setForm((f) => ({ ...f, packageId: String(pRes.data._id) }));
         setShowInlinePkgForm(false);
         setInlinePkg({ name: '', trade: 'interior' });
-        await fetchData();
+        await fetchData(true);
       }
     } catch (e) {
       showToast(e.message || tr("Failed to create package"), 'error');
@@ -395,7 +404,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       showToast(tr("Task created successfully in \"To Do\""), 'success');
       setIsCreateOpen(false);
       setForm(emptyForm);
-      fetchData();
+      fetchData(true);
     } catch (e) {
       showToast(e.message || tr("Failed to create task"), 'error');
     } finally {
@@ -492,7 +501,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       await interiorApiClient.put(`/projects/${projectId}/tasks/${task._id}`, { status });
     } catch (e) {
       showToast(tr("Failed to update status"), 'error');
-      fetchData();
+      fetchData(true);
     }
   };
 
@@ -575,7 +584,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       setProofImages([]);
       setProofNotes('');
       setMaterialUsages([]);
-      fetchData();
+      fetchData(true);
     } catch (e) {
       showToast(e.message || tr("Failed to complete task"), 'error');
     } finally {
@@ -623,7 +632,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             showToast(tr("Task deleted successfully"), 'delete');
             setSelectedTask(null);
             setIsEditingTask(false);
-            fetchData();
+            fetchData(true);
           } catch (e) {
             showToast(e.message || tr("Failed to delete task"), 'error');
           }
@@ -672,7 +681,7 @@ const { can: canDo } = useProjectPermissions(projectId);
       const updated = res?.success && res?.data ? res.data : { ...selectedTask, ...payload };
       setSelectedTask(updated);
       setIsEditingTask(false);
-      fetchData();
+      fetchData(true);
     } catch (e) {
       showToast(e.message || tr("Failed to update task"), 'error');
     }

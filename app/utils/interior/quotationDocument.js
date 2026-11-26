@@ -5,6 +5,7 @@
 // Used by the CRM lead, project Quotation and Confirm Order screens.
 // =============================================================================
 
+import { standardPdf, PDF_TERMS } from '../pdf/pdfStandard';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { getCurrencySymbol, formatMillionBillion, formatSmartCurrency } from '../format';
@@ -283,14 +284,37 @@ export const buildQuotationHtml = (targetLead, quote) => {
 </html>`;
 };
 
+/** Quotation in the standard PDF format (official letterhead, terms on every page). */
+export function standardQuotationHtml(lead, quote) {
+  const q = quote || {};
+  const l = lead || {};
+  const idx = Array.isArray(l.quotations) ? l.quotations.indexOf(quote) : -1;
+  const version = q.version || (idx >= 0 ? idx + 1 : 1);
+  const issued = q.createdAt ? new Date(q.createdAt) : new Date();
+  const fmt = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const qtn = q.quotationNumber || q.quoteNumber || (l.leadNumber ? `QTN-${String(l.leadNumber).replace(/^LD-/, '')}-${version}` : `QTN-${String(version).padStart(3, '0')}`);
+  return standardPdf(buildQuotationHtml(lead, quote), {
+    docType: 'Quotation',
+    meta: [
+      ['Quotation No.', qtn],
+      ['Issue Date', fmt(issued)],
+      ['Valid Until', fmt(new Date(issued.getTime() + 30 * 86400000))],
+      ['Version', `v${version}`],
+      ['Lead Reference', l.leadNumber],
+    ],
+    terms: PDF_TERMS.quotation,
+    hide: ['.stripe', '.company', '.badges'], // old placeholder brand ("SKY INTERIOR") and badge row
+  });
+}
+
 // System print dialog (same as the web "Print / PDF" button)
 export async function printQuotation(lead, quote) {
-  await Print.printAsync({ html: buildQuotationHtml(lead, quote) });
+  await Print.printAsync({ html: standardQuotationHtml(lead, quote) });
 }
 
 // Generates a PDF and opens the share sheet (save / WhatsApp / email …)
 export async function shareQuotationPdf(lead, quote) {
-  const { uri } = await Print.printToFileAsync({ html: buildQuotationHtml(lead, quote) });
+  const { uri } = await Print.printToFileAsync({ html: standardQuotationHtml(lead, quote) });
   if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this device.');
   await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `Quotation v${quote?.version || 1}` });
 }

@@ -1,3 +1,4 @@
+import { standardPdf, PDF_TERMS } from '../../utils/pdf/pdfStandard';
 import { tr } from '../../utils/i18n/tr';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, Image, KeyboardAvoidingView, Platform } from 'react-native';
@@ -406,7 +407,18 @@ export default function ProjectReportsTab() {
         'No activity logs in this range.')}
     </body></html>`;
     try {
-      const { uri } = await Print.printToFileAsync({ html });
+      const { uri } = await Print.printToFileAsync({
+        html: standardPdf(html, {
+          docType: reportType === 'Daily' ? 'Daily Project Report' : 'Monthly Project Report',
+          subtitle: reportType === 'Daily' ? 'Last 7 Days' : 'Last 6 Months',
+          meta: [
+            ['Project', project?.name],
+            ['Generated on', new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
+          ],
+          terms: PDF_TERMS.report,
+          hide: ['.header'], // project + title move into the letterhead
+        }),
+      });
       await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Download Report PDF', UTI: 'com.adobe.pdf' });
     } catch (e) {
       Alert.alert(tr("Error"), e.message || tr("Failed to download the PDF report."));

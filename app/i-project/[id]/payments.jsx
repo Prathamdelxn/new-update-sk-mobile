@@ -14,7 +14,7 @@ import interiorApiClient from '../../services/interiorApiClient';
 import { formatExactCurrency, getCurrencySymbol } from '../../utils/format';
 import { useProjectPermissions } from '../../utils/interior/useProjectPermissions';
 import { WebView } from 'react-native-webview';
-import { generateInvoiceHtml, printInvoice, shareInvoicePdf } from '../../utils/interior/invoiceDocument';
+import { standardInvoiceHtml, printInvoice, shareInvoicePdf } from '../../utils/interior/invoiceDocument';
 import SkeletonList from '../../components/common/SkeletonList';
 
 // Reusable calendar date picker field (replaces free-text YYYY-MM-DD inputs).
@@ -603,7 +603,7 @@ const { can: canDo } = useProjectPermissions(projectId);
           {previewInvoice && (
             <WebView
               originWhitelist={['*']}
-              source={{ html: generateInvoiceHtml(previewInvoice, project, invoiceSymbol) }}
+              source={{ html: standardInvoiceHtml(previewInvoice, project, invoiceSymbol) }}
               style={{ flex: 1, backgroundColor: '#F1F5F9' }}
             />
           )}

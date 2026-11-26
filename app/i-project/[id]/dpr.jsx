@@ -1,3 +1,4 @@
+import { standardPdf, PDF_TERMS } from '../../utils/pdf/pdfStandard';
 import { tr } from '../../utils/i18n/tr';
 import React, { useState, useCallback } from 'react';
 import {
@@ -139,6 +140,21 @@ function SelectDropdown({ value, options, onChange, placeholder = 'Select...', s
 // =============================================================================
 // Official SkyStruct Creations DPR HTML Generator (100% parity with web)
 // =============================================================================
+/** DPR in the standard PDF format (official letterhead, terms on every page). */
+export function standardDpr(dpr, project) {
+  const d = dpr?.date ? new Date(dpr.date) : null;
+  return standardPdf(generateDprHtml(dpr, project), {
+    docType: 'Daily Progress Report',
+    meta: [
+      ['Date', d && !isNaN(d.getTime()) ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null],
+      ['Project', project?.name],
+      ['Client', project?.clientName || project?.client?.name],
+    ],
+    terms: PDF_TERMS.report,
+    hide: ['.watermark', '.header-table'], // old "SS" pill header + watermark
+  });
+}
+
 export function generateDprHtml(dpr, project) {
   const projectName = project?.name || (typeof dpr?.projectName === 'string' ? dpr.projectName : '') || 'Site Project';
   const clientName = project?.clientName || project?.client?.name || project?.client || 'Valued Client';
@@ -435,12 +451,12 @@ export function generateDprHtml(dpr, project) {
 
         <!-- 5. MINUTES OF MEETING (MOM) -->
         <div class="sec-title">5. Minutes of Meeting (MOM) & Site Directives</div>
-        <div class="mom-box">
+        <div class="mom-box avoid-break">
           ${momData ? momData.replace(/\n/g, '<br/>') : '<span style="color: #94a3b8; font-style: italic;">No specific Minutes of Meeting recorded for this date. Site progress execution conforms to active baseline schedule.</span>'}
         </div>
 
         <!-- EXECUTIVE SIGNATURES SECTION -->
-        <div class="signatures-grid">
+        <div class="signatures-grid avoid-break">
           <div class="sign-col">
             <div class="sign-line"></div>
             <div class="sign-title">Prepared By (Site Engineer)</div>
@@ -716,7 +732,7 @@ const { can: canDo } = useProjectPermissions(projectId);
   const handleDownloadPdf = async (dprItem) => {
     try {
       setDownloadingId(dprItem._id);
-      const html = generateDprHtml(dprItem, project);
+      const html = standardDpr(dprItem, project);
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
@@ -734,7 +750,7 @@ const { can: canDo } = useProjectPermissions(projectId);
   // Print
   const handlePrintDpr = async (dprItem) => {
     try {
-      const html = generateDprHtml(dprItem, project);
+      const html = standardDpr(dprItem, project);
       await Print.printAsync({ html });
     } catch (e) {
       showToast(tr("Failed to open print dialogue"), 'error');
@@ -753,7 +769,7 @@ const { can: canDo } = useProjectPermissions(projectId);
         materialRequirements: [],
         siteInstructions: '',
       };
-      const html = generateDprHtml(blankDpr, project);
+      const html = standardDpr(blankDpr, project);
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
@@ -930,7 +946,7 @@ const { can: canDo } = useProjectPermissions(projectId);
             <View style={s.webViewContainer}>
               {previewDpr ? (
                 <WebView
-                  source={{ html: generateDprHtml(previewDpr, project) }}
+                  source={{ html: standardDpr(previewDpr, project) }}
                   originWhitelist={['*']}
                   scalesPageToFit={true}
                   javaScriptEnabled={false}

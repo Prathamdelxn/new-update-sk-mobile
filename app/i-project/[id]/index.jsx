@@ -99,7 +99,7 @@ export default function InteriorProjectOverviewScreen() {
     { label: 'Tasks', icon: 'checkbox-outline', path: 'tasks', perm: 'tasks', color: '#2563EB', bg: '#EFF6FF' },
     { label: 'Drawings', icon: 'document-text-outline', path: 'drawings', perm: 'drawings', color: '#7C3AED', bg: '#F5F3FF' },
     { label: 'BOQ', icon: 'calculator-outline', path: 'boq', perm: 'boq', color: '#0891B2', bg: '#ECFEFF' },
-    { label: 'Site Photos', icon: 'images-outline', path: 'photos', perm: 'photos', color: '#DB2777', bg: '#FDF2F8' },
+    { label: 'Site Images', icon: 'images-outline', path: 'photos', perm: 'photos', color: '#DB2777', bg: '#FDF2F8' },
     { label: 'Snags', icon: 'construct-outline', path: 'snags', perm: 'snags', color: '#D97706', bg: '#FFFBEB' },
     { label: 'DPR', icon: 'today-outline', path: 'dpr', perm: 'dpr', color: '#059669', bg: '#ECFDF5' },
     { label: 'Payments', icon: 'card-outline', path: 'payments', perm: 'financials', color: '#16A34A', bg: '#F0FDF4' },

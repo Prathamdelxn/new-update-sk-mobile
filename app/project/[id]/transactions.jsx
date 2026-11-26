@@ -1,3 +1,4 @@
+import { standardPdf, PDF_TERMS } from '../../utils/pdf/pdfStandard';
 import { tr } from '../../utils/i18n/tr';
 // import React, { useState, useEffect, useCallback } from 'react';
 // import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
@@ -845,7 +846,16 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
 
       // Auto-generate PDF Invoice
       setIsUploading(true);
-      const html = generateTransactionHTML(txData);
+      const html = standardPdf(generateTransactionHTML(txData), {
+        docType: txData.type === 'Incoming' ? 'Official Receipt' : 'Payment Voucher',
+        meta: [
+          ['Reference No.', txData.referenceNumber],
+          ['Date', new Date(txData.date || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
+          ['Party', txData.partyName],
+        ],
+        terms: PDF_TERMS.voucher,
+        hide: ['.header', '.footer'], // old "Sky-Lite" header + in-page footer
+      });
       const { uri } = await Print.printToFileAsync({ html });
       const fileName = `tx_inv_${Date.now()}.pdf`;
       const invoiceUrl = await cloudinaryService.uploadFile(uri, fileName, 'application/pdf');
@@ -919,7 +929,16 @@ export default function ProjectTransactionsTab({ project, fetchProjectData }) {
       } else {
         // Generate on-the-fly for old records
         showToast(tr("Generating invoice for old record..."), 'info');
-        const html = generateTransactionHTML(item);
+        const html = standardPdf(generateTransactionHTML(item), {
+          docType: item.type === 'Incoming' ? 'Official Receipt' : 'Payment Voucher',
+          meta: [
+            ['Reference No.', item.referenceNumber],
+            ['Date', new Date(item.date || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
+            ['Party', item.partyName],
+          ],
+          terms: PDF_TERMS.voucher,
+          hide: ['.header', '.footer'], // old "Sky-Lite" header + in-page footer
+        });
         const { uri } = await Print.printToFileAsync({ html });
         uriToShare = uri;
       }

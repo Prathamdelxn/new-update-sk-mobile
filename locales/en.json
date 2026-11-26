@@ -1070,5 +1070,11 @@
   "UnderSnagging": "Under Snagging",
   "noMatchingProjects": "No matching projects found",
   "noMatchingProjectsSub": "Try adjusting your search query or status filter to locate projects.",
-  "clearAllFilters": "Clear All Filters"
+  "clearAllFilters": "Clear All Filters",
+  "Overview": "Overview",
+  "Planning": "Planning",
+  "Execution": "Execution",
+  "Finance": "Finance",
+  "Closeout": "Closeout",
+  "Section": "Section"
 }

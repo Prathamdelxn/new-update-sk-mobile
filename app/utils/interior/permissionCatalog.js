@@ -46,7 +46,7 @@ export const PERMISSION_MODULES = [
   { key: 'risks', label: 'Risks', category: 'Project Execution', actions: CRUD },
   { key: 'snags', label: 'Snags', category: 'Project Execution', actions: CRUD },
   { key: 'utilities', label: 'Utilities', category: 'Project Execution', actions: ['read', 'update'] },
-  { key: 'photos', label: 'Site Photos', category: 'Project Execution', actions: ['read', 'create', 'delete'] },
+  { key: 'photos', label: 'Site Images', category: 'Project Execution', actions: ['read', 'create', 'delete'] },
   { key: 'handover', label: 'Handover', category: 'Project Execution', actions: ['read', 'create', 'update', 'delete'] },
   { key: 'filemgt', label: 'File Management', category: 'Project Execution', actions: ['read', 'create', 'delete'] },
   { key: 'financials', label: 'Payments & Financials', category: 'Project Execution', actions: ['read', 'create', 'delete', 'export'] },

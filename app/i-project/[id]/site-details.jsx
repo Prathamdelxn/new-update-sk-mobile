@@ -2,7 +2,7 @@ import { tr } from '../../utils/i18n/tr';
 // Project Site Details (web: InteriorSiteDetailsView).
 // The site profile is the CRM record linked to the project; the backend creates one for every
 // project, so there is always something to show. Tabs: Design Requirements (with the client
-// intake link), Site Visit & Measurements, Site Photos, View All.
+// intake link), Site Visit & Measurements.
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
@@ -15,10 +15,9 @@ import {
   Image,
   Linking,
   Alert,
-  AppState,
+  AppState, LayoutAnimation,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -83,14 +82,31 @@ export default function InteriorSiteDetailsScreen() {
   // Same as the web: project editors can maintain the site profile too
   const canEditReq = canDo('crm_requirements', 'update') || canDo('projects', 'update') || canDo('projects', 'create');
   const canEditSiteVisit = canDo('crm_site_visits', 'update') || canDo('projects', 'update') || canDo('projects', 'create');
-  const canEditPhotos = canDo('photos', 'create') || canDo('photos', 'update') || canDo('crm_site_visits', 'update') || canDo('projects', 'update');
 
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState(null);
   const [projectInfo, setProjectInfo] = useState(null);
-  const [activeTab, setActiveTab] = useState('requirements'); // 'requirements' | 'measurements' | 'photos' | 'all'
+  const [activeTab, setActiveTab] = useState('requirements'); // 'requirements' | 'measurements'
+  // Numbered dropdowns (rooms r0..rN, measurement groups m:<title>) - all start collapsed
+  const [openKeys, setOpenKeys] = useState(() => new Set());
+  const toggleKey = (k) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOpenKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  };
+  const setAllKeys = (keys) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOpenKeys((prev) => {
+      const allOpen = keys.every((k) => prev.has(k));
+      const next = new Set(prev);
+      keys.forEach((k) => (allOpen ? next.delete(k) : next.add(k)));
+      return next;
+    });
+  };
 
-  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [isUpdatingExpiry, setIsUpdatingExpiry] = useState(false);
@@ -286,46 +302,6 @@ export default function InteriorSiteDetailsScreen() {
   const handleChangeExpiry = (hours) => setLinkExpiry(hours, `Link expiry set to ${expiryLabel(hours)}.`);
   const handleReactivateLink = (hours = 168) => setLinkExpiry(hours, 'Client intake link reactivated!');
 
-  // Direct photo upload (web handleDirectPhotoUpload): Cloudinary → project photos + site profile photos
-  const handleDirectPhotoUpload = async () => {
-    try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        showToast(tr("Photo library permission is required to upload site photos"), 'error');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, quality: 0.8 });
-      if (result.canceled || !result.assets?.length) return;
-
-      setUploadingPhotos(true);
-      const urls = [];
-      for (let i = 0; i < result.assets.length; i++) {
-        const a = result.assets[i];
-        const url = await cloudinaryService.uploadFile(a.uri, a.fileName || `site-photo-${Date.now()}-${i + 1}.jpg`, a.mimeType || 'image/jpeg');
-        if (url) urls.push(url);
-      }
-      if (urls.length === 0) throw new Error('Failed to upload some or all photos');
-
-      for (const url of urls) {
-        try {
-          await interiorApiClient.post(`/projects/${projectId}/photos`, { url, category: 'site_visit' });
-        } catch {
-          // still saved on the site profile below
-        }
-      }
-      if (customer?._id) {
-        const updated = Array.from(new Set([...(customer.sitePhotos || []), ...urls]));
-        await interiorApiClient.patch(`/crm/customers/${customer._id}`, { sitePhotos: updated });
-      }
-      showToast(tr("Successfully uploaded {{urlsCount}} photo{{value}}", { urlsCount: urls.length, value: urls.length > 1 ? 's' : '' }), 'success');
-      await loadSiteDetails(true);
-    } catch (e) {
-      showToast(e?.message || tr("Failed to upload some or all photos"), 'error');
-    } finally {
-      setUploadingPhotos(false);
-    }
-  };
-
   // ── Requirements: team specs enriched with the client's wishlist (same merge as the web) ──
   const teamRequirements = useMemo(() => asList(customer?.requirements), [customer?.requirements]);
   const clientRequirements = useMemo(() => asList(customer?.clientRequirements), [customer?.clientRequirements]);
@@ -369,19 +345,14 @@ export default function InteriorSiteDetailsScreen() {
   const isClientSubmittedOnly = teamRequirements.length === 0 && clientRequirements.length > 0;
 
   const siteMeasurements = customer?.siteMeasurements;
-  const sitePhotos = (customer?.sitePhotos || []).map((p) => (typeof p === 'string' ? p : p?.url || '')).filter(Boolean);
   const hasRequirements = requirements.length > 0;
   const hasMeasurements = !!siteMeasurements;
-  const hasPhotos = sitePhotos.length > 0;
-  const showRequirements = activeTab === 'all' || activeTab === 'requirements';
-  const showMeasurements = activeTab === 'all' || activeTab === 'measurements';
-  const showPhotos = activeTab === 'all' || activeTab === 'photos';
+  const showRequirements = activeTab === 'requirements';
+  const showMeasurements = activeTab === 'measurements';
 
   const TABS = [
     { id: 'requirements', label: 'Requirements', icon: 'clipboard-outline', color: '#059669', badge: requirements.length ? String(requirements.length) : null },
     { id: 'measurements', label: 'Measurements', icon: 'resize-outline', color: '#7C3AED', badge: null },
-    { id: 'photos', label: 'Photos', icon: 'camera-outline', color: '#2563EB', badge: sitePhotos.length ? String(sitePhotos.length) : null },
-    { id: 'all', label: 'All', icon: 'layers-outline', color: '#0F172A', badge: null },
   ];
 
   const intakeStatus = customer?.clientRequirementsSubmittedAt
@@ -562,16 +533,37 @@ export default function InteriorSiteDetailsScreen() {
                 </View>
 
                 {/* One card per room */}
+                {hasRequirements && requirements.length > 1 && (
+                  <View style={s.accBar}>
+                    <Text style={s.accBarTitle}>{tr("Spaces")} ({requirements.length})</Text>
+                    <TouchableOpacity
+                      style={s.accExpandBtn}
+                      activeOpacity={0.7}
+                      onPress={() => setAllKeys(requirements.map((_, i) => `r${i}`))}
+                    >
+                      <Ionicons name={requirements.every((_, i) => openKeys.has(`r${i}`)) ? 'chevron-up' : 'chevron-down'} size={13} color="#334155" />
+                      <Text style={s.accExpandText}>{requirements.every((_, i) => openKeys.has(`r${i}`)) ? tr("Collapse all") : tr("Expand all")}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
                 {hasRequirements ? (
-                  requirements.map((req, idx) => (
-                    <View key={idx} style={s.card}>
-                      <View style={s.sectionHead}>
-                        <View style={[s.rowCenter, { flex: 1 }]}>
-                          <Text style={s.reqIndex}>{idx + 1}</Text>
-                          <Text style={s.cardTitle} numberOfLines={1}>{req.roomName || tr("General space")}</Text>
+                  requirements.map((req, idx) => {
+                    const open = openKeys.has(`r${idx}`);
+                    const summary = [req.interiorType && tr(req.interiorType), req.designStyle || req.theme, (req.source === 'client' || isClientSubmittedOnly) && tr("Client wishlist")].filter(Boolean).join(' · ');
+                    return (
+                    <View key={idx} style={[s.card, { padding: 0, overflow: 'hidden' }, open && s.accCardOpen]}>
+                      <TouchableOpacity activeOpacity={0.7} onPress={() => toggleKey(`r${idx}`)} style={[s.accHead, open && s.accHeadOpen]}>
+                        <View style={[s.accIndex, open && s.accIndexOpen]}>
+                          <Text style={[s.accIndexText, open && { color: '#FFFFFF' }]}>{idx + 1}</Text>
                         </View>
-                        {(req.source === 'client' || isClientSubmittedOnly) && <Text style={[s.tag, s.tagGreen]}>{tr("Client wishlist")}</Text>}
-                      </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={s.accTitle} numberOfLines={1}>{req.roomName || tr("General space")}</Text>
+                          {!!summary && <Text style={s.accSummary} numberOfLines={1}>{summary}</Text>}
+                        </View>
+                        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={open ? '#2563EB' : '#64748B'} />
+                      </TouchableOpacity>
+                      {open && (
+                      <View style={{ padding: 14 }}>
                       <Rows
                         groups={[
                           { rows: [['Type', req.interiorType], ['Style', req.designStyle || req.theme]] },
@@ -581,8 +573,11 @@ export default function InteriorSiteDetailsScreen() {
                         ]}
                         empty="No details recorded for this space."
                       />
+                      </View>
+                      )}
                     </View>
-                  ))
+                    );
+                  })
                 ) : (
                   <View style={[s.card, s.emptyBox]}>
                     <Ionicons name="clipboard-outline" size={28} color="#059669" />
@@ -618,6 +613,10 @@ export default function InteriorSiteDetailsScreen() {
                 )}
                 {hasMeasurements || customer?.remarks ? (
                   <Rows
+                    collapsible
+                    openKeys={openKeys}
+                    toggleKey={toggleKey}
+                    setAllKeys={setAllKeys}
                     groups={[
                       { title: 'Space', rows: [
                         ['Carpet area', siteMeasurements?.carpetArea ? `${siteMeasurements.carpetArea} sq ft` : ''],
@@ -655,36 +654,6 @@ export default function InteriorSiteDetailsScreen() {
                         <Text style={s.solidBtnText}>{tr("Log measurements")}</Text>
                       </TouchableOpacity>
                     )}
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* ── PHOTOS ── */}
-            {showPhotos && (
-              <View style={s.card}>
-                <View style={s.sectionHead}>
-                  <Text style={s.cardTitle}>{tr("Site photos (")}{sitePhotos.length})</Text>
-                  {canEditPhotos && (
-                    <TouchableOpacity style={[s.pillBtn, s.pillBlue]} onPress={handleDirectPhotoUpload} disabled={uploadingPhotos}>
-                      {uploadingPhotos ? <ActivityIndicator size="small" color="#2563EB" /> : <Ionicons name="cloud-upload-outline" size={14} color="#2563EB" />}
-                      <Text style={[s.pillBtnText, { color: '#2563EB' }]}>{uploadingPhotos ? tr("Uploading…") : tr("Upload")}</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                {hasPhotos ? (
-                  <View style={s.photoGrid}>
-                    {sitePhotos.map((url, idx) => (
-                      <TouchableOpacity key={`${url}-${idx}`} style={s.photoThumb} onPress={() => Linking.openURL(url)}>
-                        <Image source={{ uri: url }} style={s.photoImg} />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                ) : (
-                  <View style={s.emptyBox}>
-                    <Ionicons name="image-outline" size={28} color="#94A3B8" />
-                    <Text style={s.emptyTitle}>{tr("No site photos yet")}</Text>
-                    <Text style={s.emptySub}>{tr("Upload site inspection and progress photos.")}</Text>
                   </View>
                 )}
               </View>
@@ -739,11 +708,54 @@ export default function InteriorSiteDetailsScreen() {
 }
 
 // Label → value rows grouped under small headings; empty values are skipped (no "Not recorded" filler)
-function Rows({ groups, empty = 'Nothing recorded yet.' }) {
+// `collapsible`: numbered dropdowns ("2/3 recorded"); open state is owned by the screen (openKeys)
+function Rows({ groups, empty = 'Nothing recorded yet.', collapsible = false, openKeys, toggleKey, setAllKeys }) {
   const shown = groups
-    .map((g) => ({ ...g, rows: g.rows.filter(([, v]) => v != null && String(v).trim() !== '') }))
+    .map((g) => ({ ...g, total: g.rows.length, rows: g.rows.filter(([, v]) => v != null && String(v).trim() !== '') }))
     .filter((g) => g.rows.length > 0);
   if (shown.length === 0) return <Text style={s.emptyInline}>{tr(empty)}</Text>;
+  if (collapsible) {
+    const keys = shown.map((g) => `m:${g.title}`);
+    const allOpen = keys.every((k) => openKeys.has(k));
+    return (
+      <View style={{ gap: 8 }}>
+        {shown.length > 1 && (
+          <TouchableOpacity style={[s.accExpandBtn, { alignSelf: 'flex-end' }]} activeOpacity={0.7} onPress={() => setAllKeys(keys)}>
+            <Ionicons name={allOpen ? 'chevron-up' : 'chevron-down'} size={13} color="#334155" />
+            <Text style={s.accExpandText}>{allOpen ? tr("Collapse all") : tr("Expand all")}</Text>
+          </TouchableOpacity>
+        )}
+        {shown.map((g, gi) => {
+          const k = `m:${g.title}`;
+          const open = openKeys.has(k);
+          return (
+            <View key={k} style={[s.accCard, open && s.accCardOpen]}>
+              <TouchableOpacity activeOpacity={0.7} onPress={() => toggleKey(k)} style={[s.accHead, open && s.accHeadOpen]}>
+                <View style={[s.accIndex, open && s.accIndexOpen]}>
+                  <Text style={[s.accIndexText, open && { color: '#FFFFFF' }]}>{gi + 1}</Text>
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.accTitle} numberOfLines={1}>{tr(g.title)}</Text>
+                  <Text style={s.accSummary}>{tr("{{count}}/{{total}} recorded", { count: g.rows.length, total: g.total })}</Text>
+                </View>
+                <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={open ? '#2563EB' : '#64748B'} />
+              </TouchableOpacity>
+              {open && (
+                <View style={{ paddingHorizontal: 12, paddingBottom: 6 }}>
+                  {g.rows.map(([label, value, warn], ri) => (
+                    <View key={label || ri} style={[s.kvRow, ri === g.rows.length - 1 && { borderBottomWidth: 0 }]}>
+                      {!!label && <Text style={s.kvLabel}>{tr(label)}</Text>}
+                      <Text style={[s.kvValue, !label && { textAlign: 'left' }, warn && { color: '#B91C1C' }]}>{String(value)}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    );
+  }
   return (
     <View style={{ gap: 14 }}>
       {shown.map((g, gi) => (
@@ -762,6 +774,19 @@ function Rows({ groups, empty = 'Nothing recorded yet.' }) {
 }
 
 const s = StyleSheet.create({
+  accBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2 },
+  accBarTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  accExpandBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5 },
+  accExpandText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  accCard: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, overflow: 'hidden', backgroundColor: '#FFFFFF' },
+  accCardOpen: { borderColor: '#93C5FD' },
+  accHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 11 },
+  accHeadOpen: { backgroundColor: '#F5F9FF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  accIndex: { width: 26, height: 26, borderRadius: 8, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' },
+  accIndexOpen: { backgroundColor: '#2563EB' },
+  accIndexText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  accTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  accSummary: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30, gap: 6 },

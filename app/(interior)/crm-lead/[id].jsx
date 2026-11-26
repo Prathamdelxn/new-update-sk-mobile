@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, StatusBar, ActivityIndicator, RefreshControl,
-  KeyboardAvoidingView, Platform, Alert, Image, Linking
+  KeyboardAvoidingView, Platform, Alert, Image, Linking, LayoutAnimation
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,7 +30,8 @@ import BoqBuilderModal from '../../components/crm/BoqBuilderModal';
 import BoqDrawingViewerModal from '../../components/crm/BoqDrawingViewerModal';
 import QuotationBuilderModal from '../../components/crm/QuotationBuilderModal';
 import SendQuotationModal from '../../components/crm/SendQuotationModal';
-import { buildQuotationHtml, printQuotation } from '../../utils/interior/quotationDocument';
+import { printQuotation, standardQuotationHtml } from '../../utils/interior/quotationDocument';
+import { standardPdf, PDF_TERMS } from '../../utils/pdf/pdfStandard';
 import DrawingConfirmApproveModal from '../../components/crm/DrawingConfirmApproveModal';
 import LogSiteVisitModal from '../../components/crm/LogSiteVisitModal';
 import LogRequirementsModal from '../../components/crm/LogRequirementsModal';
@@ -248,11 +249,68 @@ function StageBrief({ icon, color, title, status, statusColor, meta = [], note, 
 }
 
 // Label / value list that skips empty values (no "Not recorded" filler)
-function InfoRows({ groups }) {
+// `collapsible`: numbered accordion — each group is a one-line row ("2/3 recorded") that opens on tap
+function InfoRows({ groups, collapsible = false }) {
+  const [openGroups, setOpenGroups] = useState(() => new Set());
   const shown = groups
-    .map((g) => ({ ...g, rows: g.rows.filter(([, v]) => v != null && String(v).trim() !== '') }))
+    .map((g) => ({ ...g, total: g.rows.length, rows: g.rows.filter(([, v]) => v != null && String(v).trim() !== '') }))
     .filter((g) => g.rows.length > 0);
   if (shown.length === 0) return <Text style={s.emptySubText}>{tr("Nothing recorded yet.")}</Text>;
+  if (collapsible) {
+    const allOpen = shown.every((g) => openGroups.has(g.title));
+    const toggle = (t) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setOpenGroups((prev) => {
+        const next = new Set(prev);
+        if (next.has(t)) next.delete(t); else next.add(t);
+        return next;
+      });
+    };
+    return (
+      <View style={{ gap: 8 }}>
+        {shown.length > 1 && (
+          <TouchableOpacity
+            style={s.accExpandBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setOpenGroups(allOpen ? new Set() : new Set(shown.map((g) => g.title)));
+            }}
+          >
+            <Ionicons name={allOpen ? 'chevron-up' : 'chevron-down'} size={13} color="#334155" />
+            <Text style={s.accExpandText}>{allOpen ? tr("Collapse all") : tr("Expand all")}</Text>
+          </TouchableOpacity>
+        )}
+        {shown.map((g, i) => {
+          const open = openGroups.has(g.title);
+          return (
+            <View key={g.title} style={[s.accCard, open && s.accCardOpen]}>
+              <TouchableOpacity activeOpacity={0.7} onPress={() => toggle(g.title)} style={[s.accHead, open && s.accHeadOpen]}>
+                <View style={[s.accIndex, open && s.accIndexOpen]}>
+                  <Text style={[s.accIndexText, open && { color: '#FFFFFF' }]}>{i + 1}</Text>
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.accTitle} numberOfLines={1}>{tr(g.title)}</Text>
+                  <Text style={s.accSummary}>{tr("{{count}}/{{total}} recorded", { count: g.rows.length, total: g.total })}</Text>
+                </View>
+                <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={open ? '#2563EB' : '#64748B'} />
+              </TouchableOpacity>
+              {open && (
+                <View style={{ padding: 12, gap: 8 }}>
+                  {g.rows.map(([label, value, warn]) => (
+                    <View key={label} style={s.infoRow}>
+                      <Text style={s.infoLabel}>{tr(label)}</Text>
+                      <Text style={[s.infoValue, warn && { color: '#B91C1C' }]}>{String(value)}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    );
+  }
   return (
     <View style={{ gap: 14 }}>
       {shown.map((g) => (
@@ -386,6 +444,8 @@ export default function Lead360Screen() {
 
   // Activity Modal State
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showAllActivities, setShowAllActivities] = useState(false); // timeline shows the latest 5 until expanded
+  const [showAllFollowUps, setShowAllFollowUps] = useState(false); // follow-up history: latest 5 until expanded
   const [activityForm, setActivityForm] = useState({ type: 'Phone Call', remarks: '' });
   const [submittingAct, setSubmittingAct] = useState(false);
 
@@ -1192,7 +1252,7 @@ export default function Lead360Screen() {
     if (!currentQuote) return;
     setDownloadingQuotePdf(true);
     try {
-      const html = buildQuotationHtml({ ...lead, currency: currencyCode }, currentQuote);
+      const html = standardQuotationHtml({ ...lead, currency: currencyCode }, currentQuote);
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `Quotation v${currentQuote.version}` });
@@ -1355,7 +1415,18 @@ export default function Lead360Screen() {
     if (!boq) return;
     setDownloadingBoqPdf(true);
     try {
-      const html = buildBoqHtml(lead, boq);
+      const html = standardPdf(buildBoqHtml(lead, boq), {
+        docType: 'Bill of Quantities',
+        meta: [
+          ['Version', `v${boq.version || 1}`],
+          ['Status', boq.status || 'Draft'],
+          ['Client', lead?.name],
+          ['Lead Reference', lead?.leadNumber],
+          ['Date', new Date(boq.createdAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
+        ],
+        terms: PDF_TERMS.boq,
+        hide: ['.company'], // old placeholder brand ("Sky Interior Design")
+      });
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `BOQ v${boq.version || 1}` });
@@ -1846,7 +1917,7 @@ export default function Lead360Screen() {
                 {activities.length === 0 ? (
                   <Text style={s.emptySubText}>{tr("No activities logged yet.")}</Text>
                 ) : (
-                  activities.map((act) => {
+                  (showAllActivities ? activities : activities.slice(0, 5)).map((act) => {
                     const userName = act.user?.name || act.user?.firstName || 'User';
                     const isPending = act.status?.toLowerCase() === 'pending';
                     const isOverdue = isPending && act.scheduledDate && new Date(act.scheduledDate).getTime() < Date.now();
@@ -1907,6 +1978,18 @@ export default function Lead360Screen() {
                       </View>
                     );
                   })
+                )}
+                {activities.length > 5 && (
+                  <TouchableOpacity
+                    onPress={() => setShowAllActivities((v) => !v)}
+                    activeOpacity={0.7}
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 9, marginTop: 4, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' }}
+                  >
+                    <Ionicons name={showAllActivities ? 'chevron-up' : 'chevron-down'} size={14} color="#2563EB" />
+                    <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#2563EB' }}>
+                      {showAllActivities ? tr("Show less") : tr("Show all ({{count}})", { count: activities.length })}
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
             </View>
@@ -2131,7 +2214,7 @@ export default function Lead360Screen() {
                               </Text>
                             </View>
                             <View style={{ borderLeftWidth: 2, borderLeftColor: '#E2E8F0', marginLeft: 6, paddingLeft: 14, gap: 12 }}>
-                              {sorted.map((item, idx) => {
+                              {(showAllFollowUps ? sorted : sorted.slice(0, 5)).map((item, idx) => {
                                 const isActive = item._id === current._id;
                                 const itemOverdue = isOverdueAct(item);
                                 const itemPending = item.status?.toLowerCase() === 'pending' && !isLeadProgressed;
@@ -2169,6 +2252,18 @@ export default function Lead360Screen() {
                                 );
                               })}
                             </View>
+                            {sorted.length > 5 && (
+                              <TouchableOpacity
+                                onPress={() => setShowAllFollowUps((v) => !v)}
+                                activeOpacity={0.7}
+                                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 9, marginTop: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' }}
+                              >
+                                <Ionicons name={showAllFollowUps ? 'chevron-up' : 'chevron-down'} size={14} color="#2563EB" />
+                                <Text style={{ fontSize: 13, fontFamily: 'Inter-SemiBold', color: '#2563EB' }}>
+                                  {showAllFollowUps ? tr("Show less") : tr("Show all ({{count}})", { count: sorted.length })}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
                           </View>
                         </>
                       );
@@ -2325,6 +2420,7 @@ export default function Lead360Screen() {
                         const m = lead.siteMeasurements || {};
                         return (
                           <InfoRows
+                            collapsible
                             groups={[
                               { title: 'Space', rows: [
                                 ['Carpet area', m.carpetArea ? `${m.carpetArea} sq ft` : ''],
@@ -4547,7 +4643,7 @@ export default function Lead360Screen() {
           {currentQuote && (
             <WebView
               originWhitelist={['*']}
-              source={{ html: buildQuotationHtml({ ...lead, currency: currencyCode }, currentQuote) }}
+              source={{ html: standardQuotationHtml({ ...lead, currency: currencyCode }, currentQuote) }}
               style={{ flex: 1, backgroundColor: '#F1F5F9' }}
             />
           )}
@@ -4753,6 +4849,17 @@ const s = StyleSheet.create({
   briefNoteText: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter-Regular', color: '#0F172A' },
   briefActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   infoGroupTitle: { fontSize: 13, fontFamily: 'Inter-Bold', color: '#7C3AED' },
+  accExpandBtn: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5 },
+  accExpandText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  accCard: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, overflow: 'hidden', backgroundColor: '#FFFFFF' },
+  accCardOpen: { borderColor: '#93C5FD' },
+  accHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  accHeadOpen: { backgroundColor: '#F5F9FF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  accIndex: { width: 26, height: 26, borderRadius: 8, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' },
+  accIndexOpen: { backgroundColor: '#2563EB' },
+  accIndexText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#2563EB' },
+  accTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  accSummary: { fontSize: 11.5, fontFamily: 'Inter-Regular', color: '#64748B', marginTop: 1 },
   infoRow: { gap: 2, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   infoLabel: { fontSize: 12.5, fontFamily: 'Inter-Medium', color: '#64748B' },
   infoValue: { fontSize: 14.5, lineHeight: 20, fontFamily: 'Inter-SemiBold', color: '#0F172A' },

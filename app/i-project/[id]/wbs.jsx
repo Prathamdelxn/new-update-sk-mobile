@@ -217,18 +217,21 @@ export default function InteriorWbsScreen() {
   // Data Fetching
   // ---------------------------------------------------------------------------
 
+  // Members rarely change: fetch them once per screen visit; silent refreshes skip them.
+  const membersLoaded = useRef(false);
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
+      const needMembers = !isSilent || !membersLoaded.current;
       const [wbsRes, tasksRes, membersRes] = await Promise.all([
         interiorApiClient.get(`/projects/${projectId}/wbs`).catch(() => ({ data: [] })),
         interiorApiClient.get(`/projects/${projectId}/tasks`).catch(() => ({ data: [] })),
-        interiorApiClient.get(`/projects/${projectId}/members`).catch(() => ({ data: [] })),
+        needMembers ? interiorApiClient.get(`/projects/${projectId}/members`).catch(() => ({ data: [] })) : Promise.resolve(null),
       ]);
 
       const rawWbs = wbsRes?.success && wbsRes?.data ? wbsRes.data : wbsRes?.data || [];
       const rawTasks = tasksRes?.success && tasksRes?.data ? tasksRes.data : tasksRes?.data || [];
-      const rawMembers = membersRes?.success && membersRes?.data ? membersRes.data : membersRes?.data || [];
+      const rawMembers = membersRes ? (membersRes?.success && membersRes?.data ? membersRes.data : membersRes?.data || []) : null;
 
       setWbsData(rawWbs);
       setTasks(rawTasks);
@@ -238,6 +241,8 @@ export default function InteriorWbsScreen() {
         setExpandedNodes((prev) => (prev.length === 0 ? rawWbs.map((n) => n.id) : prev));
       }
 
+      if (rawMembers) {
+      membersLoaded.current = true;
       const formattedMembers = rawMembers.map((m) => ({
         id: String(m.userId?._id || m.userId?.id || m.userId || m._id || ''),
         name: m.userId?.firstName
@@ -247,6 +252,7 @@ export default function InteriorWbsScreen() {
         role: memberRoleLabel(m), // project role, same as web
       }));
       setMembers(formattedMembers);
+      }
     } catch (e) {
       console.warn('Failed to load WBS data', e);
       showToast(tr("Failed to load WBS data"), 'error');
@@ -256,9 +262,12 @@ export default function InteriorWbsScreen() {
     }
   }, [projectId, showToast]);
 
+  // Skeleton only on the first visit; coming back to the screen refreshes quietly.
+  const visitedOnce = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      fetchData();
+      fetchData(visitedOnce.current);
+      visitedOnce.current = true;
     }, [fetchData])
   );
 

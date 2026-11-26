@@ -191,6 +191,15 @@ const ROOM_OPTIONS = [
 
 const fileSizeMb = (asset) => (asset?.size ? `${(asset.size / (1024 * 1024)).toFixed(2)} MB • ` : '');
 
+const REV_STATUS = {
+  approved: { label: 'Approved', color: '#047857', bg: '#ECFDF5' },
+  rejected: { label: 'Changes requested', color: '#B91C1C', bg: '#FEF2F2' },
+  superseded: { label: 'Superseded', color: '#64748B', bg: '#F1F5F9' },
+  submitted: { label: 'In review', color: '#1D4ED8', bg: '#EFF6FF' },
+  under_review: { label: 'In review', color: '#1D4ED8', bg: '#EFF6FF' },
+  draft: { label: 'Draft', color: '#475569', bg: '#F1F5F9' },
+};
+
 export default function InteriorDrawingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -735,7 +744,19 @@ const { can: canDo } = useProjectPermissions(projectId);
                             <View style={s.historyBullet} />
                             <View style={{ flex: 1 }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <Text style={s.historyRevName}>{rev.revision || `R${revisions.length - idx - 1}`}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                                  <Text style={s.historyRevName}>{rev.revision || `R${revisions.length - idx - 1}`}</Text>
+                                  {(() => {
+                                    // each revision's own outcome; older data: latest = drawing status, earlier = superseded
+                                    const st = rev.status || (idx === 0 ? dwg.status : 'superseded');
+                                    const meta = REV_STATUS[st] || REV_STATUS.submitted;
+                                    return (
+                                      <View style={[s.revPill, { backgroundColor: meta.bg }]}>
+                                        <Text style={[s.revPillText, { color: meta.color }]}>{tr(meta.label)}</Text>
+                                      </View>
+                                    );
+                                  })()}
+                                </View>
                                 {rev.createdAt && (
                                   <Text style={s.historyDate}>
                                     {new Date(rev.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
@@ -743,6 +764,9 @@ const { can: canDo } = useProjectPermissions(projectId);
                                 )}
                               </View>
                               {!!rev.changes && <Text style={s.historyChanges}>{tr(rev.changes)}</Text>}
+                              {rev.status === 'rejected' && !!rev.rejectionReason && (
+                                <Text style={s.revReason}>{tr("Change requested:")} {rev.rejectionReason}</Text>
+                              )}
                               {rev.url && (
                                 <TouchableOpacity style={s.historyDownloadLink} onPress={() => handleOpenOrPreview(rev.url, dwg.title)}>
                                   <Ionicons name="open-outline" size={13} color="#2563EB" />
@@ -1110,6 +1134,9 @@ const { can: canDo } = useProjectPermissions(projectId);
 }
 
 const s = StyleSheet.create({
+  revPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  revPillText: { fontSize: 10, fontFamily: 'Inter-Bold', textTransform: 'uppercase' },
+  revReason: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#B91C1C', marginTop: 3 },
   outerContainer: { flex: 1, backgroundColor: '#F8FAFF' },
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },

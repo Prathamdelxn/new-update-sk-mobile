@@ -206,7 +206,6 @@ export default function ForgotPasswordScreen() {
                         industryType === 'construction' && styles.segmentBtnActive,
                       ]}
                     >
-                      <Text style={styles.segmentEmoji}>🏗️</Text>
                       <Text
                         style={[
                           styles.segmentText,
@@ -229,7 +228,6 @@ export default function ForgotPasswordScreen() {
                         industryType === 'interior' && styles.segmentBtnActive,
                       ]}
                     >
-                      <Text style={styles.segmentEmoji}>🎨</Text>
                       <Text
                         style={[
                           styles.segmentText,

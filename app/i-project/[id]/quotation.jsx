@@ -102,7 +102,10 @@ export default function InteriorProjectQuotationScreen() {
 
   const quotations = useMemo(() => lead?.quotations || [], [lead]);
   const hasQuotations = quotations.length > 0;
-  const latestQuote = hasQuotations ? quotations[quotations.length - 1] : null;
+  // The quotation the project was won on (accepted) wins over a later revision; else the latest
+  const latestQuote = hasQuotations
+    ? [...quotations].reverse().find((q) => q?.status === 'Accepted' || q?.status === 'Approved') || quotations[quotations.length - 1]
+    : null;
   // A quote keeps its lead's currency; otherwise the organisation's
   const currency = lead?.currency || orgCurrency.code;
   const smart = (n) => formatSmartCurrency(Number(n) || 0, getCurrencySymbol(currency));

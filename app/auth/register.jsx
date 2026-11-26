@@ -246,7 +246,6 @@ export default function RegisterScreen() {
                   industryType === 'construction' && styles.segmentBtnActive,
                 ]}
               >
-                <Text style={styles.segmentEmoji}>🏗️</Text>
                 <Text
                   style={[
                     styles.segmentText,
@@ -269,7 +268,6 @@ export default function RegisterScreen() {
                   industryType === 'interior' && styles.segmentBtnActive,
                 ]}
               >
-                <Text style={styles.segmentEmoji}>🎨</Text>
                 <Text
                   style={[
                     styles.segmentText,

@@ -77,12 +77,6 @@ export default function InteriorProjectConfirmOrderScreen() {
               </View>
             ) : (
               <>
-                {!!lead.confirmedOrder?.orderNumber && (
-                  <View style={s.summary}>
-                    <Text style={s.summaryLabel}>{tr("Order")}</Text>
-                    <Text style={s.summaryValue}>{lead.confirmedOrder.title || lead.name} · {tr(lead.confirmedOrder.orderNumber)}</Text>
-                  </View>
-                )}
                 <ConfirmOrderView
                   lead={lead}
                   canEdit={can('confirm_order', 'update')}

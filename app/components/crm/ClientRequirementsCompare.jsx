@@ -11,7 +11,7 @@ import { tr } from '../../utils/i18n/tr';
 // =============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, Alert, AppState, Image, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Alert, AppState, Image, Modal, ActivityIndicator, LayoutAnimation } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { WEB_APP_URL } from '../../config';
@@ -75,6 +75,17 @@ export default function ClientRequirementsCompare({
   const { showToast } = useToast();
   const [busy, setBusy] = useState(''); // 'link' | 'stop' | 'expiry' | 'discard' | 'sync'
   const [photo, setPhoto] = useState(null);
+  // Rooms collapse to a one-line title so every space fits on one screen
+  const [openRooms, setOpenRooms] = useState(() => new Set());
+  const toggleRoom = (i) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    toggleRoomState(i);
+  };
+  const toggleRoomState = (i) => setOpenRooms((prev) => {
+    const next = new Set(prev);
+    if (next.has(i)) next.delete(i); else next.add(i);
+    return next;
+  });
   const editable = canEdit && !isReadOnly;
 
   const share = lead?.shareSettings || {};
@@ -474,31 +485,65 @@ export default function ClientRequirementsCompare({
         </View>
       )}
 
+      <View style={s.spacesBar}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={s.spacesTitle}>{tr("Spaces")}</Text>
+          <Text style={s.spacesCount}>{rooms.length}</Text>
+        </View>
+        {rooms.length > 1 && (
+          <TouchableOpacity
+            style={s.expandBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setOpenRooms(openRooms.size === rooms.length ? new Set() : new Set(rooms.map((_, i) => i)));
+            }}
+          >
+            <Ionicons name={openRooms.size === rooms.length ? 'chevron-up' : 'chevron-down'} size={13} color="#334155" />
+            <Text style={s.expandText}>{openRooms.size === rooms.length ? tr("Collapse all") : tr("Expand all")}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
       {rooms.map((room, idx) => {
-        const hasFunctional = Boolean(room.roomUsage || room.furnitureRequirements || room.storage || room.electricalPoints || room.lightingRequirements || room.plumbingRequirements || room.circulation);
-        const hasAesthetic = Boolean(room.designStyle || room.theme || room.colours || room.materials || room.flooring || room.ceiling || room.wallFinishes || room.furnitureStyle);
+        const isOpen = openRooms.has(idx);
+        const functionalFields = [room.roomUsage, room.furnitureRequirements, room.storage, room.electricalPoints, room.lightingRequirements, room.plumbingRequirements, room.circulation];
+        const aestheticFields = [room.designStyle || room.theme, room.colours, room.materials, room.flooring, room.ceiling, room.wallFinishes, room.furnitureStyle];
+        const hasFunctional = functionalFields.some(Boolean);
+        const hasAesthetic = aestheticFields.some(Boolean);
+        const specTotal = functionalFields.length + aestheticFields.length;
+        const specFilled = [...functionalFields, ...aestheticFields].filter(Boolean).length;
+        const specPct = specFilled / specTotal;
+        const metaBits = [room.interiorType, room.designStyle || room.theme, room.dimensions].filter(Boolean).map((b) => tr(b));
         return (
-          <View key={idx} style={[s.card, { padding: 0, overflow: 'hidden' }]}>
-            <View style={s.roomHead}>
-              <View style={s.roomIndex}><Text style={s.roomIndexText}>{idx + 1}</Text></View>
-              <Text style={s.roomName}>{tr(room.roomName)}</Text>
-              {!!room.interiorType && <Text style={s.sub}>({tr(room.interiorType)})</Text>}
-              {room.source === 'client' && (
-                <View style={[s.pill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}><Text style={[s.pillText, { color: '#047857' }]}>{tr("Client Intake")}</Text></View>
-              )}
-              {room.source === 'merged' && (
-                <View style={[s.pill, { backgroundColor: '#FAF5FF', borderColor: '#E9D5FF' }]}><Text style={[s.pillText, { color: '#7E22CE' }]}>{tr("Merged")}</Text></View>
-              )}
-              {!!(room.designStyle || room.theme) && (
-                <View style={[s.pill, { backgroundColor: '#FAF5FF', borderColor: '#E9D5FF' }]}><Text style={[s.pillText, { color: '#6D28D9' }]}>{room.designStyle || room.theme}</Text></View>
-              )}
-              {!!room.dimensions && (
-                <View style={[s.pill, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}><Text style={[s.pillText, { color: '#1D4ED8' }]}>{tr(room.dimensions)}</Text></View>
-              )}
-              {!!room.budget && (
-                <View style={[s.pill, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}><Text style={[s.pillText, { color: '#B45309' }]}>{tr(currencySymbol)} {tr(room.budget)}</Text></View>
-              )}
-            </View>
+          <View key={idx} style={[s.card, { padding: 0, overflow: 'hidden' }, isOpen && s.cardOpen]}>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => toggleRoom(idx)} style={[s.roomHead, isOpen ? s.roomHeadOpen : { borderBottomWidth: 0 }]}>
+              <View style={[s.roomIndex, !isOpen && s.roomIndexIdle]}>
+                <Text style={[s.roomIndexText, !isOpen && { color: '#2563EB' }]}>{idx + 1}</Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[s.roomName, { flexShrink: 1 }]} numberOfLines={1}>{tr(room.roomName)}</Text>
+                  {room.source === 'client' && (
+                    <View style={[s.pill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}><Text style={[s.pillText, { color: '#047857' }]}>{tr("Client Intake")}</Text></View>
+                  )}
+                  {room.source === 'merged' && (
+                    <View style={[s.pill, { backgroundColor: '#FAF5FF', borderColor: '#E9D5FF' }]}><Text style={[s.pillText, { color: '#7E22CE' }]}>{tr("Merged")}</Text></View>
+                  )}
+                </View>
+                {metaBits.length > 0 && <Text style={s.roomMeta} numberOfLines={1}>{metaBits.join(' · ')}</Text>}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={s.specTrack}>
+                    <View style={[s.specFill, { width: `${Math.round(specPct * 100)}%`, backgroundColor: specPct >= 0.7 ? '#10B981' : specPct >= 0.35 ? '#F59E0B' : '#FB7185' }]} />
+                  </View>
+                  <Text style={s.specText}>{specFilled}/{specTotal} {tr("specs")}</Text>
+                  {!!room.budget && <Text style={s.budgetText} numberOfLines={1}>{tr(currencySymbol)} {tr(room.budget)}</Text>}
+                </View>
+              </View>
+              <View style={[s.chevron, isOpen && s.chevronOpen]}>
+                <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={isOpen ? '#2563EB' : '#64748B'} />
+              </View>
+            </TouchableOpacity>
+            {isOpen && (
             <View style={{ padding: 12, gap: 10 }}>
               <View style={s.section}>
                 <View style={s.sectionHead}>
@@ -536,6 +581,7 @@ export default function ClientRequirementsCompare({
                 </View>
               )}
             </View>
+            )}
           </View>
         );
       })}
@@ -564,8 +610,23 @@ const s = StyleSheet.create({
   pillText: { fontSize: 11.5, fontFamily: 'Inter-Bold' },
   footerLine: { flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#FDE68A', flexWrap: 'wrap', justifyContent: 'center' },
   thumb: { width: 72, height: 72, borderRadius: 10, backgroundColor: '#F1F5F9' },
-  roomHead: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, backgroundColor: '#F8FAFC', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  roomIndex: { width: 22, height: 22, borderRadius: 6, backgroundColor: '#2563EB', alignItems: 'center', justifyContent: 'center' },
+  spacesBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2 },
+  spacesTitle: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
+  spacesCount: { fontSize: 11.5, fontFamily: 'Inter-Bold', color: '#64748B', backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, overflow: 'hidden' },
+  expandBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5 },
+  expandText: { fontSize: 12, fontFamily: 'Inter-SemiBold', color: '#334155' },
+  cardOpen: { borderColor: '#93C5FD' },
+  roomHeadOpen: { backgroundColor: '#F5F9FF' },
+  roomIndexIdle: { backgroundColor: '#EFF6FF' },
+  roomMeta: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#64748B' },
+  specTrack: { width: 54, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', overflow: 'hidden' },
+  specFill: { height: 4, borderRadius: 2 },
+  specText: { fontSize: 11, fontFamily: 'Inter-SemiBold', color: '#64748B' },
+  budgetText: { flexShrink: 1, fontSize: 11, fontFamily: 'Inter-Bold', color: '#B45309' },
+  chevron: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  chevronOpen: { backgroundColor: '#EFF6FF' },
+  roomHead: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  roomIndex: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#2563EB', alignItems: 'center', justifyContent: 'center' },
   roomIndexText: { fontSize: 12.5, fontFamily: 'Inter-Bold', color: '#FFFFFF' },
   roomName: { fontSize: 13.5, fontFamily: 'Inter-Bold', color: '#0F172A' },
   section: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 10, gap: 8 },

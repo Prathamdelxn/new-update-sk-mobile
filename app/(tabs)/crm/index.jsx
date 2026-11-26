@@ -99,8 +99,9 @@ const LeadCard = memo(function LeadCard({ lead, activeFlowTab, currencySymbol, o
   const isLost = lead.status === 'Lost';
 
   const isQuotationsTab = activeFlowTab === 'quotations';
+  // Accepted quotation (the one the deal was won on) wins over a later revision; else the latest
   const latestQuote = isQuotationsTab && lead.quotations && lead.quotations.length > 0
-    ? lead.quotations[lead.quotations.length - 1]
+    ? [...lead.quotations].reverse().find((q) => q?.status === 'Accepted' || q?.status === 'Approved') || lead.quotations[lead.quotations.length - 1]
     : null;
   const isAcceptedQuoteStatus = (status) => ['accepted', 'approved', 'converted', 'signed & accepted'].includes(String(status || '').toLowerCase());
   const quoteBadge = isQuotationsTab
@@ -268,7 +269,7 @@ export default function CRMScreen() {
   useRefreshOnFocus([queryKeys.crmLeads, queryKeys.crmUsers]);
 
   const flowCounts = useMemo(() => ({
-    leads: leads.filter((l) => l.status !== 'Lost').length,
+    leads: leads.length,
     follow_ups: leads.filter((l) => l.status !== 'Lost' && ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status)).length,
     site_visits: leads.filter((l) => l.status !== 'Lost' && (['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0))).length,
     requirement_design: leads.filter((l) => l.status !== 'Lost' && (['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0) || (l.clientRequirements && l.clientRequirements.length > 0))).length,
@@ -323,11 +324,12 @@ export default function CRMScreen() {
       return l.status === 'Lost';
     }
 
-    // Active stages strictly EXCLUDE Lost leads to prevent pipeline clutter
+    // All shows every lead, including lost and converted ones
+    if (activeFlowTab === 'leads') return true;
+
+    // Stage tabs exclude Lost leads to keep the pipeline clean
     if (l.status === 'Lost') return false;
 
-    // Active stage filters
-    if (activeFlowTab === 'leads') return true;
     if (activeFlowTab === 'follow_ups') return ['New Lead', 'Contacted', 'Meeting Scheduled'].includes(l.status);
     if (activeFlowTab === 'site_visits') return ['Under Site Visit', 'Measurement Done', 'Meeting Scheduled'].includes(l.status) || (l.siteMeasurements && Object.keys(l.siteMeasurements).length > 0);
     if (activeFlowTab === 'requirement_design') return ['Under Requirement', 'Requirement Completed'].includes(l.status) || (l.requirements && l.requirements.length > 0) || (l.clientRequirements && l.clientRequirements.length > 0);
@@ -540,7 +542,7 @@ export default function CRMScreen() {
               <View style={s.empty}>
                 <Ionicons name={activeFlowTab === 'lost_leads' ? 'shield-checkmark-outline' : 'people-outline'} size={44} color="#94A3B8" />
                 <Text style={s.emptyTitle}>
-                  {activeFlowTab === 'lost_leads' ? tr("No Lost Leads") : tr("No leads found")}
+                  {activeFlowTab === 'lost_leads' ? tr("No Lost Leads") : activeFlowTab === 'won_projects' ? tr("No converted leads yet") : tr("No leads found")}
                 </Text>
                 {activeFlowTab === 'lost_leads' && !activeFiltersCount && !searchQuery && (
                   <Text style={s.emptySub}>{tr("All leads in your workspace are active or won.")}</Text>
@@ -669,7 +671,7 @@ export default function CRMScreen() {
             )}
 
             {/* Add to <stage>: bring a lead in without access to the earlier tabs */}
-            {stageAdd && hasPermission(stageAdd.module, 'create') && (
+            {stageAdd && hasPermission(stageAdd.module, 'create') && stageCandidates.length > 0 && (
               <TouchableOpacity style={s.stageAddBtn} onPress={() => setIsStagePickerOpen(true)} activeOpacity={0.7}>
                 <Ionicons name="add-circle-outline" size={18} color="#2563EB" />
                 <Text style={s.stageAddText}>{tr(stageAdd.label)}</Text>
